@@ -25,7 +25,7 @@ export default function Sidebar() {
   return (
     <aside
       className="w-64 h-screen shadow-md p-5" // Eliminamos "text-white"
-      style={{ backgroundColor: "#e9f7eb" }} // Cambiamos el color de fondo
+      style={{ backgroundColor: "#b4debf" }} // Cambiamos el color de fondo
     >
       <h1 className="text-lg font-semibold mb-6 text-black">KajaMart</h1>
       <nav className="flex flex-col gap-2">
@@ -39,7 +39,7 @@ export default function Sidebar() {
                   : "text-gray-600 hover:bg-gray-200" // Ajustamos los colores del menú
               }
             `}
-            style={item.active ? { backgroundColor: "#B5F5CE" } : {}}
+            style={item.active ? { backgroundColor: "#cbf0d5ff" } : {}}
           >
             {item.icon}
             {item.name}
