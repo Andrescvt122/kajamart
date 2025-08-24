@@ -1,18 +1,18 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+
+import React from 'react';
+import Footer from './components/footerComponent'; // Importamos el componente Footer
+import './App.css'; // Si tienes estilos personalizados de la app
 
 function App() {
-
-
   return (
-    <>
-      <h1 class="text-3xl font-bold underline">
-    penesito
-    </h1>
-    </>
-  )
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-grow p-8" aria-hidden="true">
+        <h1>footer</h1>
+      </main>
+      <Footer />
+    </div>
+  );
 }
 
-export default App
+export default App;
