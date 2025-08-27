@@ -12,6 +12,8 @@ import {
   Trash2,
   HandCoins,
   Undo2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +22,7 @@ import logo from "../assets/logo.png";
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [activeItem, setActiveItem] = React.useState(0);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const menuItems = [
     { name: "Clientes", icon: <Users size={20} /> },
@@ -50,13 +53,9 @@ export default function Sidebar() {
     }
   };
 
-  // Variantes para animación inicial del nav
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08 },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
   };
 
   const itemVariants = {
@@ -65,10 +64,20 @@ export default function Sidebar() {
   };
 
   return (
-    <aside
-      className="w-64 h-screen shadow-md p-5 relative"
+    <motion.aside
+      animate={{ width: isCollapsed ? "80px" : "260px" }}
+      className="h-screen shadow-md p-5 relative flex flex-col"
       style={{ backgroundColor: "#b4debf" }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
     >
+      {/* Botón colapsar/expandir */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-6 bg-white rounded-full shadow-md p-1"
+      >
+        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
+
       {/* Logo con animación */}
       <motion.img
         src={logo}
@@ -79,7 +88,7 @@ export default function Sidebar() {
         transition={{ type: "spring", stiffness: 300 }}
       />
 
-      {/* Menú con animaciones */}
+      {/* Menú */}
       <motion.nav
         className="flex flex-col gap-2 relative"
         variants={containerVariants}
@@ -87,20 +96,17 @@ export default function Sidebar() {
         animate="visible"
       >
         {menuItems.map((item, i) => (
-          <motion.div
-            key={i}
-            variants={itemVariants}
-            className="relative"
-          >
+          <motion.div key={i} variants={itemVariants} className="relative">
             <button
               onClick={() => handleMenuClick(i)}
               className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10"
             >
               <div className="flex items-center gap-3">
                 {item.icon}
-                {item.name}
+                {/* Ocultar texto si está colapsado */}
+                {!isCollapsed && <span>{item.name}</span>}
               </div>
-              {item.submenu && (
+              {!isCollapsed && item.submenu && (
                 <span>
                   {openDropdown === i ? (
                     <ChevronUp size={20} />
@@ -128,7 +134,7 @@ export default function Sidebar() {
 
             {/* Submenú animado */}
             <AnimatePresence>
-              {item.submenu && openDropdown === i && (
+              {item.submenu && openDropdown === i && !isCollapsed && (
                 <motion.ul
                   key="dropdown"
                   initial={{ height: 0, opacity: 0 }}
@@ -154,6 +160,6 @@ export default function Sidebar() {
           </motion.div>
         ))}
       </motion.nav>
-    </aside>
+    </motion.aside>
   );
 }
