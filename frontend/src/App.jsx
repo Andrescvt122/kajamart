@@ -1,18 +1,35 @@
-// src/App.jsx
-
-import React from 'react';
+import React from "react";
+import {
+  ViewButton,
+  EditButton,
+  DeleteButton,
+  CancelButton,
+  SaveButton,
+  CloseButton,
+  DeleteTextButton,
+  EditTextButton,
+  ExportExcelButton,
+  ExportPDFButton
+} from "./shared/buttons.jsx";
 import Footer from './components/footerComponent'; // Importamos el componente Footer
-import './App.css'; // Si tienes estilos personalizados de la app
-
-function App() {
+// import './App.css'
+import Sidebar from './shared/sidebar.jsx';
+export default function App() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-grow p-8" aria-hidden="true">
-        <h1>footer</h1>
-      </main>
-      <Footer />
-    </div>
-  );
-}
 
-export default App;
+    <>
+    <Sidebar />
+    {/* <ViewButton />
+    <Footer />
+    <EditButton />
+    <DeleteButton />
+    <CancelButton />
+    <SaveButton />
+    <CloseButton />
+    <DeleteTextButton />
+    <EditTextButton />
+    <ExportExcelButton />
+    <ExportPDFButton /> */}
+    </>
+  )
+}
