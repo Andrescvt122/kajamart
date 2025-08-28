@@ -1,6 +1,6 @@
-@tailwind base;
+/* @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; */
 
 :root {
   font-family: 'Montserrat', sans-serif;
@@ -158,4 +158,4 @@ a:hover {
 }
 
 /* editar */
-.btn-editt
+/* .btn-editt */
