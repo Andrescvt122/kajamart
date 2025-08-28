@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   ViewButton,
@@ -12,6 +11,7 @@ import {
   ExportExcelButton,
   ExportPDFButton
 } from "./shared/buttons.jsx";
+import Footer from './components/footerComponent'; // Importamos el componente Footer
 // import './App.css'
 import Sidebar from './shared/sidebar.jsx';
 export default function App() {
@@ -20,6 +20,7 @@ export default function App() {
     <>
     <Sidebar />
     {/* <ViewButton />
+    <Footer />
     <EditButton />
     <DeleteButton />
     <CancelButton />
