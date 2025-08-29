@@ -1,4 +1,4 @@
-#root {
+/* #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -70,8 +70,4 @@
     transform: scale(1);
     opacity: 1;
   }
-}
-
-.animate-modalShow {
-  animation: modalShow 0.4s ease-out forwards;
 }
