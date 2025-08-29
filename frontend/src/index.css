@@ -1,6 +1,6 @@
-@tailwind base;
+/* @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; */
 
 :root {
   font-family: 'Montserrat', sans-serif;
@@ -16,6 +16,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+html, body, #root {
+  height: 100%;
+}
 
 html, body {
   margin: 0;
@@ -24,6 +27,7 @@ html, body {
   height: 100%;
   background-color: #f9fafb; /* mismo que bg-gray-50 */
   overflow-x: hidden; /* evita scroll lateral */
+
 }
 
 
@@ -135,6 +139,19 @@ a:hover {
   box-shadow: 0 4px 10px rgba(255, 255, 255,0.15);
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
 /* Guardar */
 .btn-save {
   background-color: #3a4c4f; /* mist */
@@ -160,7 +177,6 @@ a:hover {
 }
 
 /* editar */
-<<<<<<< HEAD
 .btn-edittext {
   background-color: #ff9f5b; /* ink */
   color: #ffffff;
@@ -394,6 +410,5 @@ button.bg-green-600:hover {
   z-index: 1;
   background-color: rgba(255,255,255,0.95);
 }
-=======
-.btn-editt
->>>>>>> 38339dc86a217011c4b612532c60de3cee37adab
+
+
