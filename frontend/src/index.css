@@ -1,16 +1,15 @@
-@tailwind base;
+ @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; 
 
 :root {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark; 
-  color: rgba(0, 0, 0, 0.87);
-  background-color: #ffffff;
-
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -160,7 +159,6 @@ a:hover {
 }
 
 /* editar */
-<<<<<<< HEAD
 .btn-edittext {
   background-color: #ff9f5b; /* ink */
   color: #ffffff;
@@ -215,7 +213,6 @@ a:hover {
 .btn-export-excel,
 .btn-export-pdf {
   border-radius: 6px;
-  border: 1px solid #343b45;
   padding: 0.5em 1.2em;
   font-size: 0.95em;
   font-weight: 600;
@@ -394,6 +391,179 @@ button.bg-green-600:hover {
   z-index: 1;
   background-color: rgba(255,255,255,0.95);
 }
-=======
-.btn-editt
->>>>>>> 38339dc86a217011c4b612532c60de3cee37adab
+
+
+button,
+.button-square,
+.btn-cancel,
+.btn-save,
+.btn-deletetext,
+.btn-edittext,
+.btn-close,
+.btn-export-excel,
+.btn-export-pdf {
+  border: none !important;
+}
+
+/* ===== Variables visuales ===== */
+:root{
+  --p-accent: #04a86f;       /* verde principal */
+  --p-accent-dark: #047857;
+  --p-bg: rgba(255,255,255,0.06);
+  --p-border: rgba(4,168,111,0.12);
+  --p-text: #0b1220;
+  --p-muted: #6b7280;
+  --p-glow: 0 6px 18px rgba(4,168,111,0.12);
+  --p-radius: 12px;
+  --p-font: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* ===== Contenedor general del paginador (glass card) ===== */
+.paginator.glass {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--p-radius);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  border: 1px solid var(--p-border);
+  box-shadow: var(--p-glow), 0 4px 12px rgba(2,6,23,0.16);
+  backdrop-filter: blur(6px) saturate(120%);
+  color: var(--p-text);
+  font-family: var(--p-font);
+  font-size: 0.95rem;
+}
+
+/* info (izq) */
+.paginator-info {
+  font-size: 0.9rem;
+  color: #ffffff; /* blanco */
+}
+
+
+.paginator-range {
+  color: var(--p-text);
+  font-size: 0.92rem;
+}
+
+.p-strong {
+  font-weight: 600;
+  color: var(--p-accent-dark);
+}
+
+/* versión pequeña visible en móviles (mostramos "Página X / Y") */
+.paginator-smpage {
+  display: none;
+  font-size: 0.82rem;
+  color: var(--p-muted);
+}
+
+/* nav (der) */
+.paginator-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* lista de páginas */
+.page-list {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+/* botón base */
+.p-btn {
+  border: none;
+  background: white;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(2,6,23,0.06);
+  transition: transform .14s ease, box-shadow .14s ease, background-color .14s ease, color .14s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* botones prev/next más neutros */
+.p-btn.p-nav {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(180deg,#ffffff,#f7f7f7);
+  color: var(--p-text);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(8,12,20,0.08);
+}
+
+/* hover / focus */
+.p-btn:hover:not(:disabled),
+.p-btn:focus {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(2,6,23,0.12);
+  outline: none;
+}
+
+/* disabled */
+.p-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* botones de número (página) */
+.p-btn.p-page {
+  background: linear-gradient(180deg,#ffffff,#fbfbfb);
+  color: #374151;
+  font-size: 0.9rem;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,0.04);
+  min-width: 40px;
+}
+
+/* hover de números */
+.p-btn.p-page:hover:not(.active) {
+  background: linear-gradient(180deg,#f3f4f6,#eef2f7);
+  color: #0f172a;
+}
+
+/* estado activo */
+.p-btn.p-page.active {
+  background: linear-gradient(180deg, rgba(4,168,111,0.14), rgba(4,168,111,0.06));
+  color: var(--p-accent-dark);
+  box-shadow: 0 8px 30px rgba(4,168,111,0.12), 0 2px 8px rgba(2,6,23,0.06);
+  transform: translateY(-2px);
+}
+
+/* pequeña elipsis */
+.p-ellipsis {
+  padding: 0 6px;
+  color: var(--p-muted);
+  font-weight: 600;
+}
+
+/* ===== Responsive: en pantallas pequeñas mostramos menos botones ===== */
+@media (max-width: 720px) {
+  .page-list { display: none; } /* ocultamos lista de páginas en móvil */
+  .paginator-range { display: none; }
+  .paginator-smpage { display: block; } /* mostramos "Página X / Y" */
+  .paginator.glass { padding: 0.45rem; gap: 0.5rem; }
+  .p-btn.p-nav { width: 44px; height: 44px; }
+}
+
+/* ===== Opcional: modo oscuro/invertido (si tu fondo es oscuro) =====
+   Si quieres que el paginador se vea mejor sobre fondo oscuro, añade la clase .dark
+   en el contenedor padre (por ejemplo <div className="dark">...). */
+.paginator.dark {
+  --p-accent: #6ef3b0;
+  --p-accent-dark: #00a96f;
+  --p-bg: rgba(7,12,10,0.24);
+  --p-border: rgba(110,243,176,0.12);
+  color: #e6f7ef;
+}
