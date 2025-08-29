@@ -1,6 +1,12 @@
+<<<<<<< HEAD
  @tailwind base;
 @tailwind components;
 @tailwind utilities; 
+=======
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
+>>>>>>> 34aac0987b902bd9031e7866604fbe83fc5f5ca0
 
 :root {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -15,6 +21,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+html, body, #root {
+  height: 100%;
+}
 
 html, body {
   margin: 0;
@@ -23,6 +32,7 @@ html, body {
   height: 100%;
   background-color: #f9fafb; /* mismo que bg-gray-50 */
   overflow-x: hidden; /* evita scroll lateral */
+
 }
 
 
@@ -132,6 +142,19 @@ a:hover {
   border-color: #ffffff;
   transform: scale(1.05);
   box-shadow: 0 4px 10px rgba(255, 255, 255,0.15);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
 }
 
 /* Guardar */
@@ -393,6 +416,7 @@ button.bg-green-600:hover {
 }
 
 
+<<<<<<< HEAD
 button,
 .button-square,
 .btn-cancel,
