@@ -1,12 +1,6 @@
-<<<<<<< HEAD
- @tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities; 
-=======
-/* @tailwind base;
-@tailwind components;
-@tailwind utilities; */
->>>>>>> 34aac0987b902bd9031e7866604fbe83fc5f5ca0
 
 :root {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -415,20 +409,6 @@ button.bg-green-600:hover {
   background-color: rgba(255,255,255,0.95);
 }
 
-
-<<<<<<< HEAD
-button,
-.button-square,
-.btn-cancel,
-.btn-save,
-.btn-deletetext,
-.btn-edittext,
-.btn-close,
-.btn-export-excel,
-.btn-export-pdf {
-  border: none !important;
-}
-
 /* ===== Variables visuales ===== */
 :root{
   --p-accent: #04a86f;       /* verde principal */
@@ -590,4 +570,35 @@ button,
   --p-bg: rgba(7,12,10,0.24);
   --p-border: rgba(110,243,176,0.12);
   color: #e6f7ef;
+}
+
+
+.menu-btn {
+  background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+  transition: all 0.25s ease;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+}
+
+.menu-btn:hover {
+  background: rgba(255,255,255,0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.menu-btn.active {
+  background: rgba(255,255,255,0.35);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+}
+
+button,
+.button-square,
+.btn-cancel,
+.btn-save,
+.btn-deletetext,
+.btn-edittext,
+.btn-close,
+.btn-export-excel,
+.btn-export-pdf {
+  border: none !important;
 }
