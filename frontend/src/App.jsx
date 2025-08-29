@@ -1,41 +1,15 @@
-import React from "react";
-import {
-  ViewButton,
-  EditButton,
-  DeleteButton,
-  CancelButton,
-  SaveButton,
-  CloseButton,
-  DeleteTextButton,
-  EditTextButton,
-  ExportExcelButton,
-  ExportPDFButton
-
-} from "./shared/buttons";
+import { Routes, Route, Link } from 'react-router-dom'
+import IndexSuppliers from './features/suppliers/indexSuppliers.jsx'
 
 export default function App() {
   return (
-    <div className="flex flex-col items-center gap-6 p-6">
-      <div className="flex gap-4">
-        <ViewButton />
-        <EditButton />
-        <DeleteButton />
-      </div>
+    <>
+      
 
-      <div className="flex gap-4">
-        <CancelButton />
-        <SaveButton />
-        <DeleteTextButton />
-        <EditTextButton />
-      </div>
-
-      <div className="mt-4">
-        <CloseButton />
-      </div>
-      <div className="flex gap-4">
-        <ExportExcelButton />
-        <ExportPDFButton />
-    </div>
-    </div>
-  );
+      <Routes>
+        <Route path="/" element={<h1>Bienvenido a YarcestaHot 🚀</h1>} />
+        <Route path="/suppliers" element={<IndexSuppliers />} />
+      </Routes>
+    </>
+  )
 }
