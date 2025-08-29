@@ -9,6 +9,7 @@ import {
 } from "../../shared/buttons";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
+import Paginator from "../../shared/paginator";
 
 export default function IndexSuppliers() {
   const [suppliers] = useState([
@@ -156,44 +157,14 @@ export default function IndexSuppliers() {
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-6">
-            <div className="text-sm text-white">
-              Mostrando <span className="font-medium">{(currentPage - 1) * perPage + 1}</span> -{" "}
-              <span className="font-medium">{Math.min(currentPage * perPage, filtered.length)}</span> de{" "}
-              <span className="font-medium">{filtered.length}</span>
-            </div>
-
-            <nav className="flex items-center gap-2">
-              <button
-                className="p-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                ‹
-              </button>
-
-              {Array.from({ length: totalPages }, (_, idx) => idx + 1).slice(0, 7).map((p) => (
-                <button
-                  key={p}
-                  className={`px-3 py-1 rounded-full border ${
-                    p === currentPage ? "bg-green-100 text-green-700 border-green-200" : "bg-white text-gray-700 border-gray-200"
-                  }`}
-                  onClick={() => goToPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-
-              <button
-                className="p-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                ›
-              </button>
-            </nav>
-          </div>
+          {/* Paginador - componente separado */}
+          <Paginator
+            currentPage={currentPage}
+            perPage={perPage}
+            totalPages={totalPages}
+            filteredLength={filtered.length}
+            goToPage={goToPage}
+          />
         </div>
       </div>
     </div>
