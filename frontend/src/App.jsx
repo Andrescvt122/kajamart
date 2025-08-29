@@ -1,35 +1,13 @@
-import React from "react";
-import{
-  ViewButton,
-  EditButton,
-  DeleteButton,
-  CancelButton,
-  SaveButton,
-  CloseButton,
-  DeleteTextButton,
-  EditTextButton,
-  ExportExcelButton,
-  ExportPDFButton
-} from "./shared/buttons.jsx";
-import Footer from './components/footerComponent'; // Importamos el componente Footer
-// import './App.css'
-import Sidebar from './shared/sidebar.jsx';
+import { Routes, Route, Link } from 'react-router-dom'
+import IndexSuppliers from './features/suppliers/indexSuppliers.jsx'
+
 export default function App() {
   return (
-
     <>
-    <Sidebar />
-    {/* <ViewButton />
-    <Footer />
-    <EditButton />
-    <DeleteButton />
-    <CancelButton />
-    <SaveButton />
-    <CloseButton />
-    <DeleteTextButton />
-    <EditTextButton />
-    <ExportExcelButton />
-    <ExportPDFButton /> */}
+      <Routes>
+        <Route path="/" element={<h1>Bienvenido a YarcestaHot 🚀</h1>} />
+        <Route path="/suppliers" element={<IndexSuppliers />} />
+      </Routes>
     </>
   )
-}
+
