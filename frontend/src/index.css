@@ -409,6 +409,18 @@ button.bg-green-600:hover {
   background-color: rgba(255,255,255,0.95);
 }
 
+
+button,
+.button-square,
+.btn-cancel,
+.btn-save,
+.btn-deletetext,
+.btn-edittext,
+.btn-close,
+.btn-export-excel,
+.btn-export-pdf {
+  border: none !important;
+}
 /* ===== Variables visuales ===== */
 :root{
   --p-accent: #04a86f;       /* verde principal */
@@ -477,6 +489,7 @@ button.bg-green-600:hover {
   align-items: center;
 }
 
+
 /* botón base */
 .p-btn {
   border: none;
@@ -511,6 +524,7 @@ button.bg-green-600:hover {
   box-shadow: 0 12px 26px rgba(2,6,23,0.12);
   outline: none;
 }
+
 
 /* disabled */
 .p-btn:disabled {
@@ -571,6 +585,7 @@ button.bg-green-600:hover {
   --p-border: rgba(110,243,176,0.12);
   color: #e6f7ef;
 }
+
 
 
 .menu-btn {
