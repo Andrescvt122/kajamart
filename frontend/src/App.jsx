@@ -4,11 +4,10 @@ import Sidebar from './shared/sidebar.jsx'
 
 export default function App() {
   return (
-    <>
       <Routes>
         <Route path="/" element={<Sidebar/>} />
         <Route path="/suppliers" element={<IndexSuppliers />} />
       </Routes>
-    </>
   )
 }
+

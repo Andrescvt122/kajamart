@@ -32,8 +32,11 @@ export default function IndexSuppliers() {
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return suppliers;
+  
     return suppliers.filter((p) =>
-      `${p.nit} ${p.nombre} ${p.contacto} ${p.telefono} ${p.categoria}`.toLowerCase().includes(s)
+      Object.values(p).some((value) =>
+        String(value).toLowerCase().includes(s)
+      )
     );
   }, [suppliers, searchTerm]);
 
@@ -89,10 +92,11 @@ export default function IndexSuppliers() {
                 placeholder="Buscar proveedores..."
                 value={searchTerm}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                setSearchTerm(e.target.value);
+                 setCurrentPage(1);
+               }}
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
               />
             </div>
 
