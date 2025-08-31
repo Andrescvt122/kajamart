@@ -53,9 +53,6 @@ export default function IndexClientReturns() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <Sidebar />
-
       {/* Contenido principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
         {/* Fondo de ondas solo en la mitad inferior */}

@@ -1,15 +1,20 @@
-import { Routes, Route, Link } from 'react-router-dom'
-import IndexSuppliers from './features/suppliers/indexSuppliers.jsx'
-import Sidebar from './shared/sidebar.jsx'
-import IndexClientReturns from './features/returns/indexClientReturns.jsx'
+import { Routes, Route } from "react-router-dom";
+import IndexSuppliers from "./features/suppliers/indexSuppliers.jsx";
+// import IndexCategories from "./features/Categories/indexCategories.jsx";
+import Sidebar from "./shared/sidebar.jsx";
 
 export default function App() {
   return (
-      <Routes>
-        <Route path="/" element={<Sidebar/>} />
-        <Route path="/suppliers" element={<IndexSuppliers />} />
-        <Route path='/returns/clients' element={<IndexClientReturns/>} />
-      </Routes>
-  )
-}
+    <div className="flex min-h-screen">
+      <Sidebar /> {/* <- fijo, siempre cargado */}
 
+      <div className="flex-1">
+        <Routes>
+          <Route path="/suppliers" element={<IndexSuppliers />} />
+          {/* <Route path="/categories" element={<IndexCategories />} /> */}
+          <Route path="/" element={<h1 className="p-8">Inicio</h1>} />
+        </Routes>
+      </div>
+ </div>
+);
+}
