@@ -19,6 +19,8 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
+import ondas from "../assets/ondasVertical.jpg";
+
 
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
@@ -59,25 +61,37 @@ export default function Sidebar() {
     <motion.aside
       animate={{ width: isCollapsed ? "80px" : "260px" }}
       className="min-h-screen flex flex-col shadow-md relative"
-      style={{ backgroundColor: "#b4debf" }}
+      style={{
+        backgroundImage: `linear-gradient(to bottom, rgba(180,222,191,0.95), rgba(180,222,191,0.8)), url(${ondas})`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "bottom center",
+        backgroundSize: "cover",
+        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)", // profundidad lateral
+      }}
+      
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Botón colapsar/expandir */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-5 bg-white rounded-full shadow-md p-1 z-20"
+        className="absolute -right-3 top-5 rounded-full shadow-md p-1 z-20"
+       style={{
+        background: "linear-gradient(135deg, #047857, #10b981)",
+        color: "#ffffff",
+       }}
       >
-        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-      </button>
+  {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+</button>
 
       {/* Logo */}
       <motion.img
         src={logo}
         alt="Logo"
-        className="w-20 mt-5 mb-6 mx-auto flex-shrink-0 cursor-pointer"
-        whileHover={{ scale: 1.2 }}
-        whileTap={{ scale: 0.8 }}
-        transition={{ type: "spring", stiffness: 300 }}
+        className="w-24 mt-6 mb-8 mx-auto flex-shrink-0 cursor-pointer"
+        whileHover={{ scale: 1.25, boxShadow: "0 0 20px rgba(255,255,255,0.6)" }}
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
       />
 
       {/* Menú */}
@@ -97,7 +111,7 @@ export default function Sidebar() {
               {item.submenu ? (
                 <button
                   onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
-                  className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10"
+                 className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 text-black"
                 >
                   <div className="flex items-center gap-3">
                     {item.icon}
@@ -139,13 +153,13 @@ export default function Sidebar() {
               <AnimatePresence>
                 {item.submenu && openDropdown === i && !isCollapsed && (
                   <motion.ul
-                    key="dropdown"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="ml-4 mt-1 p-2 rounded-lg bg-[#b4debf] shadow-md border border-[#a7d4b1] flex flex-col gap-2 overflow-hidden"
-                  >
+                  key="dropdown"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden shadow-inner"
+                >
                     {item.submenu.map((subItem, j) => (
                       <li key={j}>
                         <Link
