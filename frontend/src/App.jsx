@@ -2,6 +2,8 @@
 import { Routes, Route } from "react-router-dom";
 import IndexSuppliers from "./features/suppliers/indexSuppliers.jsx";
 import IndexCategories from "./features/Categories/indexCategories.jsx";
+import IndexUsers from "./features/users/indexUsers.jsx";
+import IndexRoles from "./features/roles/indexRoles.jsx";
 import Sidebar from "./shared/sidebar.jsx";
 
 export default function App() {
@@ -13,6 +15,8 @@ export default function App() {
         <Routes>
           <Route path="/suppliers" element={<IndexSuppliers />} />
           <Route path="/categories" element={<IndexCategories />} />
+          <Route path="/users" element={<IndexUsers />} />
+          <Route path="/roles" element={<IndexRoles />} />
           <Route path="/" element={<h1 className="p-8">Inicio</h1>} />
         </Routes>
       </div>

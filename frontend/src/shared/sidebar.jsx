@@ -14,6 +14,7 @@ import {
   Undo2,
   ChevronLeft,
   ChevronRight,
+  ArrowLeftToLine,
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,7 +45,9 @@ export default function Sidebar() {
     { name: "Proveedores", icon: <Truck size={20} />, path: "/suppliers" },
     { name: "Compras", icon: <ShoppingCart size={20} />, path: "/purchases" },
     { name: "Usuarios", icon: <Users size={20} />, path: "/users" },
+    { name: "Roles", icon: <Users size={20} />, path: "/roles" },
     { name: "Configuración", icon: <Settings size={20} />, path: "/settings" },
+    { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/login" },
   ];
 
   const containerVariants = {
