@@ -172,14 +172,14 @@ export default function IndexClientReturns() {
                 ) : (
                   pageItems.map((s, i) => (
                     <motion.tr
-                      key={s.nit + "-" + i}
+                      key={s.idReturn + "-" + i}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
                       <td className="px-6 py-4 align-top text-sm text-gray-600">
                         {s.idReturn}
                       </td>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-600">
                         {s.idSale}
                       </td>
                       <td className="px-6 py-4 align-top text-sm text-green-700">
