@@ -9,7 +9,8 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { motion } from "framer-motion"; // 👈 importamos framer-motion
+import { motion } from "framer-motion"; 
+import { showInfoAlert, showInputAlert, showLoadingAlert } from "../../shared/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -194,34 +195,44 @@ export default function IndexCategories() {
                     <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                       {s.categoria}
                     </td>
-                    <td className="px-6 py-4 align-top text-sm text-green-700">
-                      {s.productos.join(", ")}
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      {s.estado === "Activo" ? (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                          Inactivo
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 align-top text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <ViewButton />
-                        <EditButton />
-                        <DeleteButton />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </motion.tbody>
-          </table>
-        </motion.div>
-
+                  </tr>
+                ) : (
+                  pageItems.map((s, i) => (
+                    <motion.tr
+                      key={s.categoria + "-" + i}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                        {s.categoria}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-green-700">
+                        {s.productos.join(", ")}
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        {s.estado === "Activo" ? (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 align-top text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <ViewButton alert={()=>{showInfoAlert("hola")}}/>
+                          <EditButton alert={()=>{showLoadingAlert("hola")}}/>
+                          <DeleteButton alert={()=>{showInputAlert("hola")}}/>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </motion.tbody>
+            </table>
+          </motion.div>
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}

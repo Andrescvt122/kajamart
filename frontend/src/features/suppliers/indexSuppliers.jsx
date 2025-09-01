@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
@@ -9,90 +10,20 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { motion } from "framer-motion"; // 👈 Animaciones
-
+import { motion } from "framer-motion";
+import { showErrorAlert, showInfoAlert, showSuccessAlert, showWarningAlert } from "../../shared/alerts.jsx";
 export default function IndexSuppliers() {
   const [suppliers] = useState([
-    {
-      nit: "123",
-      nombre: "Global Foods Inc.",
-      contacto: "Sophia Bennett",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "124",
-      nombre: "Fresh Produce Co.",
-      contacto: "Liam Harper",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "125",
-      nombre: "Beverage Distributors",
-      contacto: "Olivia Hayes",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "126",
-      nombre: "Dairy Delights",
-      contacto: "Noah Carter",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "127",
-      nombre: "Meat Masters",
-      contacto: "Ava Foster",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "128",
-      nombre: "Snack Sensations",
-      contacto: "Jackson Reed",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Inactivo",
-    },
-    {
-      nit: "129",
-      nombre: "Organic Origins",
-      contacto: "Isabella Morgan",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "130",
-      nombre: "Frozen Foods Ltd.",
-      contacto: "Lucas Bennett",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "131",
-      nombre: "Bakery Bliss",
-      contacto: "Mia Collins",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Inactivo",
-    },
-    {
-      nit: "132",
-      nombre: "Candy Kingdom",
-      contacto: "Owen Parker",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
+    { nit: "123", nombre: "Global Foods.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "124", nombre: "Fresh Produce Co.", contacto: "Liam Harper", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "125", nombre: "Beverage Distributors", contacto: "Olivia Hayes", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "126", nombre: "Dairy Delights", contacto: "Noah Carter", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "127", nombre: "Meat Masters", contacto: "Ava Foster", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "128", nombre: "Snack Sensations", contacto: "Jackson Reed", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "129", nombre: "Organic Origins", contacto: "Isabella Morgan", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "130", nombre: "Frozen Foods Ltd.", contacto: "Lucas Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "131", nombre: "Bakery Bliss", contacto: "Mia Collins", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "132", nombre: "Candy Kingdom", contacto: "Owen Parker", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -142,19 +73,21 @@ export default function IndexSuppliers() {
   };
 
   return (
-    <>
-      {/* Fondo de ondas */}
-      <div
-        className="absolute bottom-0 left-0 w-full pointer-events-none"
-        style={{
-          height: "50%",
-          backgroundImage: `url(${ondas})`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center bottom",
-          backgroundSize: "cover",
-          zIndex: 0,
-        }}
-      />
+    <div className="flex min-h-screen">
+      {/* Contenido principal */}
+      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+        {/* Fondo de ondas */}
+        <div
+          className="absolute bottom-0 left-0 w-full pointer-events-none"
+          style={{
+            height: "50%", // Solo mitad inferior
+            backgroundImage: `url(${ondas})`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center bottom",
+            backgroundSize: "cover",
+            zIndex: 0,
+          }}
+        />
 
       <div className="relative z-10">
         {/* Header */}
@@ -166,12 +99,22 @@ export default function IndexSuppliers() {
             </p>
           </div>
         </div>
-
-        {/* Barra de búsqueda */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={20} className="text-gray-400" />
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={20} className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar proveedores..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
+              />
             </div>
             <input
               type="text"
@@ -243,40 +186,53 @@ export default function IndexSuppliers() {
                     <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                       {s.nombre}
                     </td>
-                    <td className="px-6 py-4 align-top text-sm text-green-700">
-                      {s.contacto}
-                    </td>
-                    <td className="px-6 py-4 align-top text-sm text-gray-600">
-                      {s.telefono}
-                    </td>
-                    <td className="px-6 py-4 align-top text-sm text-gray-600">
-                      {s.categoria}
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      {s.estado === "Activo" ? (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                          Inactivo
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 align-top text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <ViewButton />
-                        <EditButton />
-                        <DeleteButton />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </motion.tbody>
-          </table>
-        </motion.div>
-
+                  </tr>
+                ) : (
+                  pageItems.map((s, i) => (
+                    <motion.tr
+                      key={s.nit + "-" + i}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.nit}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                        {s.nombre}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-green-700">
+                        {s.contacto}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.telefono}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.categoria}
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        {s.estado === "Activo" ? (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 align-top text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <ViewButton alert={()=>{showWarningAlert("hola")}} />
+                          <EditButton alert={()=>{showInfoAlert("hola")}} />
+                          <DeleteButton alert={()=>{showErrorAlert("hola")}} />
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </motion.tbody>
+            </table>
+          </motion.div>
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}

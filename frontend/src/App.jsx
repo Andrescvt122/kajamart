@@ -1,6 +1,10 @@
 // App.jsx
 import { Routes, Route } from "react-router-dom";
 import IndexSuppliers from "./features/suppliers/indexSuppliers.jsx";
+import IndexCategories from "./features/Categories/indexCategories.jsx";
+import Sidebar from "./shared/sidebar.jsx";
+import IndexClientReturns from "./features/returns/indexClientReturns.jsx";
+import RoutesAdmin from "./routes.jsx";
 import IndexCategories from "./features/categories/indexCategories.jsx";
 import IndexUsers from "./features/users/indexUsers.jsx";
 import IndexRoles from "./features/roles/indexRoles.jsx";
@@ -26,7 +30,10 @@ export default function App() {
       <Route path="/" element={<AuthLayout />}>
         <Route index element={<Login />} />
       </Route>
-
+      <div className="flex-1">
+      <RoutesAdmin/>
+      </div>
+    </div>
       {/* --- Grupo de Rutas Principales (CON Sidebar) --- */}
       <Route path="/app" element={<MainLayout />}>
         <Route index element={<h1 className="p-8">Inicio</h1>} />
