@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeftToLine,
+  Home,
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,32 +23,32 @@ import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import ondas from "../assets/ondasVertical.jpg";
 
-
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
 
   const menuItems = [
-    { name: "Clientes", icon: <Users size={20} />, path: "/clients" },
-    { name: "Ventas", icon: <DollarSign size={20} />, path: "/sales" },
-    { name: "Categorias", icon: <List size={20} />, path: "/categories" },
-    { name: "Productos", icon: <Box size={20} />, path: "/products" },
+    { name: "Inicio", icon: <Home size={20} />, path: "/app" },
+    { name: "Clientes", icon: <Users size={20} />, path: "/app/clients" },
+    { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
+    { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
+    { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
     {
       name: "Devoluciones/baja",
       icon: <RotateCcw size={20} />,
       submenu: [
-        { name: "Devoluciones de productos", icon: <Undo2 size={17} />, path: "/returns/products" },
-        { name: "Devoluciones de clientes", icon: <HandCoins size={17} />, path: "/returns/clients" },
-        { name: "Baja de productos", icon: <Trash2 size={17} />, path: "/returns/low" },
+        { name: "Devoluciones de productos", icon: <Undo2 size={17} />, path: "/app/returns/products" },
+        { name: "Devoluciones de clientes", icon: <HandCoins size={17} />, path: "/app/returns/clients" },
+        { name: "Baja de productos", icon: <Trash2 size={17} />, path: "/app/returns/low" },
       ],
     },
-    { name: "Proveedores", icon: <Truck size={20} />, path: "/suppliers" },
-    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/purchases" },
-    { name: "Usuarios", icon: <Users size={20} />, path: "/users" },
-    { name: "Roles", icon: <Users size={20} />, path: "/roles" },
-    { name: "Configuración", icon: <Settings size={20} />, path: "/settings" },
-    { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/login" },
+    { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
+    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
+    { name: "Usuarios", icon: <Users size={20} />, path: "/app/users" },
+    { name: "Roles", icon: <Users size={20} />, path: "/app/roles" },
+    { name: "Configuración", icon: <Settings size={20} />, path: "/app/settings" },
+    { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
   ];
 
   const containerVariants = {
@@ -105,9 +106,9 @@ export default function Sidebar() {
         animate="visible"
       >
         {menuItems.map((item, i) => {
-          let isActive = item.submenu
-            ? item.submenu.some((sub) => location.pathname.startsWith(sub.path))
-            : location.pathname.startsWith(item.path || "");
+          const isActive = item.submenu
+            ? item.submenu.some((sub) => location.pathname === sub.path)
+            : location.pathname === item.path;
 
           return (
             <motion.div key={i} variants={itemVariants} className="relative">
@@ -123,17 +124,16 @@ export default function Sidebar() {
                   {!isCollapsed && (openDropdown === i ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
                 </button>
               ) : (
-                <Link to={item.path}>
-                  <button
-                    className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 ${
-                      isActive ? "text-black" : "text-gray-700 hover:text-black"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      {!isCollapsed && <span>{item.name}</span>}
-                    </div>
-                  </button>
+                <Link
+                  to={item.path}
+                  className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 ${
+                    isActive ? "text-black" : "text-gray-700 hover:text-black"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {item.icon}
+                    {!isCollapsed && <span>{item.name}</span>}
+                  </div>
                 </Link>
               )}
 
@@ -163,17 +163,22 @@ export default function Sidebar() {
                   transition={{ duration: 0.3, ease: "easeInOut" }}
                   className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden shadow-inner"
                 >
-                    {item.submenu.map((subItem, j) => (
-                      <li key={j}>
-                        <Link
-                          to={subItem.path}
-                          className="flex items-center gap-2 text-gray-700 hover:text-black text-sm"
-                        >
-                          {subItem.icon}
-                          {subItem.name}
-                        </Link>
-                      </li>
-                    ))}
+                    {item.submenu.map((subItem, j) => {
+                      const isSubActive = location.pathname === subItem.path;
+                      return (
+                        <li key={j}>
+                          <Link
+                            to={subItem.path}
+                            className={`flex items-center gap-2 text-sm ${
+                              isSubActive ? "text-black" : "text-gray-700 hover:text-black"
+                            }`}
+                          >
+                            {subItem.icon}
+                            {subItem.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </motion.ul>
                 )}
               </AnimatePresence>
