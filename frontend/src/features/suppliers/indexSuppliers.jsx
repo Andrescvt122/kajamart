@@ -15,11 +15,11 @@ import { showErrorAlert, showInfoAlert, showSuccessAlert, showWarningAlert } fro
 export default function IndexSuppliers() {
   const [suppliers] = useState([
     { nit: "123", nombre: "Global Foods.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
-    { nit: "124", nombre: "Fresh Produce Co.", contacto: "Liam Harper", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "124", nombre: "Fresh Produce Co.", contacto: "Liam Harper", telefono: "123456789", categoria: "categoria 1", estado: "Inactivo" },
     { nit: "125", nombre: "Beverage Distributors", contacto: "Olivia Hayes", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "126", nombre: "Dairy Delights", contacto: "Noah Carter", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "127", nombre: "Meat Masters", contacto: "Ava Foster", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
-    { nit: "128", nombre: "Snack Sensations", contacto: "Jackson Reed", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "128", nombre: "Snack Sensations", contacto: "Jackson Reed", telefono: "123456789", categoria: "categoria 1", estado: "Inactivo" },
     { nit: "129", nombre: "Organic Origins", contacto: "Isabella Morgan", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "130", nombre: "Frozen Foods Ltd.", contacto: "Lucas Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "131", nombre: "Bakery Bliss", contacto: "Mia Collins", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
