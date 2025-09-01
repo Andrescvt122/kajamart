@@ -11,6 +11,7 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion } from "framer-motion";
+import { showConfirmAlert } from "../../shared/alerts";
 export default function IndexClientReturns() {
   const [returns] = useState([
     {idReturn: 1, idSale: 1, dateReturn: "2023-10-01", client: "Juan Perez", reason: "Producto defectuoso", typeReturn: "Reembolso del dinero", total: 5000},
@@ -201,7 +202,7 @@ export default function IndexClientReturns() {
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton />
+                          <ViewButton alert={()=>{showConfirmAlert("hola")}} />
                         </div>
                       </td>
                     </motion.tr>

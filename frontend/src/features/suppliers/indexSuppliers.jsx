@@ -11,9 +11,10 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion } from "framer-motion";
+import { showErrorAlert, showInfoAlert, showSuccessAlert, showWarningAlert } from "../../shared/alerts.jsx";
 export default function IndexSuppliers() {
   const [suppliers] = useState([
-    { nit: "123", nombre: "Global Foods Inc.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
+    { nit: "123", nombre: "Global Foods.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "124", nombre: "Fresh Produce Co.", contacto: "Liam Harper", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "125", nombre: "Beverage Distributors", contacto: "Olivia Hayes", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
     { nit: "126", nombre: "Dairy Delights", contacto: "Noah Carter", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
@@ -198,9 +199,9 @@ export default function IndexSuppliers() {
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton />
-                          <EditButton />
-                          <DeleteButton />
+                          <ViewButton alert={()=>{showWarningAlert("hola")}} />
+                          <EditButton alert={()=>{showInfoAlert("hola")}} />
+                          <DeleteButton alert={()=>{showErrorAlert("hola")}} />
                         </div>
                       </td>
                     </motion.tr>

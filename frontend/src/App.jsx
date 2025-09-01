@@ -4,6 +4,7 @@ import IndexSuppliers from "./features/suppliers/indexSuppliers.jsx";
 import IndexCategories from "./features/Categories/indexCategories.jsx";
 import Sidebar from "./shared/sidebar.jsx";
 import IndexClientReturns from "./features/returns/indexClientReturns.jsx";
+import RoutesAdmin from "./routes.jsx";
 
 export default function App() {
   return (
@@ -11,12 +12,7 @@ export default function App() {
       <Sidebar /> {/* <- fijo, siempre cargado */}
 
       <div className="flex-1">
-        <Routes>
-          <Route path="/suppliers" element={<IndexSuppliers />} />
-          <Route path="/categories" element={<IndexCategories />} />
-          <Route path="/returns/clients" element={<IndexClientReturns />} />
-          <Route path="/" element={<h1 className="p-8">Inicio</h1>} />
-        </Routes>
+      <RoutesAdmin/>
       </div>
     </div>
   );

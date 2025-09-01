@@ -10,6 +10,7 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion } from "framer-motion"; 
+import { showInfoAlert, showInputAlert, showLoadingAlert } from "../../shared/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -212,9 +213,9 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton />
-                          <EditButton />
-                          <DeleteButton />
+                          <ViewButton alert={()=>{showInfoAlert("hola")}}/>
+                          <EditButton alert={()=>{showLoadingAlert("hola")}}/>
+                          <DeleteButton alert={()=>{showInputAlert("hola")}}/>
                         </div>
                       </td>
                     </motion.tr>
