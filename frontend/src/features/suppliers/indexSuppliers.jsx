@@ -88,7 +88,6 @@
               zIndex: 0,
             }}
           />
-
           <div className="relative z-10">
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
