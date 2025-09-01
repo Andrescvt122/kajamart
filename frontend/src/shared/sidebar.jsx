@@ -21,7 +21,6 @@ import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import ondas from "../assets/ondasVertical.jpg";
 
-
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -36,9 +35,21 @@ export default function Sidebar() {
       name: "Devoluciones/baja",
       icon: <RotateCcw size={20} />,
       submenu: [
-        { name: "Devoluciones de productos", icon: <Undo2 size={17} />, path: "/returns/products" },
-        { name: "Devoluciones de clientes", icon: <HandCoins size={17} />, path: "/returns/clients" },
-        { name: "Baja de productos", icon: <Trash2 size={17} />, path: "/returns/low" },
+        {
+          name: "Devoluciones de productos",
+          icon: <Undo2 size={17} />,
+          path: "/returns/products",
+        },
+        {
+          name: "Devoluciones de clientes",
+          icon: <HandCoins size={17} />,
+          path: "/returns/clients",
+        },
+        {
+          name: "Baja de productos",
+          icon: <Trash2 size={17} />,
+          path: "/returns/low",
+        },
       ],
     },
     { name: "Proveedores", icon: <Truck size={20} />, path: "/suppliers" },
@@ -68,31 +79,67 @@ export default function Sidebar() {
         backgroundSize: "cover",
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)", // profundidad lateral
       }}
-      
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Botón colapsar/expandir */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-5 rounded-full shadow-md p-1 z-20"
-       style={{
-        background: "linear-gradient(135deg, #047857, #10b981)",
-        color: "#ffffff",
-       }}
+        style={{
+          background: "linear-gradient(135deg, #047857, #10b981)",
+          color: "#ffffff",
+        }}
       >
-  {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-</button>
+        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
 
       {/* Logo */}
       <motion.img
-        src={logo}
-        alt="Logo"
-        className="w-24 mt-6 mb-8 mx-auto flex-shrink-0 cursor-pointer"
-        whileHover={{ scale: 1.25, boxShadow: "0 0 20px rgba(255,255,255,0.6)" }}
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      />
+  src={logo} // tu PNG con transparencia
+  alt="Logo"
+  className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
+  style={{
+    // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
+    filter: `
+      drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
+      drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
+      drop-shadow(0 12px 18px rgba(2,6,23,0.14))
+    `,
+    willChange: "transform, filter",
+    WebkitBackfaceVisibility: "hidden",
+    backfaceVisibility: "hidden",
+  }}
+  initial={{ opacity: 0, scale: 0.98 }}
+  animate={{
+    // ligera flotación/respiración para dar vida sin pasarse
+    y: [0, -10, 0],
+    rotate: [-1, 2, -1],
+    opacity: 1,
+    scale: 1,
+  }}
+  transition={{
+    // animación idle: solo transform/rotate (GPU-friendly)
+    y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+    rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+  }}
+  whileHover={{
+    // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
+    scale: 1.18,
+    y: -12,
+    rotate: -3,
+    filter: `
+      drop-shadow(2px 2px 0 rgba(255,255,255,1))
+      drop-shadow(-2px -2px 0 rgba(255,255,255,1))
+      drop-shadow(0 28px 44px rgba(2,6,23,0.28))
+      /* acento de luz colorida pero controlada (no mancha) */
+      drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
+      brightness(1.12) saturate(1.15)
+    `,
+  }}
+/>
+
+
+
 
       {/* Menú */}
       <motion.nav
@@ -111,13 +158,18 @@ export default function Sidebar() {
               {item.submenu ? (
                 <button
                   onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
-                 className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 text-black"
+                  className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 text-black"
                 >
                   <div className="flex items-center gap-3">
                     {item.icon}
                     {!isCollapsed && <span>{item.name}</span>}
                   </div>
-                  {!isCollapsed && (openDropdown === i ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
+                  {!isCollapsed &&
+                    (openDropdown === i ? (
+                      <ChevronUp size={20} />
+                    ) : (
+                      <ChevronDown size={20} />
+                    ))}
                 </button>
               ) : (
                 <Link to={item.path}>
@@ -153,13 +205,13 @@ export default function Sidebar() {
               <AnimatePresence>
                 {item.submenu && openDropdown === i && !isCollapsed && (
                   <motion.ul
-                  key="dropdown"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden shadow-inner"
-                >
+                    key="dropdown"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden shadow-inner"
+                  >
                     {item.submenu.map((subItem, j) => (
                       <li key={j}>
                         <Link
