@@ -9,7 +9,7 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { motion } from "framer-motion"; // 👈 importamos framer-motion
+import { motion } from "framer-motion"; 
 
 export default function IndexCategories() {
   const [categories] = useState([

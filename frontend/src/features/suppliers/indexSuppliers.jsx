@@ -10,7 +10,7 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-
+import { motion } from "framer-motion";
 export default function IndexSuppliers() {
   const [suppliers] = useState([
     { nit: "123", nombre: "Global Foods Inc.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
@@ -29,14 +29,20 @@ export default function IndexSuppliers() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
+  // 🔑 Normalizar texto (quita tildes, mayúsculas, etc.)
+  const normalizeText = (text) =>
+    text
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
   const filtered = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
+    const s = normalizeText(searchTerm.trim());
     if (!s) return suppliers;
-  
+
     return suppliers.filter((p) =>
-      Object.values(p).some((value) =>
-        String(value).toLowerCase().includes(s)
-      )
+      Object.values(p).some((value) => normalizeText(value).includes(s))
     );
   }, [suppliers, searchTerm]);
 
@@ -51,14 +57,25 @@ export default function IndexSuppliers() {
     setCurrentPage(p);
   };
 
+  // 🎬 Variantes de animación
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15 },
+    },
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <Sidebar />
-
       {/* Contenido principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Fondo de ondas solo en la mitad inferior */}
+        {/* Fondo de ondas */}
         <div
           className="absolute bottom-0 left-0 w-full pointer-events-none"
           style={{
@@ -71,13 +88,14 @@ export default function IndexSuppliers() {
           }}
         />
 
-        {/* Contenido encima */}
         <div className="relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Proveedores</h2>
-              <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Administrador de tienda
+              </p>
             </div>
           </div>
 
@@ -92,9 +110,9 @@ export default function IndexSuppliers() {
                 placeholder="Buscar proveedores..."
                 value={searchTerm}
                 onChange={(e) => {
-                setSearchTerm(e.target.value);
-                 setCurrentPage(1);
-               }}
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
                 style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
               />
@@ -112,8 +130,14 @@ export default function IndexSuppliers() {
             </div>
           </div>
 
-          {/* Tabla */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Tabla con animación */}
+          <motion.div
+            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+            key={currentPage} // 👈 cambia la animación en cada paginación
+          >
             <table className="min-w-full">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
@@ -126,26 +150,51 @@ export default function IndexSuppliers() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-
-              <tbody className="divide-y divide-gray-100">
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td
+                      colSpan={7}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
                       No se encontraron proveedores.
                     </td>
                   </tr>
                 ) : (
                   pageItems.map((s, i) => (
-                    <tr key={s.nit + "-" + i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.nit}</td>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">{s.nombre}</td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">{s.contacto}</td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.telefono}</td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.categoria}</td>
+                    <motion.tr
+                      key={s.nit + "-" + i}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.nit}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                        {s.nombre}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-green-700">
+                        {s.contacto}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.telefono}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.categoria}
+                      </td>
                       <td className="px-6 py-4 align-top">
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                          {s.estado}
-                        </span>
+                        {s.estado === "Activo" ? (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
@@ -154,14 +203,14 @@ export default function IndexSuppliers() {
                           <DeleteButton />
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))
                 )}
-              </tbody>
+              </motion.tbody>
             </table>
-          </div>
+          </motion.div>
 
-          {/* Paginador - componente separado */}
+          {/* Paginador */}
           <Paginator
             currentPage={currentPage}
             perPage={perPage}
