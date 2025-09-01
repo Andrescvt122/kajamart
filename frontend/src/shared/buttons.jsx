@@ -23,29 +23,20 @@ const withClickAnimation = (Component, className) => {
 /* ----------------------------- */
 /* Botones cuadrados con iconos  */
 /* ----------------------------- */
-export const ViewButton = () => (
-  <button className="button-square view-btn" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const ViewButton = ({alert}) => (
+  <button className="button-square view-btn" onClick={alert}>
     <FiEye size={20} />
   </button>
 );
 
-export const EditButton = () => (
-  <button className="button-square edit-btn" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const EditButton = ({alert}) => (
+  <button className="button-square edit-btn" onClick={alert}>
     <FiEdit2 size={20} />
   </button>
 );
 
-export const DeleteButton = () => (
-  <button className="button-square delete-btn" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const DeleteButton = ({alert}) => (
+  <button className="button-square delete-btn" onClick={alert}>
     <FiTrash2 size={20} />
   </button>
 );
@@ -53,38 +44,26 @@ export const DeleteButton = () => (
 /* ----------------------------- */
 /* Botones rectangulares grandes */
 /* ----------------------------- */
-export const CancelButton = ({ children = "Cancelar" }) => (
-  <button className="btn-cancel" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const CancelButton = ({ children = "Cancelar", alert}) => (
+  <button className="btn-cancel" onClick={alert}>
     {children}
   </button>
 );
 
-export const SaveButton = ({ children = "Guardar" }) => (
-  <button className="btn-save" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const SaveButton = ({ children = "Guardar", alert }) => (
+  <button className="btn-save" onClick={alert}>
     {children}
   </button>
 );
 
-export const DeleteTextButton = ({ children = "Eliminar" }) => (
-  <button className="btn-deletetext" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const DeleteTextButton = ({ children = "Eliminar", alert }) => (
+  <button className="btn-deletetext" onClick={alert}>
     {children}
   </button>
 );
 
-export const EditTextButton = ({ children = "Editar" }) => (
-  <button className="btn-edittext" onClick={(e) => {
-    e.currentTarget.classList.add("active-click");
-    setTimeout(() => e.currentTarget.classList.remove("active-click"), 150);
-  }}>
+export const EditTextButton = ({ children = "Editar", alert }) => (
+  <button className="btn-edittext" onClick={alert}>
     {children}
   </button>
 );

@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 
 // ✅ Alerta de éxito
-export const showSuccessAlert = (message = "Operación realizada con éxito") => {
+export const showSuccessAlert = (message) => {
   Swal.fire({
     icon: "success",
     title: "Éxito",
@@ -11,7 +11,7 @@ export const showSuccessAlert = (message = "Operación realizada con éxito") =>
 };
 
 // ❌ Alerta de error
-export const showErrorAlert = (message = "Ha ocurrido un error inesperado") => {
+export const showErrorAlert = (message) => {
   Swal.fire({
     icon: "error",
     title: "Error",
@@ -21,12 +21,10 @@ export const showErrorAlert = (message = "Ha ocurrido un error inesperado") => {
 };
 
 // ⚠️ Alerta de confirmación
-export const showConfirmAlert = async (
-  message = "¿Estás seguro de realizar esta acción?"
-) => {
+export const showConfirmAlert = async (message) => {
   const result = await Swal.fire({
     title: "Confirmación",
-    text: message,
+    text: "¿Estas seguro?",
     icon: "warning",
     showCancelButton: true,
     confirmButtonText: "Sí",
@@ -36,16 +34,16 @@ export const showConfirmAlert = async (
 };
 
 // ⚠️ Advertencia
-export const showWarningAlert = (message = "Debes revisar la información") => {
+export const showWarningAlert = (message) => {
   Swal.fire({
     icon: "warning",
-    title: "Advertencia",
+    title: "Cuidado",
     text: message,
   });
 };
 
 // ℹ️ Información
-export const showInfoAlert = (message = "Información importante") => {
+export const showInfoAlert = (message) => {
   Swal.fire({
     icon: "info",
     title: "Información",
@@ -54,7 +52,7 @@ export const showInfoAlert = (message = "Información importante") => {
 };
 
 // ⏳ Cargando
-export const showLoadingAlert = (message = "Procesando...") => {
+export const showLoadingAlert = (message) => {
   Swal.fire({
     title: message,
     allowOutsideClick: false,
@@ -65,7 +63,7 @@ export const showLoadingAlert = (message = "Procesando...") => {
 };
 
 // ✍️ Input de texto
-export const showInputAlert = async (message = "Escribe algo") => {
+export const showInputAlert = async (message) => {
   const { value } = await Swal.fire({
     title: message,
     input: "text",
