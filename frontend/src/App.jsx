@@ -1,7 +1,7 @@
 // App.jsx
 import { Routes, Route } from "react-router-dom";
 import IndexSuppliers from "./features/suppliers/indexSuppliers.jsx";
-import IndexCategories from "./features/Categories/indexCategories.jsx";
+import IndexCategories from "./features/categories/indexCategories.jsx";
 import Sidebar from "./shared/sidebar.jsx";
 import IndexClientReturns from "./features/returns/indexClientReturns.jsx";
 import RoutesAdmin from "./routes.jsx";
