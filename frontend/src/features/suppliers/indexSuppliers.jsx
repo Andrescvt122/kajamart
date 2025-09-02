@@ -58,6 +58,168 @@ export default function IndexSuppliers() {
       categoria: "Panadería",
       estado: "Activo",
     },
+    {
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },{
+      nit: "903333444",
+      nombre: "Panadería Central",
+      contacto: "Claudia Ruiz",
+      telefono: "3012233445",
+      categoria: "Panadería",
+      estado: "Activo",
+    },
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -173,7 +335,7 @@ export default function IndexSuppliers() {
           initial="hidden"
           animate="visible"
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">NIT</th>

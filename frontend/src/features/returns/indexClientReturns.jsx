@@ -158,7 +158,7 @@ export default function IndexClientReturns() {
           initial="hidden"
           animate="visible"
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Devolución</th>
