@@ -1,3 +1,4 @@
+// kajamart/frontend/src/shared/sidebar.jsx
 import {
   Users,
   DollarSign,
@@ -56,20 +57,34 @@ export default function Sidebar() {
       ],
     },
     { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
-    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
+    {
+      name: "Compras",
+      icon: <ShoppingCart size={20} />,
+      path: "/app/purchases",
+    },
     { name: "Usuarios", icon: <Users size={20} />, path: "/app/users" },
-    { name: "Roles", icon: <Users size={20} />, path: "/app/roles" },
-    { name: "Configuración", icon: <Settings size={20} />, path: "/app/settings" },
+    {
+      name: "Configuración",
+      icon: <Settings size={20} />,
+      submenu: [
+        { name: "Roles", icon: <Users size={17} />, path: "/app/roles" },
+        {
+          name: "General",
+          icon: <Settings size={17} />,
+          path: "/app/settings",
+        },
+      ],
+    },
     { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
   ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }, // más suave
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
+    hidden: { opacity: 0, x: -18 },
     visible: { opacity: 1, x: 0 },
   };
 
@@ -82,9 +97,9 @@ export default function Sidebar() {
         backgroundRepeat: "no-repeat",
         backgroundPosition: "bottom center",
         backgroundSize: "cover",
-        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)", // profundidad lateral
+        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
       }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.35, ease: "easeInOut" }}
     >
       {/* Botón colapsar/expandir */}
       <button
@@ -92,7 +107,7 @@ export default function Sidebar() {
         className="absolute -right-3 top-5 rounded-full shadow-md p-1 z-20"
         style={{
           background: "linear-gradient(135deg, #047857, #10b981)",
-          color: "#ffffff",
+          color: "#fff",
         }}
       >
         {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -100,39 +115,49 @@ export default function Sidebar() {
 
       {/* Logo */}
       <motion.img
-  src={logo} // tu PNG con transparencia
-  alt="Logo"
-  className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
-  style={{
-    // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
-    filter: `
+        src={logo} // tu PNG con transparencia
+        alt="Logo"
+        className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
+        style={{
+          // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
+          filter: `
       drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
       drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
       drop-shadow(0 12px 18px rgba(2,6,23,0.14))
     `,
-    willChange: "transform, filter",
-    WebkitBackfaceVisibility: "hidden",
-    backfaceVisibility: "hidden",
-  }}
-  initial={{ opacity: 0, scale: 0.98 }}
-  animate={{
-    // ligera flotación/respiración para dar vida sin pasarse
-    y: [0, -10, 0],
-    rotate: [-1, 2, -1],
-    opacity: 1,
-    scale: 1,
-  }}
-  transition={{
-    // animación idle: solo transform/rotate (GPU-friendly)
-    y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
-    rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
-  }}
-  whileHover={{
-    // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
-    scale: 1.18,
-    y: -12,
-    rotate: -3,
-    filter: `
+          willChange: "transform, filter",
+          WebkitBackfaceVisibility: "hidden",
+          backfaceVisibility: "hidden",
+        }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{
+          // ligera flotación/respiración para dar vida sin pasarse
+          y: [0, -10, 0],
+          rotate: [-1, 2, -1],
+          opacity: 1,
+          scale: 1,
+        }}
+        transition={{
+          // animación idle: solo transform/rotate (GPU-friendly)
+          y: {
+            duration: 4.4,
+            repeat: Infinity,
+            repeatType: "loop",
+            ease: "easeInOut",
+          },
+          rotate: {
+            duration: 9.4,
+            repeat: Infinity,
+            repeatType: "loop",
+            ease: "easeInOut",
+          },
+        }}
+        whileHover={{
+          // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
+          scale: 1.18,
+          y: -12,
+          rotate: -3,
+          filter: `
       drop-shadow(2px 2px 0 rgba(255,255,255,1))
       drop-shadow(-2px -2px 0 rgba(255,255,255,1))
       drop-shadow(0 28px 44px rgba(2,6,23,0.28))
@@ -140,11 +165,8 @@ export default function Sidebar() {
       drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
       brightness(1.12) saturate(1.15)
     `,
-  }}
-/>
-
-
-
+        }}
+      />
 
       {/* Menú */}
       <motion.nav
@@ -163,7 +185,10 @@ export default function Sidebar() {
               {item.submenu ? (
                 <button
                   onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
-                  className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 text-black"
+                  className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10"
+                  style={{
+                    color: isActive ? "#000" : "#374151",
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     {item.icon}
@@ -179,14 +204,14 @@ export default function Sidebar() {
               ) : (
                 <Link
                   to={item.path}
-                  className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 ${
-                    isActive ? "text-black" : "text-gray-700 hover:text-black"
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium relative z-10 ${
+                    isActive
+                      ? "text-black"
+                      : "text-gray-700 hover:text-black hover:bg-emerald-200/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    {item.icon}
-                    {!isCollapsed && <span>{item.name}</span>}
-                  </div>
+                  {item.icon}
+                  {!isCollapsed && <span>{item.name}</span>}
                 </Link>
               )}
 
@@ -196,11 +221,13 @@ export default function Sidebar() {
                   <motion.div
                     layoutId="activeHighlight"
                     className="absolute inset-0 rounded-md"
-                    style={{ backgroundColor: "#B5F5CE" }}
+                    style={{
+                      backgroundColor: "rgba(52, 211, 153, 0.6)", // más oscuro que hover
+                    }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
                   />
                 )}
               </AnimatePresence>
@@ -209,24 +236,30 @@ export default function Sidebar() {
               <AnimatePresence>
                 {item.submenu && openDropdown === i && !isCollapsed && (
                   <motion.ul
-                    key="dropdown"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden shadow-inner"
+                    transition={{ duration: 0.35, ease: "easeInOut" }}
+                    className="ml-4 mt-1 p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 flex flex-col gap-2 overflow-hidden"
                   >
-                    {item.submenu.map((subItem, j) => (
-                      <li key={j}>
-                        <Link
-                          to={subItem.path}
-                          className="flex items-center gap-2 text-gray-700 hover:text-black text-sm"
-                        >
-                          {subItem.icon}
-                          {subItem.name}
-                        </Link>
-                      </li>
-                    ))}
+                    {item.submenu.map((subItem, j) => {
+                      const subActive = location.pathname === subItem.path;
+                      return (
+                        <li key={j}>
+                          <Link
+                            to={subItem.path}
+                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-colors ${
+                              subActive
+                                ? "bg-emerald-400/50 text-black font-medium"
+                                : "text-gray-700 hover:bg-emerald-200/40 hover:text-black"
+                            }`}
+                          >
+                            {subItem.icon}
+                            {subItem.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </motion.ul>
                 )}
               </AnimatePresence>

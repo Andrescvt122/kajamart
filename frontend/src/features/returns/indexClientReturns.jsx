@@ -10,30 +10,48 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion } from "framer-motion";
+import {
+  showInfoAlert,
+  showInputAlert,
+  showLoadingAlert,
+} from "../../shared/alerts";
+
 export default function IndexClientReturns() {
   const [returns] = useState([
-    {idReturn: 1, idSale: 1, dateReturn: "2023-10-01", client: "Juan Perez", reason: "Producto defectuoso", typeReturn: "Reembolso del dinero", total: 5000},
-    {idReturn: 2, idSale: 2, dateReturn: "2023-10-02", client: "Maria Gomez", reason: "Cambio de producto", typeReturn: "Cambio por otro producto", total: 3000},
-    {idReturn: 3, idSale: 3, dateReturn: "2023-10-03", client: "Carlos Lopez", reason: "Producto vencido", typeReturn: "Reembolso del dinero", total: 4500},
-    {idReturn: 4, idSale: 4, dateReturn: "2023-10-04", client: "Ana Martinez", reason: "Producto defectuoso", typeReturn: "Cambio por otro producto", total: 6000},
-    {idReturn: 5, idSale: 5, dateReturn: "2023-10-05", client: "Luis Rodriguez", reason: "Cambio de producto", typeReturn: "Reembolso del dinero", total: 3500},
-    {idReturn: 6, idSale: 6, dateReturn: "2023-10-06", client: "Sofia Hernandez", reason: "Producto vencido", typeReturn: "Cambio por otro producto",total: 4000},
-    {idReturn: 7, idSale: 7, dateReturn: "2023-10-07", client: "Miguel Torres", reason: "Producto defectuoso", typeReturn: "Reembolso del dinero", total: 5500},
-    {idReturn: 8, idSale: 8, dateReturn: "2023-10-08", client: "Laura Garcia", reason: "Cambio de producto", typeReturn: "Cambio por otro producto", total: 2500},
-    {idReturn: 9, idSale: 9, dateReturn: "2023-10-09", client: "Jorge Ramirez", reason: "Producto vencido", typeReturn: "Reembolso del dinero", total: 7000},
-    {idReturn: 10, idSale: 10, dateReturn: "2023-10-10", client: "Elena Flores", reason: "Producto defectuoso", typeReturn: "Cambio por otro producto", total: 8000},
-    {idReturn: 11, idSale: 11, dateReturn: "2023-10-11", client: "Pedro Sanchez", reason: "Cambio de producto", typeReturn: "Reembolso del dinero", total: 4500},
-    {idReturn: 12, idSale: 12, dateReturn: "2023-10-12", client: "Marta Diaz", reason: "Producto vencido", typeReturn: "Cambio por otro producto", total: 6000},
-    {idReturn: 13, idSale: 13, dateReturn: "2023-10-13", client: "Diego Morales", reason: "Producto defectuoso", typeReturn: "Reembolso del dinero", total: 5200},
-    {idReturn: 14, idSale: 14, dateReturn: "2023-10-14", client: "Carmen Ruiz", reason: "Cambio de producto", typeReturn: "Cambio por otro producto", total: 3300},
-    {idReturn: 15, idSale: 15, dateReturn: "2023-10-15", client: "Rafael Jimenez", reason: "Producto vencido", typeReturn: "Reembolso del dinero", total: 4800},
+    {
+      idReturn: 1,
+      idSale: 101,
+      dateReturn: "2023-11-01",
+      client: "Juan Pérez",
+      reason: "Producto defectuoso",
+      typeReturn: "Reembolso del dinero",
+      total: 5000,
+    },
+    {
+      idReturn: 2,
+      idSale: 102,
+      dateReturn: "2023-11-05",
+      client: "María Gómez",
+      reason: "Cambio de talla",
+      typeReturn: "Cambio por otro producto",
+      total: 3500,
+    },
+    {
+      idReturn: 3,
+      idSale: 103,
+      dateReturn: "2023-11-10",
+      client: "Carlos López",
+      reason: "Producto vencido",
+      typeReturn: "Reembolso del dinero",
+      total: 4200,
+    },
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // 🔑 Normalizar texto (quita tildes, mayúsculas, etc.)
+  // Normalización de texto
   const normalizeText = (text) =>
     text
       .toString()
@@ -46,7 +64,9 @@ export default function IndexClientReturns() {
     if (!s) return returns;
 
     return returns.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
+      Object.values(p).some((value) =>
+        normalizeText(value).includes(s)
+      )
     );
   }, [returns, searchTerm]);
 
@@ -61,7 +81,7 @@ export default function IndexClientReturns() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes de animación
+  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -76,162 +96,138 @@ export default function IndexClientReturns() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Contenido principal */}
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Fondo de ondas */}
-        <div
-          className="absolute bottom-0 left-0 w-full pointer-events-none"
-          style={{
-            height: "50%", // Solo mitad inferior
-            backgroundImage: `url(${ondas})`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center bottom",
-            backgroundSize: "cover",
-            zIndex: 0,
-          }}
-        />
+    <>
+      {/* Fondo de ondas */}
+      <div
+        className="absolute bottom-0 left-0 w-full pointer-events-none"
+        style={{
+          height: "50%",
+          backgroundImage: `url(${ondas})`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center bottom",
+          backgroundSize: "cover",
+          zIndex: 0,
+        }}
+      />
 
-        <div className="relative z-10">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-semibold">Devolucion a clientes</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de tienda
-              </p>
-            </div>
+      {/* Contenido */}
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-semibold">Devoluciones de clientes</h2>
+            <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
           </div>
         </div>
-          {/* Barra de búsqueda + botones */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar proveedores..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-                style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
-              />
+
+        {/* Barra de búsqueda + botones */}
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search size={20} className="text-gray-400" />
             </div>
             <input
               type="text"
-              placeholder="Buscar proveedores..."
+              placeholder="Buscar devoluciones..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-              style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
             />
           </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
-              <button
-                onClick={() => console.log("Registrar nuevo proveedor")}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nueva devolucion a cliente
-              </button>
-            </div>
+
+          <div className="flex gap-2 flex-shrink-0">
+            <ExportExcelButton>Excel</ExportExcelButton>
+            <ExportPDFButton>PDF</ExportPDFButton>
+            <button
+              onClick={() => console.log("Registrar nueva devolución")}
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+            >
+              Registrar nueva devolución
+            </button>
           </div>
         </div>
-          {/* Tabla con animación */}
-          <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-            key={currentPage} // 👈 cambia la animación en cada paginación
-          >
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">Devolcion</th>
-                  <th className="px-6 py-4">Venta</th>
-                  <th className="px-6 py-4">Fecha</th>
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">Razon</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Tipo de devolucion</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
+
+        {/* Tabla con animación */}
+        <motion.div
+          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          variants={tableVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <table className="min-w-full">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase">
+                <th className="px-6 py-4">Devolución</th>
+                <th className="px-6 py-4">Venta</th>
+                <th className="px-6 py-4">Fecha</th>
+                <th className="px-6 py-4">Cliente</th>
+                <th className="px-6 py-4">Razón</th>
+                <th className="px-6 py-4">Tipo</th>
+                <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <motion.tbody
+              className="divide-y divide-gray-100"
+              variants={tableVariants}
+            >
+              {pageItems.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-gray-400"
+                  >
+                    No se encontraron devoluciones.
+                  </td>
                 </tr>
-              </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
-                {pageItems.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
-                      No se encontro devolucion a clientes
+              ) : (
+                pageItems.map((s, i) => (
+                  <motion.tr
+                    key={s.idReturn + "-" + i}
+                    className="hover:bg-gray-50"
+                    variants={rowVariants}
+                  >
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {s.idReturn}
                     </td>
-                  </tr>
-                ) : (
-                  pageItems.map((s, i) => (
-                    <motion.tr
-                      key={s.idReturn + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.idReturn}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-600">
-                        {s.idSale}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">
-                        {s.dateReturn}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.client}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.reason}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.total}
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                            {s.typeReturn}
-                          </span>
-                      </td>
-                      <td className="px-6 py-4 align-top text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <ViewButton />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </motion.tbody>
-            </table>
-          </motion.div>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.idSale}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {s.dateReturn}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.client}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.reason}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                        {s.typeReturn}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      ${s.total}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <ViewButton alert={() => showInfoAlert("Ver devolución")} />
+                        <EditButton alert={() => showLoadingAlert("Editar devolución")} />
+                        <DeleteButton alert={() => showInputAlert("Eliminar devolución")} />
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </motion.tbody>
+          </table>
+        </motion.div>
 
-          {/* Paginador */}
-          <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
-            goToPage={goToPage}
-          />
-        </div>
-
-        {/* Paginador - componente separado */}
+        {/* Paginador */}
         <Paginator
           currentPage={currentPage}
           perPage={perPage}
