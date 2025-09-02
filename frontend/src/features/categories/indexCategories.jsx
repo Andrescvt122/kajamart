@@ -60,7 +60,6 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // 🔑 normalización de texto
   const normalizeText = (text) =>
     text
       .toString()
@@ -92,13 +91,9 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes de animación
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 }, // cascada en las filas
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
   };
 
   const rowVariants = {
@@ -108,21 +103,21 @@ export default function IndexCategories() {
 
   return (
     <>
-      {/* Fondo de ondas */}
+      {/* Fondo de ondas fijo */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
-          height: "50%",
+          height: "50%", // mitad del contenedor, o puedes usar 100% si quieres que cubra todo
           backgroundImage: `url(${ondas})`,
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
+          transform: "scaleX(1.15)",
           zIndex: 0,
         }}
       />
-
-      {/* Contenido */}
-      <div className="relative z-10">
+      {/* Contenedor principal */}
+      <div className="relative z-10 min-h-screen flex flex-col">
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Categorías</h2>
@@ -162,7 +157,7 @@ export default function IndexCategories() {
           </div>
         </div>
 
-        {/* Tabla con animación */}
+        {/* Tabla */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           variants={tableVariants}
@@ -217,21 +212,9 @@ export default function IndexCategories() {
                     </td>
                     <td className="px-6 py-4 align-top text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => {
-                            showInfoAlert("hola");
-                          }}
-                        />
-                        <EditButton
-                          alert={() => {
-                            showLoadingAlert("hola");
-                          }}
-                        />
-                        <DeleteButton
-                          alert={() => {
-                            showInputAlert("hola");
-                          }}
-                        />
+                        <ViewButton alert={() => showInfoAlert("hola")} />
+                        <EditButton alert={() => showLoadingAlert("hola")} />
+                        <DeleteButton alert={() => showInputAlert("hola")} />
                       </div>
                     </td>
                   </motion.tr>
@@ -240,6 +223,7 @@ export default function IndexCategories() {
             </motion.tbody>
           </table>
         </motion.div>
+
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}

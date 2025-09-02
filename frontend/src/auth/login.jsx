@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 // Assets
-import tiendaImg from "../assets/tienda.png";
+import tiendaImg from "../assets/image.png";
 import logo from "../assets/logo.png";
 
 // Componentes
@@ -36,7 +36,7 @@ export default function Login() {
           backgroundImage: `url(${tiendaImg})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(10px) brightness(0.7)",
+          filter: "blur(10px) brightness(1.1)",
           zIndex: 0,
         }}
       ></div>
@@ -56,7 +56,7 @@ export default function Login() {
               filter: `
       drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
       drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
-      drop-shadow(0 12px 18px rgba(2,6,23,0.14))
+      drop-shadow(0 12px 18px rgba(255, 255, 255, 0.14))
     `,
               willChange: "transform, filter",
               WebkitBackfaceVisibility: "hidden",

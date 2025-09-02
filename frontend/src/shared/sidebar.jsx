@@ -1,28 +1,14 @@
 // kajamart/frontend/src/shared/sidebar.jsx
-import {
-  Users,
-  DollarSign,
-  List,
-  Box,
-  RotateCcw,
-  Truck,
-  ShoppingCart,
-  Settings,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
-  HandCoins,
-  Undo2,
-  ChevronLeft,
-  ChevronRight,
-  ArrowLeftToLine,
-  Home,
+import { 
+  Users, DollarSign, List, Box, RotateCcw, Truck, ShoppingCart, Settings, 
+  ChevronDown, ChevronUp, Trash2, HandCoins, Undo2, ChevronLeft, ChevronRight, 
+  ArrowLeftToLine, Home 
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
-import ondas from "../assets/ondasVertical.jpg";
+import ondasHorizontal from "../assets/ondasHorizontal.png"; // fondo borroso inferior
 
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
@@ -35,79 +21,70 @@ export default function Sidebar() {
     { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
     { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
     { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
-    {
-      name: "Devoluciones/baja",
-      icon: <RotateCcw size={20} />,
-      submenu: [
-        {
-          name: "Devoluciones de productos",
-          icon: <Undo2 size={17} />,
-          path: "/app/returns/products",
-        },
-        {
-          name: "Devoluciones de clientes",
-          icon: <HandCoins size={17} />,
-          path: "/app/returns/clients",
-        },
-        {
-          name: "Baja de productos",
-          icon: <Trash2 size={17} />,
-          path: "/app/returns/low",
-        },
-      ],
+    { 
+      name: "Devoluciones/baja", icon: <RotateCcw size={20} />, submenu: [
+        { name: "Devoluciones de productos", icon: <Undo2 size={17} />, path: "/app/returns/products" },
+        { name: "Devoluciones de clientes", icon: <HandCoins size={17} />, path: "/app/returns/clients" },
+        { name: "Baja de productos", icon: <Trash2 size={17} />, path: "/app/returns/low" },
+      ] 
     },
     { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
-    {
-      name: "Compras",
-      icon: <ShoppingCart size={20} />,
-      path: "/app/purchases",
-    },
+    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
     { name: "Usuarios", icon: <Users size={20} />, path: "/app/users" },
-    {
-      name: "Configuración",
-      icon: <Settings size={20} />,
-      submenu: [
+    { 
+      name: "Configuración", icon: <Settings size={20} />, submenu: [
         { name: "Roles", icon: <Users size={17} />, path: "/app/roles" },
-        {
-          name: "General",
-          icon: <Settings size={17} />,
-          path: "/app/settings",
-        },
-      ],
+        { name: "General", icon: <Settings size={17} />, path: "/app/settings" },
+      ] 
     },
     { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
   ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }, // más suave
+    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, x: -18 },
-    visible: { opacity: 1, x: 0 },
+    visible: { opacity: 1, x: 0 }
   };
 
   return (
     <motion.aside
       animate={{ width: isCollapsed ? "80px" : "260px" }}
-      className="min-h-screen flex flex-col shadow-md relative"
+      className="flex flex-col relative shadow-md z-20 min-h-[100vh]"
       style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(180,222,191,0.95), rgba(180,222,191,0.8)), url(${ondas})`,
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "bottom center",
-        backgroundSize: "cover",
-        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
+        backgroundColor: "#b4debf",
+        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)"
       }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
     >
-      {/* Botón colapsar/expandir */}
+      {/* Fondo inferior borroso */}
+      <div
+        className="absolute bottom-0 left-0"
+        style={{
+          width: isCollapsed ? "80px" : "260px",
+          height: "50%",
+          backgroundImage: `url(${ondasHorizontal})`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "0% bottom",
+          backgroundSize: "cover",
+          filter: "blur(18px) contrast(1.15) brightness(0.95)",
+          transform: "scale(1.05)",
+          zIndex: 0,
+          opacity: 0.5
+        }}
+      />
+
+      {/* Botón colapsar/expandir sobresaliente */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-5 rounded-full shadow-md p-1 z-20"
+        className="absolute top-5 rounded-full shadow-lg p-2 flex items-center justify-center z-30 transition-all hover:scale-110 hover:shadow-xl"
         style={{
-          background: "linear-gradient(135deg, #047857, #10b981)",
+          background: "linear-gradient(135deg, #047857, #065f46)",
           color: "#fff",
+          right: "-16px",
         }}
       >
         {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -115,62 +92,45 @@ export default function Sidebar() {
 
       {/* Logo */}
       <motion.img
-        src={logo} // tu PNG con transparencia
+        src={logo}
         alt="Logo"
-        className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
+        className={`w-40 mt-6 mb-8 mx-auto block relative z-20 cursor-pointer ${isCollapsed ? "pointer-events-none" : ""}`}
         style={{
-          // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
-          filter: `
-      drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
-      drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
-      drop-shadow(0 12px 18px rgba(2,6,23,0.14))
-    `,
+          filter: `drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
+                   drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
+                   drop-shadow(0 12px 18px rgba(2,6,23,0.14))`,
           willChange: "transform, filter",
           WebkitBackfaceVisibility: "hidden",
-          backfaceVisibility: "hidden",
+          backfaceVisibility: "hidden"
         }}
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{
-          // ligera flotación/respiración para dar vida sin pasarse
           y: [0, -10, 0],
           rotate: [-1, 2, -1],
           opacity: 1,
-          scale: 1,
+          scale: 1
         }}
         transition={{
-          // animación idle: solo transform/rotate (GPU-friendly)
-          y: {
-            duration: 4.4,
-            repeat: Infinity,
-            repeatType: "loop",
-            ease: "easeInOut",
-          },
-          rotate: {
-            duration: 9.4,
-            repeat: Infinity,
-            repeatType: "loop",
-            ease: "easeInOut",
-          },
+          y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+          rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" }
         }}
         whileHover={{
-          // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
-          scale: 1.18,
-          y: -12,
-          rotate: -3,
-          filter: `
-      drop-shadow(2px 2px 0 rgba(255,255,255,1))
-      drop-shadow(-2px -2px 0 rgba(255,255,255,1))
-      drop-shadow(0 28px 44px rgba(2,6,23,0.28))
-      /* acento de luz colorida pero controlada (no mancha) */
-      drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
-      brightness(1.12) saturate(1.15)
-    `,
+          scale: isCollapsed ? 1 : 1.18,
+          y: isCollapsed ? 0 : -12,
+          rotate: isCollapsed ? 0 : -3,
+          filter: isCollapsed
+            ? `drop-shadow(1px 1px 0 rgba(255,255,255,0.98))`
+            : `drop-shadow(2px 2px 0 rgba(255,255,255,1))
+               drop-shadow(-2px -2px 0 rgba(255,255,255,1))
+               drop-shadow(0 28px 44px rgba(2,6,23,0.28))
+               drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
+               brightness(1.12) saturate(1.15)`
         }}
       />
 
       {/* Menú */}
       <motion.nav
-        className="flex-1 flex flex-col gap-2 overflow-auto px-2"
+        className="flex-1 flex flex-col gap-2 overflow-auto px-2 min-h-0"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -184,34 +144,27 @@ export default function Sidebar() {
             <motion.div key={i} variants={itemVariants} className="relative">
               {item.submenu ? (
                 <button
-                  onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
-                  className="flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10"
-                  style={{
-                    color: isActive ? "#000" : "#374151",
-                  }}
+                  onClick={() =>
+                    setOpenDropdown(openDropdown === i ? null : i)
+                  }
+                  className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200
+                    ${isActive ? "bg-emerald-800 text-white" : "text-gray-700 hover:text-white hover:bg-emerald-600/40"}
+                  `}
                 >
                   <div className="flex items-center gap-3">
-                    {item.icon}
-                    {!isCollapsed && <span>{item.name}</span>}
+                    {item.icon} {!isCollapsed && <span>{item.name}</span>}
                   </div>
                   {!isCollapsed &&
-                    (openDropdown === i ? (
-                      <ChevronUp size={20} />
-                    ) : (
-                      <ChevronDown size={20} />
-                    ))}
+                    (openDropdown === i ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
                 </button>
               ) : (
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium relative z-10 ${
-                    isActive
-                      ? "text-black"
-                      : "text-gray-700 hover:text-black hover:bg-emerald-200/40"
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium relative z-10 transition-colors duration-200
+                    ${isActive ? "bg-emerald-800 text-white" : "text-gray-700 hover:text-white hover:bg-emerald-600/40"}
+                  `}
                 >
-                  {item.icon}
-                  {!isCollapsed && <span>{item.name}</span>}
+                  {item.icon} {!isCollapsed && <span>{item.name}</span>}
                 </Link>
               )}
 
@@ -220,10 +173,8 @@ export default function Sidebar() {
                 {isActive && (
                   <motion.div
                     layoutId="activeHighlight"
-                    className="absolute inset-0 rounded-md"
-                    style={{
-                      backgroundColor: "rgba(52, 211, 153, 0.6)", // más oscuro que hover
-                    }}
+                    className="absolute inset-0 rounded-md pointer-events-none"
+                    style={{ backgroundColor: "rgba(6,95,70,0.3)" }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -248,14 +199,11 @@ export default function Sidebar() {
                         <li key={j}>
                           <Link
                             to={subItem.path}
-                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-colors ${
-                              subActive
-                                ? "bg-emerald-400/50 text-black font-medium"
-                                : "text-gray-700 hover:bg-emerald-200/40 hover:text-black"
-                            }`}
+                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-colors duration-200
+                              ${subActive ? "bg-emerald-800 text-white font-medium" : "text-gray-700 hover:bg-emerald-600/40 hover:text-white"}
+                            `}
                           >
-                            {subItem.icon}
-                            {subItem.name}
+                            {subItem.icon} {subItem.name}
                           </Link>
                         </li>
                       );
