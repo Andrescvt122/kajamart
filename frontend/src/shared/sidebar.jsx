@@ -41,17 +41,17 @@ export default function Sidebar() {
         {
           name: "Devoluciones de productos",
           icon: <Undo2 size={17} />,
-          path: "/returns/products",
+          path: "/app/returns/products",
         },
         {
           name: "Devoluciones de clientes",
           icon: <HandCoins size={17} />,
-          path: "/returns/clients",
+          path: "/app/returns/clients",
         },
         {
           name: "Baja de productos",
           icon: <Trash2 size={17} />,
-          path: "/returns/low",
+          path: "/app/returns/low",
         },
       ],
     },
