@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
@@ -103,7 +102,7 @@ export default function IndexClientReturns() {
               </p>
             </div>
           </div>
-
+        </div>
           {/* Barra de búsqueda + botones */}
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex-1">
@@ -122,7 +121,18 @@ export default function IndexClientReturns() {
                 style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
               />
             </div>
-
+            <input
+              type="text"
+              placeholder="Buscar proveedores..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+              style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
+            />
+          </div>
             <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
@@ -134,7 +144,7 @@ export default function IndexClientReturns() {
               </button>
             </div>
           </div>
-
+        </div>
           {/* Tabla con animación */}
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
@@ -220,7 +230,16 @@ export default function IndexClientReturns() {
             goToPage={goToPage}
           />
         </div>
+
+        {/* Paginador - componente separado */}
+        <Paginator
+          currentPage={currentPage}
+          perPage={perPage}
+          totalPages={totalPages}
+          filteredLength={filtered.length}
+          goToPage={goToPage}
+        />
       </div>
-    </div>
+    </>
   );
 }
