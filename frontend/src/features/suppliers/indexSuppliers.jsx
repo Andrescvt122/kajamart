@@ -12,6 +12,7 @@
   import Paginator from "../../shared/paginator";
   import { motion } from "framer-motion";
   import { showErrorAlert, showInfoAlert, showSuccessAlert, showWarningAlert } from "../../shared/alerts.jsx";
+import { Outlet } from "react-router-dom";
   export default function IndexSuppliers() {
     const [suppliers] = useState([
       { nit: "123", nombre: "Global Foods.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "categoria 1", estado: "Activo" },
@@ -221,5 +222,6 @@
           </div>
         </div>
       </div>
+      
     );
   }

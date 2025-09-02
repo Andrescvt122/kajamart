@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
@@ -10,7 +11,6 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion } from "framer-motion";
-import { showConfirmAlert } from "../../shared/alerts";
 export default function IndexClientReturns() {
   const [returns] = useState([
     {idReturn: 1, idSale: 1, dateReturn: "2023-10-01", client: "Juan Perez", reason: "Producto defectuoso", typeReturn: "Reembolso del dinero", total: 5000},
@@ -77,7 +77,6 @@ export default function IndexClientReturns() {
   };
 
   return (
-    <>
     <div className="flex min-h-screen">
       {/* Contenido principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
@@ -104,7 +103,7 @@ export default function IndexClientReturns() {
               </p>
             </div>
           </div>
-        </div>
+
           {/* Barra de búsqueda + botones */}
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex-1">
@@ -123,18 +122,7 @@ export default function IndexClientReturns() {
                 style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
               />
             </div>
-            <input
-              type="text"
-              placeholder="Buscar proveedores..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-              style={{ color: "#000" }} // fuerza el texto negro si Tailwind no aplica
-            />
-          </div>
+
             <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
@@ -146,7 +134,8 @@ export default function IndexClientReturns() {
               </button>
             </div>
           </div>
-        </div>
+
+          {/* Tabla con animación */}
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
             variants={tableVariants}
@@ -212,7 +201,7 @@ export default function IndexClientReturns() {
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton alert={()=>{showConfirmAlert("hola")}} />
+                          <ViewButton />
                         </div>
                       </td>
                     </motion.tr>
@@ -230,13 +219,8 @@ export default function IndexClientReturns() {
             filteredLength={filtered.length}
             goToPage={goToPage}
           />
-        <Paginator
-          currentPage={currentPage}
-          perPage={perPage}
-          totalPages={totalPages}
-          filteredLength={filtered.length}
-          goToPage={goToPage}
-        />
-    </>
+        </div>
+      </div>
+    </div>
   );
 }
