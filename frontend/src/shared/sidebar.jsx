@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ArrowLeftToLine,
   Home,
+  ShieldCheck, // nuevo ícono para Seguridad
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,10 +31,12 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: "Inicio", icon: <Home size={20} />, path: "/app" },
+    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
+    { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
+    { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
+    { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
     { name: "Clientes", icon: <Users size={20} />, path: "/app/clients" },
     { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
-    { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
-    { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
     {
       name: "Devoluciones/baja",
       icon: <RotateCcw size={20} />,
@@ -55,11 +58,27 @@ export default function Sidebar() {
         },
       ],
     },
-    { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
-    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
-    { name: "Usuarios", icon: <Users size={20} />, path: "/app/users" },
-    { name: "Roles", icon: <Users size={20} />, path: "/app/roles" },
-    { name: "Configuración", icon: <Settings size={20} />, path: "/app/settings" },
+    {
+      name: "Seguridad",
+      icon: <ShieldCheck size={20} />,
+      submenu: [
+        {
+          name: "Usuarios",
+          icon: <Users size={17} />,
+          path: "/app/users",
+        },
+        {
+          name: "Roles",
+          icon: <Users size={17} />,
+          path: "/app/roles",
+        },
+        {
+          name: "Configuración",
+          icon: <Settings size={17} />,
+          path: "/app/settings",
+        },
+      ],
+    },
     { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
   ];
 
@@ -82,7 +101,7 @@ export default function Sidebar() {
         backgroundRepeat: "no-repeat",
         backgroundPosition: "bottom center",
         backgroundSize: "cover",
-        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)", // profundidad lateral
+        boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
       }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
@@ -100,51 +119,43 @@ export default function Sidebar() {
 
       {/* Logo */}
       <motion.img
-  src={logo} // tu PNG con transparencia
-  alt="Logo"
-  className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
-  style={{
-    // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
-    filter: `
-      drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
-      drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
-      drop-shadow(0 12px 18px rgba(2,6,23,0.14))
-    `,
-    willChange: "transform, filter",
-    WebkitBackfaceVisibility: "hidden",
-    backfaceVisibility: "hidden",
-  }}
-  initial={{ opacity: 0, scale: 0.98 }}
-  animate={{
-    // ligera flotación/respiración para dar vida sin pasarse
-    y: [0, -10, 0],
-    rotate: [-1, 2, -1],
-    opacity: 1,
-    scale: 1,
-  }}
-  transition={{
-    // animación idle: solo transform/rotate (GPU-friendly)
-    y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
-    rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
-  }}
-  whileHover={{
-    // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
-    scale: 1.18,
-    y: -12,
-    rotate: -3,
-    filter: `
-      drop-shadow(2px 2px 0 rgba(255,255,255,1))
-      drop-shadow(-2px -2px 0 rgba(255,255,255,1))
-      drop-shadow(0 28px 44px rgba(2,6,23,0.28))
-      /* acento de luz colorida pero controlada (no mancha) */
-      drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
-      brightness(1.12) saturate(1.15)
-    `,
-  }}
-/>
-
-
-
+        src={logo}
+        alt="Logo"
+        className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
+        style={{
+          filter: `
+            drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
+            drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
+            drop-shadow(0 12px 18px rgba(2,6,23,0.14))
+          `,
+          willChange: "transform, filter",
+          WebkitBackfaceVisibility: "hidden",
+          backfaceVisibility: "hidden",
+        }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{
+          y: [0, -10, 0],
+          rotate: [-1, 2, -1],
+          opacity: 1,
+          scale: 1,
+        }}
+        transition={{
+          y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+          rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+        }}
+        whileHover={{
+          scale: 1.18,
+          y: -12,
+          rotate: -3,
+          filter: `
+            drop-shadow(2px 2px 0 rgba(255,255,255,1))
+            drop-shadow(-2px -2px 0 rgba(255,255,255,1))
+            drop-shadow(0 28px 44px rgba(2,6,23,0.28))
+            drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
+            brightness(1.12) saturate(1.15)
+          `,
+        }}
+      />
 
       {/* Menú */}
       <motion.nav
@@ -170,18 +181,14 @@ export default function Sidebar() {
                     {!isCollapsed && <span>{item.name}</span>}
                   </div>
                   {!isCollapsed &&
-                    (openDropdown === i ? (
-                      <ChevronUp size={20} />
-                    ) : (
-                      <ChevronDown size={20} />
-                    ))}
+                    (openDropdown === i ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
                 </button>
               ) : (
                 <Link
                   to={item.path}
                   className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 ${
                     isActive ? "text-black" : "text-gray-700 hover:text-black"
-                  }`}
+                  } ${isActive ? "pointer-events-none" : ""}`}
                 >
                   <div className="flex items-center gap-3">
                     {item.icon}
