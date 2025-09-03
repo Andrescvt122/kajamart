@@ -277,7 +277,7 @@ export default function IndexClients() {
       </div>
       
 
-     {/* Modal */}
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
           <div className="bg-white rounded-xl p-8 w-full max-w-lg relative">
@@ -289,34 +289,37 @@ export default function IndexClients() {
               <X size={20} />
             </button>
 
-            <h2 className="text-2xl font-semibold mb-6">Registro de Cliente</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-black">Registro de Cliente</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Nombre */}
               <div>
-                <label className="block text-sm font-medium">Nombre Completo</label>
                 <input
-                  type="text"
                   name="nombre"
                   value={form.nombre}
                   autoComplete="off"
                   onChange={handleChange}
                   placeholder="Nombre y Apellido"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-green-200"
+                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                            focus:ring-green-200 text-black placeholder-black"
                   required
                 />
               </div>
 
+              {/* Documento */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium">Tipo de Documento</label>
                   <select
                     name="tipoDocumento"
                     value={form.tipoDocumento}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-2 border rounded-lg bg-white text-black 
+                              focus:ring-2 focus:ring-green-200"
                     required
                   >
-                    <option value="">Seleccione...</option>
+                    <option value="" disabled hidden>
+                      Seleccione...
+                    </option>
                     <option value="C.C">Cédula de Ciudadanía</option>
                     <option value="T.I">Tarjeta de Identidad</option>
                     <option value="C.E">Cédula de Extranjería</option>
@@ -324,7 +327,6 @@ export default function IndexClients() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium">Número de Documento</label>
                   <input
                     type="text"
                     name="numeroDocumento"
@@ -332,14 +334,15 @@ export default function IndexClients() {
                     value={form.numeroDocumento}
                     onChange={handleChange}
                     placeholder="Número de Documento"
-                    className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-green-200"
+                    className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                              focus:ring-green-200 text-black placeholder-black"
                     required
                   />
                 </div>
               </div>
 
+              {/* Correo */}
               <div>
-                <label className="block text-sm font-medium">Correo Electrónico</label>
                 <input
                   type="email"
                   name="correo"
@@ -347,25 +350,28 @@ export default function IndexClients() {
                   value={form.correo}
                   onChange={handleChange}
                   placeholder="ejemplo@gmail.com"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-green-200"
+                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                            focus:ring-green-200 text-black placeholder-black"
                   required
                 />
               </div>
 
+              {/* Teléfono */}
               <div>
-                <label className="block text-sm font-medium">Teléfono</label>
                 <input
                   type="text"
                   name="telefono"
                   value={form.telefono}
                   autoComplete="off"
                   onChange={handleChange}
-                  placeholder="987654321"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-green-200"
+                  placeholder="Telefono"
+                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                            focus:ring-green-200 text-black placeholder-black"
                   required
                 />
               </div>
 
+              {/* Checkbox Activo */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -379,16 +385,17 @@ export default function IndexClients() {
                             checked:after:text-center checked:after:leading-4"
                   required
                 />
-                <label htmlFor="activo" className="text-sm text-gray-700">
+                <label htmlFor="activo" className="text-sm text-black">
                   Activo
                 </label>
               </div>
 
+              {/* Botones */}
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                  className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-black"
                 >
                   Cancelar
                 </button>
