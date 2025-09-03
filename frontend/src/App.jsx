@@ -9,7 +9,6 @@ import Sidebar from "./shared/sidebar.jsx";
 
 export default function App() {
   return (
-    // Si ya tienes BrowserRouter en tu main.jsx, puedes quitarlo de aquí.
     <>
     <RoutesAdmin />
     </>

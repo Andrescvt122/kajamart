@@ -98,8 +98,6 @@ const [returns] = useState([
   { idReturn: 44, idSale: 144, dateReturn: "2023-12-23", client: "Andrea Beltrán", reason: "Producto dañado", typeReturn: "Reembolso del dinero", total: 3900 },
 ]);
 
-
-
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
