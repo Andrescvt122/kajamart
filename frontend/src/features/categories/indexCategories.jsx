@@ -9,89 +9,45 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { motion } from "framer-motion"; // 👈 Animaciones
+import { motion } from "framer-motion"; // 👈 importamos framer-motion
 
-export default function IndexSuppliers() {
-  const [suppliers] = useState([
+export default function IndexCategories() {
+  const [categories] = useState([
     {
-      nit: "123",
-      nombre: "Global Foods Inc.",
-      contacto: "Sophia Bennett",
-      telefono: "123456789",
-      categoria: "Categoría 1",
+      categoria: "Lácteos",
+      productos: ["Leche entera", "Yogurt natural", "Queso mozzarella"],
       estado: "Activo",
+      acciones: ["Ver", "Editar", "Eliminar"],
     },
     {
-      nit: "124",
-      nombre: "Fresh Produce Co.",
-      contacto: "Liam Harper",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "125",
-      nombre: "Beverage Distributors",
-      contacto: "Olivia Hayes",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "126",
-      nombre: "Dairy Delights",
-      contacto: "Noah Carter",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "127",
-      nombre: "Meat Masters",
-      contacto: "Ava Foster",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
-    },
-    {
-      nit: "128",
-      nombre: "Snack Sensations",
-      contacto: "Jackson Reed",
-      telefono: "123456789",
-      categoria: "Categoría 1",
+      categoria: "Carnes",
+      productos: ["Res premium", "Pechuga de pollo", "Cerdo fresco"],
       estado: "Inactivo",
+      acciones: ["Ver", "Editar", "Eliminar"],
     },
     {
-      nit: "129",
-      nombre: "Organic Origins",
-      contacto: "Isabella Morgan",
-      telefono: "123456789",
-      categoria: "Categoría 1",
+      categoria: "Bebidas",
+      productos: ["Agua mineral", "Jugos naturales", "Refrescos"],
       estado: "Activo",
+      acciones: ["Ver", "Editar", "Eliminar"],
     },
     {
-      nit: "130",
-      nombre: "Frozen Foods Ltd.",
-      contacto: "Lucas Bennett",
-      telefono: "123456789",
-      categoria: "Categoría 1",
+      categoria: "Snacks",
+      productos: ["Papas fritas", "Nachos", "Galletas"],
       estado: "Activo",
+      acciones: ["Ver", "Editar", "Eliminar"],
     },
     {
-      nit: "131",
-      nombre: "Bakery Bliss",
-      contacto: "Mia Collins",
-      telefono: "123456789",
-      categoria: "Categoría 1",
+      categoria: "Panadería",
+      productos: ["Pan integral", "Croissants", "Pan de queso"],
+      estado: "Activo",
+      acciones: ["Ver", "Editar", "Eliminar"],
+    },
+    {
+      categoria: "Congelados",
+      productos: ["Vegetales congelados", "Helados", "Comida rápida"],
       estado: "Inactivo",
-    },
-    {
-      nit: "132",
-      nombre: "Candy Kingdom",
-      contacto: "Owen Parker",
-      telefono: "123456789",
-      categoria: "Categoría 1",
-      estado: "Activo",
+      acciones: ["Ver", "Editar", "Eliminar"],
     },
   ]);
 
@@ -99,7 +55,7 @@ export default function IndexSuppliers() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // 🔑 Normalizar texto (quita tildes, mayúsculas, etc.)
+  // 🔑 normalización de texto
   const normalizeText = (text) =>
     text
       .toString()
@@ -109,12 +65,14 @@ export default function IndexSuppliers() {
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return suppliers;
+    if (!s) return categories;
 
-    return suppliers.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
+    return categories.filter((p) =>
+      Object.values(p).some((value) =>
+        normalizeText(Array.isArray(value) ? value.join(" ") : value).includes(s)
+      )
     );
-  }, [suppliers, searchTerm]);
+  }, [categories, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -132,7 +90,7 @@ export default function IndexSuppliers() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.15 },
+      transition: { staggerChildren: 0.15 }, // cascada en las filas
     },
   };
 
@@ -158,18 +116,18 @@ export default function IndexSuppliers() {
           }}
         />
 
+        {/* Contenido */}
         <div className="relative z-10">
-          {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-semibold">Proveedores</h2>
+              <h2 className="text-3xl font-semibold">Categorías</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Administrador de tienda
               </p>
             </div>
           </div>
 
-          {/* Barra de búsqueda */}
+          {/* Barra de búsqueda + botones */}
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -177,7 +135,7 @@ export default function IndexSuppliers() {
               </div>
               <input
                 type="text"
-                placeholder="Buscar proveedores..."
+                placeholder="Buscar categorías..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -191,10 +149,10 @@ export default function IndexSuppliers() {
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
               <button
-                onClick={() => console.log("Registrar nuevo proveedor")}
+                onClick={() => console.log("Registrar nueva categoría")}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
               >
-                Registrar Nuevo Proveedor
+                Registrar Nueva Categoría
               </button>
             </div>
           </div>
@@ -205,16 +163,12 @@ export default function IndexSuppliers() {
             variants={tableVariants}
             initial="hidden"
             animate="visible"
-            key={currentPage} // 👈 cambia la animación en cada paginación
           >
             <table className="min-w-full">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">NIT</th>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Contacto</th>
-                  <th className="px-6 py-4">Teléfono</th>
-                  <th className="px-6 py-4">Categoría</th>
+                  <th className="px-6 py-4">Nombre de la categoría</th>
+                  <th className="px-6 py-4">Productos asociados</th>
                   <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
@@ -226,33 +180,24 @@ export default function IndexSuppliers() {
                 {pageItems.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={4}
                       className="px-6 py-8 text-center text-gray-400"
                     >
-                      No se encontraron proveedores.
+                      No se encontraron categorías.
                     </td>
                   </tr>
                 ) : (
                   pageItems.map((s, i) => (
                     <motion.tr
-                      key={s.nit + "-" + i}
+                      key={s.categoria + "-" + i}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.nit}
-                      </td>
                       <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
-                        {s.nombre}
+                        {s.categoria}
                       </td>
                       <td className="px-6 py-4 align-top text-sm text-green-700">
-                        {s.contacto}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.telefono}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.categoria}
+                        {s.productos.join(", ")}
                       </td>
                       <td className="px-6 py-4 align-top">
                         {s.estado === "Activo" ? (
