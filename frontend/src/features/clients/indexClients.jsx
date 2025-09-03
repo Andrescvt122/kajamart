@@ -87,8 +87,6 @@ export default function IndexClients() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
         {/* Fondo de ondas */}
         <div

@@ -9,8 +9,7 @@ import IndexSales from "./features/Sales/indexSales.jsx";
 export default function App() {
   return (
     <div className="flex min-h-screen">
-      <Sidebar /> {/* <- fijo, siempre cargado */}
-
+      <Sidebar /> {/* <- fijo, siempre cargado */}  
       <div className="flex-1">
         <Routes>
           {/* Proveedores */}
@@ -24,19 +23,5 @@ export default function App() {
         </Routes>
       </div>
     </div>
-  );
-    <>
-      <Routes>
-        {/* Ruta principal */}
-        <Route path="/" element={<Sidebar />} />
-
-        {/* Proveedores */}
-        <Route path="/suppliers" element={<IndexSuppliers />} />
-
-        {/* Clientes */}
-        <Route path="/clients" element={<IndexClients />} />
-        <Route path="/sales" element={<IndexSales />} />
-      </Routes>
-    </>
   );
 }

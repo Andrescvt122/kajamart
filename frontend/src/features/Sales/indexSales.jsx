@@ -99,8 +99,6 @@ export default function IndexSales() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <Sidebar />
 
       {/* Contenido principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
