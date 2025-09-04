@@ -98,3 +98,78 @@ export const ExportPDFButton = ({ children = "Exportar" }) => (
     {children}
   </button>
 );
+
+{/* Botones de prueba para las alertas */}
+<div className="flex flex-wrap gap-4 mt-8">
+{/* Éxito */}
+<button
+  onClick={() => showSuccessAlert("Se guardó correctamente 🎉")}
+  className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg shadow hover:bg-[#43a047]"
+>
+  Éxito
+</button>
+
+{/* Error */}
+<button
+  onClick={() => showErrorAlert("No se pudo guardar ❌")}
+  className="px-4 py-2 bg-[#b23b3b] text-white rounded-lg shadow hover:bg-[#9a2c2c]"
+>
+  Error
+</button>
+
+{/* Confirmación */}
+<button
+  onClick={async () => {
+    const confirmed = await showConfirmAlert(
+      "¿Seguro que deseas continuar?"
+    );
+    if (confirmed) {
+      showSuccessAlert("Confirmado ✅");
+    } else {
+      showErrorAlert("Acción cancelada 🚫");
+    }
+  }}
+  className="px-4 py-2 bg-[#6d4c41] text-white rounded-lg shadow hover:bg-[#5d4037]"
+>
+  Confirmación
+</button>
+
+{/* Advertencia */}
+<button
+  onClick={() =>
+    showWarningAlert("Debes revisar la información ⚠️")
+  }
+  className="px-4 py-2 bg-[#e68923] text-white rounded-lg shadow hover:bg-[#cf7114]"
+>
+  Advertencia
+</button>
+
+{/* Información */}
+<button
+  onClick={() => showInfoAlert("Esto es solo información ℹ️")}
+  className="px-4 py-2 bg-[#4f83cc] text-white rounded-lg shadow hover:bg-[#3c6cab]"
+>
+  Información
+</button>
+
+{/* Cargando */}
+<button
+  onClick={() => showLoadingAlert("Procesando...")}
+  className="px-4 py-2 bg-[#a1887f] text-white rounded-lg shadow hover:bg-[#8d6e63]"
+>
+  Cargando
+</button>
+
+{/* Input */}
+<button
+  onClick={async () => {
+    const value = await showInputAlert("Escribe tu nombre:");
+    if (value) {
+      showSuccessAlert(`Hola, ${value} 👋`);
+    }
+  }}
+  className="px-4 py-2 bg-[#3e2723] text-white rounded-lg shadow hover:bg-[#2c1816]"
+>
+  Input
+</button>
+</div>
