@@ -617,3 +617,10 @@ button,
 }
 
 
+body, #root {
+  background-image: url('../assets/ondasHorizontal.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center bottom;
+  perspective: 2000px; /* agrega sensación de profundidad */
+}

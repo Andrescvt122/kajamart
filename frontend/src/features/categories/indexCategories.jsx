@@ -9,8 +9,12 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { motion } from "framer-motion"; 
-import { showInfoAlert, showInputAlert, showLoadingAlert } from "../../shared/alerts";
+import { motion } from "framer-motion";
+import {
+  showInfoAlert,
+  showInputAlert,
+  showLoadingAlert,
+} from "../../shared/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -56,7 +60,6 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // 🔑 normalización de texto
   const normalizeText = (text) =>
     text
       .toString()
@@ -70,7 +73,9 @@ export default function IndexCategories() {
 
     return categories.filter((p) =>
       Object.values(p).some((value) =>
-        normalizeText(Array.isArray(value) ? value.join(" ") : value).includes(s)
+        normalizeText(Array.isArray(value) ? value.join(" ") : value).includes(
+          s
+        )
       )
     );
   }, [categories, searchTerm]);
@@ -86,13 +91,9 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes de animación
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 }, // cascada en las filas
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
   };
 
   const rowVariants = {
@@ -102,21 +103,21 @@ export default function IndexCategories() {
 
   return (
     <>
-      {/* Fondo de ondas */}
+      {/* Fondo de ondas fijo */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
-          height: "50%",
+          height: "50%", // mitad del contenedor, o puedes usar 100% si quieres que cubra todo
           backgroundImage: `url(${ondas})`,
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
+          transform: "scaleX(1.15)",
           zIndex: 0,
         }}
       />
-
-      {/* Contenido */}
-      <div className="relative z-10">
+      {/* Contenedor principal */}
+      <div className="relative z-10 min-h-screen flex flex-col">
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Categorías</h2>
@@ -156,7 +157,7 @@ export default function IndexCategories() {
           </div>
         </div>
 
-        {/* Tabla con animación */}
+        {/* Tabla */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           variants={tableVariants}
@@ -195,44 +196,34 @@ export default function IndexCategories() {
                     <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                       {s.categoria}
                     </td>
-                  </tr>
-                ) : (
-                  pageItems.map((s, i) => (
-                    <motion.tr
-                      key={s.categoria + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
-                        {s.categoria}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">
-                        {s.productos.join(", ")}
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        {s.estado === "Activo" ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                            Inactivo
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 align-top text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <ViewButton alert={()=>{showInfoAlert("hola")}}/>
-                          <EditButton alert={()=>{showLoadingAlert("hola")}}/>
-                          <DeleteButton alert={()=>{showInputAlert("hola")}}/>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </motion.tbody>
-            </table>
-          </motion.div>
+                    <td className="px-6 py-4 align-top text-sm text-green-700">
+                      {s.productos.join(", ")}
+                    </td>
+                    <td className="px-6 py-4 align-top">
+                      {s.estado === "Activo" ? (
+                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                          Inactivo
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 align-top text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <ViewButton alert={() => showInfoAlert("hola")} />
+                        <EditButton alert={() => showLoadingAlert("hola")} />
+                        <DeleteButton alert={() => showInputAlert("hola")} />
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </motion.tbody>
+          </table>
+        </motion.div>
+
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
