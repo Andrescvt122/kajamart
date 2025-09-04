@@ -21,9 +21,16 @@ const baseReturns = [];
     baseReturns.push({
       idReturn: i,
       idSale: 100 + i,
+      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
+                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
+                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
+                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
+                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
+                  ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
-      reason: i % 2 === 0 ? "Producto dañado" : "Cambio de talla",
+      reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
       typeReturn: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
     });
