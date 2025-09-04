@@ -87,9 +87,7 @@ export default function IndexClients() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Fondo de ondas */}
-        <div
+              <div
           className="absolute bottom-0 left-0 w-full pointer-events-none"
           style={{
             height: "50%",
@@ -100,7 +98,8 @@ export default function IndexClients() {
             zIndex: 0,
           }}
         />
-
+      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+        {/* Fondo de ondas */}
         {/* Contenido */}
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">

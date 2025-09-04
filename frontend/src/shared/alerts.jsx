@@ -49,7 +49,7 @@ export const showConfirmAlert = async (
 export const showWarningAlert = (message = "Debes revisar la información") => {
   Swal.fire({
     icon: "warning",
-    title: "Advertencia",
+    title: "Cuidado",
     text: message,
     confirmButtonText: "Entendido",
     confirmButtonColor: "#e68923", // Naranja cálido (más sobrio)
