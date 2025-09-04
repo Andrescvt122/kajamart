@@ -82,11 +82,12 @@ export default function IndexRoles() {
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
-          height: "50%",
+          height: "50%", // mitad del contenedor, o puedes usar 100% si quieres que cubra todo
           backgroundImage: `url(${ondas})`,
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
+          transform: "scaleX(1.15)",
           zIndex: 0,
         }}
       />
@@ -140,7 +141,7 @@ export default function IndexRoles() {
           animate="visible"
           key={currentPage} // 👈 cambia la animación en cada paginación
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Nombre del rol</th>
