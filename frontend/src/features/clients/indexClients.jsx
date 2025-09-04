@@ -243,7 +243,7 @@ export default function IndexClients() {
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             c.estado === "Activo"
                               ? "bg-green-50 text-green-700"
-                              : "bg-gray-200 text-gray-600"
+                              : "bg-red-100 text-red-700"
                           }`}
                         >
                           {c.estado}

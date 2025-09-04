@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from "react";
 import Sidebar from "../../shared/sidebar";
-import { Search, Printer, Eye } from "lucide-react";
+import { Search, Eye, Printer } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import { ExportExcelButton, ExportPDFButton } from "../../shared/buttons";
+import { ViewButton,PrinterButton, ExportExcelButton, ExportPDFButton } from "../../shared/buttons";
 
 export default function IndexSales() {
   const [sales] = useState([
@@ -211,15 +211,11 @@ export default function IndexSales() {
                         {v.codigoBarras}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                            <Printer size={16} />
-                          </button>
-                          <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                            <Eye size={16} />
-                          </button>
-                        </div>
-                      </td>
+                         <div className="inline-flex items-center gap-2">
+                            <ViewButton />
+                            <PrinterButton />
+                          </div>
+                        </td>
                     </tr>
                   ))
                 )}
