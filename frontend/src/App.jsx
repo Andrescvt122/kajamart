@@ -6,10 +6,11 @@ import RoutesAdmin from "./routes.jsx";
 import MainLayout from "/src/layouts/MainLayout.jsx";
 import AuthLayout from "/src/layouts/AuthLayout.jsx";
 import Sidebar from "./shared/sidebar.jsx";
+import IndexClients from "./features/clients/indexClients.jsx";
+import IndexSales from "./features/Sales/indexSales.jsx";
 
 export default function App() {
   return (
-    // Si ya tienes BrowserRouter en tu main.jsx, puedes quitarlo de aquí.
     <>
     <RoutesAdmin />
     </>
