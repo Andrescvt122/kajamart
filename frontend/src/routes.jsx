@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
+import ForgotPassword from "./auth/ForgotPassword";
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexClientReturns from "./features/returns/indexClientReturns";
 import IndexCategories from "./features/categories/indexCategories";
@@ -18,6 +19,7 @@ export default function RoutesAdmin() {
   return (
     <Routes>
       <Route path="/" element={<AuthLayout />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/app" element={<MainLayout />}>
         <Route path="suppliers" element={<IndexSuppliers />} />
         <Route path="categories" element={<IndexCategories />} />
