@@ -141,7 +141,7 @@ export default function IndexRoles() {
           animate="visible"
           key={currentPage} // 👈 cambia la animación en cada paginación
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Nombre del rol</th>
