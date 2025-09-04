@@ -16,43 +16,34 @@ import {
   showLoadingAlert,
 } from "../../shared/alerts";
 
-export default function IndexCategories() {
-  const [categories] = useState([
+export default function IndexClientReturns() {
+  const [returns] = useState([
     {
-      categoria: "Lácteos",
-      productos: ["Leche entera", "Yogurt natural", "Queso mozzarella"],
-      estado: "Activo",
-      acciones: ["Ver", "Editar", "Eliminar"],
+      idReturn: 1,
+      idSale: 101,
+      dateReturn: "2023-11-01",
+      client: "Juan Pérez",
+      reason: "Producto defectuoso",
+      typeReturn: "Reembolso del dinero",
+      total: 5000,
     },
     {
-      categoria: "Carnes",
-      productos: ["Res premium", "Pechuga de pollo", "Cerdo fresco"],
-      estado: "Inactivo",
-      acciones: ["Ver", "Editar", "Eliminar"],
+      idReturn: 2,
+      idSale: 102,
+      dateReturn: "2023-11-05",
+      client: "María Gómez",
+      reason: "Cambio de talla",
+      typeReturn: "Cambio por otro producto",
+      total: 3500,
     },
     {
-      categoria: "Bebidas",
-      productos: ["Agua mineral", "Jugos naturales", "Refrescos"],
-      estado: "Activo",
-      acciones: ["Ver", "Editar", "Eliminar"],
-    },
-    {
-      categoria: "Snacks",
-      productos: ["Papas fritas", "Nachos", "Galletas"],
-      estado: "Activo",
-      acciones: ["Ver", "Editar", "Eliminar"],
-    },
-    {
-      categoria: "Panadería",
-      productos: ["Pan integral", "Croissants", "Pan de queso"],
-      estado: "Activo",
-      acciones: ["Ver", "Editar", "Eliminar"],
-    },
-    {
-      categoria: "Congelados",
-      productos: ["Vegetales congelados", "Helados", "Comida rápida"],
-      estado: "Inactivo",
-      acciones: ["Ver", "Editar", "Eliminar"],
+      idReturn: 3,
+      idSale: 103,
+      dateReturn: "2023-11-10",
+      client: "Carlos López",
+      reason: "Producto vencido",
+      typeReturn: "Reembolso del dinero",
+      total: 4200,
     },
   ]);
 
@@ -60,6 +51,7 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
+  // Normalización de texto
   const normalizeText = (text) =>
     text
       .toString()
@@ -69,16 +61,14 @@ export default function IndexCategories() {
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return categories;
+    if (!s) return returns;
 
-    return categories.filter((p) =>
+    return returns.filter((p) =>
       Object.values(p).some((value) =>
-        normalizeText(Array.isArray(value) ? value.join(" ") : value).includes(
-          s
-        )
+        normalizeText(value).includes(s)
       )
     );
-  }, [categories, searchTerm]);
+  }, [returns, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -91,9 +81,13 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
+  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15 },
+    },
   };
 
   const rowVariants = {
@@ -103,7 +97,7 @@ export default function IndexCategories() {
 
   return (
     <>
-      {/* Fondo de ondas fijo */}
+      {/* Fondo de ondas */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
@@ -116,14 +110,14 @@ export default function IndexCategories() {
           zIndex: 0,
         }}
       />
-      {/* Contenedor principal */}
-      <div className="relative z-10 min-h-screen flex flex-col">
+
+      {/* Contenido */}
+      <div className="relative z-10">
+        {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-semibold">Categorías</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Administrador de tienda
-            </p>
+            <h2 className="text-3xl font-semibold">Devoluciones de clientes</h2>
+            <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
           </div>
         </div>
 
@@ -135,7 +129,7 @@ export default function IndexCategories() {
             </div>
             <input
               type="text"
-              placeholder="Buscar categorías..."
+              placeholder="Buscar devoluciones..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -149,15 +143,15 @@ export default function IndexCategories() {
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
             <button
-              onClick={() => console.log("Registrar nueva categoría")}
+              onClick={() => console.log("Registrar nueva devolución")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
-              Registrar Nueva Categoría
+              Registrar nueva devolución
             </button>
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Tabla con animación */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           variants={tableVariants}
@@ -167,9 +161,13 @@ export default function IndexCategories() {
           <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">Nombre de la categoría</th>
-                <th className="px-6 py-4">Productos asociados</th>
-                <th className="px-6 py-4">Estado</th>
+                <th className="px-6 py-4">Devolución</th>
+                <th className="px-6 py-4">Venta</th>
+                <th className="px-6 py-4">Fecha</th>
+                <th className="px-6 py-4">Cliente</th>
+                <th className="px-6 py-4">Razón</th>
+                <th className="px-6 py-4">Tipo</th>
+                <th className="px-6 py-4">Total</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -180,41 +178,47 @@ export default function IndexCategories() {
               {pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
-                    No se encontraron categorías.
+                    No se encontraron devoluciones.
                   </td>
                 </tr>
               ) : (
                 pageItems.map((s, i) => (
                   <motion.tr
-                    key={s.categoria + "-" + i}
+                    key={s.idReturn + "-" + i}
                     className="hover:bg-gray-50"
                     variants={rowVariants}
                   >
-                    <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
-                      {s.categoria}
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {s.idReturn}
                     </td>
-                    <td className="px-6 py-4 align-top text-sm text-green-700">
-                      {s.productos.join(", ")}
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.idSale}
                     </td>
-                    <td className="px-6 py-4 align-top">
-                      {s.estado === "Activo" ? (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                          Inactivo
-                        </span>
-                      )}
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {s.dateReturn}
                     </td>
-                    <td className="px-6 py-4 align-top text-right">
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.client}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {s.reason}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                        {s.typeReturn}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      ${s.total}
+                    </td>
+                    <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton alert={() => showInfoAlert("hola")} />
-                        <EditButton alert={() => showLoadingAlert("hola")} />
-                        <DeleteButton alert={() => showInputAlert("hola")} />
+                        <ViewButton alert={() => showInfoAlert("Ver devolución")} />
+                        <EditButton alert={() => showLoadingAlert("Editar devolución")} />
+                        <DeleteButton alert={() => showInputAlert("Eliminar devolución")} />
                       </div>
                     </td>
                   </motion.tr>
