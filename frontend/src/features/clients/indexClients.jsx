@@ -349,7 +349,7 @@ export default function IndexClients() {
                   autoComplete="off"
                   value={form.correo}
                   onChange={handleChange}
-                  placeholder="ejemplo@gmail.com"
+                  placeholder="Coreo Electrónico"
                   className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
                             focus:ring-green-200 text-black placeholder-black"
                   required
