@@ -1,6 +1,6 @@
 import React from "react";
 import { FiEye, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
-
+import { FiPrinter } from "react-icons/fi";
 import { AiFillFileExcel, AiFillFilePdf } from "react-icons/ai";
 
 /* ----------------------------- */
@@ -99,6 +99,17 @@ export const ExportPDFButton = ({ children = "Exportar" }) => (
   </button>
 );
 
+/* ----------------------------- */
+/* Botón de imprimir */
+/* ----------------------------- */
+export const PrinterButton = ({ alert }) => (
+  <button
+    onClick={alert}
+    className="button-square edit-btn"
+  >
+    <FiPrinter size={20} />
+  </button>
+);
 {/* Botones de prueba para las alertas */}
 <div className="flex flex-wrap gap-4 mt-8">
 {/* Éxito */}
