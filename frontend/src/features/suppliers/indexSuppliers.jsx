@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
@@ -490,7 +489,6 @@ export default function IndexSuppliers() {
                     <label className="block text-sm text-gray-700 mb-1">Dirección</label>
                     <input name="direccion" value={form.direccion} onChange={handleFormChange} placeholder="Dirección del proveedor" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
                   </div>
-
                   {/* Botones */}
                   <div className="flex justify-end gap-3 pt-2">
                     <button type="button" onClick={() => { setIsModalOpen(false); setPersonaOpen(false); setCategoriasOpen(false); setEstadoOpen(false); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition">Cancelar</button>
