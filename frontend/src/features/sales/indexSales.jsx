@@ -1,12 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { Printer, Eye, Search } from "lucide-react";
+import Sidebar from "../../shared/sidebar";
+import { Search, Eye, Printer } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
-import {
-  ExportExcelButton,
-  ExportPDFButton,
-} from "../../shared/buttons";
-import { motion } from "framer-motion";
+import { ViewButton,PrinterButton, ExportExcelButton, ExportPDFButton } from "../../shared/buttons";
 
 export default function IndexSales() {
   const [sales] = useState([
@@ -196,48 +193,51 @@ export default function IndexSales() {
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {v.id}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.fecha}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {v.cliente}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      ${v.total.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.medioPago}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                          v.estado === "Completada"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-red-50 text-red-700"
-                        }`}
-                      >
-                        {v.estado}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.codigoBarras}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                          <Printer size={16} />
-                        </button>
-                        <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </motion.tbody>
-          </table>
-        </motion.div>
+                  </tr>
+                ) : (
+                  pageItems.map((v, i) => (
+                    <tr key={v.id + "-" + i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {v.id}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {v.fecha}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {v.cliente}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        ${v.total.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {v.medioPago}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                            v.estado === "Completada"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {v.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {v.codigoBarras}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="inline-flex items-center gap-2">
+                            <ViewButton />
+                            <PrinterButton />
+                          </div>
+                        </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
         {/* Paginador */}
         <Paginator
