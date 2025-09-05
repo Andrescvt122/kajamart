@@ -15,7 +15,7 @@ import {
   showInputAlert,
   showLoadingAlert,
 } from "../../shared/alerts";
-import formRegisterClientReturn from "./forms/registerClientReturn";
+import FormRegisterClientReturn from "./forms/registerClientReturn";
 
 export default function IndexClientReturns() {
   const baseReturns = [];
@@ -141,6 +141,11 @@ export default function IndexClientReturns() {
             >
               Registrar nueva devolución
             </button>
+            {/* Aquí montas el formulario */}
+            <FormRegisterClientReturn
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
+            />
           </div>
         </div>
 
@@ -211,12 +216,6 @@ export default function IndexClientReturns() {
                       <div className="inline-flex items-center gap-2">
                         <ViewButton
                           alert={() => showInfoAlert("Ver devolución")}
-                        />
-                        <EditButton
-                          alert={() => showLoadingAlert("Editar devolución")}
-                        />
-                        <DeleteButton
-                          alert={() => showInputAlert("Eliminar devolución")}
                         />
                       </div>
                     </td>

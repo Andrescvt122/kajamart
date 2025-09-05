@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, ChevronDown } from "lucide-react";
 
-const formRegisterClientReturn = () => {
+const FormRegisterClientReturn = ({isModalOpen, setIsModalOpen}) => {
   const [form, setForm] = useState({
     nombre: "",
     nit: "",
@@ -219,6 +219,7 @@ const formRegisterClientReturn = () => {
   {
     /* Modal: Registrar Proveedor */
   }
+  return (
   <AnimatePresence>
     {isModalOpen && (
       <>
@@ -578,7 +579,8 @@ const formRegisterClientReturn = () => {
         </div>
       </>
     )}
-  </AnimatePresence>;
+  </AnimatePresence>
+  );
 };
 
-export default formRegisterClientReturn;
+export default FormRegisterClientReturn;
