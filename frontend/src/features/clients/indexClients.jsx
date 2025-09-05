@@ -420,21 +420,54 @@ export default function IndexClients() {
                     required
                   />
                 </div>
+              {/* Correo */}
+              <div>
+                <input
+                  type="email"
+                  name="correo"
+                  autoComplete="off"
+                  value={form.correo}
+                  onChange={handleChange}
+                  placeholder="Coreo Electrónico"
+                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                            focus:ring-green-200 text-black placeholder-black"
+                  required
+                />
+              </div>
 
-                {/* Checkbox Activo */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="activo"
-                    name="activo"
-                    checked={form.activo}
-                    onChange={handleChange}
-                    className="h-5 w-5 border-gray-300 rounded text-green-600 focus:ring-green-500"
-                  />
-                  <label htmlFor="activo" className="text-sm text-gray-700">
-                    Activo
-                  </label>
-                </div>
+              {/* Teléfono */}
+              <div>
+                <input
+                  type="text"
+                  name="telefono"
+                  value={form.telefono}
+                  autoComplete="off"
+                  onChange={handleChange}
+                  placeholder="Telefono"
+                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
+                            focus:ring-green-200 text-black placeholder-black"
+                  required
+                />
+              </div>
+
+              {/* Checkbox Activo */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="activo"
+                  name="activo"
+                  checked={form.activo}
+                  onChange={handleChange}
+                  className="h-5 w-5 appearance-none border border-gray-300 rounded bg-white 
+                            checked:border-green-600 checked:after:content-['✔'] 
+                            checked:after:text-green-600 checked:after:block 
+                            checked:after:text-center checked:after:leading-4"
+                  required
+                />
+                <label htmlFor="activo" className="text-sm text-black">
+                  Activo
+                </label>
+              </div>
 
                 {/* Botones */}
                 <div className="flex justify-end gap-3 pt-4">
