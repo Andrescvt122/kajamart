@@ -226,7 +226,6 @@ export default function IndexClientReturns() {
             </motion.tbody>
           </table>
         </motion.div>
-
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
