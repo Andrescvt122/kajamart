@@ -40,7 +40,8 @@ export default function IndexCategories() {
     {
       id: "CAT004",
       nombre: "Snacks",
-      descripcion: "Papas fritas, galletas, dulces y otros productos empacados.",
+      descripcion:
+        "Papas fritas, galletas, dulces y otros productos empacados.",
       estado: "Activo",
     },
   ]);
@@ -184,7 +185,7 @@ export default function IndexCategories() {
           zIndex: 0,
         }}
       />
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+      <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
         {/* Contenido */}
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">
@@ -352,28 +353,61 @@ export default function IndexCategories() {
 
                 {/* Estado */}
                 <div className="relative" ref={estadoRef}>
-                  <button
-                    type="button"
-                    onClick={() => setEstadoOpen((s) => !s)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg ${estadoButtonClasses()} transition`}
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
-                  >
-                    <span
-                      className={`text-sm ${
-                        form.estado ? "" : "text-gray-400"
-                      }`}
-                    >
-                      {form.estado || "Seleccionar estado"}
-                    </span>
-                    <motion.span
-                      animate={{ rotate: estadoOpen ? 180 : 0 }}
-                      transition={{ duration: 0.18 }}
-                    >
-                      <ChevronDown size={18} />
-                    </motion.span>
-                  </button>
+                  <label className="block text-sm font-semibold text-gray-800">
+                    Estado*
+                  </label>
 
+                  {/* Contenedor con borde dinámico */}
+                  <div
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
+      ${
+        form.estado === "Activo"
+          ? "border-green-500 bg-green-50"
+          : form.estado === "Inactivo"
+          ? "border-red-500 bg-red-50"
+          : "border-gray-300 bg-white"
+      }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEstadoOpen((s) => !s)}
+                      className="flex w-full items-center justify-between text-sm focus:outline-none"
+                      aria-haspopup="listbox"
+                      aria-expanded={estadoOpen}
+                    >
+                      {/* Texto dinámico */}
+                      <span
+                        className={`${
+                          form.estado === "Activo"
+                            ? "text-green-700 font-medium"
+                            : form.estado === "Inactivo"
+                            ? "text-red-700 font-medium"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {form.estado || "Seleccionar estado"}
+                      </span>
+
+                      {/* Flecha visible y coloreada */}
+                      <motion.span
+                        animate={{ rotate: estadoOpen ? 180 : 0 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        <ChevronDown
+                          size={18}
+                          className={`${
+                            form.estado === "Activo"
+                              ? "text-green-700"
+                              : form.estado === "Inactivo"
+                              ? "text-red-700"
+                              : "text-gray-500"
+                          }`}
+                        />
+                      </motion.span>
+                    </button>
+                  </div>
+
+                  {/* Lista de opciones */}
                   <AnimatePresence>
                     {estadoOpen && (
                       <motion.ul
@@ -394,7 +428,17 @@ export default function IndexCategories() {
                               }));
                               setEstadoOpen(false);
                             }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                            className={`px-4 py-3 cursor-pointer text-sm ${
+                              opt.value === "Activo"
+                                ? "hover:bg-green-50 text-green-700"
+                                : "hover:bg-red-50 text-red-700"
+                            } ${
+                              form.estado === opt.value
+                                ? opt.value === "Activo"
+                                  ? "bg-green-100 font-medium"
+                                  : "bg-red-100 font-medium"
+                                : ""
+                            }`}
                           >
                             {opt.label}
                           </motion.li>

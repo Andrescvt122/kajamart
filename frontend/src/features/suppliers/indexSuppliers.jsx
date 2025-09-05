@@ -20,16 +20,86 @@ import {
 
 export default function IndexSuppliers() {
   const [suppliers] = useState([
-    { nit: "123", nombre: "Global Foods.", contacto: "Sophia Bennett", telefono: "123456789", categoria: "Lácteos", estado: "Activo" },
-    { nit: "124", nombre: "Fresh Produce Co.", contacto: "Liam Harper", telefono: "123456789", categoria: "Carnes", estado: "Inactivo" },
-    { nit: "125", nombre: "Beverage Distributors", contacto: "Olivia Hayes", telefono: "123456789", categoria: "Bebidas", estado: "Activo" },
-    { nit: "126", nombre: "Dairy Delights", contacto: "Noah Carter", telefono: "123456789", categoria: "Panadería", estado: "Activo" },
-    { nit: "127", nombre: "Meat Masters", contacto: "Ava Foster", telefono: "123456789", categoria: "Carnes", estado: "Activo" },
-    { nit: "128", nombre: "Snack Sensations", contacto: "Jackson Reed", telefono: "123456789", categoria: "Snacks", estado: "Inactivo" },
-    { nit: "129", nombre: "Organic Origins", contacto: "Isabella Morgan", telefono: "123456789", categoria: "Congelados", estado: "Activo" },
-    { nit: "130", nombre: "Frozen Foods Ltd.", contacto: "Lucas Bennett", telefono: "123456789", categoria: "Congelados", estado: "Activo" },
-    { nit: "131", nombre: "Bakery Bliss", contacto: "Mia Collins", telefono: "123456789", categoria: "Panadería", estado: "Activo" },
-    { nit: "132", nombre: "Candy Kingdom", contacto: "Owen Parker", telefono: "123456789", categoria: "Snacks", estado: "Activo" },
+    {
+      nit: "123",
+      nombre: "Global Foods.",
+      contacto: "Sophia Bennett",
+      telefono: "123456789",
+      categoria: "Lácteos",
+      estado: "Activo",
+    },
+    {
+      nit: "124",
+      nombre: "Fresh Produce Co.",
+      contacto: "Liam Harper",
+      telefono: "123456789",
+      categoria: "Carnes",
+      estado: "Inactivo",
+    },
+    {
+      nit: "125",
+      nombre: "Beverage Distributors",
+      contacto: "Olivia Hayes",
+      telefono: "123456789",
+      categoria: "Bebidas",
+      estado: "Activo",
+    },
+    {
+      nit: "126",
+      nombre: "Dairy Delights",
+      contacto: "Noah Carter",
+      telefono: "123456789",
+      categoria: "Panadería",
+      estado: "Activo",
+    },
+    {
+      nit: "127",
+      nombre: "Meat Masters",
+      contacto: "Ava Foster",
+      telefono: "123456789",
+      categoria: "Carnes",
+      estado: "Activo",
+    },
+    {
+      nit: "128",
+      nombre: "Snack Sensations",
+      contacto: "Jackson Reed",
+      telefono: "123456789",
+      categoria: "Snacks",
+      estado: "Inactivo",
+    },
+    {
+      nit: "129",
+      nombre: "Organic Origins",
+      contacto: "Isabella Morgan",
+      telefono: "123456789",
+      categoria: "Congelados",
+      estado: "Activo",
+    },
+    {
+      nit: "130",
+      nombre: "Frozen Foods Ltd.",
+      contacto: "Lucas Bennett",
+      telefono: "123456789",
+      categoria: "Congelados",
+      estado: "Activo",
+    },
+    {
+      nit: "131",
+      nombre: "Bakery Bliss",
+      contacto: "Mia Collins",
+      telefono: "123456789",
+      categoria: "Panadería",
+      estado: "Activo",
+    },
+    {
+      nit: "132",
+      nombre: "Candy Kingdom",
+      contacto: "Owen Parker",
+      telefono: "123456789",
+      categoria: "Snacks",
+      estado: "Activo",
+    },
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,14 +144,26 @@ export default function IndexSuppliers() {
   const estadoRef = useRef(null);
 
   // sample categories (deduplicated)
-  const categoriasOptions = Array.from(new Set(["Lácteos", "Carnes", "Bebidas", "Snacks", "Panadería", "Congelados"]));
+  const categoriasOptions = Array.from(
+    new Set([
+      "Lácteos",
+      "Carnes",
+      "Bebidas",
+      "Snacks",
+      "Panadería",
+      "Congelados",
+    ])
+  );
 
   useEffect(() => {
     // close dropdowns when clicking outside of them
     function handleOutside(e) {
-      if (personaRef.current && !personaRef.current.contains(e.target)) setPersonaOpen(false);
-      if (categoriasRef.current && !categoriasRef.current.contains(e.target)) setCategoriasOpen(false);
-      if (estadoRef.current && !estadoRef.current.contains(e.target)) setEstadoOpen(false);
+      if (personaRef.current && !personaRef.current.contains(e.target))
+        setPersonaOpen(false);
+      if (categoriasRef.current && !categoriasRef.current.contains(e.target))
+        setCategoriasOpen(false);
+      if (estadoRef.current && !estadoRef.current.contains(e.target))
+        setEstadoOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -114,10 +196,27 @@ export default function IndexSuppliers() {
   };
 
   // animation variants
-  const tableVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.15 } } };
-  const rowVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
-  const listVariants = { hidden: { opacity: 0, y: -6, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1, transition: { staggerChildren: 0.02 } } };
-  const itemVariants = { hidden: { opacity: 0, y: -6 }, visible: { opacity: 1, y: 0 } };
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
+  };
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+  const listVariants = {
+    hidden: { opacity: 0, y: -6, scale: 0.98 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { staggerChildren: 0.02 },
+    },
+  };
+  const itemVariants = {
+    hidden: { opacity: 0, y: -6 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   // numeric-only sanitization for nit & telefono
   const sanitizeNumeric = (value) => value.replace(/\D/g, "");
@@ -155,13 +254,18 @@ export default function IndexSuppliers() {
       const exists = prev.categorias.includes(cat);
       return {
         ...prev,
-        categorias: exists ? prev.categorias.filter((c) => c !== cat) : [...prev.categorias, cat],
+        categorias: exists
+          ? prev.categorias.filter((c) => c !== cat)
+          : [...prev.categorias, cat],
       };
     });
   };
 
   const removeCategoriaTag = (cat) => {
-    setForm((prev) => ({ ...prev, categorias: prev.categorias.filter((c) => c !== cat) }));
+    setForm((prev) => ({
+      ...prev,
+      categorias: prev.categorias.filter((c) => c !== cat),
+    }));
   };
 
   const isValidEmail = (email) => {
@@ -179,13 +283,16 @@ export default function IndexSuppliers() {
     if (!form.contacto.trim()) missing.push("Persona de contacto");
     if (!form.telefono.trim()) missing.push("Teléfono");
     if (!form.correo.trim()) missing.push("Correo");
-    if (form.correo && !isValidEmail(form.correo)) missing.push("Correo (inválido)");
-    if (!form.categorias || form.categorias.length === 0) missing.push("Categorías");
+    if (form.correo && !isValidEmail(form.correo))
+      missing.push("Correo (inválido)");
+    if (!form.categorias || form.categorias.length === 0)
+      missing.push("Categorías");
     if (!form.direccion.trim()) missing.push("Dirección");
     if (!form.estado.trim()) missing.push("Estado");
 
     if (missing.length > 0) {
-      showErrorAlert && showErrorAlert(`Faltan campos obligatorios: ${missing.join(", ")}`);
+      showErrorAlert &&
+        showErrorAlert(`Faltan campos obligatorios: ${missing.join(", ")}`);
       return;
     }
 
@@ -213,8 +320,10 @@ export default function IndexSuppliers() {
 
   // estado button classes (green/red/neutral)
   const estadoButtonClasses = () => {
-    if (form.estado === "Activo") return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
-    if (form.estado === "Inactivo") return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
+    if (form.estado === "Activo")
+      return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
+    if (form.estado === "Inactivo")
+      return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
     return "bg-white text-gray-700 border border-gray-200";
   };
 
@@ -238,7 +347,9 @@ export default function IndexSuppliers() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Proveedores</h2>
-              <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Administrador de tienda
+              </p>
             </div>
           </div>
 
@@ -264,14 +375,23 @@ export default function IndexSuppliers() {
             <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
-              <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              >
                 Registrar Nuevo Proveedor
               </button>
             </div>
           </div>
 
           {/* Tabla con animación */}
-          <motion.div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" variants={tableVariants} initial="hidden" animate="visible" key={currentPage}>
+          <motion.div
+            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+            key={currentPage}
+          >
             <table className="min-w-full">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
@@ -284,31 +404,63 @@ export default function IndexSuppliers() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">No se encontraron proveedores.</td>
+                    <td
+                      colSpan={7}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
+                      No se encontraron proveedores.
+                    </td>
                   </tr>
                 ) : (
                   pageItems.map((s, i) => (
-                    <motion.tr key={s.nit + "-" + i} className="hover:bg-gray-50" variants={rowVariants}>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.nit}</td>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">{s.nombre}</td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">{s.contacto}</td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.telefono}</td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{s.categoria}</td>
+                    <motion.tr
+                      key={s.nit + "-" + i}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.nit}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                        {s.nombre}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-green-700">
+                        {s.contacto}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.telefono}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {s.categoria}
+                      </td>
                       <td className="px-6 py-4 align-top">
                         {s.estado === "Activo" ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">Activo</span>
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">Inactivo</span>
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton alert={() => showWarningAlert("Ver proveedor")} />
-                          <EditButton alert={() => showInfoAlert("Editar proveedor")} />
-                          <DeleteButton alert={() => showErrorAlert("Eliminar proveedor")} />
+                          <ViewButton
+                            alert={() => showWarningAlert("Ver proveedor")}
+                          />
+                          <EditButton
+                            alert={() => showInfoAlert("Editar proveedor")}
+                          />
+                          <DeleteButton
+                            alert={() => showErrorAlert("Eliminar proveedor")}
+                          />
                         </div>
                       </td>
                     </motion.tr>
@@ -319,7 +471,13 @@ export default function IndexSuppliers() {
           </motion.div>
 
           {/* Paginador */}
-          <Paginator currentPage={currentPage} perPage={perPage} totalPages={totalPages} filteredLength={filtered.length} goToPage={goToPage} />
+          <Paginator
+            currentPage={currentPage}
+            perPage={perPage}
+            totalPages={totalPages}
+            filteredLength={filtered.length}
+            goToPage={goToPage}
+          />
         </div>
       </div>
 
@@ -346,13 +504,17 @@ export default function IndexSuppliers() {
                 className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl relative pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 className="text-2xl font-bold mb-6 text-gray-800">Registro de Proveedor</h2>
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">
+                  Registro de Proveedor
+                </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     {/* Nombre */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">Nombre</label>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Nombre
+                      </label>
                       <input
                         name="nombre"
                         value={form.nombre}
@@ -366,7 +528,9 @@ export default function IndexSuppliers() {
 
                     {/* NIT (numérico) */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">NIT</label>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        NIT
+                      </label>
                       <input
                         name="nit"
                         value={form.nit}
@@ -382,21 +546,69 @@ export default function IndexSuppliers() {
 
                     {/* Persona Natural/Jurídica */}
                     <div ref={personaRef}>
-                      <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
-                      <div className="relative">
-                        <button type="button" onClick={() => setPersonaOpen((s) => !s)} className="w-full flex items-center justify-between px-4 py-3 border rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200" aria-haspopup="listbox" aria-expanded={personaOpen}>
-                          <span className={`text-sm ${form.personaType ? "text-gray-800" : "text-gray-400"}`}>{form.personaType || "Seleccionar tipo"}</span>
-                          <motion.span animate={{ rotate: personaOpen ? 180 : 0 }} transition={{ duration: 0.18 }}><ChevronDown size={18} /></motion.span>
-                        </button>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Tipo de persona
+                      </label>
+
+                      {/* contenedor con borde fijo igual a un input */}
+                      <div className="relative mt-1 w-full">
+                        <div className="w-full border border-gray-300 bg-white rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => setPersonaOpen((s) => !s)}
+                            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
+                            aria-haspopup="listbox"
+                            aria-expanded={personaOpen}
+                          >
+                            <span
+                              className={`text-sm ${
+                                form.personaType
+                                  ? "text-gray-800"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {form.personaType || "Seleccionar tipo"}
+                            </span>
+
+                            <motion.span
+                              animate={{ rotate: personaOpen ? 180 : 0 }}
+                              transition={{ duration: 0.18 }}
+                            >
+                              <ChevronDown
+                                size={18}
+                                className="text-gray-500"
+                              />
+                            </motion.span>
+                          </button>
+                        </div>
 
                         <AnimatePresence>
                           {personaOpen && (
-                            <motion.ul className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-hidden z-50" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
-                              {["Persona Natural", "Persona Jurídica"].map((opt) => (
-                                <motion.li key={opt} variants={itemVariants} onClick={() => { setForm((prev) => ({ ...prev, personaType: opt })); setPersonaOpen(false); }} className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50">
-                                  {opt}
-                                </motion.li>
-                              ))}
+                            <motion.ul
+                              className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50"
+                              initial="hidden"
+                              animate="visible"
+                              exit="hidden"
+                              variants={listVariants}
+                            >
+                              {["Persona Natural", "Persona Jurídica"].map(
+                                (opt) => (
+                                  <motion.li
+                                    key={opt}
+                                    variants={itemVariants}
+                                    onClick={() => {
+                                      setForm((prev) => ({
+                                        ...prev,
+                                        personaType: opt,
+                                      }));
+                                      setPersonaOpen(false);
+                                    }}
+                                    className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                                  >
+                                    {opt}
+                                  </motion.li>
+                                )
+                              )}
                             </motion.ul>
                           )}
                         </AnimatePresence>
@@ -405,36 +617,139 @@ export default function IndexSuppliers() {
 
                     {/* Contacto */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
-                      <input name="contacto" value={form.contacto} onChange={handleFormChange} placeholder="Nombre contacto" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Persona de contacto
+                      </label>
+                      <input
+                        name="contacto"
+                        value={form.contacto}
+                        onChange={handleFormChange}
+                        placeholder="Nombre contacto"
+                        className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
+                        style={{ color: "#000" }}
+                        required
+                      />
                     </div>
 
                     {/* Teléfono (numérico) */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
-                      <input name="telefono" value={form.telefono} onChange={handleFormChange} onKeyDown={handleNumericKeyDown} inputMode="numeric" placeholder="Teléfono" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Teléfono de contacto
+                      </label>
+                      <input
+                        name="telefono"
+                        value={form.telefono}
+                        onChange={handleFormChange}
+                        onKeyDown={handleNumericKeyDown}
+                        inputMode="numeric"
+                        placeholder="Teléfono"
+                        className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
+                        style={{ color: "#000" }}
+                        required
+                      />
                     </div>
 
                     {/* Correo */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">Correo</label>
-                      <input name="correo" type="email" value={form.correo} onChange={handleFormChange} placeholder="correo@ejemplo.com" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Correo
+                      </label>
+                      <input
+                        name="correo"
+                        type="email"
+                        value={form.correo}
+                        onChange={handleFormChange}
+                        placeholder="correo@ejemplo.com"
+                        className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
+                        style={{ color: "#000" }}
+                        required
+                      />
                     </div>
 
                     {/* Estado (dropdown estilo consistente) */}
                     <div ref={estadoRef}>
-                      <label className="block text-sm text-gray-700 mb-1">Estado</label>
-                      <div className="relative">
-                        <button type="button" onClick={() => setEstadoOpen((s) => !s)} className={`w-full flex items-center justify-between px-4 py-3 rounded-lg ${estadoButtonClasses()} transition`} aria-haspopup="listbox" aria-expanded={estadoOpen}>
-                          <span className={`text-sm ${form.estado ? "" : "text-gray-400"}`}>{form.estado || "Seleccionar estado"}</span>
-                          <motion.span animate={{ rotate: estadoOpen ? 180 : 0 }} transition={{ duration: 0.18 }}><ChevronDown size={18} /></motion.span>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Estado
+                      </label>
+
+                      {/* contenedor con borde dinámico (gris por defecto, verde/rojo si hay selección) */}
+                      <div
+                        className={`relative mt-1 w-full rounded-lg border transition ${
+                          form.estado === "Activo"
+                            ? "border-green-500 bg-green-50"
+                            : form.estado === "Inactivo"
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 bg-white"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setEstadoOpen((s) => !s)}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-transparent rounded-lg text-sm focus:outline-none"
+                          aria-haspopup="listbox"
+                          aria-expanded={estadoOpen}
+                        >
+                          <span
+                            className={`${
+                              form.estado === "Activo"
+                                ? "text-green-700 font-medium"
+                                : form.estado === "Inactivo"
+                                ? "text-red-700 font-medium"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {form.estado || "Seleccionar estado"}
+                          </span>
+
+                          <motion.span
+                            animate={{ rotate: estadoOpen ? 180 : 0 }}
+                            transition={{ duration: 0.18 }}
+                          >
+                            <ChevronDown
+                              size={18}
+                              className={`${
+                                form.estado === "Activo"
+                                  ? "text-green-700"
+                                  : form.estado === "Inactivo"
+                                  ? "text-red-700"
+                                  : "text-gray-500"
+                              }`}
+                            />
+                          </motion.span>
                         </button>
 
                         <AnimatePresence>
                           {estadoOpen && (
-                            <motion.ul className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-hidden z-50" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
+                            <motion.ul
+                              className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50"
+                              initial="hidden"
+                              animate="visible"
+                              exit="hidden"
+                              variants={listVariants}
+                            >
                               {["Activo", "Inactivo"].map((opt) => (
-                                <motion.li key={opt} variants={itemVariants} onClick={() => { setForm((prev) => ({ ...prev, estado: opt })); setEstadoOpen(false); }} className={`px-4 py-3 cursor-pointer text-sm text-gray-700 ${opt === "Activo" ? "hover:bg-green-50" : "hover:bg-red-50"}`}>
+                                <motion.li
+                                  key={opt}
+                                  variants={itemVariants}
+                                  onClick={() => {
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      estado: opt,
+                                    }));
+                                    setEstadoOpen(false);
+                                  }}
+                                  className={`px-4 py-3 cursor-pointer text-sm ${
+                                    opt === "Activo"
+                                      ? "hover:bg-green-50 text-green-700"
+                                      : "hover:bg-red-50 text-red-700"
+                                  } ${
+                                    form.estado === opt
+                                      ? opt === "Activo"
+                                        ? "bg-green-100 font-medium"
+                                        : "bg-red-100 font-medium"
+                                      : ""
+                                  }`}
+                                >
                                   {opt}
                                 </motion.li>
                               ))}
@@ -447,26 +762,63 @@ export default function IndexSuppliers() {
 
                   {/* Categoria (multi select) */}
                   <div ref={categoriasRef} className="mt-2">
-                    <label className="block text-sm text-gray-700 mb-1">Categorías</label>
-                    <div className="relative">
-                      <button type="button" onClick={() => setCategoriasOpen((s) => !s)} className="w-full flex items-center justify-between px-4 py-3 border rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200" aria-haspopup="listbox" aria-expanded={categoriasOpen}>
-                        <div className="flex items-center">
-                          {form.categorias.length === 0 ? (
-                            <span className="text-sm text-gray-400">Seleccionar categorías</span>
-                          ) : (
-                            <span className="text-sm text-gray-800">{form.categorias.length} seleccionada(s)</span>
-                          )}
-                        </div>
-                        <motion.span animate={{ rotate: categoriasOpen ? 180 : 0 }} transition={{ duration: 0.18 }}><ChevronDown size={18} /></motion.span>
-                      </button>
+                    <label className="block text-sm text-gray-700 mb-1">
+                      Categorías
+                    </label>
+
+                    {/* contenedor con borde fijo (gris) */}
+                    <div className="relative mt-1 w-full">
+                      <div className="w-full border border-gray-300 bg-white rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() => setCategoriasOpen((s) => !s)}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
+                          aria-haspopup="listbox"
+                          aria-expanded={categoriasOpen}
+                        >
+                          <div className="flex items-center">
+                            {form.categorias.length === 0 ? (
+                              <span className="text-sm text-gray-400">
+                                Seleccionar categorías
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-800">
+                                {form.categorias.length} seleccionada(s)
+                              </span>
+                            )}
+                          </div>
+
+                          <motion.span
+                            animate={{ rotate: categoriasOpen ? 180 : 0 }}
+                            transition={{ duration: 0.18 }}
+                          >
+                            <ChevronDown size={18} className="text-gray-500" />
+                          </motion.span>
+                        </button>
+                      </div>
 
                       <AnimatePresence>
                         {categoriasOpen && (
-                          <motion.ul className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-auto z-50 max-h-48" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
+                          <motion.ul
+                            className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-auto z-50 max-h-48"
+                            initial="hidden"
+                            animate="visible"
+                            exit="hidden"
+                            variants={listVariants}
+                          >
                             {categoriasOptions.map((opt) => (
-                              <motion.li key={opt} variants={itemVariants} onClick={() => toggleCategoria(opt)} className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between">
+                              <motion.li
+                                key={opt}
+                                variants={itemVariants}
+                                onClick={() => toggleCategoria(opt)}
+                                className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between"
+                              >
                                 <span>{opt}</span>
-                                {form.categorias.includes(opt) && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓</span>}
+                                {form.categorias.includes(opt) && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                    ✓
+                                  </span>
+                                )}
                               </motion.li>
                             ))}
                           </motion.ul>
@@ -474,12 +826,22 @@ export default function IndexSuppliers() {
                       </AnimatePresence>
                     </div>
 
-                    {/* tags with remove (only these, not inside button) */}
+                    {/* tags con botón para quitar */}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {form.categorias.map((c) => (
-                        <div key={c} className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
+                        <div
+                          key={c}
+                          className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs"
+                        >
                           <span>{c}</span>
-                          <button type="button" onClick={() => removeCategoriaTag(c)} aria-label={`Eliminar ${c}`} className="opacity-70 hover:opacity-100">×</button>
+                          <button
+                            type="button"
+                            onClick={() => removeCategoriaTag(c)}
+                            aria-label={`Eliminar ${c}`}
+                            className="opacity-70 hover:opacity-100"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -487,14 +849,40 @@ export default function IndexSuppliers() {
 
                   {/* Dirección (full width) */}
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">Dirección</label>
-                    <input name="direccion" value={form.direccion} onChange={handleFormChange} placeholder="Dirección del proveedor" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
+                    <label className="block text-sm text-gray-700 mb-1">
+                      Dirección
+                    </label>
+                    <input
+                      name="direccion"
+                      value={form.direccion}
+                      onChange={handleFormChange}
+                      placeholder="Dirección del proveedor"
+                      className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
+                      style={{ color: "#000" }}
+                      required
+                    />
                   </div>
 
                   {/* Botones */}
                   <div className="flex justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => { setIsModalOpen(false); setPersonaOpen(false); setCategoriasOpen(false); setEstadoOpen(false); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition">Registrar Proveedor</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setPersonaOpen(false);
+                        setCategoriasOpen(false);
+                        setEstadoOpen(false);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
+                    >
+                      Registrar Proveedor
+                    </button>
                   </div>
                 </form>
               </motion.div>
