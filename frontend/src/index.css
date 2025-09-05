@@ -15,11 +15,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-html, body, #root {
-  height: 100%;
-}
+
 
 html, body {
+  width: 100%;
+  overflow-x: hidden; /* 🚫 bloquea scroll horizontal */
+  overflow-y: auto;   /* ✅ permite scroll vertical */
   margin: 0;
   padding: 0;
   width: 100%;
@@ -639,3 +640,5 @@ body, #root {
   color: inherit;   /* hereda el color normal */
   text-shadow: none; /* sin sombra de texto */
 }
+
+
