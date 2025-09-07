@@ -401,7 +401,7 @@ export default function IndexClients() {
                     autoComplete="off"
                     value={form.correo}
                     onChange={handleChange}
-                    placeholder="ejemplo@gmail.com"
+                    placeholder="Correo Electrónico"
                     className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
                     required
                   />
@@ -420,36 +420,7 @@ export default function IndexClients() {
                     required
                   />
                 </div>
-              {/* Correo */}
-              <div>
-                <input
-                  type="email"
-                  name="correo"
-                  autoComplete="off"
-                  value={form.correo}
-                  onChange={handleChange}
-                  placeholder="Coreo Electrónico"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
-                            focus:ring-green-200 text-black placeholder-black"
-                  required
-                />
-              </div>
-
-              {/* Teléfono */}
-              <div>
-                <input
-                  type="text"
-                  name="telefono"
-                  value={form.telefono}
-                  autoComplete="off"
-                  onChange={handleChange}
-                  placeholder="Telefono"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
-                            focus:ring-green-200 text-black placeholder-black"
-                  required
-                />
-              </div>
-
+            
               {/* Checkbox Activo */}
               <div className="flex items-center gap-2">
                 <input
