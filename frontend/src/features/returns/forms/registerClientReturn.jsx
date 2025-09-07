@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, ChevronDown } from "lucide-react";
+import { showErrorAlert, showSuccessAlert } from "../../../shared/components/alerts";
+import ProductSearch from "../../../shared/components/productSearch";
 
 const FormRegisterClientReturn = ({isModalOpen, setIsModalOpen}) => {
   const [form, setForm] = useState({
@@ -251,17 +253,9 @@ const FormRegisterClientReturn = ({isModalOpen, setIsModalOpen}) => {
                 {/* Nombre */}
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">
-                    Nombre
+                    Buscar producto
                   </label>
-                  <input
-                    name="nombre"
-                    value={form.nombre}
-                    onChange={handleFormChange}
-                    placeholder="Nombre del proveedor"
-                    className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
-                    style={{ color: "#000" }}
-                    required
-                  />
+                  <ProductSearch />
                 </div>
 
                 {/* NIT (numérico) */}

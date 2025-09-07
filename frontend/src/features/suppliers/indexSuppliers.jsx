@@ -5,17 +5,17 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons.jsx";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showErrorAlert,
   showInfoAlert,
   showSuccessAlert,
   showWarningAlert,
-} from "../../shared/alerts.jsx";
+} from "../../shared/components/alerts.jsx";
 
 export default function IndexSuppliers() {
   const [suppliers] = useState([

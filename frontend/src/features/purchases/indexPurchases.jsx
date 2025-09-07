@@ -2,13 +2,13 @@ import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import {
   ViewButton,
   PrinterButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 
 export default function IndexPurchases() {
   const [purchases] = useState([

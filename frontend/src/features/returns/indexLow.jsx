@@ -5,16 +5,16 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
   showInputAlert,
   showLoadingAlert,
-} from "../../shared/alerts";
+} from "../../shared/components/alerts";
 
 const baseLows = [];
   for (let i = 1; i <= 44; i++) {

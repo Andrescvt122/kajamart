@@ -1,15 +1,15 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/sidebar";
+import Sidebar from "../../shared/components/sidebar";
 import {
   ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showSuccessAlert,
@@ -19,7 +19,7 @@ import {
   showInfoAlert,
   showLoadingAlert,
   showInputAlert,
-} from "../../shared/alerts";
+} from "../../shared/components/alerts";
 
 export default function IndexClients() {
   const [clients] = useState([
