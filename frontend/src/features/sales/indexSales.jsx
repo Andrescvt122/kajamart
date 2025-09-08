@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { Printer, Eye, Search } from "lucide-react";
+import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import {
+  ViewButton,
+  PrinterButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
-import { motion } from "framer-motion";
+} from "../../shared/components/buttons";
 
 export default function IndexSales() {
   const [sales] = useState([
@@ -72,9 +74,7 @@ export default function IndexSales() {
     const s = normalizeText(searchTerm.trim());
     if (!s) return sales;
     return sales.filter((v) =>
-      Object.values(v).some((value) =>
-        normalizeText(value).includes(s)
-      )
+      Object.values(v).some((value) => normalizeText(value).includes(s))
     );
   }, [sales, searchTerm]);
 
@@ -193,9 +193,7 @@ export default function IndexSales() {
                     className="hover:bg-gray-50"
                     variants={rowVariants}
                   >
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.id}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{v.id}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {v.fecha}
                     </td>
@@ -213,7 +211,7 @@ export default function IndexSales() {
                         className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                           v.estado === "Completada"
                             ? "bg-green-50 text-green-700"
-                            : "bg-red-50 text-red-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                       >
                         {v.estado}
@@ -224,12 +222,8 @@ export default function IndexSales() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                          <Printer size={16} />
-                        </button>
-                        <button className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600">
-                          <Eye size={16} />
-                        </button>
+                        <ViewButton />
+                        <PrinterButton />
                       </div>
                     </td>
                   </motion.tr>
@@ -239,7 +233,6 @@ export default function IndexSales() {
           </table>
         </motion.div>
 
-        {/* Paginador */}
         <Paginator
           currentPage={currentPage}
           perPage={perPage}

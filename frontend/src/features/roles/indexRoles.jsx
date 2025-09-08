@@ -5,10 +5,10 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 
 export default function IndexRoles() {

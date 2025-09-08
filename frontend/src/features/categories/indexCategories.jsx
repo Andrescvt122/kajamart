@@ -5,16 +5,16 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showInfoAlert,
   showInputAlert,
   showLoadingAlert,
-} from "../../shared/alerts";
+} from "../../shared/components/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
