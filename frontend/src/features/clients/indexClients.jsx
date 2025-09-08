@@ -11,15 +11,7 @@ import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/paginator";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  showSuccessAlert,
-  showErrorAlert,
-  showConfirmAlert,
-  showWarningAlert,
-  showInfoAlert,
-  showLoadingAlert,
-  showInputAlert,
-} from "../../shared/alerts";
+
 
 export default function IndexClients() {
   const [clients] = useState([
