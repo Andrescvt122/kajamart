@@ -89,29 +89,26 @@ export default function IndexPurchases() {
 
   return (
     <div className="flex min-h-screen">
+      {/* Fondo de ondas */}
+      <div
+        className="absolute bottom-0 left-0 w-full pointer-events-none"
+        style={{
+          height: "50%",
+          backgroundImage: `url(${ondas})`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center bottom",
+          backgroundSize: "cover",
+          zIndex: 0,
+        }}
+      />
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Fondo de ondas */}
-        <div
-          className="absolute bottom-0 left-0 w-full pointer-events-none"
-          style={{
-            height: "50%",
-            backgroundImage: `url(${ondas})`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center bottom",
-            backgroundSize: "cover",
-            zIndex: 0,
-          }}
-        />
-
         {/* Contenido */}
         <div className="relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Compras</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Historial de compras
-              </p>
+              <p className="text-sm text-gray-500 mt-1">Historial de compras</p>
             </div>
           </div>
 
