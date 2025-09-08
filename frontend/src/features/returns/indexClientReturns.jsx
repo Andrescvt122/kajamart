@@ -15,7 +15,7 @@ import {
   showInputAlert,
   showLoadingAlert,
 } from "../../shared/components/alerts";
-import FormRegisterClientReturn from "./forms/registerClientReturn";
+import ReturnSalesComponent from "./forms/registerClientReturn/returnSaleComponent";
 
 export default function IndexClientReturns() {
   const baseReturns = [];
@@ -141,11 +141,6 @@ export default function IndexClientReturns() {
             >
               Registrar nueva devolución
             </button>
-            {/* Aquí montas el formulario */}
-            <FormRegisterClientReturn
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-            />
           </div>
         </div>
 
@@ -234,6 +229,11 @@ export default function IndexClientReturns() {
           goToPage={goToPage}
         />
       </div>
+      {/* Aquí montas el formulario */}
+      <ReturnSalesComponent
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+      />
     </>
   );
 }
