@@ -12,8 +12,6 @@ import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
 } from "../../shared/components/alerts";
 
 const baseReturns = [];
@@ -205,12 +203,6 @@ const [returns] = useState([
                       <div className="inline-flex items-center gap-2">
                         <ViewButton
                           alert={() => showInfoAlert("Ver devolución")}
-                        />
-                        <EditButton
-                          alert={() => showLoadingAlert("Editar devolución")}
-                        />
-                        <DeleteButton
-                          alert={() => showInputAlert("Eliminar devolución")}
                         />
                       </div>
                     </td>
