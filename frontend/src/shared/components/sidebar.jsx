@@ -22,8 +22,8 @@ import {
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import logo from "../assets/logo.png";
-import ondasHorizontal from "../assets/ondasHorizontal.png"; // fondo borroso inferior
+import logo from "../../assets/logo.png";
+import ondasHorizontal from "../../assets/ondasHorizontal.png"; // fondo borroso inferior
 
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);

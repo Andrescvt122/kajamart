@@ -1,15 +1,15 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/sidebar";
+import Sidebar from "../../shared/components/sidebar";
 import {
   ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showSuccessAlert,
@@ -19,7 +19,7 @@ import {
   showInfoAlert,
   showLoadingAlert,
   showInputAlert,
-} from "../../shared/alerts";
+} from "../../shared/components/alerts";
 
 export default function IndexClients() {
   const [clients] = useState([
@@ -401,7 +401,7 @@ export default function IndexClients() {
                     autoComplete="off"
                     value={form.correo}
                     onChange={handleChange}
-                    placeholder="ejemplo@gmail.com"
+                    placeholder="Correo Electrónico"
                     className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
                     required
                   />
@@ -420,36 +420,7 @@ export default function IndexClients() {
                     required
                   />
                 </div>
-              {/* Correo */}
-              <div>
-                <input
-                  type="email"
-                  name="correo"
-                  autoComplete="off"
-                  value={form.correo}
-                  onChange={handleChange}
-                  placeholder="Coreo Electrónico"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
-                            focus:ring-green-200 text-black placeholder-black"
-                  required
-                />
-              </div>
-
-              {/* Teléfono */}
-              <div>
-                <input
-                  type="text"
-                  name="telefono"
-                  value={form.telefono}
-                  autoComplete="off"
-                  onChange={handleChange}
-                  placeholder="Telefono"
-                  className="w-full px-4 py-2 border rounded-lg bg-white focus:ring-2 
-                            focus:ring-green-200 text-black placeholder-black"
-                  required
-                />
-              </div>
-
+            
               {/* Checkbox Activo */}
               <div className="flex items-center gap-2">
                 <input

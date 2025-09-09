@@ -1,9 +1,14 @@
 import React, { useMemo, useState } from "react";
-import Sidebar from "../../shared/sidebar";
-import { Search, Eye, Printer } from "lucide-react";
+import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
-import { ViewButton,PrinterButton, ExportExcelButton, ExportPDFButton } from "../../shared/buttons";
+import Paginator from "../../shared/components/paginator";
+import {
+  ViewButton,
+  PrinterButton,
+  ExportExcelButton,
+  ExportPDFButton,
+} from "../../shared/components/buttons";
 
 export default function IndexSales() {
   const [sales] = useState([
@@ -69,9 +74,7 @@ export default function IndexSales() {
     const s = normalizeText(searchTerm.trim());
     if (!s) return sales;
     return sales.filter((v) =>
-      Object.values(v).some((value) =>
-        normalizeText(value).includes(s)
-      )
+      Object.values(v).some((value) => normalizeText(value).includes(s))
     );
   }, [sales, searchTerm]);
 
@@ -190,56 +193,46 @@ export default function IndexSales() {
                     className="hover:bg-gray-50"
                     variants={rowVariants}
                   >
+                    <td className="px-6 py-4 text-sm text-gray-600">{v.id}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.id}
+                      {v.fecha}
                     </td>
-                  </tr>
-                ) : (
-                  pageItems.map((v, i) => (
-                    <tr key={v.id + "-" + i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {v.id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {v.fecha}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {v.cliente}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        ${v.total.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {v.medioPago}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                            v.estado === "Completada"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {v.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {v.codigoBarras}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                         <div className="inline-flex items-center gap-2">
-                            <ViewButton />
-                            <PrinterButton />
-                          </div>
-                        </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {v.cliente}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      ${v.total.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {v.medioPago}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          v.estado === "Completada"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {v.estado}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {v.codigoBarras}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <ViewButton />
+                        <PrinterButton />
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </motion.tbody>
+          </table>
+        </motion.div>
 
-        {/* Paginador */}
         <Paginator
           currentPage={currentPage}
           perPage={perPage}

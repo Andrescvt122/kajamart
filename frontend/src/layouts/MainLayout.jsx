@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from '../shared/sidebar.jsx';
+import Sidebar from '../shared/components/sidebar.jsx';
 
 export default function MainLayout() {
   return (

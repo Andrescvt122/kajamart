@@ -1,22 +1,21 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons.jsx";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showErrorAlert,
   showInfoAlert,
   showSuccessAlert,
   showWarningAlert,
-} from "../../shared/alerts.jsx";
+} from "../../shared/components/alerts.jsx";
 
 export default function IndexSuppliers() {
   const [suppliers] = useState([
@@ -490,7 +489,6 @@ export default function IndexSuppliers() {
                     <label className="block text-sm text-gray-700 mb-1">Dirección</label>
                     <input name="direccion" value={form.direccion} onChange={handleFormChange} placeholder="Dirección del proveedor" className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none" style={{ color: "#000" }} required />
                   </div>
-
                   {/* Botones */}
                   <div className="flex justify-end gap-3 pt-2">
                     <button type="button" onClick={() => { setIsModalOpen(false); setPersonaOpen(false); setCategoriasOpen(false); setEstadoOpen(false); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition">Cancelar</button>

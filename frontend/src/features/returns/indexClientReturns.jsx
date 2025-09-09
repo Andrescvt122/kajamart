@@ -5,41 +5,40 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+} from "../../shared/components/buttons";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
-} from "../../shared/alerts";
+} from "../../shared/components/alerts";
+import ReturnSalesComponent from "./forms/registerClientReturn/returnSaleComponent";
 
-const baseReturns = [];
+export default function IndexClientReturns() {
+  const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
     baseReturns.push({
       idReturn: i,
       idSale: 100 + i,
-      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
-                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
-                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
-                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
-                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
-                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
-                  ],
+      products: [
+        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
+        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
+        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+        { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
+        { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
+        { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
+      ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
       reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
-      typeReturn: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+      typeReturn:
+        i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
     });
   }
-export default function IndexClientReturns() {
-const [returns] = useState([
-  ...baseReturns
-]);
-
+  const [returns] = useState([...baseReturns]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
@@ -135,7 +134,7 @@ const [returns] = useState([
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
             <button
-              onClick={() => console.log("Registrar nueva devolución")}
+              onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
               Registrar nueva devolución
@@ -211,12 +210,6 @@ const [returns] = useState([
                         <ViewButton
                           alert={() => showInfoAlert("Ver devolución")}
                         />
-                        <EditButton
-                          alert={() => showLoadingAlert("Editar devolución")}
-                        />
-                        <DeleteButton
-                          alert={() => showInputAlert("Eliminar devolución")}
-                        />
                       </div>
                     </td>
                   </motion.tr>
@@ -225,7 +218,6 @@ const [returns] = useState([
             </motion.tbody>
           </table>
         </motion.div>
-
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
@@ -235,6 +227,11 @@ const [returns] = useState([
           goToPage={goToPage}
         />
       </div>
+      {/* Aquí montas el formulario */}
+      <ReturnSalesComponent
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+      />
     </>
   );
 }
