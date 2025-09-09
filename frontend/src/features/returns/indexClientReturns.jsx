@@ -12,8 +12,6 @@ import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
 } from "../../shared/components/alerts";
 import ReturnSalesComponent from "./forms/registerClientReturn/returnSaleComponent";
 
