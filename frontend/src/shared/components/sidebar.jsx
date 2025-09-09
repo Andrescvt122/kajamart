@@ -94,12 +94,13 @@ export default function Sidebar() {
       style={{
         backgroundColor: "#b4debf",
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
+        
       }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
     >
       {/* Fondo inferior borroso */}
       <div
-        className="absolute bottom-0 left-0"
+        className=" absolute bottom-0 left-0"
         style={{
           width: isCollapsed ? "80px" : "260px",
           height: "50%",
@@ -108,7 +109,7 @@ export default function Sidebar() {
           backgroundPosition: "0% bottom",
           backgroundSize: "cover",
           filter: "blur(18px) contrast(1.15) brightness(0.95)",
-          transform: "scale(1.05)",
+          // transform: "scale(1.05)",
           zIndex: 0,
           opacity: 0.5,
         }}
