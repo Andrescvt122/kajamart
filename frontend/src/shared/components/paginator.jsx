@@ -1,5 +1,5 @@
 import React from "react";
-import '../index.css';
+import '../../index.css';
 
 function buildPages(total, current, maxButtons = 7) {
   if (total <= maxButtons) return Array.from({ length: total }, (_, i) => i + 1);

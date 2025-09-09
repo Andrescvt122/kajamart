@@ -2,6 +2,7 @@ import React from "react";
 import { FiEye, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import { FiPrinter } from "react-icons/fi";
 import { AiFillFileExcel, AiFillFilePdf } from "react-icons/ai";
+import { showConfirmAlert, showErrorAlert, showInfoAlert, showInputAlert, showLoadingAlert, showSuccessAlert, showWarningAlert } from "./alerts";
 
 /* ----------------------------- */
 /* Función helper para animación al click */
