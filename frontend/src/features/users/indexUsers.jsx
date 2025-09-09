@@ -8,12 +8,12 @@ import {
 } from "../../shared/components/buttons";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showErrorAlert,
   showSuccessAlert,
-} from "../../shared/alerts.jsx"; // Asegúrate de tener estas alertas
+} from "../../shared/components/alerts.jsx"; // Asegúrate de tener estas alertas
 
 // Componente para el switch de estado
 const EstadoToggle = ({ enabled, onChange }) => (
