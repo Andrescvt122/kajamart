@@ -38,5 +38,4 @@
 .footer-groups { display: flex; gap: 2rem; align-items: flex-start; }
 .footer-groups nav, .footer-groups address { min-width: 120px; }
 
-html,body,#root{height:100%;}
 body{display:block;}
