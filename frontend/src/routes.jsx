@@ -6,7 +6,6 @@ import RecoverPassword from "./auth/RecoverPassword";
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
-import IndexSales from "./features/Sales/indexSales";
 import IndexProducts from "./features/products/indexProducts";
 import IndexProductReturns from "./features/returns/indexProductReturns";
 import IndexLow from "./features/returns/indexLow";
