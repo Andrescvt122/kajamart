@@ -14,6 +14,7 @@ import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
+import IndexSales from "./features/sales/indexSales";
 
 export default function RoutesAdmin() {
   return (

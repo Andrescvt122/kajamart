@@ -24,8 +24,8 @@ const withClickAnimation = (Component, className) => {
 /* ----------------------------- */
 /* Botones cuadrados con iconos  */
 /* ----------------------------- */
-export const ViewButton = ({alert}) => (
-  <button className="button-square view-btn" onClick={alert}>
+export const ViewButton = ({event}) => (
+  <button className="button-square view-btn" onClick={event}>
     <FiEye size={20} />
   </button>
 );
@@ -36,14 +36,14 @@ export const ViewDetailsButton = ({event}) => (
   </button>
 );
 
-export const EditButton = ({alert}) => (
-  <button className="button-square edit-btn" onClick={alert}>
+export const EditButton = ({event}) => (
+  <button className="button-square edit-btn" onClick={event}>
     <FiEdit2 size={20} />
   </button>
 );
 
-export const DeleteButton = ({alert}) => (
-  <button className="button-square delete-btn" onClick={alert}>
+export const DeleteButton = ({event}) => (
+  <button className="button-square delete-btn" onClick={event}>
     <FiTrash2 size={20} />
   </button>
 );
