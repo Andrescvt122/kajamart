@@ -5,44 +5,64 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
+  ViewDetailsButton,
+} from "../../../shared/components/buttons";
 import { Search } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
+import ondas from "../../../assets/ondasHorizontal.png";
+import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
-} from "../../shared/alerts";
+} from "../../../shared/components/alerts";
+import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
+import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
 
-const baseReturns = [];
+export default function IndexClientReturns() {
+  const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
     baseReturns.push({
       idReturn: i,
       idSale: 100 + i,
-      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
-                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
-                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
-                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
-                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
-                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
-                  ],
+      products: [
+        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
+        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
+        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+        { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
+        { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
+        { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
+      ],
+      productsToReturn:[
+        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
+        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
+        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+      ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
       reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
-      typeReturn: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+      typeReturn:
+        i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
     });
   }
-export default function IndexClientReturns() {
-const [returns] = useState([
-  ...baseReturns
-]);
-
+  const [returns] = useState([...baseReturns]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
+  const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
+
+  // Función para abrir el modal de detalles
+  const handleViewDetails = (returnData) => {
+    setSelectedReturn(returnData);
+    setIsDetailsModalOpen(true);
+  };
+
+  // Función para cerrar el modal de detalles
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedReturn(null);
+  };
 
   // Normalización de texto
   const normalizeText = (text) =>
@@ -135,7 +155,7 @@ const [returns] = useState([
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
             <button
-              onClick={() => console.log("Registrar nueva devolución")}
+              onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
               Registrar nueva devolución
@@ -150,7 +170,7 @@ const [returns] = useState([
           initial="hidden"
           animate="visible"
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Devolución</th>
@@ -208,15 +228,7 @@ const [returns] = useState([
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => showInfoAlert("Ver devolución")}
-                        />
-                        <EditButton
-                          alert={() => showLoadingAlert("Editar devolución")}
-                        />
-                        <DeleteButton
-                          alert={() => showInputAlert("Eliminar devolución")}
-                        />
+                        <ViewDetailsButton event={() => handleViewDetails(s)} />
                       </div>
                     </td>
                   </motion.tr>
@@ -225,7 +237,6 @@ const [returns] = useState([
             </motion.tbody>
           </table>
         </motion.div>
-
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
@@ -235,6 +246,19 @@ const [returns] = useState([
           goToPage={goToPage}
         />
       </div>
+      
+      {/* Modal de registro de devolución */}
+      <ReturnSalesComponent
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+      />
+
+      {/* Modal de detalles de devolución */}
+      <DetailsClientReturn
+        isOpen={isDetailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        returnData={selectedReturn}
+      />
     </>
   );
 }
