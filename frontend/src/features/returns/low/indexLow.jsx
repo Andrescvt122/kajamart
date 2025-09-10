@@ -5,47 +5,44 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/components/buttons";
+  ViewDetailsButton,
+} from "../../../shared/components/buttons";
 import { Search } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/components/paginator";
+import ondas from "../../../assets/ondasHorizontal.png";
+import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-} from "../../shared/components/alerts";
+} from "../../../shared/components/alerts";
+import RegisterLow from "./modal/registerLow";
 
+// Datos base de bajas
 const baseLows = [];
-  for (let i = 1; i <= 44; i++) {
-    baseLows.push({
-      idLow: i,
-      idDetailProduct: 100 + i,
-      dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-      reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      responsible: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
-      cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
-    });
-  }
-export default function IndexLow() {
-const [lows] = useState([
-  ...baseLows
-]);
+for (let i = 1; i <= 44; i++) {
+  baseLows.push({
+    idLow: i,
+    idDetailProduct: 100 + i,
+    dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
+    reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
+    responsible: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+    cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
+  });
+}
 
+export default function IndexLow() {
+  const [lows, setLows] = useState([...baseLows]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isOpen, setIsOpen] = useState(false); // 👈 Estado del modal
   const perPage = 6;
 
   // Normalización de texto
   const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+    text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     if (!s) return lows;
-
     return lows.filter((p) =>
       Object.values(p).some((value) => normalizeText(value).includes(s))
     );
@@ -62,18 +59,19 @@ const [lows] = useState([
     setCurrentPage(p);
   };
 
-  // Animaciones
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 },
-    },
-  };
-
-  const rowVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
+  // 👇 Cuando se confirma un producto de baja en el modal
+  const handleConfirmLow = (product) => {
+    const newLow = {
+      idLow: lows.length + 1,
+      idDetailProduct: product.id,
+      dateLow: new Date().toISOString().split("T")[0],
+      reason: product.reason,
+      responsible: "Administrador",
+      cantidad: product.requestedQuantity,
+    };
+    // Insertar como primer registro
+    setLows((prev) => [newLow, ...prev]);
+    console.log("Nueva baja registrada:", newLow);
   };
 
   return (
@@ -97,11 +95,10 @@ const [lows] = useState([
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Productos de baja</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Administrador de tienda
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
           </div>
         </div>
+
         {/* Barra de búsqueda + botones */}
         <div className="mb-6 flex items-center gap-3">
           <div className="relative flex-1">
@@ -123,7 +120,7 @@ const [lows] = useState([
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
             <button
-              onClick={() => console.log("Registrar nueva devolución")}
+              onClick={() => setIsOpen(true)} // 👈 abre el modal
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
               Registrar nueva devolución
@@ -134,11 +131,10 @@ const [lows] = useState([
         {/* Tabla con animación */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-          variants={tableVariants}
           initial="hidden"
           animate="visible"
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Baja</th>
@@ -150,16 +146,10 @@ const [lows] = useState([
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+            <motion.tbody className="divide-y divide-gray-100">
               {pageItems.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron devoluciones.
                   </td>
                 </tr>
@@ -168,7 +158,6 @@ const [lows] = useState([
                   <motion.tr
                     key={s.idLow + "-" + i}
                     className="hover:bg-gray-50"
-                    variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       {s.idLow}
@@ -180,11 +169,11 @@ const [lows] = useState([
                       {s.dateLow}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.responsible}
+                      {s.reason}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                        {s.reason}
+                        {s.responsible}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -192,9 +181,7 @@ const [lows] = useState([
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => showInfoAlert("Ver devolución")}
-                        />
+                        <ViewDetailsButton event={() => console.log("test")} />
                       </div>
                     </td>
                   </motion.tr>
@@ -203,6 +190,7 @@ const [lows] = useState([
             </motion.tbody>
           </table>
         </motion.div>
+
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
@@ -212,6 +200,13 @@ const [lows] = useState([
           goToPage={goToPage}
         />
       </div>
+
+      {/* Modal de baja */}
+      <RegisterLow
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onConfirm={handleConfirmLow}
+      />
     </>
   );
 }
