@@ -5,15 +5,17 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/components/buttons";
+  ViewDetailsButton,
+} from "../../../shared/components/buttons";
 import { Search } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/components/paginator";
+import ondas from "../../../assets/ondasHorizontal.png";
+import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-} from "../../shared/components/alerts";
-import ReturnSalesComponent from "./forms/registerClientReturn/returnSaleComponent";
+} from "../../../shared/components/alerts";
+import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
+import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
 
 export default function IndexClientReturns() {
   const baseReturns = [];
@@ -29,6 +31,11 @@ export default function IndexClientReturns() {
         { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
         { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
       ],
+      productsToReturn:[
+        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
+        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
+        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+      ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
       reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
@@ -39,9 +46,23 @@ export default function IndexClientReturns() {
   }
   const [returns] = useState([...baseReturns]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
+  const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
+
+  // Función para abrir el modal de detalles
+  const handleViewDetails = (returnData) => {
+    setSelectedReturn(returnData);
+    setIsDetailsModalOpen(true);
+  };
+
+  // Función para cerrar el modal de detalles
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedReturn(null);
+  };
 
   // Normalización de texto
   const normalizeText = (text) =>
@@ -207,9 +228,7 @@ export default function IndexClientReturns() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => showInfoAlert("Ver devolución")}
-                        />
+                        <ViewDetailsButton event={() => handleViewDetails(s)} />
                       </div>
                     </td>
                   </motion.tr>
@@ -228,9 +247,18 @@ export default function IndexClientReturns() {
         />
       </div>
       {/* Aquí montas el formulario */}
+      
+      {/* Modal de registro de devolución */}
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
+      />
+
+      {/* Modal de detalles de devolución */}
+      <DetailsClientReturn
+        isOpen={isDetailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        returnData={selectedReturn}
       />
     </>
   );

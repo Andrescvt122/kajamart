@@ -4,7 +4,6 @@ import AuthLayout from "./layouts/AuthLayout";
 import ForgotPassword from "./auth/ForgotPassword";
 import RecoverPassword from "./auth/RecoverPassword";
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
-import IndexClientReturns from "./features/returns/indexClientReturns";
 import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
 import IndexProducts from "./features/products/indexProducts";
@@ -14,7 +13,7 @@ import IndexUsers from "./features/users/indexUsers";
 import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
-import IndexSales from "./features/sales/indexSales";
+import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
 
 export default function RoutesAdmin() {
   return (
