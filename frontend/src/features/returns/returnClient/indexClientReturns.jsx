@@ -246,6 +246,7 @@ export default function IndexClientReturns() {
           goToPage={goToPage}
         />
       </div>
+      {/* Aquí montas el formulario */}
       
       {/* Modal de registro de devolución */}
       <ReturnSalesComponent
