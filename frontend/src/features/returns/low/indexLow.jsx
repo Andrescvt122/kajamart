@@ -11,9 +11,6 @@ import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import {
-  showInfoAlert,
-} from "../../../shared/components/alerts";
 import RegisterLow from "./modal/registerLow";
 
 // Datos base de bajas

@@ -1,12 +1,23 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Search, Package, Minus, Plus, Trash2, ClipboardList, X, CheckCircle, AlertCircle } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import {
+  Search,
+  Receipt,
+  X,
+  Minus,
+  Plus,
+  ArrowLeftRight,
+  Package,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-// Datos de prueba, puedes reemplazarlos con tus datos reales
-  const ProductSearch = ({ onAddProduct }) => {
+
+const ProductSearch = ({ onAddProduct }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(0);
+  const [quantity, setQuantity] = useState(1);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
@@ -16,7 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
       barcode: "7501234567890",
       name: "Producto Premium A",
       expiryDate: "2025-12-15",
-      quantity: 50,
+      quantity: 5,
       salePrice: 35500,
       category: "Alimentación",
     },
@@ -72,7 +83,7 @@ import { motion, AnimatePresence } from "framer-motion";
     setSelectedProduct(product);
     setSearchTerm(product.name);
     setShowDropdown(false);
-    setQuantity(0);
+    setQuantity(1);
   };
 
 const handleAddProduct = () => {
@@ -88,6 +99,14 @@ const handleAddProduct = () => {
     setTimeout(() => setShowAlert(false), 3000);
     return;
   }
+  if (quantity > selectedProduct.quantity) {
+    setAlertMessage(
+      `No hay suficiente stock. Solo quedan ${selectedProduct.quantity} unidades disponibles.`
+    );
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000);
+    return;
+  }
 
   const newProduct = { ...selectedProduct, requestedQuantity: quantity };
   onAddProduct(newProduct);
@@ -97,8 +116,9 @@ const handleAddProduct = () => {
   setShowAlert(true);
   setTimeout(() => setShowAlert(false), 2500);
 
-  // ✅ Mantener el producto seleccionado en pantalla
-  setSelectedProduct({ ...selectedProduct, requestedQuantity: quantity, added: true });
+  setSelectedProduct(null);
+  setSearchTerm("");
+  setQuantity(1);
 };
 
 
@@ -117,46 +137,6 @@ const handleAddProduct = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-              {/* Alerta de validación con animaciones mejoradas */}
-      <AnimatePresence>
-        {showAlert && (
-          <motion.div
-            className={`mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm ${
-              alertMessage.includes("exitosamente") 
-                ? "bg-green-100 text-green-700 border border-green-200" 
-                : "bg-red-100 text-red-700 border border-red-200"
-            }`}
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ 
-              type: "spring",
-              stiffness: 300,
-              damping: 25
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
-            >
-              {alertMessage.includes("exitosamente") ? (
-                <CheckCircle size={20} />
-              ) : (
-                <AlertCircle size={20} />
-              )}
-            </motion.div>
-            <motion.p 
-              className="text-sm font-medium"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              {alertMessage}
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
         {/* Campo de búsqueda */}
         <div className="relative flex-1">
           <motion.div 
@@ -213,49 +193,48 @@ const handleAddProduct = () => {
           Añadir producto
         </motion.button>
       </motion.div>
-      
-      {selectedProduct && selectedProduct.added && (
-  <motion.div
-    className="mt-4 p-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-  >
-    <div className="flex items-center gap-3">
-      <Package className="w-6 h-6 text-green-600" />
-      <div>
-        <p className="font-medium text-gray-900">{selectedProduct.name}</p>
-        <p className="text-sm text-gray-600">
-          {formatPrice(selectedProduct.salePrice)} c/u
-        </p>
-      </div>
-    </div>
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() =>
-          setQuantity((q) => Math.max(1, q - 1))
-        }
-        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-      >
-        <Minus size={16} />
-      </button>
-      <span className="px-3">{quantity}</span>
-      <button
-        onClick={() =>
-          setQuantity((q) => q + 1)
-        }
-        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-      >
-        <Plus size={16} />
-      </button>
-      <button
-        onClick={() => setSelectedProduct(null)}
-        className="ml-2 text-red-500 hover:text-red-700"
-      >
-        <Trash2 size={18} />
-      </button>
-    </div>
-  </motion.div>
-)}
+
+      {/* Alerta de validación con animaciones mejoradas */}
+      <AnimatePresence>
+        {showAlert && (
+          <motion.div
+            className={`mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm ${
+              alertMessage.includes("exitosamente") 
+                ? "bg-green-100 text-green-700 border border-green-200" 
+                : "bg-red-100 text-red-700 border border-red-200"
+            }`}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 300,
+              damping: 25
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+            >
+              {alertMessage.includes("exitosamente") ? (
+                <CheckCircle size={20} />
+              ) : (
+                <AlertCircle size={20} />
+              )}
+            </motion.div>
+            <motion.p 
+              className="text-sm font-medium"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {alertMessage}
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dropdown de resultados con animaciones */}
       <AnimatePresence>
         {showDropdown && searchTerm && (
