@@ -15,6 +15,10 @@ import {
   showSuccessAlert,
 } from "../../shared/components/alerts.jsx"; // Asegúrate de tener estas alertas
 
+// Importar modales
+import DetailsUsers from "./detailsUsers";
+import EditUsers from "./editUsers";
+
 // Componente para el switch de estado
 const EstadoToggle = ({ enabled, onChange }) => (
   <button
@@ -34,7 +38,8 @@ const EstadoToggle = ({ enabled, onChange }) => (
 
 
 export default function IndexUsers() {
-  const [users] = useState([
+  // ahora con setter para poder actualizar usuario si es necesario
+  const [users, setUsers] = useState([
     {
       Nombre: "Sophia Clark",
       Correo: "sophia.clark@example.com",
@@ -90,7 +95,7 @@ export default function IndexUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
   
-  // State para el modal
+  // State para el modal de crear
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     usuario: "",
@@ -104,6 +109,11 @@ export default function IndexUsers() {
     rol: "",
     estado: true, // true para 'Activo', false para 'Inactivo'
   });
+
+  // Estados para modales abiertos por eventos y usuario seleccionado
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Refs para dropdowns
   const rolRef = useRef(null);
@@ -123,6 +133,26 @@ export default function IndexUsers() {
       document.body.style.overflow = originalOverflow || "auto";
     };
   }, [isModalOpen]);
+
+  // Escuchar eventos globales para abrir modales (detalles / editar)
+  useEffect(() => {
+    const openDetails = (e) => {
+      setSelectedUser(e.detail);
+      setIsDetailsOpen(true);
+    };
+    const openEdit = (e) => {
+      setSelectedUser(e.detail);
+      setIsEditOpen(true);
+    };
+
+    window.addEventListener("open-user-details", openDetails);
+    window.addEventListener("open-user-edit", openEdit);
+
+    return () => {
+      window.removeEventListener("open-user-details", openDetails);
+      window.removeEventListener("open-user-edit", openEdit);
+    };
+  }, []);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -166,7 +196,7 @@ export default function IndexUsers() {
   const listVariants = { hidden: { opacity: 0, y: -6, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1, transition: { staggerChildren: 0.02 } } };
   const itemVariants = { hidden: { opacity: 0, y: -6 }, visible: { opacity: 1, y: 0 } };
   
-  // --- Lógica del formulario del modal ---
+  // --- Lógica del formulario del modal ---  
 
   const sanitizeNumeric = (value) => value.replace(/\D/g, "");
 
@@ -221,6 +251,10 @@ export default function IndexUsers() {
     showSuccessAlert("Usuario registrado exitosamente");
   };
 
+  // handler para guardar cambios desde EditUsers
+  const handleSaveUser = (updated) => {
+    setUsers(prev => prev.map(u => (u.Correo === updated.correo || u.Correo === updated.Correo) ? { ...u, ...updated } : u));
+  };
 
   return (
     <>
@@ -320,8 +354,23 @@ export default function IndexUsers() {
                       <td className="px-6 py-4 align-top text-sm text-gray-600">{user.FechaCreacion}</td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton />
-                          <EditButton />
+                          {/* Emitir eventos en vez de onclick directo */}
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent("open-user-details", { detail: user }))}
+                            className="rounded"
+                          >
+                            <ViewButton />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent("open-user-edit", { detail: user }))}
+                            className="rounded"
+                          >
+                            <EditButton />
+                          </button>
+
                           <DeleteButton />
                         </div>
                       </td>
@@ -459,6 +508,20 @@ export default function IndexUsers() {
           </>
         )}
       </AnimatePresence>
+
+      {/* MODALES abiertos por eventos */}
+      <DetailsUsers
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        user={selectedUser}
+      />
+
+      <EditUsers
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        user={selectedUser}
+        onSave={handleSaveUser}
+      />
     </>
   );
 }

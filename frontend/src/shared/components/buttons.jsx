@@ -30,8 +30,8 @@ export const ViewButton = ({alert}) => (
   </button>
 );
 
-export const EditButton = ({alert}) => (
-  <button className="button-square edit-btn" onClick={alert}>
+export const EditButton = ({event}) => (
+  <button className="button-square edit-btn" onClick={event}>
     <FiEdit2 size={20} />
   </button>
 );

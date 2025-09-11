@@ -1,5 +1,6 @@
 // src/pages/roles/IndexRoles.jsx
-import React, { useMemo, useState } from "react";
+
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ViewButton,
   EditButton,
@@ -11,13 +12,19 @@ import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
+import DetailsRoles from "./detailsRoles";
+import EditRoles from "./editRoles";
 
 export default function IndexRoles() {
-  const [roles] = useState([
+  const [roles, setRoles] = useState([
     {
       NombreRol: "Administrador",
       Descripción: "Administra todos los aspectos del sistema",
       Estado: "Activo",
+      Permisos: [
+        { modulo: "Gestión Roles", permiso: "Crear" },
+        { modulo: "Gestión Roles", permiso: "Leer" },
+      ],
     },
     {
       NombreRol: "Empleado",
@@ -30,6 +37,30 @@ export default function IndexRoles() {
       Estado: "Activo",
     },
   ]);
+
+  // nuevo: estado para modales por eventos
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    const openDetails = (e) => {
+      setSelectedRole(e.detail);
+      setIsDetailsOpen(true);
+    };
+    const openEdit = (e) => {
+      setSelectedRole(e.detail);
+      setIsEditOpen(true);
+    };
+
+    window.addEventListener("open-role-details", openDetails);
+    window.addEventListener("open-role-edit", openEdit);
+
+    return () => {
+      window.removeEventListener("open-role-details", openDetails);
+      window.removeEventListener("open-role-edit", openEdit);
+    };
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,22 +102,18 @@ export default function IndexRoles() {
     { modulo: "Gestión Roles", permiso: "Leer" },
     { modulo: "Gestión Roles", permiso: "Editar" },
     { modulo: "Gestión Roles", permiso: "Eliminar" },
-
     { modulo: "Gestión Usuarios", permiso: "Crear" },
     { modulo: "Gestión Usuarios", permiso: "Leer" },
     { modulo: "Gestión Usuarios", permiso: "Editar" },
     { modulo: "Gestión Usuarios", permiso: "Eliminar" },
-
     { modulo: "Gestión Productos", permiso: "Crear" },
     { modulo: "Gestión Productos", permiso: "Leer" },
     { modulo: "Gestión Productos", permiso: "Editar" },
     { modulo: "Gestión Productos", permiso: "Eliminar" },
-
     { modulo: "Gestión Categorías", permiso: "Crear" },
     { modulo: "Gestión Categorías", permiso: "Leer" },
     { modulo: "Gestión Categorías", permiso: "Editar" },
     { modulo: "Gestión Categorías", permiso: "Eliminar" },
-
     { modulo: "Gestión Proveedores", permiso: "Crear" },
     { modulo: "Gestión Proveedores", permiso: "Leer" },
     { modulo: "Gestión Proveedores", permiso: "Editar" },
@@ -104,13 +131,13 @@ export default function IndexRoles() {
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     if (!s) return roles;
-
     return roles.filter((p) =>
       Object.values(p).some((value) => normalizeText(value).includes(s))
     );
   }, [roles, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
@@ -121,7 +148,14 @@ export default function IndexRoles() {
     setCurrentPage(p);
   };
 
-  // Animaciones tabla
+  // handler actualizado desde modal de editar
+  const handleUpdateRole = (updatedRole) => {
+    setRoles((prev) =>
+      prev.map((r) => (r.NombreRol === updatedRole.NombreRol ? updatedRole : r))
+    );
+  };
+
+  // --- Animaciones tabla ---
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -129,6 +163,7 @@ export default function IndexRoles() {
       transition: { staggerChildren: 0.15 },
     },
   };
+
   const rowVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
@@ -145,7 +180,7 @@ export default function IndexRoles() {
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
-          transform: "scaleX(1.15)",
+          transform: "scaleX(1.00)",
           zIndex: 0,
         }}
       />
@@ -206,6 +241,7 @@ export default function IndexRoles() {
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
+
             <motion.tbody
               className="divide-y divide-gray-100"
               variants={tableVariants}
@@ -245,8 +281,33 @@ export default function IndexRoles() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton />
-                        <EditButton />
+                        {/* ahora emitir eventos; el componente principal escucha y abre modal */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent("open-role-details", {
+                                detail: s,
+                              })
+                            )
+                          }
+                          className="rounded"
+                        >
+                          <ViewButton />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent("open-role-edit", { detail: s })
+                            )
+                          }
+                          className="rounded"
+                        >
+                          <EditButton />
+                        </button>
+
                         <DeleteButton />
                       </div>
                     </td>
@@ -279,6 +340,7 @@ export default function IndexRoles() {
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
             />
+
             {/* Contenedor */}
             <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
               <motion.div
@@ -330,6 +392,7 @@ export default function IndexRoles() {
                         required
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Descripción
@@ -430,6 +493,22 @@ export default function IndexRoles() {
         )}
       </AnimatePresence>
 
+      {/* MODAL DETALLES (escucha evento) */}
+      <DetailsRoles
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        role={selectedRole}
+      />
+
+      {/* MODAL EDITAR (escucha evento) */}
+      <EditRoles
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        role={selectedRole}
+        permisosDisponibles={permisosDisponibles}
+        onUpdate={handleUpdateRole}
+      />
+
       {/* Estilos personalizados */}
       <style jsx>{`
         /* Scrollbar blanco */
@@ -443,7 +522,6 @@ export default function IndexRoles() {
           background-color: #ccc;
           border-radius: 4px;
         }
-
         /* Checkbox personalizado */
         .custom-checkbox {
           appearance: none;
@@ -457,12 +535,10 @@ export default function IndexRoles() {
           align-items: center;
           justify-content: center;
         }
-
         .custom-checkbox:checked {
           background-color: #fff;
           border-color: #22c55e;
         }
-
         .custom-checkbox:checked::after {
           content: "✔";
           color: #22c55e;
