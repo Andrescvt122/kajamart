@@ -1,14 +1,19 @@
 import React, { useState, useMemo } from "react";
-import { Search, Package } from "lucide-react";
+import {
+  Search,
+  Receipt,
+  X,
+  Minus,
+  Plus,
+  ArrowLeftRight,
+  Package,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * ProductSearch Optimizado
- * - La barra de búsqueda es siempre editable y accesible
- * - Incluye campo numérico para cantidad
- * - Botón "Añadir Producto" con validaciones
- * - Alertas claras para errores de validación
- */
-const ProductSearch = ({ onSelectProduct, onAddProduct }) => {
+const ProductSearch = ({ onAddProduct }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -22,7 +27,7 @@ const ProductSearch = ({ onSelectProduct, onAddProduct }) => {
       barcode: "7501234567890",
       name: "Producto Premium A",
       expiryDate: "2025-12-15",
-      quantity: 50,
+      quantity: 5,
       salePrice: 35500,
       category: "Alimentación",
     },
@@ -47,32 +52,75 @@ const ProductSearch = ({ onSelectProduct, onAddProduct }) => {
     {
       id: 4,
       barcode: "7501234567893",
-      name: "Producto Económico D",
-      expiryDate: "2025-12-15",
-      quantity: 200,
-      salePrice: 15000,
-      category: "Alimentación",
+      name: "Producto Tecnológico D",
+      expiryDate: "2025-11-30",
+      quantity: 25,
+      salePrice: 125000,
+      category: "Tecnología",
     },
     {
       id: 5,
       barcode: "7501234567894",
-      name: "Producto Premium E",
-      expiryDate: "2025-12-15",
-      quantity: 30,
-      salePrice: 80000,
-      category: "Tecnología",
+      name: "Producto Hogar E",
+      expiryDate: "2025-08-15",
+      quantity: 90,
+      salePrice: 45000,
+      category: "Hogar",
     },
   ];
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return [];
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return products.filter(
       (p) =>
-        p.barcode.includes(searchTerm) ||
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+        p.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        p.barcode.toLowerCase().includes(lowerCaseSearchTerm)
     );
   }, [searchTerm]);
+
+  const handleSelectProduct = (product) => {
+    setSelectedProduct(product);
+    setSearchTerm(product.name);
+    setShowDropdown(false);
+    setQuantity(1);
+  };
+
+const handleAddProduct = () => {
+  if (!selectedProduct) {
+    setAlertMessage("Por favor, selecciona un producto.");
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 3000);
+    return;
+  }
+  if (quantity <= 0) {
+    setAlertMessage("La cantidad debe ser mayor a 0.");
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 3000);
+    return;
+  }
+  if (quantity > selectedProduct.quantity) {
+    setAlertMessage(
+      `No hay suficiente stock. Solo quedan ${selectedProduct.quantity} unidades disponibles.`
+    );
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000);
+    return;
+  }
+
+  const newProduct = { ...selectedProduct, requestedQuantity: quantity };
+  onAddProduct(newProduct);
+
+  // Mostrar mensaje de éxito
+  setAlertMessage(`${selectedProduct.name} añadido exitosamente`);
+  setShowAlert(true);
+  setTimeout(() => setShowAlert(false), 2500);
+
+  setSelectedProduct(null);
+  setSearchTerm("");
+  setQuantity(1);
+};
+
 
   const formatPrice = (price) =>
     new Intl.NumberFormat("es-CO", {
@@ -81,179 +129,185 @@ const ProductSearch = ({ onSelectProduct, onAddProduct }) => {
       minimumFractionDigits: 0,
     }).format(price);
 
-  const formatDate = (date) => new Date(date).toLocaleDateString("es-ES");
-
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product);
-    setSearchTerm(product.name);
-    setShowDropdown(false);
-    // También notificar al componente padre si es necesario
-    if (onSelectProduct) {
-      onSelectProduct(product);
-    }
-  };
-
-  const handleAddProduct = () => {
-    // Validaciones
-    if (!selectedProduct) {
-      showAlertMessage("Debes seleccionar un producto primero");
-      return;
-    }
-
-    if (!quantity || quantity <= 0) {
-      showAlertMessage("Debes especificar una cantidad válida");
-      return;
-    }
-
-    if (quantity > selectedProduct.quantity) {
-      showAlertMessage(`Solo hay ${selectedProduct.quantity} unidades disponibles`);
-      return;
-    }
-
-    // Si todo está correcto, añadir el producto
-    if (onAddProduct) {
-      onAddProduct({ ...selectedProduct, requestedQuantity: quantity });
-    }
-
-    // Limpiar el formulario después de añadir
-    handleClearSearch();
-  };
-
-  const handleClearSearch = () => {
-    setSearchTerm("");
-    setSelectedProduct(null);
-    setQuantity(1);
-    setShowDropdown(false);
-  };
-
-  const showAlertMessage = (message) => {
-    setAlertMessage(message);
-    setShowAlert(true);
-    setTimeout(() => setShowAlert(false), 3000);
-  };
-
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    
-    // Si el usuario empieza a escribir algo diferente, limpiar la selección
-    if (selectedProduct && value !== selectedProduct.name) {
-      setSelectedProduct(null);
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Alerta de validación */}
-      {showAlert && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg animate-pulse">
-          <strong className="font-bold">Error: </strong>
-          <span>{alertMessage}</span>
-        </div>
-      )}
-
-      {/* Barra de búsqueda */}
-      <div className="relative w-full">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
+    <div className="relative mb-6">
+      <motion.div 
+        className="flex items-center gap-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        {/* Campo de búsqueda */}
+        <div className="relative flex-1">
+          <motion.div 
+            className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 300 }}
+          >
+            <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
+          </motion.div>
+          <motion.input
             type="text"
-            placeholder="Buscar productos..."
+            className="block w-full rounded-lg border-0 py-3 pl-10 pr-4 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-green-400 transition-all bg-white"
+            placeholder="Buscar por producto..."
             value={searchTerm}
-            onChange={handleSearchChange}
+            onChange={(e) => setSearchTerm(e.target.value)}
             onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-            className="w-full pl-10 pr-4 py-3 rounded-md border border-gray-300 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            autoComplete="off"
+            whileFocus={{ scale: 1.0 }}
+            transition={{ duration: 0.2 }}
           />
         </div>
+        
+        {/* Campo de cantidad con nuevos estilos */}
+        <motion.div 
+          className="flex-shrink-0"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+        >
+          <label className="text-sm font-semibold text-gray-700">Cantidad:</label>
+          <motion.input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(parseInt(e.target.value))}
+            min="1"
+            className="w-24 mt-1 px-3 py-2 rounded-lg border-2 border-gray-300 bg-white text-black text-center focus:ring-2 focus:ring-green-400 focus:outline-none"
+            whileFocus={{ scale: 1.05, borderColor: "#16a34a" }}
+          />
+        </motion.div>
+        
+        <motion.button
+          onClick={handleAddProduct}
+          className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-all duration-200"
+          whileHover={{ 
+            scale: 1.05, 
+            boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)" 
+          }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+        >
+          Añadir producto
+        </motion.button>
+      </motion.div>
 
-        {/* Dropdown de resultados */}
-        {showDropdown && searchTerm && !selectedProduct && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white border rounded-md shadow-md z-50 max-h-80 overflow-y-auto">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="px-4 py-2 hover:bg-emerald-50 cursor-pointer border-b last:border-0"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleProductSelect(product);
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                      <Package className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {product.barcode} • {formatDate(product.expiryDate)} • {formatPrice(product.salePrice)}
-                      </p>
-                      <p className="text-xs text-emerald-600">
-                        Stock: {product.quantity} unidades
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                No se encontraron productos
-              </div>
-            )}
-          </div>
+      {/* Alerta de validación con animaciones mejoradas */}
+      <AnimatePresence>
+        {showAlert && (
+          <motion.div
+            className={`mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm ${
+              alertMessage.includes("exitosamente") 
+                ? "bg-green-100 text-green-700 border border-green-200" 
+                : "bg-red-100 text-red-700 border border-red-200"
+            }`}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 300,
+              damping: 25
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+            >
+              {alertMessage.includes("exitosamente") ? (
+                <CheckCircle size={20} />
+              ) : (
+                <AlertCircle size={20} />
+              )}
+            </motion.div>
+            <motion.p 
+              className="text-sm font-medium"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {alertMessage}
+            </motion.p>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {/* Información del producto seleccionado */}
-      {selectedProduct && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Package className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-gray-900">{selectedProduct.name}</p>
-              <p className="text-sm text-gray-600">
-                {formatPrice(selectedProduct.salePrice)} • Stock: {selectedProduct.quantity}
-              </p>
-            </div>
-          </div>
-
-          {/* Controles de cantidad y botón añadir */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Cantidad:
-              </label>
-              <input
-                type="number"
-                min="1"
-                max={selectedProduct.quantity}
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-            
-            <button
-              onClick={handleAddProduct}
-              className="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors font-medium"
-            >
-              Añadir Producto
-            </button>
-            
-            <button
-              onClick={handleClearSearch}
-              className="px-4 py-2 border border-gray-300 text-gray-600 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              Limpiar
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Dropdown de resultados con animaciones */}
+      <AnimatePresence>
+        {showDropdown && searchTerm && (
+          <motion.div
+            className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {filteredProducts.length > 0 ? (
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05
+                    }
+                  }
+                }}
+              >
+                {filteredProducts.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    className="px-4 py-3 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors duration-200"
+                    onClick={() => handleSelectProduct(product)}
+                    variants={{
+                      hidden: { opacity: 0, x: -20 },
+                      visible: { opacity: 1, x: 0 }
+                    }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    whileHover={{ 
+                      scale: 1.0,
+                      backgroundColor: "#dcfce7",
+                      transition: { duration: 0.2 }
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <motion.div 
+                        className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"
+                        whileHover={{ 
+                          backgroundColor: "#dcfce7",
+                          scale: 1.1,
+                          transition: { duration: 0.2 }
+                        }}
+                      >
+                        <Package className="w-5 h-5 text-gray-500" />
+                      </motion.div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                        <p className="text-xs text-gray-500">
+                          Cód. {product.barcode} • {formatPrice(product.salePrice)}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div 
+                className="p-4 text-center text-sm text-gray-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                No se encontraron coincidencias.
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
