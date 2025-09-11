@@ -275,7 +275,7 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton event={() => handleViewDetail(c)} />
+                          {/* <ViewButton event={() => handleViewDetail(c)} /> */}
                           <EditButton event={() => handleEdit(c)} />
                           <DeleteButton
                             event={() => {

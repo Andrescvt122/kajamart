@@ -9,6 +9,8 @@ import {
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator.jsx";
+import SupplierDetailModal from "./SuplliersDetailModal.jsx";
+import SuppliersEditModal from "./SuplliersEditModal.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showErrorAlert,
@@ -21,85 +23,175 @@ export default function IndexSuppliers() {
   const [suppliers] = useState([
     {
       nit: "123",
-      nombre: "Global Foods.",
+      nombre: "Global Foods",
       contacto: "Sophia Bennett",
-      telefono: "123456789",
+      telefono: "3001234567",
       categoria: "Lácteos",
       estado: "Activo",
+      tipoPersona: "Jurídica",
+      correo: "contacto@globalfoods.com",
+      direccion: "Cra 45 #12-34 Bogotá",
+      productos: [
+        {
+          nombre: "Leche entera",
+          categoria: "Lácteos",
+          precio: 2800,
+          stock: 500,
+        },
+        {
+          nombre: "Yogurt natural",
+          categoria: "Lácteos",
+          precio: 3500,
+          stock: 200,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+        {
+          nombre: "Queso fresco",
+          categoria: "Lácteos",
+          precio: 9500,
+          stock: 150,
+        },
+      ],
     },
     {
       nit: "124",
       nombre: "Fresh Produce Co.",
       contacto: "Liam Harper",
-      telefono: "123456789",
+      telefono: "3007654321",
       categoria: "Carnes",
       estado: "Inactivo",
+      tipoPersona: "Natural",
+      correo: "ventas@freshproduce.com",
+      direccion: "Av 30 #22-89 Medellín",
+      productos: [
+        {
+          nombre: "Carne de res",
+          categoria: "Carnes",
+          precio: 25000,
+          stock: 50,
+        },
+        {
+          nombre: "Pollo entero",
+          categoria: "Carnes",
+          precio: 15000,
+          stock: 80,
+        },
+      ],
     },
     {
       nit: "125",
       nombre: "Beverage Distributors",
       contacto: "Olivia Hayes",
-      telefono: "123456789",
+      telefono: "3012233445",
       categoria: "Bebidas",
       estado: "Activo",
+      tipoPersona: "Jurídica",
+      correo: "info@beveragedist.com",
+      direccion: "Calle 80 #45-12 Bogotá",
+      productos: [
+        {
+          nombre: "Gaseosa cola",
+          categoria: "Bebidas",
+          precio: 3500,
+          stock: 400,
+        },
+        {
+          nombre: "Agua mineral",
+          categoria: "Bebidas",
+          precio: 2000,
+          stock: 1000,
+        },
+      ],
     },
     {
       nit: "126",
       nombre: "Dairy Delights",
       contacto: "Noah Carter",
-      telefono: "123456789",
+      telefono: "3029988776",
       categoria: "Panadería",
       estado: "Activo",
+      tipoPersona: "Natural",
+      correo: "contacto@dairy.com",
+      direccion: "Calle 15 #10-23 Cali",
+      productos: [
+        {
+          nombre: "Pan integral",
+          categoria: "Panadería",
+          precio: 4000,
+          stock: 300,
+        },
+      ],
     },
     {
       nit: "127",
       nombre: "Meat Masters",
       contacto: "Ava Foster",
-      telefono: "123456789",
+      telefono: "3011122334",
       categoria: "Carnes",
       estado: "Activo",
-    },
-    {
-      nit: "128",
-      nombre: "Snack Sensations",
-      contacto: "Jackson Reed",
-      telefono: "123456789",
-      categoria: "Snacks",
-      estado: "Inactivo",
-    },
-    {
-      nit: "129",
-      nombre: "Organic Origins",
-      contacto: "Isabella Morgan",
-      telefono: "123456789",
-      categoria: "Congelados",
-      estado: "Activo",
-    },
-    {
-      nit: "130",
-      nombre: "Frozen Foods Ltd.",
-      contacto: "Lucas Bennett",
-      telefono: "123456789",
-      categoria: "Congelados",
-      estado: "Activo",
-    },
-    {
-      nit: "131",
-      nombre: "Bakery Bliss",
-      contacto: "Mia Collins",
-      telefono: "123456789",
-      categoria: "Panadería",
-      estado: "Activo",
-    },
-    {
-      nit: "132",
-      nombre: "Candy Kingdom",
-      contacto: "Owen Parker",
-      telefono: "123456789",
-      categoria: "Snacks",
-      estado: "Activo",
+      tipoPersona: "Jurídica",
+      correo: "info@meatmasters.com",
+      direccion: "Zona Industrial Medellín",
+      productos: [
+        {
+          nombre: "Costillas BBQ",
+          categoria: "Carnes",
+          precio: 35000,
+          stock: 60,
+        },
+      ],
     },
   ]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    if (isDetailOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = originalOverflow || "auto";
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow || "auto";
+    };
+  }, [isDetailOpen]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -452,11 +544,19 @@ export default function IndexSuppliers() {
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
                           <ViewButton
-                            alert={() => showWarningAlert("Ver proveedor")}
+                            event={() => {
+                              setSelectedSupplier(s);
+                              setIsDetailOpen(true);
+                            }}
                           />
+
                           <EditButton
-                            alert={() => showInfoAlert("Editar proveedor")}
+                            event={() => {
+                              setSelectedSupplier(s);
+                              setIsEditOpen(true);
+                            }}
                           />
+
                           <DeleteButton
                             alert={() => showErrorAlert("Eliminar proveedor")}
                           />
@@ -479,6 +579,33 @@ export default function IndexSuppliers() {
           />
         </div>
       </div>
+      <AnimatePresence>
+        {isDetailOpen && selectedSupplier && (
+          <SupplierDetailModal
+            isOpen={isDetailOpen}
+            onClose={() => {
+              setIsDetailOpen(false);
+              setSelectedSupplier(null);
+            }}
+            supplier={selectedSupplier}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isEditOpen && selectedSupplier && (
+          <SuppliersEditModal
+            isModalOpen={isEditOpen} // antes era isOpen
+            onClose={() => setIsEditOpen(false)}
+            supplierData={selectedSupplier} // antes era supplier
+            onSubmit={(updated) => {
+              // antes era onSave
+              console.log("Proveedor actualizado:", updated);
+              setIsEditOpen(false);
+            }}
+            categoriasOptions={categoriasOptions} // asegúrate de pasar las opciones de categorías
+          />
+        )}
+      </AnimatePresence>
 
       {/* Modal: Registrar Proveedor */}
       <AnimatePresence>
@@ -486,7 +613,7 @@ export default function IndexSuppliers() {
           <>
             {/* overlay fijo que cubre todo el viewport — así no quedan zonas sin difuminar al scrollear */}
             <motion.div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/50 center backdrop-blur-sm z-40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
