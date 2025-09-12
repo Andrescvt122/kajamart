@@ -164,6 +164,7 @@ export default function IndexClients() {
     return found ? found.label : "";
   };
 
+
   return (
     <div className="flex min-h-screen">
       {/* Fondo de ondas */}
@@ -175,7 +176,6 @@ export default function IndexClients() {
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
-          transform: "scaleX(1.15)",
           zIndex: 0,
         }}
       />
@@ -203,7 +203,7 @@ export default function IndexClients() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
               />
             </div>
 
@@ -271,7 +271,7 @@ export default function IndexClients() {
                         <div className="inline-flex items-center gap-2">
                           <ViewButton />
                           <EditButton />
-                          <DeleteButton />
+                          <DeleteButton/>
                         </div>
                       </td>
                     </motion.tr>
