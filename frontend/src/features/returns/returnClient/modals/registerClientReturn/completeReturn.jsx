@@ -193,9 +193,8 @@ const CompleteReturn = ({
                         <ArrowLeftRight size={20} className="text-gray-500" />
                       </motion.div>
                     </div>
-
+                    
                     <ProductSearch onAddProduct={handleAddProduct} />
-
                     <AnimatePresence>
                       {newProducts.length > 0 && (
                         <motion.div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mt-4" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}>
