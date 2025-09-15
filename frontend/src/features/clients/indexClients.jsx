@@ -14,49 +14,37 @@ import { motion, AnimatePresence } from "framer-motion";
 
 
 export default function IndexClients() {
-  const [clients] = useState([
+   const clienteCaja = {
+    id: "C000",
+    nombre: "Cliente de Caja",
+    documento: "N/A",
+    telefono: "N/A",
+    estado: "Activo",
+    fecha: "2023-01-01",
+  };
+    // Guardar clientes en localStorage
+const [clients, setClients] = useState(() => {
+  const stored = JSON.parse(localStorage.getItem("clientes")) || [];
+  return stored.length > 0 ? stored : [
     {
-      id: "C001",
-      nombre: "Sofía Rodríguez",
-      documento: "C.C: 1234567890",
-      telefono: "555-123-4567",
+      id: "C000",
+      nombre: "Cliente de Caja",
+      documento: "N/A",
+      telefono: "N/A",
       estado: "Activo",
-      fecha: "2023-01-15",
+      fecha: "2023-01-01",
     },
-    {
-      id: "C002",
-      nombre: "Carlos López",
-      documento: "T.I: 0987654321",
-      telefono: "555-987-6543",
-      estado: "Inactivo",
-      fecha: "2023-11-20",
-    },
-    {
-      id: "C004",
-      nombre: "Diego García",
-      documento: "DNI: 854433211",
-      telefono: "555-333-4444",
-      estado: "Activo",
-      fecha: "2023-09-28",
-    },
-    {
-      id: "C008",
-      nombre: "Martín Gómez",
-      documento: "C.C: 778899001",
-      telefono: "555-222-3333",
-      estado: "Inactivo",
-      fecha: "2023-10-12",
-    },
-    {
-      id: "C009",
-      nombre: "Valentina Ruiz",
-      documento: "C.C: 3344556677",
-      telefono: "555-444-5555",
-      estado: "Activo",
-      fecha: "2023-08-18",
-    },
-  ]);
+  ];
+});
 
+// Cada vez que cambien los clientes, actualizamos el localStorage
+useEffect(() => {
+  localStorage.setItem("clientes", JSON.stringify(clients));
+}, [clients]);
+
+  
+
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
@@ -260,7 +248,7 @@ export default function IndexClients() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                            c.estado === "Activo" ? "bg-green-50 text-green-700" : "bg-gray-200 text-gray-600"
+                            c.estado === "Activo" ? "bg-green-50 text-green-700" : "bg-red-200 text-red-600"
                           }`}
                         >
                           {c.estado}
