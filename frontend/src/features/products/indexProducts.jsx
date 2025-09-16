@@ -9,6 +9,7 @@ import {
 import { Search, ChevronDown, Upload } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
+import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   showInfoAlert,
@@ -44,7 +45,7 @@ export default function IndexProducts() {
       stockMin: 20,
       stockMax: 300,
       precio: 2500,
-      estado: "Activo",
+      estado: "Inactivo",
       imagen: null,
     },
   ]);
@@ -124,6 +125,25 @@ export default function IndexProducts() {
     const next = [...form.imagenes, ...files].slice(0, 6);
     setForm((prev) => ({ ...prev, imagenes: next }));
   };
+  const filtered = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase();
+
+    if (!s) return products;
+
+    if (/^activos?$/.test(s)) {
+      return products.filter((p) => p.estado.toLowerCase() === "activo");
+    }
+
+    if (/^inactivos?$/.test(s)) {
+      return products.filter((p) => p.estado.toLowerCase() === "inactivo");
+    }
+
+    return products.filter((p) =>
+      `${p.id} ${p.nombre} ${p.descripcion || ""} ${p.categoria} ${p.estado}`
+        .toLowerCase()
+        .includes(s)
+    );
+  }, [products, searchTerm]);
 
   const removeImageAt = (idx) => {
     setForm((prev) => ({
@@ -183,16 +203,6 @@ export default function IndexProducts() {
     setCategoriaOpen(false);
     showLoadingAlert("Producto registrado");
   };
-
-  const filtered = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
-    if (!s) return products;
-    return products.filter((p) =>
-      `${p.id} ${p.nombre} ${p.descripcion || ""} ${p.categoria} ${p.estado}`
-        .toLowerCase()
-        .includes(s)
-    );
-  }, [products, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -261,19 +271,14 @@ export default function IndexProducts() {
 
           {/* Barra búsqueda y acciones */}
           <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
+            <div className="flex-grow">
+              <SearchBar
                 placeholder="Buscar productos..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-gray-800"
               />
             </div>
 
@@ -370,7 +375,7 @@ export default function IndexProducts() {
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             p.estado === "Activo"
                               ? "bg-green-50 text-green-700"
-                              : "bg-gray-200 text-gray-600"
+                              : "bg-red-100 text-red-600"
                           }`}
                         >
                           {p.estado}

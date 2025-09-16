@@ -18,165 +18,90 @@ import {
   showSuccessAlert,
   showWarningAlert,
 } from "../../shared/components/alerts.jsx";
+import SearchBar from "../../shared/components/searchBars/searchbar";
 
 export default function IndexSuppliers() {
+  // --- CORRECCIÓN: suppliers DEBE SER UN ARRAY (no array anidado) ---
   const [suppliers] = useState([
     {
-      nit: "123",
-      nombre: "Global Foods",
-      contacto: "Sophia Bennett",
-      telefono: "3001234567",
-      categoria: "Lácteos",
+      nit: "200",
+      nombre: "Alimentos La Abundancia",
+      contacto: "María Rodríguez",
+      telefono: "3104567890",
       estado: "Activo",
       tipoPersona: "Jurídica",
-      correo: "contacto@globalfoods.com",
-      direccion: "Cra 45 #12-34 Bogotá",
+      correo: "contacto@abundancia.com",
+      direccion: "Cra 25 #15-78 Bogotá",
       productos: [
-        {
-          nombre: "Leche entera",
-          categoria: "Lácteos",
-          precio: 2800,
-          stock: 500,
-        },
-        {
-          nombre: "Yogurt natural",
-          categoria: "Lácteos",
-          precio: 3500,
-          stock: 200,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
-        {
-          nombre: "Queso fresco",
-          categoria: "Lácteos",
-          precio: 9500,
-          stock: 150,
-        },
+        { nombre: "Leche deslactosada", categoria: "Lácteos", precio: 3200, stock: 300 },
+        { nombre: "Pan tajado", categoria: "Panadería", precio: 4800, stock: 150 },
+        { nombre: "Mantequilla", categoria: "Lácteos", precio: 6500, stock: 200 },
+        { nombre: "Mantequilla", categoria: "Lácteos", precio: 6500, stock: 200 },
+        { nombre: "Mantequilla", categoria: "Lácteos", precio: 6500, stock: 200 },
+        { nombre: "Mantequilla", categoria: "Lácteos", precio: 6500, stock: 200 },
+        { nombre: "Mantequilla", categoria: "Lácteos", precio: 6500, stock: 200 },
       ],
     },
     {
-      nit: "124",
-      nombre: "Fresh Produce Co.",
-      contacto: "Liam Harper",
-      telefono: "3007654321",
-      categoria: "Carnes",
+      nit: "201",
+      nombre: "Distribuidora El Campesino",
+      contacto: "Carlos Pérez",
+      telefono: "3119876543",
       estado: "Inactivo",
       tipoPersona: "Natural",
-      correo: "ventas@freshproduce.com",
-      direccion: "Av 30 #22-89 Medellín",
+      correo: "ventas@elcampesino.com",
+      direccion: "Av 68 #50-90 Medellín",
       productos: [
-        {
-          nombre: "Carne de res",
-          categoria: "Carnes",
-          precio: 25000,
-          stock: 50,
-        },
-        {
-          nombre: "Pollo entero",
-          categoria: "Carnes",
-          precio: 15000,
-          stock: 80,
-        },
+        { nombre: "Tomate chonto", categoria: "Verduras", precio: 2000, stock: 800 },
+        { nombre: "Pollo despresado", categoria: "Carnes", precio: 16000, stock: 120 },
+        { nombre: "Cilantro", categoria: "Verduras", precio: 500, stock: 400 },
       ],
     },
     {
-      nit: "125",
-      nombre: "Beverage Distributors",
-      contacto: "Olivia Hayes",
-      telefono: "3012233445",
-      categoria: "Bebidas",
+      nit: "202",
+      nombre: "Refrescos Tropical",
+      contacto: "Laura Martínez",
+      telefono: "3201122334",
       estado: "Activo",
       tipoPersona: "Jurídica",
-      correo: "info@beveragedist.com",
-      direccion: "Calle 80 #45-12 Bogotá",
+      correo: "info@refrescostropical.com",
+      direccion: "Calle 60 #30-12 Barranquilla",
       productos: [
-        {
-          nombre: "Gaseosa cola",
-          categoria: "Bebidas",
-          precio: 3500,
-          stock: 400,
-        },
-        {
-          nombre: "Agua mineral",
-          categoria: "Bebidas",
-          precio: 2000,
-          stock: 1000,
-        },
+        { nombre: "Jugo de naranja", categoria: "Bebidas", precio: 2500, stock: 1000 },
+        { nombre: "Galletas de avena", categoria: "Panadería", precio: 3500, stock: 500 },
       ],
     },
     {
-      nit: "126",
-      nombre: "Dairy Delights",
-      contacto: "Noah Carter",
-      telefono: "3029988776",
-      categoria: "Panadería",
+      nit: "203",
+      nombre: "La Gran Cosecha",
+      contacto: "Andrés Gómez",
+      telefono: "3129988776",
       estado: "Activo",
       tipoPersona: "Natural",
-      correo: "contacto@dairy.com",
-      direccion: "Calle 15 #10-23 Cali",
+      correo: "lagrancosecha@correo.com",
+      direccion: "Km 12 Vía Cali - Palmira",
       productos: [
-        {
-          nombre: "Pan integral",
-          categoria: "Panadería",
-          precio: 4000,
-          stock: 300,
-        },
+        { nombre: "Queso campesino", categoria: "Lácteos", precio: 7800, stock: 100 },
+        { nombre: "Carne molida", categoria: "Carnes", precio: 23000, stock: 50 },
+        { nombre: "Lechuga crespa", categoria: "Verduras", precio: 1200, stock: 300 },
       ],
     },
     {
-      nit: "127",
-      nombre: "Meat Masters",
-      contacto: "Ava Foster",
-      telefono: "3011122334",
-      categoria: "Carnes",
+      nit: "204",
+      nombre: "Panificadora San Jorge",
+      contacto: "Elena Suárez",
+      telefono: "3134455667",
       estado: "Activo",
       tipoPersona: "Jurídica",
-      correo: "info@meatmasters.com",
-      direccion: "Zona Industrial Medellín",
+      correo: "ventas@sanjorge.com",
+      direccion: "Zona Industrial Cali",
       productos: [
-        {
-          nombre: "Costillas BBQ",
-          categoria: "Carnes",
-          precio: 35000,
-          stock: 60,
-        },
+        { nombre: "Pan francés", categoria: "Panadería", precio: 3000, stock: 600 },
+        { nombre: "Leche achocolatada", categoria: "Bebidas", precio: 3500, stock: 400 },
       ],
     },
   ]);
+
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -236,25 +161,15 @@ export default function IndexSuppliers() {
 
   // sample categories (deduplicated)
   const categoriasOptions = Array.from(
-    new Set([
-      "Lácteos",
-      "Carnes",
-      "Bebidas",
-      "Snacks",
-      "Panadería",
-      "Congelados",
-    ])
+    new Set(["Lácteos", "Carnes", "Bebidas", "Snacks", "Panadería", "Congelados", "Verduras"])
   );
 
   useEffect(() => {
     // close dropdowns when clicking outside of them
     function handleOutside(e) {
-      if (personaRef.current && !personaRef.current.contains(e.target))
-        setPersonaOpen(false);
-      if (categoriasRef.current && !categoriasRef.current.contains(e.target))
-        setCategoriasOpen(false);
-      if (estadoRef.current && !estadoRef.current.contains(e.target))
-        setEstadoOpen(false);
+      if (personaRef.current && !personaRef.current.contains(e.target)) setPersonaOpen(false);
+      if (categoriasRef.current && !categoriasRef.current.contains(e.target)) setCategoriasOpen(false);
+      if (estadoRef.current && !estadoRef.current.contains(e.target)) setEstadoOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -267,12 +182,41 @@ export default function IndexSuppliers() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
+  // -------- SEARCH / FILTER: special handling for "activo"/"inactivo" --------
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     if (!s) return suppliers;
-    return suppliers.filter((p) =>
-      Object.values(p).some((value) => normalizeText(String(value)).includes(s))
-    );
+
+    // if user typed exactly "activo" or "activos" -> only activos
+    if (/^activos?$/.test(s)) {
+      return suppliers.filter((p) => normalizeText(String(p.estado)) === "activo");
+    }
+
+    // if user typed exactly "inactivo" or "inactivos" -> only inactivos
+    if (/^inactivos?$/.test(s)) {
+      return suppliers.filter((p) => normalizeText(String(p.estado)) === "inactivo");
+    }
+
+    // otherwise search across all fields (including product names & categories)
+    return suppliers.filter((p) => {
+      // check top-level supplier fields
+      const inSupplier = Object.values(p).some((value) => {
+        // skip productos for this step (we'll check them separately)
+        if (value === p.productos) return false;
+        return normalizeText(String(value)).includes(s);
+      });
+
+      if (inSupplier) return true;
+
+      // check producto fields
+      if (Array.isArray(p.productos)) {
+        return p.productos.some((prod) =>
+          Object.values(prod).some((v) => normalizeText(String(v)).includes(s))
+        );
+      }
+
+      return false;
+    });
   }, [suppliers, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -297,12 +241,7 @@ export default function IndexSuppliers() {
   };
   const listVariants = {
     hidden: { opacity: 0, y: -6, scale: 0.98 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { staggerChildren: 0.02 },
-    },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { staggerChildren: 0.02 } },
   };
   const itemVariants = {
     hidden: { opacity: 0, y: -6 },
@@ -326,15 +265,7 @@ export default function IndexSuppliers() {
 
   // block non-numeric key presses for nit and telefono inputs
   const handleNumericKeyDown = (e) => {
-    const allowed = [
-      "Backspace",
-      "Delete",
-      "ArrowLeft",
-      "ArrowRight",
-      "Tab",
-      "Home",
-      "End",
-    ];
+    const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
     if (allowed.includes(e.key)) return;
     if (e.ctrlKey || e.metaKey) return;
     if (!/^\d$/.test(e.key)) e.preventDefault();
@@ -345,18 +276,13 @@ export default function IndexSuppliers() {
       const exists = prev.categorias.includes(cat);
       return {
         ...prev,
-        categorias: exists
-          ? prev.categorias.filter((c) => c !== cat)
-          : [...prev.categorias, cat],
+        categorias: exists ? prev.categorias.filter((c) => c !== cat) : [...prev.categorias, cat],
       };
     });
   };
 
   const removeCategoriaTag = (cat) => {
-    setForm((prev) => ({
-      ...prev,
-      categorias: prev.categorias.filter((c) => c !== cat),
-    }));
+    setForm((prev) => ({ ...prev, categorias: prev.categorias.filter((c) => c !== cat) }));
   };
 
   const isValidEmail = (email) => {
@@ -374,16 +300,13 @@ export default function IndexSuppliers() {
     if (!form.contacto.trim()) missing.push("Persona de contacto");
     if (!form.telefono.trim()) missing.push("Teléfono");
     if (!form.correo.trim()) missing.push("Correo");
-    if (form.correo && !isValidEmail(form.correo))
-      missing.push("Correo (inválido)");
-    if (!form.categorias || form.categorias.length === 0)
-      missing.push("Categorías");
+    if (form.correo && !isValidEmail(form.correo)) missing.push("Correo (inválido)");
+    if (!form.categorias || form.categorias.length === 0) missing.push("Categorías");
     if (!form.direccion.trim()) missing.push("Dirección");
     if (!form.estado.trim()) missing.push("Estado");
 
     if (missing.length > 0) {
-      showErrorAlert &&
-        showErrorAlert(`Faltan campos obligatorios: ${missing.join(", ")}`);
+      showErrorAlert && showErrorAlert(`Faltan campos obligatorios: ${missing.join(", ")}`);
       return;
     }
 
@@ -411,12 +334,44 @@ export default function IndexSuppliers() {
 
   // estado button classes (green/red/neutral)
   const estadoButtonClasses = () => {
-    if (form.estado === "Activo")
-      return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
-    if (form.estado === "Inactivo")
-      return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
+    if (form.estado === "Activo") return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
+    if (form.estado === "Inactivo") return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
     return "bg-white text-gray-700 border border-gray-200";
   };
+
+  // helper: get unique categories from supplier.productos
+  const getSupplierCategories = (s) => {
+    if (!s || !Array.isArray(s.productos) || s.productos.length === 0) return [];
+    const cats = s.productos.map((p) => (p.categoria ? String(p.categoria) : "").trim());
+    return Array.from(new Set(cats.filter(Boolean)));
+  };
+
+  // ----- SEARCH + ACTIONS const (optional usage) -----
+  const SearchAndActions = (
+    <div className="mb-6 flex items-center gap-3">
+      {/* SearchBar uses className prop so it stretches to occupy available space up to the right-side buttons */}
+      <SearchBar
+        placeholder="Buscar proveedores..."
+        value={searchTerm}
+        onChange={(e) => {
+          setSearchTerm(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="flex-1 min-w-0"
+      />
+
+      <div className="flex gap-2 flex-shrink-0">
+        <ExportExcelButton>Excel</ExportExcelButton>
+        <ExportPDFButton>PDF</ExportPDFButton>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+        >
+          Registrar Nuevo Proveedor
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen">
@@ -438,42 +393,12 @@ export default function IndexSuppliers() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Proveedores</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de tienda
-              </p>
+              <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
             </div>
           </div>
 
-          {/* Barra de búsqueda + botones */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar proveedores..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-                style={{ color: "#000" }}
-              />
-            </div>
-
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nuevo Proveedor
-              </button>
-            </div>
-          </div>
+          {/* Barra de búsqueda + botones (renderizado desde const) */}
+          {SearchAndActions}
 
           {/* Tabla con animación */}
           <motion.div
@@ -490,80 +415,64 @@ export default function IndexSuppliers() {
                   <th className="px-6 py-4">Nombre</th>
                   <th className="px-6 py-4">Contacto</th>
                   <th className="px-6 py-4">Teléfono</th>
-                  <th className="px-6 py-4">Categoría</th>
+                  <th className="px-6 py-4">Categorías</th>
                   <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
+              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron proveedores.
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((s, i) => (
-                    <motion.tr
-                      key={s.nit + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.nit}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
-                        {s.nombre}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">
-                        {s.contacto}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.telefono}
-                      </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {s.categoria}
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        {s.estado === "Activo" ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                            Inactivo
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 align-top text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <ViewButton
-                            event={() => {
-                              setSelectedSupplier(s);
-                              setIsDetailOpen(true);
-                            }}
-                          />
+                  pageItems.map((s, i) => {
+                    const cats = getSupplierCategories(s);
+                    // show up to 2 categories and indicate if more exist
+                    const displayCats =
+                      cats.length === 0 ? "—" : cats.length <= 2 ? cats.join(", ") : `${cats.slice(0, 2).join(", ")} +${cats.length - 2}`;
+                    return (
+                      <motion.tr key={s.nit + "-" + i} className="hover:bg-gray-50" variants={rowVariants}>
+                        <td className="px-6 py-4 align-top text-sm text-gray-600">{s.nit}</td>
+                        <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">{s.nombre}</td>
+                        <td className="px-6 py-4 align-top text-sm text-green-700">{s.contacto}</td>
+                        <td className="px-6 py-4 align-top text-sm text-gray-600">{s.telefono}</td>
+                        <td className="px-6 py-4 align-top text-sm text-gray-700">{displayCats}</td>
+                        <td className="px-6 py-4 align-top">
+                          {s.estado === "Activo" ? (
+                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                              Activo
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                              Inactivo
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 align-top text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <ViewButton
+                              event={() => {
+                                setSelectedSupplier(s);
+                                setIsDetailOpen(true);
+                              }}
+                            />
 
-                          <EditButton
-                            event={() => {
-                              setSelectedSupplier(s);
-                              setIsEditOpen(true);
-                            }}
-                          />
+                            <EditButton
+                              event={() => {
+                                setSelectedSupplier(s);
+                                setIsEditOpen(true);
+                              }}
+                            />
 
-                          <DeleteButton
-                            alert={() => showErrorAlert("Eliminar proveedor")}
-                          />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
+                            <DeleteButton alert={() => showErrorAlert("Eliminar proveedor")} />
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
                 )}
               </motion.tbody>
             </table>
@@ -579,6 +488,8 @@ export default function IndexSuppliers() {
           />
         </div>
       </div>
+
+      {/* Supplier Detail Modal: PASAMOS onEdit para abrir modal de editar desde el padre */}
       <AnimatePresence>
         {isDetailOpen && selectedSupplier && (
           <SupplierDetailModal
@@ -588,21 +499,30 @@ export default function IndexSuppliers() {
               setSelectedSupplier(null);
             }}
             supplier={selectedSupplier}
+            onEdit={(sup) => {
+              // El handler padre controla cerrar detail y abrir edit
+              setSelectedSupplier(sup);
+              setIsDetailOpen(false);
+              setIsEditOpen(true);
+            }}
           />
         )}
       </AnimatePresence>
+
+      {/* Suppliers Edit Modal */}
       <AnimatePresence>
         {isEditOpen && selectedSupplier && (
           <SuppliersEditModal
-            isModalOpen={isEditOpen} // antes era isOpen
-            onClose={() => setIsEditOpen(false)}
-            supplierData={selectedSupplier} // antes era supplier
+            isModalOpen={isEditOpen}
+            onClose={() => {
+              setIsEditOpen(false);
+            }}
+            supplierData={selectedSupplier}
             onSubmit={(updated) => {
-              // antes era onSave
               console.log("Proveedor actualizado:", updated);
               setIsEditOpen(false);
             }}
-            categoriasOptions={categoriasOptions} // asegúrate de pasar las opciones de categorías
+            categoriasOptions={categoriasOptions}
           />
         )}
       </AnimatePresence>
@@ -611,7 +531,6 @@ export default function IndexSuppliers() {
       <AnimatePresence>
         {isModalOpen && (
           <>
-            {/* overlay fijo que cubre todo el viewport — así no quedan zonas sin difuminar al scrollear */}
             <motion.div
               className="fixed inset-0 bg-black/50 center backdrop-blur-sm z-40"
               initial={{ opacity: 0 }}
@@ -620,7 +539,6 @@ export default function IndexSuppliers() {
               onClick={() => setIsModalOpen(false)}
             />
 
-            {/* modal box centrado (usa pointer-events para que el overlay capture clicks fuera del modal) */}
             <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -630,17 +548,13 @@ export default function IndexSuppliers() {
                 className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl relative pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                  Registro de Proveedor
-                </h2>
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">Registro de Proveedor</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     {/* Nombre */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Nombre
-                      </label>
+                      <label className="block text-sm text-gray-700 mb-1">Nombre</label>
                       <input
                         name="nombre"
                         value={form.nombre}
@@ -654,9 +568,7 @@ export default function IndexSuppliers() {
 
                     {/* NIT (numérico) */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        NIT
-                      </label>
+                      <label className="block text-sm text-gray-700 mb-1">NIT</label>
                       <input
                         name="nit"
                         value={form.nit}
@@ -672,11 +584,7 @@ export default function IndexSuppliers() {
 
                     {/* Persona Natural/Jurídica */}
                     <div ref={personaRef}>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Tipo de persona
-                      </label>
-
-                      {/* contenedor con borde fijo igual a un input */}
+                      <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
                       <div className="relative mt-1 w-full">
                         <div className="w-full border border-gray-300 bg-white rounded-lg">
                           <button
@@ -686,24 +594,12 @@ export default function IndexSuppliers() {
                             aria-haspopup="listbox"
                             aria-expanded={personaOpen}
                           >
-                            <span
-                              className={`text-sm ${
-                                form.personaType
-                                  ? "text-gray-800"
-                                  : "text-gray-400"
-                              }`}
-                            >
+                            <span className={`text-sm ${form.personaType ? "text-gray-800" : "text-gray-400"}`}>
                               {form.personaType || "Seleccionar tipo"}
                             </span>
 
-                            <motion.span
-                              animate={{ rotate: personaOpen ? 180 : 0 }}
-                              transition={{ duration: 0.18 }}
-                            >
-                              <ChevronDown
-                                size={18}
-                                className="text-gray-500"
-                              />
+                            <motion.span animate={{ rotate: personaOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                              <ChevronDown size={18} className="text-gray-500" />
                             </motion.span>
                           </button>
                         </div>
@@ -717,24 +613,19 @@ export default function IndexSuppliers() {
                               exit="hidden"
                               variants={listVariants}
                             >
-                              {["Persona Natural", "Persona Jurídica"].map(
-                                (opt) => (
-                                  <motion.li
-                                    key={opt}
-                                    variants={itemVariants}
-                                    onClick={() => {
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        personaType: opt,
-                                      }));
-                                      setPersonaOpen(false);
-                                    }}
-                                    className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
-                                  >
-                                    {opt}
-                                  </motion.li>
-                                )
-                              )}
+                              {["Persona Natural", "Persona Jurídica"].map((opt) => (
+                                <motion.li
+                                  key={opt}
+                                  variants={itemVariants}
+                                  onClick={() => {
+                                    setForm((prev) => ({ ...prev, personaType: opt }));
+                                    setPersonaOpen(false);
+                                  }}
+                                  className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                                >
+                                  {opt}
+                                </motion.li>
+                              ))}
                             </motion.ul>
                           )}
                         </AnimatePresence>
@@ -743,9 +634,7 @@ export default function IndexSuppliers() {
 
                     {/* Contacto */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Persona de contacto
-                      </label>
+                      <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
                       <input
                         name="contacto"
                         value={form.contacto}
@@ -759,9 +648,7 @@ export default function IndexSuppliers() {
 
                     {/* Teléfono (numérico) */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Teléfono de contacto
-                      </label>
+                      <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
                       <input
                         name="telefono"
                         value={form.telefono}
@@ -777,9 +664,7 @@ export default function IndexSuppliers() {
 
                     {/* Correo */}
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Correo
-                      </label>
+                      <label className="block text-sm text-gray-700 mb-1">Correo</label>
                       <input
                         name="correo"
                         type="email"
@@ -794,19 +679,9 @@ export default function IndexSuppliers() {
 
                     {/* Estado (dropdown estilo consistente) */}
                     <div ref={estadoRef}>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Estado
-                      </label>
-
-                      {/* contenedor con borde dinámico (gris por defecto, verde/rojo si hay selección) */}
+                      <label className="block text-sm text-gray-700 mb-1">Estado</label>
                       <div
-                        className={`relative mt-1 w-full rounded-lg border transition ${
-                          form.estado === "Activo"
-                            ? "border-green-500 bg-green-50"
-                            : form.estado === "Inactivo"
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 bg-white"
-                        }`}
+                        className={`relative mt-1 w-full rounded-lg border transition ${form.estado === "Activo" ? "border-green-500 bg-green-50" : form.estado === "Inactivo" ? "border-red-500 bg-red-50" : "border-gray-300 bg-white"}`}
                       >
                         <button
                           type="button"
@@ -815,66 +690,26 @@ export default function IndexSuppliers() {
                           aria-haspopup="listbox"
                           aria-expanded={estadoOpen}
                         >
-                          <span
-                            className={`${
-                              form.estado === "Activo"
-                                ? "text-green-700 font-medium"
-                                : form.estado === "Inactivo"
-                                ? "text-red-700 font-medium"
-                                : "text-gray-400"
-                            }`}
-                          >
+                          <span className={`${form.estado === "Activo" ? "text-green-700 font-medium" : form.estado === "Inactivo" ? "text-red-700 font-medium" : "text-gray-400"}`}>
                             {form.estado || "Seleccionar estado"}
                           </span>
-
-                          <motion.span
-                            animate={{ rotate: estadoOpen ? 180 : 0 }}
-                            transition={{ duration: 0.18 }}
-                          >
-                            <ChevronDown
-                              size={18}
-                              className={`${
-                                form.estado === "Activo"
-                                  ? "text-green-700"
-                                  : form.estado === "Inactivo"
-                                  ? "text-red-700"
-                                  : "text-gray-500"
-                              }`}
-                            />
+                          <motion.span animate={{ rotate: estadoOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                            <ChevronDown size={18} className={`${form.estado === "Activo" ? "text-green-700" : form.estado === "Inactivo" ? "text-red-700" : "text-gray-500"}`} />
                           </motion.span>
                         </button>
 
                         <AnimatePresence>
                           {estadoOpen && (
-                            <motion.ul
-                              className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50"
-                              initial="hidden"
-                              animate="visible"
-                              exit="hidden"
-                              variants={listVariants}
-                            >
+                            <motion.ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
                               {["Activo", "Inactivo"].map((opt) => (
                                 <motion.li
                                   key={opt}
                                   variants={itemVariants}
                                   onClick={() => {
-                                    setForm((prev) => ({
-                                      ...prev,
-                                      estado: opt,
-                                    }));
+                                    setForm((prev) => ({ ...prev, estado: opt }));
                                     setEstadoOpen(false);
                                   }}
-                                  className={`px-4 py-3 cursor-pointer text-sm ${
-                                    opt === "Activo"
-                                      ? "hover:bg-green-50 text-green-700"
-                                      : "hover:bg-red-50 text-red-700"
-                                  } ${
-                                    form.estado === opt
-                                      ? opt === "Activo"
-                                        ? "bg-green-100 font-medium"
-                                        : "bg-red-100 font-medium"
-                                      : ""
-                                  }`}
+                                  className={`px-4 py-3 cursor-pointer text-sm ${opt === "Activo" ? "hover:bg-green-50 text-green-700" : "hover:bg-red-50 text-red-700"} ${form.estado === opt ? opt === "Activo" ? "bg-green-100 font-medium" : "bg-red-100 font-medium" : ""}`}
                                 >
                                   {opt}
                                 </motion.li>
@@ -888,11 +723,7 @@ export default function IndexSuppliers() {
 
                   {/* Categoria (multi select) */}
                   <div ref={categoriasRef} className="mt-2">
-                    <label className="block text-sm text-gray-700 mb-1">
-                      Categorías
-                    </label>
-
-                    {/* contenedor con borde fijo (gris) */}
+                    <label className="block text-sm text-gray-700 mb-1">Categorías</label>
                     <div className="relative mt-1 w-full">
                       <div className="w-full border border-gray-300 bg-white rounded-lg">
                         <button
@@ -903,21 +734,10 @@ export default function IndexSuppliers() {
                           aria-expanded={categoriasOpen}
                         >
                           <div className="flex items-center">
-                            {form.categorias.length === 0 ? (
-                              <span className="text-sm text-gray-400">
-                                Seleccionar categorías
-                              </span>
-                            ) : (
-                              <span className="text-sm text-gray-800">
-                                {form.categorias.length} seleccionada(s)
-                              </span>
-                            )}
+                            {form.categorias.length === 0 ? <span className="text-sm text-gray-400">Seleccionar categorías</span> : <span className="text-sm text-gray-800">{form.categorias.length} seleccionada(s)</span>}
                           </div>
 
-                          <motion.span
-                            animate={{ rotate: categoriasOpen ? 180 : 0 }}
-                            transition={{ duration: 0.18 }}
-                          >
+                          <motion.span animate={{ rotate: categoriasOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
                             <ChevronDown size={18} className="text-gray-500" />
                           </motion.span>
                         </button>
@@ -925,26 +745,11 @@ export default function IndexSuppliers() {
 
                       <AnimatePresence>
                         {categoriasOpen && (
-                          <motion.ul
-                            className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-auto z-50 max-h-48"
-                            initial="hidden"
-                            animate="visible"
-                            exit="hidden"
-                            variants={listVariants}
-                          >
+                          <motion.ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-auto z-50 max-h-48" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
                             {categoriasOptions.map((opt) => (
-                              <motion.li
-                                key={opt}
-                                variants={itemVariants}
-                                onClick={() => toggleCategoria(opt)}
-                                className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between"
-                              >
+                              <motion.li key={opt} variants={itemVariants} onClick={() => toggleCategoria(opt)} className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between">
                                 <span>{opt}</span>
-                                {form.categorias.includes(opt) && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                                    ✓
-                                  </span>
-                                )}
+                                {form.categorias.includes(opt) && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓</span>}
                               </motion.li>
                             ))}
                           </motion.ul>
@@ -955,17 +760,9 @@ export default function IndexSuppliers() {
                     {/* tags con botón para quitar */}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {form.categorias.map((c) => (
-                        <div
-                          key={c}
-                          className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs"
-                        >
+                        <div key={c} className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
                           <span>{c}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeCategoriaTag(c)}
-                            aria-label={`Eliminar ${c}`}
-                            className="opacity-70 hover:opacity-100"
-                          >
+                          <button type="button" onClick={() => removeCategoriaTag(c)} aria-label={`Eliminar ${c}`} className="opacity-70 hover:opacity-100">
                             ×
                           </button>
                         </div>
@@ -975,9 +772,7 @@ export default function IndexSuppliers() {
 
                   {/* Dirección (full width) */}
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">
-                      Dirección
-                    </label>
+                    <label className="block text-sm text-gray-700 mb-1">Dirección</label>
                     <input
                       name="direccion"
                       value={form.direccion}
@@ -988,6 +783,7 @@ export default function IndexSuppliers() {
                       required
                     />
                   </div>
+
                   {/* Botones */}
                   <div className="flex justify-end gap-3 pt-2">
                     <button
@@ -1002,10 +798,7 @@ export default function IndexSuppliers() {
                     >
                       Cancelar
                     </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
-                    >
+                    <button type="submit" className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition">
                       Registrar Proveedor
                     </button>
                   </div>

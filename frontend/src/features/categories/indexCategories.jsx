@@ -6,13 +6,14 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
-import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import CategoryDetailModal from "./CategoryDetailModal";
 import CategoryEditModal from "./CategoryEditModal";
 import CategoryDeleteModal from "./CategoryDeleteModal";
+import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -50,10 +51,47 @@ export default function IndexCategories() {
 
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  // 👇 FIX: agregar estados de los modales
+  // Estados modales
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // ---------- FILTRO Y PAGINACIÓN ----------
+  const filtered = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase();
+
+    if (!s) {
+      return categories;
+    }
+
+    // 2) si la búsqueda es exactamente "activo" / "activos" -> solo activos
+    if (/^activos?$/.test(s)) {
+      return categories.filter((c) => c.estado.toLowerCase() === "activo");
+    }
+
+    // 3) si la búsqueda es exactamente "inactivo" / "inactivos" -> solo inactivos
+    if (/^inactivos?$/.test(s)) {
+      return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
+    }
+
+    // 4) en cualquier otro caso -> búsqueda normal en TODOS los campos
+    return categories.filter((c) =>
+      Object.values(c).some((value) =>
+        String(value).toLowerCase().includes(s)
+      )
+    );
+  }, [categories, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, currentPage]);
+
+  const goToPage = (n) => {
+    const p = Math.min(Math.max(1, n), totalPages);
+    setCurrentPage(p);
+  };
 
   const handleDelete = (category) => {
     console.log("Eliminar:", category);
@@ -62,7 +100,6 @@ export default function IndexCategories() {
     setSelectedCategory(category);
     setIsDetailOpen(true);
   };
-
   const handleEdit = (category) => {
     setSelectedCategory(category);
     setIsEditModalOpen(true);
@@ -115,28 +152,6 @@ export default function IndexCategories() {
     setEstadoOpen(false);
   };
 
-  // ---------- FILTRO Y PAGINACIÓN ----------
-  const filtered = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
-    if (!s) return categories;
-    return categories.filter((c) =>
-      `${c.id} ${c.nombre} ${c.descripcion} ${c.estado}`
-        .toLowerCase()
-        .includes(s)
-    );
-  }, [categories, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
-
   // ---------- ANIMACIONES ----------
   const tableVariants = {
     hidden: { opacity: 0 },
@@ -186,21 +201,16 @@ export default function IndexCategories() {
             </div>
           </div>
 
-          {/* Barra búsqueda */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
+          {/* Barra búsqueda + Botones (buscador a la izquierda, ocupa 50%) */}
+          <div className="flex justify-between items-center mb-6 gap-4">
+            <div className="flex-grow">
+              <SearchBar
                 placeholder="Buscar categorías..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
 
@@ -275,7 +285,6 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          {/* <ViewButton event={() => handleViewDetail(c)} /> */}
                           <EditButton event={() => handleEdit(c)} />
                           <DeleteButton
                             event={() => {
@@ -302,7 +311,7 @@ export default function IndexCategories() {
           />
         </div>
 
-        {/* Modal Detalle */}
+        {/* Modales */}
         <CategoryDetailModal
           isOpen={isDetailOpen}
           onClose={() => {
@@ -312,7 +321,6 @@ export default function IndexCategories() {
           category={selectedCategory}
         />
 
-        {/* Modal Editar */}
         <CategoryEditModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
@@ -320,8 +328,8 @@ export default function IndexCategories() {
           onSave={(updated) => console.log("Guardado:", updated)}
         />
       </div>
-      {/* Modal Eliminar */}
 
+      {/* Modal Eliminar */}
       <CategoryDeleteModal
         isOpen={isDeleteOpen}
         onClose={() => {
