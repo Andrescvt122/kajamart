@@ -11,12 +11,10 @@ import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import {
-  showInfoAlert,
-} from "../../../shared/components/alerts";
+import { showInfoAlert } from "../../../shared/components/alerts";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
-
+import { BeakerIcon } from "@heroicons/react/24/solid";
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
@@ -31,7 +29,7 @@ export default function IndexClientReturns() {
         { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
         { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
       ],
-      productsToReturn:[
+      productsToReturn: [
         { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
         { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
         { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
@@ -76,10 +74,10 @@ export default function IndexClientReturns() {
     const s = normalizeText(searchTerm.trim());
     if (!s) {
       // Expandir cada devolución en múltiples filas, una por producto
-      return returns.flatMap(returnItem => 
-        returnItem.productsToReturn.map(product => ({
+      return returns.flatMap((returnItem) =>
+        returnItem.productsToReturn.map((product) => ({
           ...returnItem,
-          currentProduct: product
+          currentProduct: product,
         }))
       );
     }
@@ -89,10 +87,10 @@ export default function IndexClientReturns() {
       .filter((p) =>
         Object.values(p).some((value) => normalizeText(value).includes(s))
       )
-      .flatMap(returnItem =>
-        returnItem.productsToReturn.map(product => ({
+      .flatMap((returnItem) =>
+        returnItem.productsToReturn.map((product) => ({
           ...returnItem,
-          currentProduct: product
+          currentProduct: product,
         }))
       );
   }, [returns, searchTerm]);
@@ -232,7 +230,8 @@ export default function IndexClientReturns() {
                       <div>
                         <p className="text-sm text-gray-600">{s.client}</p>
                         <p className="text-xs text-gray-500">
-                          {s.currentProduct.name} ({s.currentProduct.quantity} unid.)
+                          {s.currentProduct.name} ({s.currentProduct.quantity}{" "}
+                          unid.)
                         </p>
                       </div>
                     </td>
@@ -274,7 +273,7 @@ export default function IndexClientReturns() {
           goToPage={goToPage}
         />
       </div>
-      
+
       {/* Modal de registro de devolución */}
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
