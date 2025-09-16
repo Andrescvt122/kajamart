@@ -3,7 +3,13 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
-export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, onUpdate }) {
+export default function EditRoles({
+  isOpen,
+  onClose,
+  role,
+  permisosDisponibles = {},
+  onUpdate,
+}) {
   const [form, setForm] = useState({
     nombreRol: "",
     descripcion: "",
@@ -29,11 +35,13 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
     }
   }, [role]);
 
+  // ✅ Manejo de cambios en inputs de texto
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ✅ Manejo de cambios en checkboxes de permisos
   const handlePermisoChange = (key) => {
     setForm((prev) => ({
       ...prev,
@@ -44,8 +52,11 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
     }));
   };
 
+  // ✅ Enviar actualización
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!form.nombreRol.trim()) return;
+
     onUpdate({
       ...role,
       NombreRol: form.nombreRol,
@@ -98,21 +109,12 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
               </div>
 
               {/* Formulario */}
-              <motion.form
+              <form
                 onSubmit={handleSubmit}
                 className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scroll"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 },
-                  },
-                }}
               >
                 {/* Nombre y Descripción */}
-                <motion.div className="space-y-4">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nombre del rol
@@ -141,7 +143,7 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
                       placeholder="Descripción del rol"
                     />
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Estado */}
                 <div className="flex items-center gap-3">
@@ -169,44 +171,69 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
                   </label>
                 </div>
 
-                {/* Permisos */}
+                {/* Permisos (tabla estilo Crear Rol) */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Asignar Permisos y privilegios
+                    Asignar permisos y privilegios
                   </h3>
                   <div className="overflow-hidden rounded-xl border max-h-64 overflow-y-auto custom-scroll">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-green-50 text-gray-700">
+                      <thead className="bg-green-100 text-gray-700">
                         <tr>
                           <th className="px-4 py-3 text-left">Módulo</th>
                           <th className="px-4 py-3 text-left">
-                            Permiso/privilegio
+                            Permisos/Privilegios
                           </th>
-                          <th className="px-4 py-3 text-center">Asignación</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {permisosDisponibles.map((p, i) => {
-                          const key = `${p.modulo}-${p.permiso}`;
-                          return (
-                            <tr key={i}>
-                              <td className="px-4 py-3 text-gray-900">
-                                {p.modulo}
-                              </td>
-                              <td className="px-4 py-3 text-green-600">
-                                {p.permiso}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={form.permisos[key] || false}
-                                  onChange={() => handlePermisoChange(key)}
-                                  className="custom-checkbox"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {Object.entries(permisosDisponibles).length > 0 ? (
+                          Object.entries(permisosDisponibles).map(
+                            ([modulo, permisos], i) => (
+                              <tr key={i}>
+                                {/* Columna módulo */}
+                                <td className="px-4 py-3 font-medium text-gray-900">
+                                  {modulo}
+                                </td>
+                                {/* Columna permisos */}
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-wrap gap-4">
+                                    {permisos.map((permiso) => {
+                                      const key = `${modulo}-${permiso}`;
+                                      return (
+                                        <label
+                                          key={key}
+                                          className="inline-flex items-center gap-2"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={form.permisos[key] || false}
+                                            onChange={() =>
+                                              handlePermisoChange(key)
+                                            }
+                                            className="custom-checkbox"
+                                          />
+                                          <span className="text-green-600 font-medium">
+                                            {permiso}
+                                          </span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          )
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan="2"
+                              className="px-4 py-3 text-center text-gray-500"
+                            >
+                              No hay permisos disponibles
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -228,7 +255,7 @@ export default function EditRoles({ isOpen, onClose, role, permisosDisponibles, 
                     Actualizar rol
                   </button>
                 </div>
-              </motion.form>
+              </form>
             </motion.div>
           </div>
 

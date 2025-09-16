@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   showErrorAlert,
   showSuccessAlert,
+  showConfirmAlert,
 } from "../../shared/components/alerts.jsx"; // Asegúrate de tener estas alertas
 
 // Importar modales
@@ -251,6 +252,18 @@ export default function IndexUsers() {
     showSuccessAlert("Usuario registrado exitosamente");
   };
 
+  const handleDelete = async (userToDelete) => {
+    const confirmed = await showConfirmAlert(
+      `¿Estás seguro de que deseas eliminar al usuario ${userToDelete.Nombre}?`
+    );
+    if (confirmed) {
+      setUsers((prev) =>
+        prev.filter((user) => user.Correo !== userToDelete.Correo)
+      );
+      showSuccessAlert("Usuario eliminado correctamente");
+    }
+  };
+
   // handler para guardar cambios desde EditUsers
   const handleSaveUser = (updated) => {
     setUsers(prev => prev.map(u => (u.Correo === updated.correo || u.Correo === updated.Correo) ? { ...u, ...updated } : u));
@@ -371,7 +384,7 @@ export default function IndexUsers() {
                             <EditButton />
                           </button>
 
-                          <DeleteButton />
+                          <DeleteButton alert={() => handleDelete(user)} />
                         </div>
                       </td>
                     </motion.tr>

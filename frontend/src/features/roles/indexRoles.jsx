@@ -1,5 +1,4 @@
 // src/pages/roles/IndexRoles.jsx
-
 import React, { useMemo, useState, useEffect } from "react";
 import {
   ViewButton,
@@ -14,6 +13,7 @@ import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import DetailsRoles from "./detailsRoles";
 import EditRoles from "./editRoles";
+import { handleDeleteRole } from "./deleteRoles";
 
 export default function IndexRoles() {
   const [roles, setRoles] = useState([
@@ -34,11 +34,10 @@ export default function IndexRoles() {
     {
       NombreRol: "Cliente",
       Descripción: "Puede ingresar y comprar productos",
-      Estado: "Activo",
+      Estado: "Inactivo",
     },
   ]);
 
-  // nuevo: estado para modales por eventos
   const [selectedRole, setSelectedRole] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -67,7 +66,6 @@ export default function IndexRoles() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const perPage = 6;
 
-  // --- Formulario de modal ---
   const [form, setForm] = useState({
     nombreRol: "",
     descripcion: "",
@@ -80,7 +78,8 @@ export default function IndexRoles() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePermisoChange = (key) => {
+  const handlePermisoChange = (modulo, permiso) => {
+    const key = `${modulo}-${permiso}`;
     setForm((prev) => ({
       ...prev,
       permisos: {
@@ -96,37 +95,18 @@ export default function IndexRoles() {
     setIsModalOpen(false);
   };
 
-  // --- Permisos disponibles ---
-  const permisosDisponibles = [
-    { modulo: "Gestión Roles", permiso: "Crear" },
-    { modulo: "Gestión Roles", permiso: "Leer" },
-    { modulo: "Gestión Roles", permiso: "Editar" },
-    { modulo: "Gestión Roles", permiso: "Eliminar" },
-    { modulo: "Gestión Usuarios", permiso: "Crear" },
-    { modulo: "Gestión Usuarios", permiso: "Leer" },
-    { modulo: "Gestión Usuarios", permiso: "Editar" },
-    { modulo: "Gestión Usuarios", permiso: "Eliminar" },
-    { modulo: "Gestión Productos", permiso: "Crear" },
-    { modulo: "Gestión Productos", permiso: "Leer" },
-    { modulo: "Gestión Productos", permiso: "Editar" },
-    { modulo: "Gestión Productos", permiso: "Eliminar" },
-    { modulo: "Gestión Categorías", permiso: "Crear" },
-    { modulo: "Gestión Categorías", permiso: "Leer" },
-    { modulo: "Gestión Categorías", permiso: "Editar" },
-    { modulo: "Gestión Categorías", permiso: "Eliminar" },
-    { modulo: "Gestión Proveedores", permiso: "Crear" },
-    { modulo: "Gestión Proveedores", permiso: "Leer" },
-    { modulo: "Gestión Proveedores", permiso: "Editar" },
-    { modulo: "Gestión Proveedores", permiso: "Eliminar" },
-  ];
+  // --- Permisos disponibles agrupados ---
+  const permisosAgrupados = {
+    "Gestión Roles": ["Crear", "Leer", "Editar", "Eliminar"],
+    "Gestión Usuarios": ["Crear", "Leer", "Editar", "Eliminar"],
+    "Gestión Productos": ["Crear", "Leer", "Editar", "Eliminar"],
+    "Gestión Categorías": ["Crear", "Leer", "Editar", "Eliminar"],
+    "Gestión Proveedores": ["Crear", "Leer", "Editar", "Eliminar"],
+  };
 
   // --- Paginación y búsqueda ---
   const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+    text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
@@ -148,22 +128,20 @@ export default function IndexRoles() {
     setCurrentPage(p);
   };
 
-  // handler actualizado desde modal de editar
   const handleUpdateRole = (updatedRole) => {
     setRoles((prev) =>
-      prev.map((r) => (r.NombreRol === updatedRole.NombreRol ? updatedRole : r))
+      prev.map((r) =>
+        r.NombreRol === selectedRole.NombreRol ? updatedRole : r
+      )
     );
+    setSelectedRole(updatedRole); // Actualizar el rol seleccionado para que DetailsRoles lo refleje
   };
 
-  // --- Animaciones tabla ---
+  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
   };
-
   const rowVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
@@ -224,7 +202,7 @@ export default function IndexRoles() {
           </div>
         </div>
 
-        {/* Tabla con animación */}
+        {/* Tabla */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           variants={tableVariants}
@@ -241,79 +219,79 @@ export default function IndexRoles() {
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-
             <motion.tbody
               className="divide-y divide-gray-100"
               variants={tableVariants}
             >
-              {pageItems.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No se encontraron roles.
-                  </td>
-                </tr>
-              ) : (
-                pageItems.map((s, i) => (
-                  <motion.tr
-                    key={i}
-                    className="hover:bg-gray-50"
-                    variants={rowVariants}
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {s.NombreRol}
+              <AnimatePresence>
+                {pageItems.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
+                      No se encontraron roles.
                     </td>
-                    <td className="px-6 py-4 text-sm text-green-700">
-                      {s.Descripción}
-                    </td>
-                    <td className="px-6 py-4">
-                      {s.Estado === "Activo" ? (
-                        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
-                          Inactivo
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        {/* ahora emitir eventos; el componente principal escucha y abre modal */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            window.dispatchEvent(
-                              new CustomEvent("open-role-details", {
-                                detail: s,
-                              })
-                            )
-                          }
-                          className="rounded"
-                        >
-                          <ViewButton />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            window.dispatchEvent(
-                              new CustomEvent("open-role-edit", { detail: s })
-                            )
-                          }
-                          className="rounded"
-                        >
-                          <EditButton />
-                        </button>
-
-                        <DeleteButton />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
+                  </tr>
+                ) : (
+                  pageItems.map((s) => (
+                    <motion.tr
+                      key={s.NombreRol}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {s.NombreRol}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-green-700">
+                        {s.Descripción}
+                      </td>
+                      <td className="px-6 py-4">
+                        {s.Estado === "Activo" ? (
+                          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              window.dispatchEvent(
+                                new CustomEvent("open-role-details", { detail: s })
+                              )
+                            }
+                            className="rounded"
+                          >
+                            <ViewButton />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              window.dispatchEvent(
+                                new CustomEvent("open-role-edit", { detail: s })
+                              )
+                            }
+                            className="rounded"
+                          >
+                            <EditButton />
+                          </button>
+                          <DeleteButton alert={() => handleDeleteRole(s, setRoles)} />
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </AnimatePresence>
             </motion.tbody>
           </table>
         </motion.div>
@@ -332,7 +310,6 @@ export default function IndexRoles() {
       <AnimatePresence>
         {isModalOpen && (
           <>
-            {/* Fondo */}
             <motion.div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
               initial={{ opacity: 0 }}
@@ -340,8 +317,6 @@ export default function IndexRoles() {
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
             />
-
-            {/* Contenedor */}
             <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: -30 }}
@@ -351,7 +326,6 @@ export default function IndexRoles() {
                 className="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Header */}
                 <div className="flex justify-between items-center px-6 py-4 border-b">
                   <h2 className="text-xl font-bold text-gray-800">Crear Rol</h2>
                   <button
@@ -362,7 +336,6 @@ export default function IndexRoles() {
                   </button>
                 </div>
 
-                {/* Formulario */}
                 <motion.form
                   onSubmit={handleSubmit}
                   className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scroll"
@@ -376,7 +349,7 @@ export default function IndexRoles() {
                     },
                   }}
                 >
-                  {/* Nombre y Descripción */}
+                  {/* Nombre y descripción */}
                   <motion.div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -392,7 +365,6 @@ export default function IndexRoles() {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Descripción
@@ -434,10 +406,10 @@ export default function IndexRoles() {
                     </label>
                   </div>
 
-                  {/* Permisos */}
+                  {/* Permisos agrupados */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                      Asignar Permisos y privilegios
+                      Asignar permisos y privilegios
                     </h3>
                     <div className="overflow-hidden rounded-xl border max-h-64 overflow-y-auto custom-scroll">
                       <table className="min-w-full text-sm">
@@ -445,33 +417,45 @@ export default function IndexRoles() {
                           <tr>
                             <th className="px-4 py-3 text-left">Módulo</th>
                             <th className="px-4 py-3 text-left">
-                              Permiso/privilegio
+                              Permisos/Privilegios
                             </th>
-                            <th className="px-4 py-3 text-center">Asignación</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {permisosDisponibles.map((p, i) => {
-                            const key = `${p.modulo}-${p.permiso}`;
-                            return (
+                          {Object.entries(permisosAgrupados).map(
+                            ([modulo, permisos], i) => (
                               <tr key={i}>
-                                <td className="px-4 py-3 text-gray-900">
-                                  {p.modulo}
+                                <td className="px-4 py-3 font-medium text-gray-900">
+                                  {modulo}
                                 </td>
-                                <td className="px-4 py-3 text-green-600">
-                                  {p.permiso}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={form.permisos[key] || false}
-                                    onChange={() => handlePermisoChange(key)}
-                                    className="custom-checkbox"
-                                  />
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-wrap gap-3">
+                                    {permisos.map((permiso, j) => {
+                                      const key = `${modulo}-${permiso}`;
+                                      return (
+                                        <label
+                                          key={j}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={form.permisos[key] || false}
+                                            onChange={() =>
+                                              handlePermisoChange(modulo, permiso)
+                                            }
+                                            className="custom-checkbox"
+                                          />
+                                          <span className="text-green-600">
+                                            {permiso}
+                                          </span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
                                 </td>
                               </tr>
-                            );
-                          })}
+                            )
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -493,25 +477,21 @@ export default function IndexRoles() {
         )}
       </AnimatePresence>
 
-      {/* MODAL DETALLES (escucha evento) */}
+      {/* Otros modales */}
       <DetailsRoles
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         role={selectedRole}
       />
-
-      {/* MODAL EDITAR (escucha evento) */}
       <EditRoles
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         role={selectedRole}
-        permisosDisponibles={permisosDisponibles}
+        permisosDisponibles={permisosAgrupados}
         onUpdate={handleUpdateRole}
       />
 
-      {/* Estilos personalizados */}
       <style jsx>{`
-        /* Scrollbar blanco */
         .custom-scroll::-webkit-scrollbar {
           width: 8px;
         }
@@ -522,7 +502,6 @@ export default function IndexRoles() {
           background-color: #ccc;
           border-radius: 4px;
         }
-        /* Checkbox personalizado */
         .custom-checkbox {
           appearance: none;
           width: 18px;
