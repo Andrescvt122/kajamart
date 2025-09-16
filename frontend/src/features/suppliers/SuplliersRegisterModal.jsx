@@ -1,24 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 
-export default function SuppliersEditModal({
-  isModalOpen,
+export default function ProductRegisterModal({
+  isOpen,
   onClose,
   onSubmit,
-  supplierData,
-  categoriasOptions,
+  categoriasOptions = [],
 }) {
   const [form, setForm] = useState({
-    nombre: supplierData?.nombre || "",
-    nit: supplierData?.nit || "",
-    personaType: supplierData?.personaType || "",
-    contacto: supplierData?.contacto || "",
-    telefono: supplierData?.telefono || "",
-    correo: supplierData?.correo || "",
-    estado: supplierData?.estado || "",
-    categorias: supplierData?.categorias || [],
-    direccion: supplierData?.direccion || "",
+    nombre: "",
+    nit: "",
+    personaType: "",
+    contacto: "",
+    telefono: "",
+    correo: "",
+    estado: "Activo",
+    categorias: [],
+    direccion: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -111,12 +110,24 @@ export default function SuppliersEditModal({
     if (!validateAll()) return;
     onSubmit(form);
     onClose();
+    setForm({
+      nombre: "",
+      nit: "",
+      personaType: "",
+      contacto: "",
+      telefono: "",
+      correo: "",
+      estado: "Activo",
+      categorias: [],
+      direccion: "",
+    });
+    setErrors({});
   };
 
   const listVariants = { hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } };
   const itemVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
-  if (!isModalOpen) return null;
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -141,7 +152,7 @@ export default function SuppliersEditModal({
           exit={{ opacity: 0, scale: 0.95, y: -20 }}
           transition={{ duration: 0.26, ease: "easeOut" }}
         >
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Editar Proveedor</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Registrar Proveedor</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -195,7 +206,6 @@ export default function SuppliersEditModal({
                       </motion.span>
                     </button>
                   </div>
-
                   <AnimatePresence>
                     {personaOpen && (
                       <motion.ul
@@ -314,7 +324,6 @@ export default function SuppliersEditModal({
                       />
                     </motion.span>
                   </button>
-
                   <AnimatePresence>
                     {estadoOpen && (
                       <motion.ul
@@ -333,10 +342,14 @@ export default function SuppliersEditModal({
                               setEstadoOpen(false);
                             }}
                             className={`px-4 py-3 cursor-pointer text-sm ${
-                              opt === "Activo"
-                                ? "hover:bg-green-50 text-green-700"
-                                : "hover:bg-red-50 text-red-700"
-                            } ${form.estado === opt ? (opt === "Activo" ? "bg-green-100 font-medium" : "bg-red-100 font-medium") : ""}`}
+                              opt === "Activo" ? "hover:bg-green-50 text-green-700" : "hover:bg-red-50 text-red-700"
+                            } ${
+                              form.estado === opt
+                                ? opt === "Activo"
+                                  ? "bg-green-100 font-medium"
+                                  : "bg-red-100 font-medium"
+                                : ""
+                            }`}
                           >
                             {opt}
                           </motion.li>
@@ -371,7 +384,6 @@ export default function SuppliersEditModal({
                     </motion.span>
                   </button>
                 </div>
-
                 <AnimatePresence>
                   {categoriasOpen && (
                     <motion.ul
@@ -398,18 +410,22 @@ export default function SuppliersEditModal({
                   )}
                 </AnimatePresence>
               </div>
-              {errors.categorias && <span className="text-red-500 text-xs">{errors.categorias}</span>}
-
               <div className="mt-2 flex flex-wrap gap-2">
                 {form.categorias.map((c) => (
                   <div key={c} className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
                     <span>{c}</span>
-                    <button type="button" onClick={() => removeCategoriaTag(c)} aria-label={`Eliminar ${c}`} className="opacity-70 hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => removeCategoriaTag(c)}
+                      aria-label={`Eliminar ${c}`}
+                      className="opacity-70 hover:opacity-100"
+                    >
                       ×
                     </button>
                   </div>
                 ))}
               </div>
+              {errors.categorias && <span className="text-red-500 text-xs">{errors.categorias}</span>}
             </div>
 
             {/* Dirección */}
@@ -426,11 +442,18 @@ export default function SuppliersEditModal({
 
             {/* Botones */}
             <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+              >
                 Cancelar
               </button>
-              <button type="submit" className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition">
-                Guardar cambios
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
+              >
+                Guardar
               </button>
             </div>
           </form>
