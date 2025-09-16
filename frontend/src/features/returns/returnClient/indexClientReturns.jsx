@@ -74,11 +74,27 @@ export default function IndexClientReturns() {
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return returns;
+    if (!s) {
+      // Expandir cada devolución en múltiples filas, una por producto
+      return returns.flatMap(returnItem => 
+        returnItem.productsToReturn.map(product => ({
+          ...returnItem,
+          currentProduct: product
+        }))
+      );
+    }
 
-    return returns.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
-    );
+    // Filtrar y luego expandir los resultados filtrados
+    return returns
+      .filter((p) =>
+        Object.values(p).some((value) => normalizeText(value).includes(s))
+      )
+      .flatMap(returnItem =>
+        returnItem.productsToReturn.map(product => ({
+          ...returnItem,
+          currentProduct: product
+        }))
+      );
   }, [returns, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -212,8 +228,13 @@ export default function IndexClientReturns() {
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.dateReturn}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.client}
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm text-gray-600">{s.client}</p>
+                        <p className="text-xs text-gray-500">
+                          {s.currentProduct.name} ({s.currentProduct.quantity} unid.)
+                        </p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {s.reason}
@@ -223,8 +244,15 @@ export default function IndexClientReturns() {
                         {s.typeReturn}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      ${s.total}
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          ${s.currentProduct.price * s.currentProduct.quantity}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ${s.currentProduct.price} c/u
+                        </p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
