@@ -11,13 +11,33 @@ import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import { showInfoAlert } from "../../../shared/components/alerts";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
-import { BeakerIcon } from "@heroicons/react/24/solid";
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
+    // Lista de razones posibles para devolución
+    const reasons = [
+      "Producto dañado",
+      "Producto vencido",
+      "Producto incorrecto",
+      "Producto no requerido"
+    ];
+    const reason = reasons[i % reasons.length];
+
+    // Selección ponderada para que 'a proveedor' y 'completado' sean más probables
+    const pickStatus = (reason) => {
+      // Solo N/A para productos dañados, el resto puede ir a proveedor
+      if (reason === "Producto dañado") return "N/A";
+      const r = Math.random();
+      if (r < 0.45) return "a proveedor"; // 45%
+      if (r < 0.8) return "completado"; // 35%
+      if (r < 0.95) return "registrado"; // 15%
+      return "rechazado"; // 5%
+    };
+
+    const statusSuppliers = pickStatus(reason);
+
     baseReturns.push({
       idReturn: i,
       idSale: 100 + i,
@@ -36,7 +56,8 @@ export default function IndexClientReturns() {
       ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
-      reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
+      reason,
+      statusSuppliers,
       typeReturn:
         i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
@@ -82,15 +103,19 @@ export default function IndexClientReturns() {
       );
     }
 
-    // Filtrar y luego expandir los resultados filtrados
+    // Filtrar (incluyendo statusSuppliers) y luego expandir los resultados filtrados
     return returns
       .filter((p) =>
-        Object.values(p).some((value) => normalizeText(value).includes(s))
+        Object.values(p).some((value) =>
+          normalizeText(value).includes(s) ||
+          (p.statusSuppliers && normalizeText(p.statusSuppliers).includes(s))
+        )
       )
       .flatMap((returnItem) =>
         returnItem.productsToReturn.map((product) => ({
           ...returnItem,
           currentProduct: product,
+          // statusSuppliers ya está en returnItem y se propaga con el spread
         }))
       );
   }, [returns, searchTerm]);
@@ -193,6 +218,7 @@ export default function IndexClientReturns() {
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Razón</th>
                 <th className="px-6 py-4">Tipo</th>
+                <th className="px-6 py-4">Proveedor</th>
                 <th className="px-6 py-4">Total</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -204,7 +230,7 @@ export default function IndexClientReturns() {
               {pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     No se encontraron devoluciones.
@@ -242,6 +268,22 @@ export default function IndexClientReturns() {
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
                         {s.typeReturn}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {/* Proveedor - estilos condicionales */}
+                      <div>
+                        {(() => {
+                          const st = (s.statusSuppliers || "").toLowerCase();
+                          const isNegative = st === "rechazado" || st === "n/a";
+                          const positiveClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700";
+                          const negativeClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
+                          return (
+                            <span className={isNegative ? negativeClass : positiveClass}>
+                              {s.statusSuppliers}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div>

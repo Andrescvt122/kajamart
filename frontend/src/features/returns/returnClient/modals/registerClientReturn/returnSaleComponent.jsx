@@ -9,12 +9,13 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
   const [selectedSale, setSelectedSale] = useState(null);
   const [returnProducts, setReturnProducts] = useState([]);
   const [isCompleteReturnOpen, setIsCompleteReturnOpen] = useState(false);
-  const [selectedReason, setSelectedReason] = useState("");
-  const [showReasonDropdown, setShowReasonDropdown] = useState(false);
+  const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
 
   const returnReasons = [
     { value: "producto_dañado", label: "Producto dañado" },
-    { value: "producto_vencido", label: "Producto vencido" }
+    { value: "producto_vencido", label: "Producto vencido" },
+    { value: "producto_incorrecto", label: "Producto incorrecto" },
+    { value: "producto_no_requerido", label: "Producto no requerido" },
   ];
 
   const sales = [
@@ -71,17 +72,18 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
         ...product,
         returnQuantity: 0,
         selected: false,
+        reason: "",
       }))
     );
     setSearchTerm("");
     setShowDropdown(false);
-    setSelectedReason("");
+    setProductReasonDropdowns({});
   };
 
   const handleProductSelection = (id, selected) => {
     setReturnProducts((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, selected, returnQuantity: selected ? 1 : 0 } : p
+        p.id === id ? { ...p, selected, returnQuantity: selected ? 1 : 0, reason: selected ? p.reason : "" } : p
       )
     );
   };
@@ -98,9 +100,20 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
     );
   };
 
-  const handleReasonSelect = (reason) => {
-    setSelectedReason(reason.value);
-    setShowReasonDropdown(false);
+  const handleProductReasonSelect = (productId, reason) => {
+    setReturnProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, reason: reason.value } : p
+      )
+    );
+    setProductReasonDropdowns((prev) => ({ ...prev, [productId]: false }));
+  };
+
+  const toggleProductReasonDropdown = (productId) => {
+    setProductReasonDropdowns((prev) => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
   };
 
   const calculateReturnTotal = () =>
@@ -109,6 +122,13 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
       .reduce((total, p) => total + p.salePrice * p.returnQuantity, 0);
 
   const hasSelectedProducts = returnProducts.some(p => p.selected && p.returnQuantity > 0);
+  
+  // Validación: todos los productos seleccionados deben tener una razón
+  const allSelectedProductsHaveReason = returnProducts
+    .filter(p => p.selected && p.returnQuantity > 0)
+    .every(p => p.reason !== "");
+
+  const canCompleteReturn = hasSelectedProducts && allSelectedProductsHaveReason;
 
   return (
     <>
@@ -129,7 +149,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
               exit={{ opacity: 0, scale: 0.95, y: -20 }}
             >
               <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-[560px] max-h-[88vh] p-6 relative overflow-visible"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-[700px] max-h-[88vh] p-6 relative overflow-visible"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -217,103 +237,112 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -10 }}
                             transition={{ duration: 0.2 }}
-                            className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200"
+                            className="p-3 rounded-lg bg-gray-50 border border-gray-200 space-y-3"
                           >
-                            <div className="flex items-center gap-3 flex-grow">
-                              <input
-                                type="checkbox"
-                                checked={p.selected}
-                                onChange={(e) => handleProductSelection(p.id, e.target.checked)}
-                                className="h-5 w-5 text-emerald-600 rounded-md border-gray-300"
-                              />
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {p.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Originalmente comprado: {p.quantity}
-                                </p>
+                            {/* Información del producto y controles de cantidad */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-grow">
+                                <input
+                                  type="checkbox"
+                                  checked={p.selected}
+                                  onChange={(e) => handleProductSelection(p.id, e.target.checked)}
+                                  className="h-5 w-5 text-emerald-600 rounded-md border-gray-300"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {p.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Originalmente comprado: {p.quantity}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleQuantityChange(p.id, -1)}
+                                  disabled={p.returnQuantity === 0}
+                                  className="p-1 rounded-full text-emerald-600 hover:bg-emerald-100 disabled:text-gray-400"
+                                >
+                                  <Minus size={16} />
+                                </button>
+                                <span className="font-semibold text-gray-800 w-6 text-center">
+                                  {p.returnQuantity}
+                                </span>
+                                <button
+                                  onClick={() => handleQuantityChange(p.id, 1)}
+                                  disabled={p.returnQuantity >= p.quantity}
+                                  className="p-1 rounded-full text-emerald-600 hover:bg-emerald-100 disabled:text-gray-400"
+                                >
+                                  <Plus size={16} />
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleQuantityChange(p.id, -1)}
-                                disabled={p.returnQuantity === 0}
-                                className="p-1 rounded-full text-emerald-600 hover:bg-emerald-100 disabled:text-gray-400"
+
+                            {/* Dropdown de razón por producto */}
+                            {p.selected && p.returnQuantity > 0 && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="relative"
                               >
-                                <Minus size={16} />
-                              </button>
-                              <span className="font-semibold text-gray-800 w-6 text-center">
-                                {p.returnQuantity}
-                              </span>
-                              <button
-                                onClick={() => handleQuantityChange(p.id, 1)}
-                                disabled={p.returnQuantity >= p.quantity}
-                                className="p-1 rounded-full text-emerald-600 hover:bg-emerald-100 disabled:text-gray-400"
-                              >
-                                <Plus size={16} />
-                              </button>
-                            </div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Razón de la devolución:
+                                </label>
+                                <button
+                                  onClick={() => toggleProductReasonDropdown(p.id)}
+                                  className={`w-full px-3 py-2 text-left text-sm bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center justify-between ${
+                                    p.reason ? "border-gray-300 text-gray-900" : "border-red-300 text-gray-400"
+                                  }`}
+                                >
+                                  <span>
+                                    {p.reason 
+                                      ? returnReasons.find(r => r.value === p.reason)?.label 
+                                      : "Seleccionar razón"}
+                                  </span>
+                                  <ChevronDown 
+                                    size={16} 
+                                    className={`text-gray-400 transition-transform ${productReasonDropdowns[p.id] ? 'rotate-180' : ''}`} 
+                                  />
+                                </button>
+
+                                <AnimatePresence>
+                                  {productReasonDropdowns[p.id] && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -8 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -8 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto"
+                                    >
+                                      {returnReasons.map((reason) => (
+                                        <motion.button
+                                          key={reason.value}
+                                          initial={{ opacity: 0 }}
+                                          animate={{ opacity: 1 }}
+                                          exit={{ opacity: 0 }}
+                                          transition={{ duration: 0.15 }}
+                                          onClick={() => handleProductReasonSelect(p.id, reason)}
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
+                                        >
+                                          <span className="text-gray-900">{reason.label}</span>
+                                        </motion.button>
+                                      ))}
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+
+                                {p.selected && p.returnQuantity > 0 && !p.reason && (
+                                  <p className="text-xs text-red-600 mt-1">
+                                    Debe seleccionar una razón para este producto
+                                  </p>
+                                )}
+                              </motion.div>
+                            )}
                           </motion.div>
                         ))}
                       </div>
-
-                      {/* Dropdown Razón */}
-                      {hasSelectedProducts && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.25 }}
-                          className="mt-4"
-                        >
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Razón de la devolución
-                          </label>
-                          <div className="relative">
-                            <button
-                              onClick={() => setShowReasonDropdown(!showReasonDropdown)}
-                              className="w-full px-4 py-3 text-left bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center justify-between"
-                            >
-                              <span className={selectedReason ? "text-gray-900" : "text-gray-400"}>
-                                {selectedReason 
-                                  ? returnReasons.find(r => r.value === selectedReason)?.label 
-                                  : "Seleccionar razón"}
-                              </span>
-                              <ChevronDown 
-                                size={20} 
-                                className={`text-gray-400 transition-transform ${showReasonDropdown ? 'rotate-180' : ''}`} 
-                              />
-                            </button>
-
-                            <AnimatePresence>
-                              {showReasonDropdown && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: -8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -8 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
-                                >
-                                  {returnReasons.map((reason) => (
-                                    <motion.button
-                                      key={reason.value}
-                                      initial={{ opacity: 0 }}
-                                      animate={{ opacity: 1 }}
-                                      exit={{ opacity: 0 }}
-                                      transition={{ duration: 0.15 }}
-                                      onClick={() => handleReasonSelect(reason)}
-                                      className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
-                                    >
-                                      <span className="text-gray-900">{reason.label}</span>
-                                    </motion.button>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </motion.div>
-                      )}
 
                       <div className="text-right font-bold text-lg text-gray-800 mt-4 pt-3 border-t border-gray-200">
                         Saldo de la devolución: {formatPrice(calculateReturnTotal())}
@@ -327,7 +356,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
                   <button
                     onClick={() => {
                       setSelectedSale(null);
-                      setSelectedReason("");
+                      setProductReasonDropdowns({});
                     }}
                     className="flex-1 px-5 py-2.5 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300"
                   >
@@ -335,12 +364,26 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
                   </button>
                   <button
                     onClick={() => setIsCompleteReturnOpen(true)}
-                    disabled={!hasSelectedProducts || !selectedReason}
+                    disabled={!canCompleteReturn}
                     className="flex-1 px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    title={!canCompleteReturn && hasSelectedProducts ? "Debe seleccionar una razón para todos los productos" : ""}
                   >
                     Completar devolución
                   </button>
                 </div>
+
+                {/* Mensaje de validación */}
+                {hasSelectedProducts && !allSelectedProductsHaveReason && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg"
+                  >
+                    <p className="text-sm text-red-700">
+                      Por favor, seleccione una razón para todos los productos marcados para devolución.
+                    </p>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </>
@@ -353,7 +396,6 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
         selectedSale={selectedSale}
         productsToReturn={returnProducts.filter((p) => p.returnQuantity > 0)}
         returnTotal={calculateReturnTotal()}
-        returnReason={selectedReason}
       />
     </>
   );
