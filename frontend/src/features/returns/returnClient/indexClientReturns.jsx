@@ -50,14 +50,12 @@ export default function IndexClientReturns() {
         { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
       ],
       productsToReturn: [
-        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
-        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
-        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
+        { idProduct: 1, name: "Producto A", quantity: 2, price: 100, reason, statusSuppliers },
+        { idProduct: 2, name: "Producto B", quantity: 1, price: 200, reason, statusSuppliers },
+        { idProduct: 3, name: "Producto C", quantity: 3, price: 150, reason, statusSuppliers },
       ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
-      reason,
-      statusSuppliers,
       typeReturn:
         i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
@@ -72,8 +70,9 @@ export default function IndexClientReturns() {
   const perPage = 6;
 
   // Función para abrir el modal de detalles
-  const handleViewDetails = (returnData) => {
-    setSelectedReturn(returnData);
+  const handleViewDetails = (rowData) => {
+    // rowData contains return-level fields plus `currentProduct`
+    setSelectedReturn(rowData);
     setIsDetailsModalOpen(true);
   };
 
@@ -93,6 +92,8 @@ export default function IndexClientReturns() {
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
+    const match = (val) => normalizeText(String(val ?? "")).includes(s);
+
     if (!s) {
       // Expandir cada devolución en múltiples filas, una por producto
       return returns.flatMap((returnItem) =>
@@ -103,19 +104,24 @@ export default function IndexClientReturns() {
       );
     }
 
-    // Filtrar (incluyendo statusSuppliers) y luego expandir los resultados filtrados
+    // Filtrar (incluyendo campos de productsToReturn) y luego expandir los resultados filtrados
     return returns
-      .filter((p) =>
-        Object.values(p).some((value) =>
-          normalizeText(value).includes(s) ||
-          (p.statusSuppliers && normalizeText(p.statusSuppliers).includes(s))
-        )
-      )
+      .filter((returnItem) => {
+        // Buscar en campos simples del return
+        const topMatch = Object.entries(returnItem).some(([, v]) => {
+          if (Array.isArray(v)) return false;
+          return match(v);
+        });
+        // Buscar dentro de cada productToReturn
+        const productMatch = returnItem.productsToReturn.some((prod) =>
+          Object.values(prod).some((val) => match(val))
+        );
+        return topMatch || productMatch;
+      })
       .flatMap((returnItem) =>
         returnItem.productsToReturn.map((product) => ({
           ...returnItem,
           currentProduct: product,
-          // statusSuppliers ya está en returnItem y se propaga con el spread
         }))
       );
   }, [returns, searchTerm]);
@@ -262,7 +268,7 @@ export default function IndexClientReturns() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.reason}
+                      {s.currentProduct.reason}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
@@ -273,13 +279,13 @@ export default function IndexClientReturns() {
                       {/* Proveedor - estilos condicionales */}
                       <div>
                         {(() => {
-                          const st = (s.statusSuppliers || "").toLowerCase();
+                          const st = (s.currentProduct.statusSuppliers || "").toLowerCase();
                           const isNegative = st === "rechazado" || st === "n/a";
                           const positiveClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700";
                           const negativeClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
                           return (
                             <span className={isNegative ? negativeClass : positiveClass}>
-                              {s.statusSuppliers}
+                              {s.currentProduct.statusSuppliers}
                             </span>
                           );
                         })()}
