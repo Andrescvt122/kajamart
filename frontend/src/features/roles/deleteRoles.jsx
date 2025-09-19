@@ -7,21 +7,10 @@ export const handleDeleteRole = async (roleToDelete, setRoles) => {
   );
 
   if (confirmed) {
-    // 1. Animar primero ocultando el rol
+    // Simplemente filtramos el rol. AnimatePresence se encargará de la animación de salida.
     setRoles((prev) =>
-      prev.map((r) =>
-        r.NombreRol === roleToDelete.NombreRol
-          ? { ...r, _deleting: true } // flag temporal para animación
-          : r
-      )
+      prev.filter((r) => r.NombreRol !== roleToDelete.NombreRol)
     );
-
-    // 2. Esperar que termine la animación antes de eliminar
-    setTimeout(() => {
-      setRoles((prev) =>
-        prev.filter((r) => r.NombreRol !== roleToDelete.NombreRol)
-      );
-      showSuccessAlert("Rol eliminado correctamente.");
-    }, 300); // duración de la animación (300ms)
+    showSuccessAlert("Rol eliminado correctamente.");
   }
 };
