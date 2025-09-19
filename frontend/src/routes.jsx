@@ -9,7 +9,7 @@ import IndexClients from "./features/clients/indexClients";
 import IndexSales from "./features/Sales/indexSales";
 import IndexProducts from "./features/products/indexProducts";
 import IndexProductReturns from "./features/returns/indexProductReturns";
-import IndexLow from "./features/returns/indexLow";
+import IndexLow from "./features/returns/low/indexLow";
 import IndexUsers from "./features/users/indexUsers";
 import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
