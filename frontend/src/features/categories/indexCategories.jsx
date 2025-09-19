@@ -9,12 +9,10 @@ import {
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
+import CategoryDetailModal from "./CategoryDetailModal";
+import CategoryEditModal from "./CategoryEditModal";
+import CategoryDeleteModal from "./CategoryDeleteModal";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
-} from "../../shared/components/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -40,7 +38,8 @@ export default function IndexCategories() {
     {
       id: "CAT004",
       nombre: "Snacks",
-      descripcion: "Papas fritas, galletas, dulces y otros productos empacados.",
+      descripcion:
+        "Papas fritas, galletas, dulces y otros productos empacados.",
       estado: "Activo",
     },
   ]);
@@ -49,7 +48,27 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // Modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // 👇 FIX: agregar estados de los modales
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const handleDelete = (category) => {
+    console.log("Eliminar:", category);
+  };
+  const handleViewDetail = (category) => {
+    setSelectedCategory(category);
+    setIsDetailOpen(true);
+  };
+
+  const handleEdit = (category) => {
+    setSelectedCategory(category);
+    setIsEditModalOpen(true);
+  };
+
+  // ---------- MODAL REGISTRAR ----------
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
@@ -75,20 +94,6 @@ export default function IndexCategories() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 🚫 Bloquear scroll cuando el modal esté abierto
-  useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflowY = "auto"; // ✅ vertical solo si hace falta
-      document.body.style.overflowX = "hidden"; // 🚫 horizontal siempre bloqueado
-    }
-    return () => {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    };
-  }, [isModalOpen]);
-
   const handleOpenModal = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
     setIsModalOpen(true);
@@ -106,14 +111,11 @@ export default function IndexCategories() {
     e.preventDefault();
     console.log("Categoría registrada:", form);
     setIsModalOpen(false);
-    setForm({
-      nombre: "",
-      estado: "",
-      descripcion: "",
-    });
+    setForm({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
   };
 
+  // ---------- FILTRO Y PAGINACIÓN ----------
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return categories;
@@ -135,7 +137,7 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes animación tabla
+  // ---------- ANIMACIONES ----------
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -158,17 +160,6 @@ export default function IndexCategories() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // clases dinámicas para la casilla del estado dentro del modal
-  const estadoButtonClasses = () => {
-    if (form.estado === "Activo") {
-      return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
-    }
-    if (form.estado === "Inactivo") {
-      return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
-    }
-    return "bg-white text-gray-400 border border-gray-200 focus:ring-green-200";
-  };
-
   return (
     <div className="flex min-h-screen">
       {/* Fondo ondas */}
@@ -184,8 +175,7 @@ export default function IndexCategories() {
           zIndex: 0,
         }}
       />
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Contenido */}
+      <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">
             <div>
@@ -277,7 +267,7 @@ export default function IndexCategories() {
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             c.estado === "Activo"
                               ? "bg-green-50 text-green-700"
-                              : "bg-gray-200 text-gray-600"
+                              : "bg-red-50 text-red-700"
                           }`}
                         >
                           {c.estado}
@@ -285,14 +275,13 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton
-                            alert={() => showInfoAlert("Ver categoría")}
-                          />
-                          <EditButton
-                            alert={() => showLoadingAlert("Editar categoría")}
-                          />
+                          <ViewButton event={() => handleViewDetail(c)} />
+                          <EditButton event={() => handleEdit(c)} />
                           <DeleteButton
-                            alert={() => showInputAlert("Eliminar categoría")}
+                            event={() => {
+                              setSelectedCategory(c);
+                              setIsDeleteOpen(true);
+                            }}
                           />
                         </div>
                       </td>
@@ -312,13 +301,42 @@ export default function IndexCategories() {
             goToPage={goToPage}
           />
         </div>
-      </div>
 
-      {/* Modal */}
+        {/* Modal Detalle */}
+        <CategoryDetailModal
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedCategory(null);
+          }}
+          category={selectedCategory}
+        />
+
+        {/* Modal Editar */}
+        <CategoryEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          category={selectedCategory}
+          onSave={(updated) => console.log("Guardado:", updated)}
+        />
+      </div>
+      {/* Modal Eliminar */}
+
+      <CategoryDeleteModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setSelectedCategory(null);
+        }}
+        onConfirm={handleDelete}
+        category={selectedCategory}
+      />
+
+      {/* Modal Registrar */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className=" fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 w-full h-full p-4"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 w-full h-full p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -352,27 +370,56 @@ export default function IndexCategories() {
 
                 {/* Estado */}
                 <div className="relative" ref={estadoRef}>
-                  <button
-                    type="button"
-                    onClick={() => setEstadoOpen((s) => !s)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg ${estadoButtonClasses()} transition`}
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
-                  >
-                    <span
-                      className={`text-sm ${
-                        form.estado ? "" : "text-gray-400"
+                  <label className="block text-sm font-semibold text-gray-800">
+                    Estado*
+                  </label>
+
+                  <div
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
+                      ${
+                        form.estado === "Activo"
+                          ? "border-green-500 bg-green-50"
+                          : form.estado === "Inactivo"
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 bg-gray-100"
                       }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEstadoOpen((s) => !s)}
+                      className="flex w-full items-center justify-between text-sm focus:outline-none"
+                      aria-haspopup="listbox"
+                      aria-expanded={estadoOpen}
                     >
-                      {form.estado || "Seleccionar estado"}
-                    </span>
-                    <motion.span
-                      animate={{ rotate: estadoOpen ? 180 : 0 }}
-                      transition={{ duration: 0.18 }}
-                    >
-                      <ChevronDown size={18} />
-                    </motion.span>
-                  </button>
+                      <span
+                        className={`${
+                          form.estado === "Activo"
+                            ? "text-green-700 font-medium"
+                            : form.estado === "Inactivo"
+                            ? "text-red-700 font-medium"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {form.estado || "Seleccionar estado"}
+                      </span>
+
+                      <motion.span
+                        animate={{ rotate: estadoOpen ? 180 : 0 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        <ChevronDown
+                          size={18}
+                          className={`${
+                            form.estado === "Activo"
+                              ? "text-green-700"
+                              : form.estado === "Inactivo"
+                              ? "text-red-700"
+                              : "text-gray-500"
+                          }`}
+                        />
+                      </motion.span>
+                    </button>
+                  </div>
 
                   <AnimatePresence>
                     {estadoOpen && (
@@ -394,7 +441,17 @@ export default function IndexCategories() {
                               }));
                               setEstadoOpen(false);
                             }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                            className={`px-4 py-3 cursor-pointer text-sm ${
+                              opt.value === "Activo"
+                                ? "hover:bg-green-50 text-green-700"
+                                : "hover:bg-red-50 text-red-700"
+                            } ${
+                              form.estado === opt.value
+                                ? opt.value === "Activo"
+                                  ? "bg-green-100 font-medium"
+                                  : "bg-red-100 font-medium"
+                                : ""
+                            }`}
                           >
                             {opt.label}
                           </motion.li>
