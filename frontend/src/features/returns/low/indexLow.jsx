@@ -21,16 +21,15 @@ for (let i = 1; i <= 44; i++) {
     idLow: i,
     idDetailProduct: 100 + i,
     dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
     type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
     responsible: i % 3 === 0 ? "Arturo" : "Federico",
     cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
     products:[
-      { id: 1, name: "Producto A", lowQuantity: 2, quantity: 5 },
-      { id: 2, name: "Producto B", lowQuantity: 1, quantity: 3 },
-      { id: 3, name: "Producto C", lowQuantity: 4, quantity: 10 },
-      { id: 4, name: "Producto D", lowQuantity: 3, quantity: 8 },
-      { id: 5, name: "Producto E", lowQuantity: 2, quantity: 6 },
+      { id: 1, name: "Producto A", lowQuantity: 2, quantity: 5,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 2, name: "Producto B", lowQuantity: 1, quantity: 3,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 3, name: "Producto C", lowQuantity: 4, quantity: 1,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite", },
+      { id: 4, name: "Producto D", lowQuantity: 3, quantity: 8,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 5, name: "Producto E", lowQuantity: 2, quantity: 6,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
     ]
   });
 }
@@ -148,7 +147,6 @@ export default function IndexLow() {
                 <th className="px-6 py-4">Baja</th>
                 <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Razón</th>
                 <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4">Cantidad</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
@@ -175,9 +173,6 @@ export default function IndexLow() {
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.dateLow}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.reason}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">

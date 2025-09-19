@@ -113,13 +113,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 <p className="text-lg font-semibold text-gray-900">{formatCurrency(returnData.total)}</p>
               </div>
             </div>
-
-            {/* Razón de la Devolución */}
-            <div className="bg-green-100 rounded-lg p-4 border border-green-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Razón de la Devolución</h3>
-              <p className="text-gray-700">{returnData.reason}</p>
-            </div>
-
             {/* Carrusel de Productos */}
             <div className="space-y-4">
               {/* Navegación del Carrusel */}
@@ -242,6 +235,12 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                               Cantidad
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
+                              Razon
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
+                              Proveedor
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                               Precio Unitario
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
@@ -259,6 +258,12 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                                 {product.quantity}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
+                                {product.reason}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
+                                {product.statusSuppliers}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
                                 {formatCurrency(product.price)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-medium">
@@ -269,7 +274,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         </tbody>
                         <tfoot className="bg-red-100">
                           <tr>
-                            <td colSpan="3" className="px-4 py-3 text-sm font-semibold text-right text-red-800">
+                            <td colSpan="5" className="px-4 py-3 text-sm font-semibold text-right text-red-800">
                               Total a Devolver:
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-red-900">

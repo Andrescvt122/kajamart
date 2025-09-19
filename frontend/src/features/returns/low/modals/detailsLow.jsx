@@ -95,7 +95,7 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                 </span>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
                 <div className="flex items-center gap-3 mb-2">
                   <User className="text-red-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
@@ -106,22 +106,11 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                   {lowData.responsible}
                 </p>
               </div>
-              {/* Razón de la Baja */}
-              <div className="bg-red-100 rounded-lg p-4 border border-red-200 lg:col-span-2">
-                <div className="flex items-center gap-3 mb-2">
-                  <AlertTriangle className="text-red-600" size={20} />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Motivo de la Baja
-                  </h3>
-                </div>
-                <p className="text-gray-700">{lowData.reason}</p>
-              </div>
             </div>
 
             {/* Lista de Productos */}
             <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center gap-3 border-b border-gray-200 pb-2">
-                <Package className="text-red-600" size={20} />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Productos
                 </h3>
@@ -133,14 +122,17 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
-                          <Hash size={14} />
                           ID
                         </div>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
-                          <Package size={14} />
                           Nombre
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          Razon
                         </div>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
@@ -148,7 +140,6 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
-                          <Trash2 size={14} />
                           Cantidad de Baja
                         </div>
                       </th>
@@ -165,6 +156,9 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {product.name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {product.reason}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">

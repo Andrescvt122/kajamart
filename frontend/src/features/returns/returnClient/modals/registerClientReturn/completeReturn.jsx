@@ -107,7 +107,20 @@ const CompleteReturn = ({
       }, 3000);
     }, 2000);
   };
-
+  const validationReason = (rason) =>{
+    switch (rason) {
+      case "producto_dañado":
+        return "Producto Dañado";
+      case "producto_vencido":
+        return "Producto Vencido";
+      case "producto_incorrecto":
+        return "Producto Incorrecto";
+      case "producto_no_requerido":
+        return "Producto no requerido";
+      default:
+        return "No especificado";
+    }
+  } 
   return (
     <AnimatePresence>
       {isOpen && (
@@ -176,6 +189,7 @@ const CompleteReturn = ({
                           <div className="flex-1">
                             <p className="font-medium text-sm text-gray-800">{product.name}</p>
                             <p className="text-xs text-gray-500">Cant. a devolver: {product.returnQuantity}</p>
+                            <p className="text-xs text-gray-500">Razon: {validationReason(product.reason)}</p>
                           </div>
                           <motion.p className="font-semibold text-sm text-gray-800" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring" }}>
                             {formatPrice(product.returnQuantity * product.salePrice)}
