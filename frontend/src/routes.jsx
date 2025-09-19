@@ -6,15 +6,16 @@ import RecoverPassword from "./auth/RecoverPassword";
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
+import IndexSales from "./features/Sales/indexSales";
 import IndexProducts from "./features/products/indexProducts";
 import IndexProductReturns from "./features/returns/indexProductReturns";
+import IndexLow from "./features/returns/indexLow";
 import IndexUsers from "./features/users/indexUsers";
 import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
-import IndexSales from "./features/Sales/indexSales";
-import IndexLow from "./features/returns/low/indexLow";
+
 export default function RoutesAdmin() {
   return (
     <Routes>
@@ -32,7 +33,7 @@ export default function RoutesAdmin() {
         <Route path="returns">
           <Route path="clients" element={<IndexClientReturns />} />
           <Route path="products" element={<IndexProductReturns />} />
-          <Route path="low" element={<IndexLow/>} />
+          <Route path="low" element={<IndexLow />} />
         </Route>
         <Route path="settings">
           <Route path="users" element={<IndexUsers />} />

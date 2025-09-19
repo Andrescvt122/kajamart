@@ -1,15 +1,16 @@
 
 import React, { useMemo, useState, useRef, useEffect } from "react";
+import Sidebar from "../../shared/sidebar";
 import {
   ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/components/buttons";
+} from "../../shared/buttons";
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/components/paginator";
+import Paginator from "../../shared/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 
 

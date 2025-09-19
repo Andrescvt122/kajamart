@@ -9,12 +9,10 @@ import {
 import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
+import CategoryDetailModal from "./CategoryDetailModal";
+import CategoryEditModal from "./CategoryEditModal";
+import CategoryDeleteModal from "./CategoryDeleteModal";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
-} from "../../shared/components/alerts";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -50,7 +48,27 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // Modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // 👇 FIX: agregar estados de los modales
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const handleDelete = (category) => {
+    console.log("Eliminar:", category);
+  };
+  const handleViewDetail = (category) => {
+    setSelectedCategory(category);
+    setIsDetailOpen(true);
+  };
+
+  const handleEdit = (category) => {
+    setSelectedCategory(category);
+    setIsEditModalOpen(true);
+  };
+
+  // ---------- MODAL REGISTRAR ----------
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
@@ -76,20 +94,6 @@ export default function IndexCategories() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 🚫 Bloquear scroll cuando el modal esté abierto
-  useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflowY = "auto"; // ✅ vertical solo si hace falta
-      document.body.style.overflowX = "hidden"; // 🚫 horizontal siempre bloqueado
-    }
-    return () => {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    };
-  }, [isModalOpen]);
-
   const handleOpenModal = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
     setIsModalOpen(true);
@@ -107,14 +111,11 @@ export default function IndexCategories() {
     e.preventDefault();
     console.log("Categoría registrada:", form);
     setIsModalOpen(false);
-    setForm({
-      nombre: "",
-      estado: "",
-      descripcion: "",
-    });
+    setForm({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
   };
 
+  // ---------- FILTRO Y PAGINACIÓN ----------
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return categories;
@@ -136,7 +137,7 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes animación tabla
+  // ---------- ANIMACIONES ----------
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -159,17 +160,6 @@ export default function IndexCategories() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // clases dinámicas para la casilla del estado dentro del modal
-  const estadoButtonClasses = () => {
-    if (form.estado === "Activo") {
-      return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
-    }
-    if (form.estado === "Inactivo") {
-      return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
-    }
-    return "bg-white text-gray-400 border border-gray-200 focus:ring-green-200";
-  };
-
   return (
     <div className="flex min-h-screen">
       {/* Fondo ondas */}
@@ -186,7 +176,6 @@ export default function IndexCategories() {
         }}
       />
       <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
-        {/* Contenido */}
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">
             <div>
@@ -278,7 +267,7 @@ export default function IndexCategories() {
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             c.estado === "Activo"
                               ? "bg-green-50 text-green-700"
-                              : "bg-gray-200 text-gray-600"
+                              : "bg-red-50 text-red-700"
                           }`}
                         >
                           {c.estado}
@@ -286,14 +275,13 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton
-                            alert={() => showInfoAlert("Ver categoría")}
-                          />
-                          <EditButton
-                            alert={() => showLoadingAlert("Editar categoría")}
-                          />
+                          <ViewButton event={() => handleViewDetail(c)} />
+                          <EditButton event={() => handleEdit(c)} />
                           <DeleteButton
-                            alert={() => showInputAlert("Eliminar categoría")}
+                            event={() => {
+                              setSelectedCategory(c);
+                              setIsDeleteOpen(true);
+                            }}
                           />
                         </div>
                       </td>
@@ -313,13 +301,42 @@ export default function IndexCategories() {
             goToPage={goToPage}
           />
         </div>
-      </div>
 
-      {/* Modal */}
+        {/* Modal Detalle */}
+        <CategoryDetailModal
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedCategory(null);
+          }}
+          category={selectedCategory}
+        />
+
+        {/* Modal Editar */}
+        <CategoryEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          category={selectedCategory}
+          onSave={(updated) => console.log("Guardado:", updated)}
+        />
+      </div>
+      {/* Modal Eliminar */}
+
+      <CategoryDeleteModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setSelectedCategory(null);
+        }}
+        onConfirm={handleDelete}
+        category={selectedCategory}
+      />
+
+      {/* Modal Registrar */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
-            className=" fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 w-full h-full p-4"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 w-full h-full p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -357,16 +374,15 @@ export default function IndexCategories() {
                     Estado*
                   </label>
 
-                  {/* Contenedor con borde dinámico */}
                   <div
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
-      ${
-        form.estado === "Activo"
-          ? "border-green-500 bg-green-50"
-          : form.estado === "Inactivo"
-          ? "border-red-500 bg-red-50"
-          : "border-gray-300 bg-white"
-      }`}
+                      ${
+                        form.estado === "Activo"
+                          ? "border-green-500 bg-green-50"
+                          : form.estado === "Inactivo"
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 bg-gray-100"
+                      }`}
                   >
                     <button
                       type="button"
@@ -375,7 +391,6 @@ export default function IndexCategories() {
                       aria-haspopup="listbox"
                       aria-expanded={estadoOpen}
                     >
-                      {/* Texto dinámico */}
                       <span
                         className={`${
                           form.estado === "Activo"
@@ -388,7 +403,6 @@ export default function IndexCategories() {
                         {form.estado || "Seleccionar estado"}
                       </span>
 
-                      {/* Flecha visible y coloreada */}
                       <motion.span
                         animate={{ rotate: estadoOpen ? 180 : 0 }}
                         transition={{ duration: 0.18 }}
@@ -407,7 +421,6 @@ export default function IndexCategories() {
                     </button>
                   </div>
 
-                  {/* Lista de opciones */}
                   <AnimatePresence>
                     {estadoOpen && (
                       <motion.ul
