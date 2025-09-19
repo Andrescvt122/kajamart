@@ -1,6 +1,5 @@
 
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/components/sidebar";
 import {
   ViewButton,
   EditButton,

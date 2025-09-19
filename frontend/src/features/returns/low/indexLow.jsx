@@ -11,7 +11,8 @@ import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import RegisterLow from "./modal/registerLow";
+import RegisterLow from "./modals/registerLow";
+import DetailsLow from './modals/detailsLow';
 
 // Datos base de bajas
 const baseLows = [];
@@ -20,17 +21,26 @@ for (let i = 1; i <= 44; i++) {
     idLow: i,
     idDetailProduct: 100 + i,
     dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-    responsible: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+    type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+    responsible: i % 3 === 0 ? "Arturo" : "Federico",
     cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
+    products:[
+      { id: 1, name: "Producto A", lowQuantity: 2, quantity: 5,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 2, name: "Producto B", lowQuantity: 1, quantity: 3,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 3, name: "Producto C", lowQuantity: 4, quantity: 1,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite", },
+      { id: 4, name: "Producto D", lowQuantity: 3, quantity: 8,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 5, name: "Producto E", lowQuantity: 2, quantity: 6,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+    ]
   });
 }
+
 
 export default function IndexLow() {
   const [lows, setLows] = useState([...baseLows]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false); // 👈 Estado del modal
+  const [selectedLow, setSelectedLow] = useState(null); // 👈 Estado para el producto de baja seleccionado
   const perPage = 6;
 
   // Normalización de texto
@@ -137,7 +147,6 @@ export default function IndexLow() {
                 <th className="px-6 py-4">Baja</th>
                 <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Razón</th>
                 <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4">Cantidad</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
@@ -165,9 +174,6 @@ export default function IndexLow() {
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.dateLow}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.reason}
-                    </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
                         {s.responsible}
@@ -178,7 +184,10 @@ export default function IndexLow() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewDetailsButton event={() => console.log("test")} />
+                        <ViewDetailsButton event={() => {
+                          setSelectedLow(s);
+                          setIsOpen(true);
+                        }} />
                       </div>
                     </td>
                   </motion.tr>
@@ -200,9 +209,19 @@ export default function IndexLow() {
 
       {/* Modal de baja */}
       <RegisterLow
-        isOpen={isOpen}
+        isOpen={isOpen && !selectedLow}
         onClose={() => setIsOpen(false)}
         onConfirm={handleConfirmLow}
+      />
+
+      {/* Modal de detalles */}
+      <DetailsLow
+        isOpen={isOpen && selectedLow !== null}
+        onClose={() => {
+          setIsOpen(false);
+          setSelectedLow(null);
+        }}
+        lowData={selectedLow}
       />
     </>
   );
