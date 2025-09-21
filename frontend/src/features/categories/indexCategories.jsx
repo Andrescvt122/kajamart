@@ -6,15 +6,15 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
-import { Search, ChevronDown } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
+import CategoryDetailModal from "./CategoryDetailModal";
+import CategoryEditModal from "./CategoryEditModal";
+import CategoryDeleteModal from "./CategoryDeleteModal";
+import SearchBar from "../../shared/components/searchBars/searchbar";
+import CategoryRegisterModal from "./CategoryRegisterModal";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  showInfoAlert,
-  showInputAlert,
-  showLoadingAlert,
-} from "../../shared/components/alerts";
+import { ChevronDown } from "lucide-react";
 
 export default function IndexCategories() {
   const [categories] = useState([
@@ -40,7 +40,8 @@ export default function IndexCategories() {
     {
       id: "CAT004",
       nombre: "Snacks",
-      descripcion: "Papas fritas, galletas, dulces y otros productos empacados.",
+      descripcion:
+        "Papas fritas, galletas, dulces y otros productos empacados.",
       estado: "Activo",
     },
   ]);
@@ -49,7 +50,63 @@ export default function IndexCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // Modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Estados modales
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // ---------- FILTRO Y PAGINACIÓN ----------
+  const filtered = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase();
+
+    if (!s) {
+      return categories;
+    }
+
+    // 2) si la búsqueda es exactamente "activo" / "activos" -> solo activos
+    if (/^activos?$/.test(s)) {
+      return categories.filter((c) => c.estado.toLowerCase() === "activo");
+    }
+
+    // 3) si la búsqueda es exactamente "inactivo" / "inactivos" -> solo inactivos
+    if (/^inactivos?$/.test(s)) {
+      return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
+    }
+
+    // 4) en cualquier otro caso -> búsqueda normal en TODOS los campos
+    return categories.filter((c) =>
+      Object.values(c).some((value) =>
+        String(value).toLowerCase().includes(s)
+      )
+    );
+  }, [categories, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, currentPage]);
+
+  const goToPage = (n) => {
+    const p = Math.min(Math.max(1, n), totalPages);
+    setCurrentPage(p);
+  };
+
+  const handleDelete = (category) => {
+    console.log("Eliminar:", category);
+  };
+  const handleViewDetail = (category) => {
+    setSelectedCategory(category);
+    setIsDetailOpen(true);
+  };
+  const handleEdit = (category) => {
+    setSelectedCategory(category);
+    setIsEditModalOpen(true);
+  };
+
+  // ---------- MODAL REGISTRAR ----------
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
@@ -75,20 +132,6 @@ export default function IndexCategories() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 🚫 Bloquear scroll cuando el modal esté abierto
-  useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflowY = "auto"; // ✅ vertical solo si hace falta
-      document.body.style.overflowX = "hidden"; // 🚫 horizontal siempre bloqueado
-    }
-    return () => {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    };
-  }, [isModalOpen]);
-
   const handleOpenModal = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
     setIsModalOpen(true);
@@ -106,36 +149,11 @@ export default function IndexCategories() {
     e.preventDefault();
     console.log("Categoría registrada:", form);
     setIsModalOpen(false);
-    setForm({
-      nombre: "",
-      estado: "",
-      descripcion: "",
-    });
+    setForm({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
   };
 
-  const filtered = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
-    if (!s) return categories;
-    return categories.filter((c) =>
-      `${c.id} ${c.nombre} ${c.descripcion} ${c.estado}`
-        .toLowerCase()
-        .includes(s)
-    );
-  }, [categories, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
-
-  // 🎬 Variantes animación tabla
+  // ---------- ANIMACIONES ----------
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -158,17 +176,6 @@ export default function IndexCategories() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // clases dinámicas para la casilla del estado dentro del modal
-  const estadoButtonClasses = () => {
-    if (form.estado === "Activo") {
-      return "bg-green-50 text-green-700 border border-green-200 focus:ring-green-200";
-    }
-    if (form.estado === "Inactivo") {
-      return "bg-red-50 text-red-700 border border-red-200 focus:ring-red-200";
-    }
-    return "bg-white text-gray-400 border border-gray-200 focus:ring-green-200";
-  };
-
   return (
     <div className="flex min-h-screen">
       {/* Fondo ondas */}
@@ -184,8 +191,7 @@ export default function IndexCategories() {
           zIndex: 0,
         }}
       />
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Contenido */}
+      <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">
             <div>
@@ -196,21 +202,16 @@ export default function IndexCategories() {
             </div>
           </div>
 
-          {/* Barra búsqueda */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
+          {/* Barra búsqueda + Botones (buscador a la izquierda, ocupa 50%) */}
+          <div className="flex justify-between items-center mb-6 gap-4">
+            <div className="flex-grow">
+              <SearchBar
                 placeholder="Buscar categorías..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
 
@@ -277,7 +278,7 @@ export default function IndexCategories() {
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             c.estado === "Activo"
                               ? "bg-green-50 text-green-700"
-                              : "bg-gray-200 text-gray-600"
+                              : "bg-red-50 text-red-700"
                           }`}
                         >
                           {c.estado}
@@ -285,14 +286,12 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <ViewButton
-                            alert={() => showInfoAlert("Ver categoría")}
-                          />
-                          <EditButton
-                            alert={() => showLoadingAlert("Editar categoría")}
-                          />
+                          <EditButton event={() => handleEdit(c)} />
                           <DeleteButton
-                            alert={() => showInputAlert("Eliminar categoría")}
+                            event={() => {
+                              setSelectedCategory(c);
+                              setIsDeleteOpen(true);
+                            }}
                           />
                         </div>
                       </td>
@@ -312,135 +311,42 @@ export default function IndexCategories() {
             goToPage={goToPage}
           />
         </div>
+
+        {/* Modales */}
+        <CategoryDetailModal
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedCategory(null);
+          }}
+          category={selectedCategory}
+        />
+
+        <CategoryEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          category={selectedCategory}
+          onSave={(updated) => console.log("Guardado:", updated)}
+        />
       </div>
 
-      {/* Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            className=" fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 w-full h-full p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsModalOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -40 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              className="sticky bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                Registro de Categoría
-              </h2>
+      {/* Modal Eliminar */}
+      <CategoryDeleteModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setSelectedCategory(null);
+        }}
+        onConfirm={handleDelete}
+        category={selectedCategory}
+      />
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Nombre */}
-                <div>
-                  <input
-                    name="nombre"
-                    value={form.nombre}
-                    autoComplete="off"
-                    onChange={handleChange}
-                    placeholder="Nombre de la categoría"
-                    className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                    required
-                  />
-                </div>
+<CategoryRegisterModal
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  onRegister={(newCategory) => console.log("Registrado:", newCategory)}
+/>
 
-                {/* Estado */}
-                <div className="relative" ref={estadoRef}>
-                  <button
-                    type="button"
-                    onClick={() => setEstadoOpen((s) => !s)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg ${estadoButtonClasses()} transition`}
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
-                  >
-                    <span
-                      className={`text-sm ${
-                        form.estado ? "" : "text-gray-400"
-                      }`}
-                    >
-                      {form.estado || "Seleccionar estado"}
-                    </span>
-                    <motion.span
-                      animate={{ rotate: estadoOpen ? 180 : 0 }}
-                      transition={{ duration: 0.18 }}
-                    >
-                      <ChevronDown size={18} />
-                    </motion.span>
-                  </button>
-
-                  <AnimatePresence>
-                    {estadoOpen && (
-                      <motion.ul
-                        className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-hidden z-50"
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        variants={listVariants}
-                      >
-                        {estadoOptions.map((opt) => (
-                          <motion.li
-                            key={opt.value}
-                            variants={itemVariants}
-                            onClick={() => {
-                              setForm((prev) => ({
-                                ...prev,
-                                estado: opt.value,
-                              }));
-                              setEstadoOpen(false);
-                            }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
-                          >
-                            {opt.label}
-                          </motion.li>
-                        ))}
-                      </motion.ul>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Descripción */}
-                <div>
-                  <textarea
-                    name="descripcion"
-                    value={form.descripcion}
-                    onChange={handleChange}
-                    placeholder="Descripción de la categoría"
-                    rows="4"
-                    className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                    required
-                  />
-                </div>
-
-                {/* Botones */}
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      setEstadoOpen(false);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
-                  >
-                    Registrar Categoría
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

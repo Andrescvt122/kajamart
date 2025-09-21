@@ -5,60 +5,55 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/components/buttons";
+  ViewDetailsButton,
+} from "../../../shared/components/buttons";
 import { Search } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/components/paginator";
+import ondas from "../../../assets/ondasHorizontal.png";
+import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import {
-  showInfoAlert,
-} from "../../shared/components/alerts";
-import ReturnSalesComponent from "./forms/registerClientReturn/returnSaleComponent";
+import RegisterLow from "./modals/registerLow";
+import DetailsLow from './modals/detailsLow';
 
-export default function IndexClientReturns() {
-  const baseReturns = [];
-  for (let i = 1; i <= 44; i++) {
-    baseReturns.push({
-      idReturn: i,
-      idSale: 100 + i,
-      products: [
-        { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
-        { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
-        { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
-        { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
-        { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
-        { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
-      ],
-      dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-      client: `Cliente ${i}`,
-      reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
-      typeReturn:
-        i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
-      total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
-    });
-  }
-  const [returns] = useState([...baseReturns]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+// Datos base de bajas
+const baseLows = [];
+for (let i = 1; i <= 44; i++) {
+  baseLows.push({
+    idLow: i,
+    idDetailProduct: 100 + i,
+    dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
+    type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
+    responsible: i % 3 === 0 ? "Arturo" : "Federico",
+    cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
+    products:[
+      { id: 1, name: "Producto A", lowQuantity: 2, quantity: 5,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 2, name: "Producto B", lowQuantity: 1, quantity: 3,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 3, name: "Producto C", lowQuantity: 4, quantity: 1,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite", },
+      { id: 4, name: "Producto D", lowQuantity: 3, quantity: 8,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+      { id: 5, name: "Producto E", lowQuantity: 2, quantity: 6,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+    ]
+  });
+}
+
+
+export default function IndexLow() {
+  const [lows, setLows] = useState([...baseLows]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isOpen, setIsOpen] = useState(false); // 👈 Estado del modal
+  const [selectedLow, setSelectedLow] = useState(null); // 👈 Estado para el producto de baja seleccionado
   const perPage = 6;
 
   // Normalización de texto
   const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+    text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return returns;
-
-    return returns.filter((p) =>
+    if (!s) return lows;
+    return lows.filter((p) =>
       Object.values(p).some((value) => normalizeText(value).includes(s))
     );
-  }, [returns, searchTerm]);
+  }, [lows, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -71,18 +66,19 @@ export default function IndexClientReturns() {
     setCurrentPage(p);
   };
 
-  // Animaciones
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 },
-    },
-  };
-
-  const rowVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
+  // 👇 Cuando se confirma un producto de baja en el modal
+  const handleConfirmLow = (product) => {
+    const newLow = {
+      idLow: lows.length + 1,
+      idDetailProduct: product.id,
+      dateLow: new Date().toISOString().split("T")[0],
+      reason: product.reason,
+      responsible: "Administrador",
+      cantidad: product.requestedQuantity,
+    };
+    // Insertar como primer registro
+    setLows((prev) => [newLow, ...prev]);
+    console.log("Nueva baja registrada:", newLow);
   };
 
   return (
@@ -105,10 +101,8 @@ export default function IndexClientReturns() {
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-semibold">Devoluciones de clientes</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Administrador de tienda
-            </p>
+            <h2 className="text-3xl font-semibold">Productos de baja</h2>
+            <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
           </div>
         </div>
 
@@ -129,12 +123,11 @@ export default function IndexClientReturns() {
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
           </div>
-
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsOpen(true)} // 👈 abre el modal
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
               Registrar nueva devolución
@@ -145,71 +138,56 @@ export default function IndexClientReturns() {
         {/* Tabla con animación */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-          variants={tableVariants}
           initial="hidden"
           animate="visible"
         >
           <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">Devolución</th>
-                <th className="px-6 py-4">Venta</th>
+                <th className="px-6 py-4">Baja</th>
+                <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Cliente</th>
-                <th className="px-6 py-4">Razón</th>
-                <th className="px-6 py-4">Tipo</th>
-                <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Responsable</th>
+                <th className="px-6 py-4">Cantidad</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+            <motion.tbody className="divide-y divide-gray-100">
               {pageItems.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron devoluciones.
                   </td>
                 </tr>
               ) : (
                 pageItems.map((s, i) => (
                   <motion.tr
-                    key={s.idReturn + "-" + i}
+                    key={s.idLow + "-" + i}
                     className="hover:bg-gray-50"
-                    variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {s.idReturn}
+                      {s.idLow}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.idSale}
+                      {s.idDetailProduct}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
-                      {s.dateReturn}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.client}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.reason}
+                      {s.dateLow}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                        {s.typeReturn}
+                        {s.responsible}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      ${s.total}
+                      {s.cantidad}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => showInfoAlert("Ver devolución")}
-                        />
+                        <ViewDetailsButton event={() => {
+                          setSelectedLow(s);
+                          setIsOpen(true);
+                        }} />
                       </div>
                     </td>
                   </motion.tr>
@@ -218,6 +196,7 @@ export default function IndexClientReturns() {
             </motion.tbody>
           </table>
         </motion.div>
+
         {/* Paginador */}
         <Paginator
           currentPage={currentPage}
@@ -227,10 +206,22 @@ export default function IndexClientReturns() {
           goToPage={goToPage}
         />
       </div>
-      {/* Aquí montas el formulario */}
-      <ReturnSalesComponent
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
+
+      {/* Modal de baja */}
+      <RegisterLow
+        isOpen={isOpen && !selectedLow}
+        onClose={() => setIsOpen(false)}
+        onConfirm={handleConfirmLow}
+      />
+
+      {/* Modal de detalles */}
+      <DetailsLow
+        isOpen={isOpen && selectedLow !== null}
+        onClose={() => {
+          setIsOpen(false);
+          setSelectedLow(null);
+        }}
+        lowData={selectedLow}
       />
     </>
   );
