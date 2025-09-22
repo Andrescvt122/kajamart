@@ -15,7 +15,6 @@ import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
 import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
-import IndexClientReturns from "./features/returns/returnClient/indexClientReturns"
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 
