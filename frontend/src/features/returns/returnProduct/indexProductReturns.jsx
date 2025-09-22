@@ -14,30 +14,32 @@ import {
   showInfoAlert,
 } from "../../../shared/components/alerts";
 import { Button } from "primereact/button";
-const baseReturns = [];
-  for (let i = 1; i <= 44; i++) {
-    baseReturns.push({
-      idReturn: i,
-      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true },
-                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount:false },
-                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true },
-                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false },
-                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true },
-                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false },
-                  ],
-      dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-      responsable: `Empleado ${i}`,
-      reason: i % 2 === 0 ? "Cerca de vencer" : "Vencido",
-      total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
-    });
-  }
-export default function IndexProductReturns() {
-const [returns] = useState([
-  ...baseReturns
-]);
+import ProductReturnModal from "./modals/register/ProductReturnModal";
 
+const baseReturns = [];
+for (let i = 1; i <= 44; i++) {
+  baseReturns.push({
+    idReturn: i,
+    products: [
+      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true },
+      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false },
+      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true },
+      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false },
+      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true },
+      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false },
+    ],
+    dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
+    responsable: `Empleado ${i}`,
+    reason: i % 2 === 0 ? "Cerca de vencer" : "Vencido",
+    total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
+  });
+}
+
+export default function IndexProductReturns() {
+  const [returns] = useState([...baseReturns]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const perPage = 6;
 
   // Normalización de texto
@@ -68,6 +70,14 @@ const [returns] = useState([
     setCurrentPage(p);
   };
 
+  const handleOpenReturnModal = () => {
+    setIsReturnModalOpen(true);
+  };
+
+  const handleCloseReturnModal = () => {
+    setIsReturnModalOpen(false);
+  };
+
   // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
@@ -84,7 +94,6 @@ const [returns] = useState([
 
   return (
     <>
-     
       {/* Fondo de ondas */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
@@ -131,12 +140,17 @@ const [returns] = useState([
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
-            <button
-              onClick={() => console.log("Registrar nueva devolución")}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+            <motion.button
+              onClick={handleOpenReturnModal}
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-all font-medium"
+              whileHover={{ 
+                scale: 1.05,
+                boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)"
+              }}
+              whileTap={{ scale: 0.98 }}
             >
               Registrar nueva devolución
-            </button>
+            </motion.button>
           </div>
         </div>
 
@@ -164,7 +178,7 @@ const [returns] = useState([
               {pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={5}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     No se encontraron devoluciones.
@@ -174,11 +188,11 @@ const [returns] = useState([
                 pageItems.map((s, i) => (
                   <motion.tr
                     key={s.idReturn + "-" + i}
-                    className="hover:bg-gray-50"
+                    className="hover:bg-gray-50 transition-colors"
                     variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {s.idReturn}
+                      #{s.idReturn.toString().padStart(4, '0')}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.dateReturn}
@@ -186,8 +200,8 @@ const [returns] = useState([
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.responsable}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      ${s.total}
+                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">
+                      ${s.total.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
@@ -212,6 +226,12 @@ const [returns] = useState([
           goToPage={goToPage}
         />
       </div>
+
+      {/* Modal de devolución de productos */}
+      <ProductReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={handleCloseReturnModal}
+      />
     </>
   );
 }
