@@ -1,5 +1,5 @@
 // IndexClients.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
@@ -26,8 +26,18 @@ export default function IndexClients() {
     fecha: new Date().toISOString().split("T")[0],
   };
 
-  // Estados
-  const [clients, setClients] = useState([clienteCaja]);
+  // ✅ Estado inicial: leer de localStorage
+  const [clients, setClients] = useState(() => {
+    const stored = JSON.parse(localStorage.getItem("clientes")) || [];
+    // Garantizar siempre que exista Cliente de Caja
+    if (!stored.some((c) => c.id === "C000")) {
+      const updated = [clienteCaja, ...stored];
+      localStorage.setItem("clientes", JSON.stringify(updated));
+      return updated;
+    }
+    return stored;
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tipoOpen, setTipoOpen] = useState(false);
   const [form, setForm] = useState({
@@ -49,10 +59,15 @@ export default function IndexClients() {
     { label: "NIT", value: "NIT" },
   ];
 
+  // ✅ Guardar en localStorage cada vez que cambien los clientes
+  useEffect(() => {
+    localStorage.setItem("clientes", JSON.stringify(clients));
+  }, [clients]);
+
   // ✅ Agregar cliente con ID incremental
   const addClient = (newClient) => {
     const nextIdNumber = clients.length;
-    const nextId = `C${String(nextIdNumber + 1).padStart(3, "0")}`;
+    const nextId = `C${String(nextIdNumber).padStart(3, "0")}`;
     const clientWithId = {
       ...newClient,
       id: nextId,
@@ -291,7 +306,7 @@ export default function IndexClients() {
           tipoOpen={tipoOpen}
           setTipoOpen={setTipoOpen}
           addClient={addClient}
-          onClose={() => setIsModalOpen(false)}        
+          onClose={() => setIsModalOpen(false)}
         />
       </div>
     </>
