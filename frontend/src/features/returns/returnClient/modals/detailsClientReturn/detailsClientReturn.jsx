@@ -1,15 +1,38 @@
 import React, { useState } from "react";
-import { X, Package, Calendar, User, FileText, RefreshCw, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
+import Paginator from "../../../../../shared/components/paginator";
+import {
+  X,
+  Package,
+  Calendar,
+  User,
+  FileText,
+  RefreshCw,
+  DollarSign,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   const [currentCarouselStep, setCurrentCarouselStep] = useState(0);
-  
+  // Estado para paginación de productos de la venta
+  const [salePage, setSalePage] = useState(1);
+  const salePerPage = 5;
+  const saleProducts = returnData?.products || [];
+  const saleTotalPages = Math.ceil(saleProducts.length / salePerPage);
+  const salePageProducts = saleProducts.slice((salePage - 1) * salePerPage, salePage * salePerPage);
+  // Estado para paginación de productos a devolver
+  const [returnPage, setReturnPage] = useState(1);
+  const returnPerPage = 5;
+  const returnProducts = returnData?.productsToReturn || [];
+  const returnTotalPages = Math.ceil(returnProducts.length / returnPerPage);
+  const returnPageProducts = returnProducts.slice((returnPage - 1) * returnPerPage, returnPage * returnPerPage);
+
   if (!isOpen || !returnData) return null;
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -31,7 +54,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-in-out;
         }
-        
+
         @keyframes fadeIn {
           from {
             opacity: 0;
@@ -43,7 +66,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
           }
         }
       `}</style>
-      
+
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
@@ -66,51 +89,83 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <Package className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">ID Devolución</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    ID Devolución
+                  </span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">#{returnData.idReturn}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  #{returnData.idReturn}
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <FileText className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">ID Venta</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    ID Venta
+                  </span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">#{returnData.idSale}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  #{returnData.idSale}
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <Calendar className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">Fecha</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Fecha
+                  </span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">{returnData.dateReturn}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {returnData.dateReturn}
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <User className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">Cliente</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Cliente
+                  </span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">{returnData.client}</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {returnData.client}
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <RefreshCw className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">Tipo de Devolución</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Tipo de Devolución
+                  </span>
                 </div>
                 <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
                   {returnData.typeReturn}
                 </span>
               </div>
-
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <DollarSign className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">Total</span>
+                  <RefreshCw className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Resaponsable
+                  </span>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">{formatCurrency(returnData.total)}</p>
+                <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+                  {returnData.responsable}
+                </span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Total
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {formatCurrency(returnData.total)}
+                </p>
               </div>
             </div>
             {/* Carrusel de Productos */}
@@ -139,10 +194,14 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                     Productos a Devolver
                   </button>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentCarouselStep(Math.max(0, currentCarouselStep - 1))}
+                    onClick={() =>
+                      setCurrentCarouselStep(
+                        Math.max(0, currentCarouselStep - 1)
+                      )
+                    }
                     disabled={currentCarouselStep === 0}
                     className={`p-2 rounded-full transition-colors ${
                       currentCarouselStep === 0
@@ -156,7 +215,11 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                     {currentCarouselStep + 1} de 2
                   </span>
                   <button
-                    onClick={() => setCurrentCarouselStep(Math.min(1, currentCarouselStep + 1))}
+                    onClick={() =>
+                      setCurrentCarouselStep(
+                        Math.min(1, currentCarouselStep + 1)
+                      )
+                    }
                     disabled={currentCarouselStep === 1}
                     className={`p-2 rounded-full transition-colors ${
                       currentCarouselStep === 1
@@ -196,7 +259,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-green-200">
-                          {returnData.products.map((product, index) => (
+                          {salePageProducts.map((product, index) => (
                             <tr key={index} className="hover:bg-green-100">
                               <td className="px-4 py-3 text-sm font-medium text-gray-900">
                                 {product.name}
@@ -214,6 +277,15 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                    <div className="flex justify-center mt-2">
+                      <Paginator
+                        currentPage={salePage}
+                        perPage={salePerPage}
+                        totalPages={saleTotalPages}
+                        filteredLength={saleProducts.length}
+                        goToPage={setSalePage}
+                      />
                     </div>
                   </div>
                 )}
@@ -249,7 +321,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-red-200">
-                          {returnData.productsToReturn.map((product, index) => (
+                          {returnPageProducts.map((product, index) => (
                             <tr key={index} className="hover:bg-red-100">
                               <td className="px-4 py-3 text-sm font-medium text-gray-900">
                                 {product.name}
@@ -274,7 +346,10 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         </tbody>
                         <tfoot className="bg-red-100">
                           <tr>
-                            <td colSpan="5" className="px-4 py-3 text-sm font-semibold text-right text-red-800">
+                            <td
+                              colSpan="5"
+                              className="px-4 py-3 text-sm font-semibold text-right text-red-800"
+                            >
                               Total a Devolver:
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-red-900">
@@ -284,20 +359,19 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         </tfoot>
                       </table>
                     </div>
+                    <div className="flex justify-center mt-2">
+                      <Paginator
+                        currentPage={returnPage}
+                        perPage={returnPerPage}
+                        totalPages={returnTotalPages}
+                        filteredLength={returnProducts.length}
+                        goToPage={setReturnPage}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-            >
-              Cerrar
-            </button>
           </div>
         </div>
       </div>

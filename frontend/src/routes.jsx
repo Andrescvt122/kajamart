@@ -8,13 +8,13 @@ import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
 import IndexSales from "./features/Sales/indexSales";
 import IndexProducts from "./features/products/indexProducts";
-import IndexProductReturns from "./features/returns/indexProductReturns";
 import IndexLow from "./features/returns/low/indexLow";
 import IndexUsers from "./features/users/indexUsers";
 import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
+import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
 
 export default function RoutesAdmin() {
   return (

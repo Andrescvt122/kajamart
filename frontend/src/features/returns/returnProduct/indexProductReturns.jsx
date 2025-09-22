@@ -5,30 +5,29 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/components/buttons";
+} from "../../../shared/components/buttons";
 import { Search } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/components/paginator";
+import ondas from "../../../assets/ondasHorizontal.png";
+import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showInfoAlert,
-} from "../../shared/components/alerts";
-
+} from "../../../shared/components/alerts";
+import { Button } from "primereact/button";
 const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
     baseReturns.push({
       idReturn: i,
-      idPurchases: 100 + i,
-      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
-                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
-                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
-                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
-                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
-                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
+      products : [{ idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true },
+                  { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount:false },
+                  { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true },
+                  { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false },
+                  { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true },
+                  { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false },
                   ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-      suppliers: `Proveedor ${i}`,
-      reason: i % 2 === 0 ? "Producto dañado" : "Producto vencido",
+      responsable: `Empleado ${i}`,
+      reason: i % 2 === 0 ? "Cerca de vencer" : "Vencido",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
     });
   }
@@ -85,6 +84,7 @@ const [returns] = useState([
 
   return (
     <>
+     
       {/* Fondo de ondas */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
@@ -151,10 +151,8 @@ const [returns] = useState([
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Devolución</th>
-                <th className="px-6 py-4">Compra</th>
                 <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Proveedor</th>
-                <th className="px-6 py-4">Razón</th>
+                <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4">Total</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -182,19 +180,11 @@ const [returns] = useState([
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       {s.idReturn}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.idPurchases}
-                    </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {s.dateReturn}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.suppliers}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                        {s.reason}
-                      </span>
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {s.responsable}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       ${s.total}
