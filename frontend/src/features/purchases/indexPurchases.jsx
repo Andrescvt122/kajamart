@@ -9,8 +9,11 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
+import { useNavigate } from "react-router-dom";
+
 
 export default function IndexPurchases() {
+    const navigate = useNavigate();
   const [purchases] = useState([
     {
       id: "C001",
@@ -133,7 +136,10 @@ export default function IndexPurchases() {
             <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
-              <button className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700">
+              <button
+                onClick={() => navigate("/app/purchases/register")}
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              >
                 Registrar Nueva Compra
               </button>
             </div>

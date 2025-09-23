@@ -16,6 +16,9 @@ import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
 import Landing from "./pages/landing/landing.jsx";
+import IndexClientReturns from "./features/returns/returnClient/indexClientReturns"
+import IndexRegisterSale from "./features/sales/indexRegisterSale";
+import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 
 export default function RoutesAdmin() {
   return (
@@ -29,8 +32,10 @@ export default function RoutesAdmin() {
         <Route path="suppliers" element={<IndexSuppliers />} />
         <Route path="categories" element={<IndexCategories />} />
         <Route path="clients" element={<IndexClients />} />
-        <Route path="sales" element={<IndexSales />} />
+       <Route path="sales" element={<IndexSales />} />
+          <Route path="sales/register" element={<IndexRegisterSale />} />
         <Route path="purchases" element={<IndexPurchases />} />
+          <Route path="purchases/register" element={<IndexRegisterPurchase />} />
         <Route path="products" element={<IndexProducts />} />
         <Route path="returns">
           <Route path="clients" element={<IndexClientReturns />} />
