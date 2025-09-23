@@ -80,9 +80,13 @@ export const showLoadingAlert = (message = "Procesando...") => {
     color: "#3e2723",
     didOpen: () => {
       Swal.showLoading();
+      setTimeout(() => {
+        Swal.close();
+      }, 1500); // cierra el alert después de 1.5 segundos
     },
   });
 };
+
 
 // ✍️ Input (verde + café)
 export const showInputAlert = async (message = "Escribe algo") => {

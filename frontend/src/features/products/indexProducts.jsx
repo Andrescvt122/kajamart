@@ -20,8 +20,10 @@ import {
 } from "../../shared/components/alerts";
 
 import ProductRegisterModal from "./productRegisterModal.jsx";
+import ProductEditModal from "./productEditModal.jsx";
+import ProductDeleteModal from "./productDeleteModal.jsx";
 
-// 👇 bloqueamos scroll horizontal global
+
 if (typeof document !== "undefined") {
   document.documentElement.style.overflowX = "hidden";
   document.body.style.overflowX = "hidden";
@@ -47,7 +49,7 @@ export default function IndexProducts() {
       stockMin: 6,
       stockMax: 80,
       precio: 4200,
-      estado: "Activo",
+      estado: "Inactivo",
       imagen: null,
       lotes: [
         {
@@ -261,11 +263,66 @@ export default function IndexProducts() {
       ],
     },
   ]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedProductToDelete, setSelectedProductToDelete] = useState(null);
+  const handleDeleteClick = (product) => {
+    setSelectedProductToDelete(product);
+    setIsDeleteModalOpen(true);
+  };
+
+  // 3️⃣ Función que confirma la eliminación
+  const handleDeleteConfirm = (product) => {
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    showLoadingAlert(`Producto ${product.nombre} eliminado`);
+  };
 
   // Calculamos stockActual automáticamente sumando todos los lotes
   products.forEach((p) => {
     p.stockActual = p.lotes.reduce((acc, l) => acc + l.stock, 0);
   });
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+const [selectedProduct, setSelectedProduct] = useState({
+  nombre: "",
+  descripcion: "",
+  precioCompra: "",
+  precioVenta: "",
+  iva: "",
+  stock: "",
+  estado: "",
+  categoria: "",
+  imagenes: [],
+});
+const listVariants = {
+  hidden: { opacity: 0, y: -10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
+
+const handleEditClick = (product) => {
+  setSelectedProduct({
+    nombre: product.nombre,
+    descripcion: product.descripcion,
+    precioCompra: product.precioCompra,
+    precioVenta: product.precioVenta,
+    iva: product.iva,
+    stock: product.stock,
+    estado: product.estado,
+    categoria: product.categoria,
+    imagenes: product.imagenes || [],
+  });
+  setIsEditModalOpen(true);
+};
+const handleEditSubmit = (e) => {
+  e.preventDefault();
+  console.log("Producto editado:", selectedProduct);
+  setIsEditModalOpen(false);
+};
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -571,16 +628,14 @@ export default function IndexProducts() {
                           <ViewButton
                             event={() =>
                               navigate(`/app/products/${p.id}/detalles`, {
-                                state: { product: p }, 
+                                state: { product: p },
                               })
                             }
                           />
 
-                          <EditButton
-                            alert={() => showLoadingAlert("Editar producto")}
-                          />
+                          <EditButton event={() => handleEditClick(p)} />
                           <DeleteButton
-                            alert={() => showInputAlert("Eliminar producto")}
+                            event={() => handleDeleteClick(p)}
                           />
                         </div>
                       </td>
@@ -601,6 +656,44 @@ export default function IndexProducts() {
           />
         </div>
       </div>
+      {/* Delete Modal */}
+      <ProductDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        product={selectedProductToDelete}
+      />
+
+      <ProductEditModal
+        isModalOpen={isEditModalOpen}
+        setIsModalOpen={setIsEditModalOpen}
+        form={selectedProduct}
+        setForm={setSelectedProduct}
+        handleImages={(e) => {
+          const files = Array.from(e.target.files);
+          setSelectedProduct((prev) => ({
+            ...prev,
+            imagenes: [...prev.imagenes, ...files].slice(0, 6),
+          }));
+        }}
+        removeImageAt={(index) => {
+          setSelectedProduct((prev) => ({
+            ...prev,
+            imagenes: prev.imagenes.filter((_, i) => i !== index),
+          }));
+        }}
+        handleSubmit={handleEditSubmit}
+        estadoOpen={estadoOpen}
+        setEstadoOpen={setEstadoOpen}
+        categoriaOpen={categoriaOpen}
+        setCategoriaOpen={setCategoriaOpen}
+        estadoRef={estadoRef}
+        categoriaRef={categoriaRef}
+        estadoOptions={estadoOptions}
+        categories={categories}
+        listVariants={listVariants}
+        itemVariants={itemVariants}
+      />
 
       {/* Modal externo de registro */}
       <ProductRegisterModal
