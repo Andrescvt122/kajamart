@@ -176,25 +176,35 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               >
                 {/* Header */}
                 <motion.div
-                  className="p-6 border-b border-gray-200 flex items-center justify-between"
+                  className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.4 }}
                 >
-                  <h2 className="text-2xl font-bold text-gray-800">Devolución de Productos</h2>
-                  <motion.button
-                    onClick={handleCloseModal}
-                    className="text-gray-400 hover:text-gray-600 transition-all p-2 rounded-full"
-                    aria-label="Cerrar modal"
-                    whileHover={{
-                      scale: 1.1,
-                      backgroundColor: "#f3f4f6",
-                      rotate: 90,
-                    }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <X size={24} />
-                  </motion.button>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <motion.div
+                        className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center"
+                        whileHover={{ scale: 1.1, backgroundColor: "#dcfce7" }}
+                      >
+                        <Package size={18} className="text-green-700" />
+                      </motion.div>
+                      Devolución de Productos
+                    </h3>
+                    <motion.button
+                      onClick={handleCloseModal}
+                      className="text-gray-400 hover:text-gray-600 transition-all p-2 rounded-full"
+                      aria-label="Cerrar modal"
+                      whileHover={{
+                        scale: 1.1,
+                        backgroundColor: "#f3f4f6",
+                        rotate: 90,
+                      }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <X size={24} />
+                    </motion.button>
+                  </div>
                 </motion.div>
 
                 {/* Contenido */}
@@ -328,7 +338,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     )}
 
                     {/* Acción a realizar */}
-                    {/* Acción a realizar */}
                     {selectedProducts.length > 0 && (
                       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.4 }}>
                         <h4 className="font-semibold text-gray-800 mb-3">Acción a realizar</h4>
@@ -352,7 +361,23 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                   value={action.value}
                                   checked={isSelected}
                                   onChange={(e) => {
-                                    if (!isDisabled) setActionType(e.target.value);
+                                    if (isDisabled) return;
+                                    const value = e.target.value;
+                                    setActionType(value);
+
+                                    if (value === "registrar") {
+                                      if (selectedProducts.length === 0) {
+                                        alert("Debe seleccionar al menos un producto antes de registrar.");
+                                        setActionType("");
+                                        return;
+                                      }
+                                      handleOpenRegistration(0);
+                                    } else {
+                                      // cerrar modal de registro si estaba abierto
+                                      setIsRegistrationModalOpen(false);
+                                      setProductToRegister(null);
+                                      setCurrentProductIndex(0);
+                                    }
                                   }}
                                   className="hidden"
                                   disabled={isDisabled}

@@ -15,6 +15,7 @@
     "@heroicons/react": "^2.2.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.541.0",
+    "primeicons": "^7.0.0",
     "primereact": "^10.9.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
