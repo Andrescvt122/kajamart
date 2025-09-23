@@ -15,11 +15,13 @@ import IndexRoles from "./features/roles/indexRoles";
 import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
+import Landing from "./pages/landing/landing.jsx";
 
 export default function RoutesAdmin() {
   return (
     <Routes>
-      <Route path="/" element={<AuthLayout />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/auth" element={<AuthLayout />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/recover-password" element={<RecoverPassword />} /> 
       

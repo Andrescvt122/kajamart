@@ -13,8 +13,9 @@ import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import DetailsRoles from "./detailsRoles";
 import EditRoles from "./editRoles";
-import { handleDeleteRole } from "./deleteRoles";
+import DeleteRoleModal from "./deleteRoles";
 import RegisterRoles from "./registerRoles";
+import { showSuccessAlert } from "../../shared/components/alerts.jsx";
 
 export default function IndexRoles() {
   const [roles, setRoles] = useState([
@@ -42,6 +43,8 @@ export default function IndexRoles() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
 
   useEffect(() => {
     const openDetails = (e) => {
@@ -66,6 +69,19 @@ export default function IndexRoles() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const perPage = 6;
+
+  // Bloquear scroll del body cuando CUALQUIER modal está abierto
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    if (isModalOpen || isDetailsOpen || isEditOpen || isDeleteModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = originalOverflow || "auto";
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow || "auto";
+    };
+  }, [isModalOpen, isDetailsOpen, isEditOpen, isDeleteModalOpen]);
 
   // --- Formulario Crear Rol ---
   const [form, setForm] = useState({
@@ -108,13 +124,19 @@ export default function IndexRoles() {
 
   // --- Paginación y búsqueda ---
   const normalizeText = (text) =>
-    text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    text
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     if (!s) return roles;
     return roles.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
+      Object.values(p).some((value) =>
+        normalizeText(String(value)).includes(s)
+      )
     );
   }, [roles, searchTerm]);
 
@@ -136,13 +158,25 @@ export default function IndexRoles() {
         r.NombreRol === selectedRole.NombreRol ? updatedRole : r
       )
     );
-    setSelectedRole(updatedRole); // Actualizar el rol seleccionado para que DetailsRoles lo refleje
+    setSelectedRole(updatedRole);
+  };
+
+  const openDeleteModal = (role) => {
+    setRoleToDelete(role);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteRole = (roleToDelete) => {
+    setRoles((prev) =>
+      prev.filter((role) => role.NombreRol !== roleToDelete.NombreRol)
+    );
+    showSuccessAlert("Rol eliminado correctamente.");
   };
 
   // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.5 } },
+    visible: { opacity: 1, transition: { duration: 0.02 } },
   };
   const rowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -150,10 +184,10 @@ export default function IndexRoles() {
       opacity: 1,
       y: 0,
       transition: {
-        delay: i * 0.05,
+        delay: i * 0.1,
       },
     }),
-    exit: { opacity: 0, y: -20, transition: { duration: 0.2 } },
+    exit: { opacity: 0, y: -20, transition: { duration: 0.02 } },
   };
 
   return (
@@ -219,7 +253,7 @@ export default function IndexRoles() {
           animate="visible"
           key={currentPage}
         >
-          <table className="min-w-full">
+          <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Nombre del rol</th>
@@ -232,14 +266,17 @@ export default function IndexRoles() {
               <AnimatePresence>
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td
+                      colSpan={7}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
                       No se encontraron roles.
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((s, i) => (
+                  pageItems.map((role, i) => (
                     <motion.tr
-                      key={s.NombreRol}
+                      key={role.NombreRol}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                       initial="hidden"
@@ -248,13 +285,13 @@ export default function IndexRoles() {
                       custom={i}
                     >
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {s.NombreRol}
+                        {role.NombreRol}
                       </td>
                       <td className="px-6 py-4 text-sm text-green-700">
-                        {s.Descripción}
+                        {role.Descripción}
                       </td>
                       <td className="px-6 py-4">
-                        {s.Estado === "Activo" ? (
+                        {role.Estado === "Activo" ? (
                           <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
                             Activo
                           </span>
@@ -270,7 +307,9 @@ export default function IndexRoles() {
                             type="button"
                             onClick={() =>
                               window.dispatchEvent(
-                                new CustomEvent("open-role-details", { detail: s })
+                                new CustomEvent("open-role-details", {
+                                  detail: role,
+                                })
                               )
                             }
                             className="rounded"
@@ -281,14 +320,22 @@ export default function IndexRoles() {
                             type="button"
                             onClick={() =>
                               window.dispatchEvent(
-                                new CustomEvent("open-role-edit", { detail: s })
+                                new CustomEvent("open-role-edit", {
+                                  detail: role,
+                                })
                               )
                             }
                             className="rounded"
                           >
                             <EditButton />
                           </button>
-                          <DeleteButton alert={() => handleDeleteRole(s, setRoles)} />
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(role)}
+                            className="rounded"
+                          >
+                            <DeleteButton />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -333,6 +380,12 @@ export default function IndexRoles() {
         role={selectedRole}
         permisosDisponibles={permisosAgrupados}
         onUpdate={handleUpdateRole}
+      />
+      <DeleteRoleModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteRole}
+        role={roleToDelete}
       />
 
       <style jsx>{`

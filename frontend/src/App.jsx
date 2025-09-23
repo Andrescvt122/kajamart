@@ -1,12 +1,9 @@
 // App.jsx
-import { Routes, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import RoutesAdmin from "./routes.jsx";
-
 
 export default function App() {
   return (
-    <>
-    <RoutesAdmin />
-    </>
+      <RoutesAdmin />
   );
 }

@@ -67,11 +67,6 @@ export default function Sidebar() {
       submenu: [
         { name: "Usuarios", icon: <Users size={20} />, path: "/app/settings/users" },
         { name: "Roles", icon: <ShieldUser size={20} />, path: "/app/settings/roles" },
-        {
-          name: "General",
-          icon: <Settings size={20} />,
-          path: "/app/settings/general",
-        },
       ],
     },
     { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
