@@ -1,5 +1,6 @@
 // App.jsx
 import { Routes, Route } from "react-router-dom";
+import { Button } from "primereact/button";
 import RoutesAdmin from "./routes.jsx";
 
 

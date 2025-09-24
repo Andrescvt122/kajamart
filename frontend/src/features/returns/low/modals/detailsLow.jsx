@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import Paginator from "../../../../shared/components/paginator";
 import {
   X,
   Package,
@@ -11,6 +12,11 @@ import {
 } from "lucide-react";
 
 const DetailsLow = ({ isOpen, onClose, lowData }) => {
+  const [page, setPage] = useState(1);
+  const perPage = 5;
+  const products = lowData?.products || [];
+  const totalPages = Math.ceil(products.length / perPage);
+  const pageProducts = products.slice((page - 1) * perPage, page * perPage);
   if (!isOpen || !lowData) return null;
 
   return (
@@ -33,8 +39,8 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
         }
       `}</style>
 
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" 
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose();
@@ -121,19 +127,13 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                   <thead className="bg-red-100">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          ID
-                        </div>
+                        <div className="flex items-center gap-2">ID</div>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          Nombre
-                        </div>
+                        <div className="flex items-center gap-2">Nombre</div>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          Razon
-                        </div>
+                        <div className="flex items-center gap-2">Razon</div>
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         Cantidad Total
@@ -146,7 +146,7 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-red-200">
-                    {lowData.products.map((product) => (
+                    {pageProducts.map((product) => (
                       <tr
                         key={product.id}
                         className="hover:bg-red-100 transition-colors duration-150"
@@ -176,16 +176,14 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                 </table>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="mt-8 flex justify-end border-t border-gray-200 pt-6">
-              <button
-                onClick={onClose}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
-              >
-                <X size={18} />
-                Cerrar
-              </button>
+            <div className="flex justify-center mt-2">
+              <Paginator
+                currentPage={page}
+                perPage={perPage}
+                totalPages={totalPages}
+                filteredLength={products.length}
+                goToPage={setPage}
+              />
             </div>
           </div>
         </div>
