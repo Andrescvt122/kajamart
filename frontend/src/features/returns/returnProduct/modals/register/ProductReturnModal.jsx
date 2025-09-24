@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -7,7 +7,6 @@ import {
   Minus,
   Plus,
   CheckCircle,
-  AlertCircle,
   Search
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
@@ -40,10 +39,17 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       updated[existingIndex] = { ...updated[existingIndex], returnQuantity: safeQuantity };
       setSelectedProducts(updated);
     } else {
-      setSelectedProducts([...selectedProducts, { ...product, returnQuantity: safeQuantity }]);
+      // añadimos campos de tracking para registro
+      setSelectedProducts([...selectedProducts, {
+        ...product,
+        returnQuantity: safeQuantity,
+        registered: false,
+        registeredBarcode: null,
+        registeredQuantity: null,
+        registeredExpiry: null
+      }]);
     }
   };
-
 
   const handleRemoveProduct = (productId) => {
     setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
@@ -60,33 +66,89 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     }));
   };
 
-
-  const handleOpenRegistration = (index = 0) => {
-    if (selectedProducts.length > index) {
-      setProductToRegister(selectedProducts[index]);
-      setCurrentProductIndex(index);
-      setIsRegistrationModalOpen(true);
+  // Busca el siguiente índice de producto NO registrado empezando por `start`
+  const findNextUnregisteredIndex = (start = 0) => {
+    for (let i = start; i < selectedProducts.length; i++) {
+      if (!selectedProducts[i].registered) return i;
     }
+    // si no hay adelante, buscamos desde inicio hasta start-1
+    for (let i = 0; i < start; i++) {
+      if (!selectedProducts[i].registered) return i;
+    }
+    return -1;
   };
 
-  const handleConfirmRegistration = (registeredProduct) => {
-    console.log("Producto registrado:", registeredProduct);
-
-    // Verificar si hay más productos por registrar
-    const nextIndex = currentProductIndex + 1;
-    if (nextIndex < selectedProducts.length) {
-      setCurrentProductIndex(nextIndex);
-      setProductToRegister(selectedProducts[nextIndex]);
-    } else {
+  // Abre modal de registro para el siguiente producto no registrado (o para index especifico)
+  const handleOpenRegistration = (index = 0) => {
+    if (selectedProducts.length === 0) {
+      alert("Debe seleccionar al menos un producto antes de registrar.");
+      return;
+    }
+    const idx = findNextUnregisteredIndex(index);
+    if (idx === -1) {
+      alert("Todos los productos ya están registrados.");
+      // cerramos modal de registro si estuviera abierto
       setIsRegistrationModalOpen(false);
       setProductToRegister(null);
       setCurrentProductIndex(0);
-
-      // Procesar toda la devolución
-      console.log("Todos los productos registrados. Procesando devolución completa...");
-      alert("Devolución procesada exitosamente");
-      handleCloseModal();
+      return;
     }
+    setProductToRegister(selectedProducts[idx]);
+    setCurrentProductIndex(idx);
+    setIsRegistrationModalOpen(true);
+  };
+
+  // Se llama cuando ProductRegistrationModal confirma un producto
+  const handleConfirmRegistration = (registeredProduct) => {
+    // Actualizamos la lista marcando ese producto como registrado y guardando los datos
+    const updated = selectedProducts.map(p => {
+      if (p.id === registeredProduct.id) {
+        return {
+          ...p,
+          registered: true,
+          registeredBarcode: registeredProduct.registeredBarcode ?? null,
+          registeredQuantity: registeredProduct.registeredQuantity ?? null,
+          registeredExpiry: registeredProduct.registeredExpiry ?? null
+        };
+      }
+      return p;
+    });
+
+    setSelectedProducts(updated);
+
+    // Buscamos siguiente no-registrado, empezando después del actual
+    let nextIdx = -1;
+    for (let i = currentProductIndex + 1; i < updated.length; i++) {
+      if (!updated[i].registered) {
+        nextIdx = i;
+        break;
+      }
+    }
+    // si no hay adelante, buscamos desde inicio
+    if (nextIdx === -1) {
+      for (let i = 0; i < currentProductIndex; i++) {
+        if (!updated[i].registered) {
+          nextIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (nextIdx === -1) {
+      // ya no hay más por registrar -> cerramos modal de registro y volvemos al modal padre
+      setIsRegistrationModalOpen(false);
+      setProductToRegister(null);
+      setCurrentProductIndex(0);
+      // avisamos
+      // Nota: no cerramos ProductReturnModal ni borramos productos — el usuario puede confirmar devolución después
+      alert("Registro completado para todos los productos.");
+      return;
+    }
+
+    // Abrimos el siguiente producto automáticamente
+    setCurrentProductIndex(nextIdx);
+    setProductToRegister(updated[nextIdx]);
+    setIsRegistrationModalOpen(true);
   };
 
   const handleCloseModal = () => {
@@ -116,12 +178,16 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     }
 
     if (actionType === "registrar") {
-      // Iniciar proceso de registro para cada producto
-      handleOpenRegistration(0);
-      return;
+      // Si hay productos no registrados, iniciamos el registro secuencial
+      const idx = findNextUnregisteredIndex(0);
+      if (idx !== -1) {
+        handleOpenRegistration(idx);
+        return;
+      }
+      // si todos están ya registrados, procedemos con la devolución
     }
 
-    // Si es descuento, procesar directamente
+    // Si llegamos aquí: procesamos la devolución (descuento o ya registrados)
     console.log("Devolución confirmada:", {
       products: selectedProducts,
       reason: returnReason,
@@ -217,63 +283,87 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     </motion.div>
 
                     {/* Lista de productos seleccionados */}
-                    <AnimatePresence>
-                      {selectedProducts.length > 0 && (
-                        <motion.div
-                          className="bg-white rounded-xl shadow-sm p-4 border border-gray-200"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3, ease: "easeOut" }}
-                        >
-                          <h4 className="font-semibold text-gray-800 mb-3">Productos a devolver</h4>
-                          <motion.div className="space-y-3 max-h-60 overflow-y-auto" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
-                            {selectedProducts.map((product) => (
-                              <motion.div
-                                key={product.id}
-                                className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
-                                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                                whileHover={{ scale: 1.0, backgroundColor: "#f0f9ff", transition: { duration: 0.2 } }}
-                              >
-                                <motion.div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center" whileHover={{ scale: 1.1, backgroundColor: "#dcfce7" }}>
-                                  <Package className="w-4 h-4 text-green-700" />
-                                </motion.div>
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm text-gray-800">{product.name}</p>
-                                  <p className="text-xs text-gray-500">{formatPrice(product.salePrice)} c/u</p>
-                                </div>
-                                <div className="flex items-center gap-2">
+                    {selectedProducts.length > 0 && (
+                      <motion.div
+                        className="bg-white rounded-xl shadow-sm p-4 border border-gray-200"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      >
+                        <h4 className="font-semibold text-gray-800 mb-3">Productos a devolver</h4>
+                        <motion.div className="space-y-3 max-h-60 overflow-y-auto" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
+                          {selectedProducts.map((product, idx) => (
+                            <motion.div
+                              key={product.id}
+                              className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
+                              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                              whileHover={{ scale: 1.0, backgroundColor: "#f0f9ff", transition: { duration: 0.2 } }}
+                            >
+                              <motion.div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center" whileHover={{ scale: 1.1, backgroundColor: "#dcfce7" }}>
+                                <Package className="w-4 h-4 text-green-700" />
+                              </motion.div>
+
+                              <div className="flex-1">
+                                <p className="font-medium text-sm text-gray-800 flex items-center gap-2">
+                                  {product.name}
+                                  {product.registered && (
+                                    <span className="ml-2 inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                                      <CheckCircle className="w-3 h-3" />
+                                      Registrado
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-gray-500">{formatPrice(product.salePrice)} c/u</p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <motion.button
+                                  onClick={() => handleUpdateQuantity(product.id, -1)}
+                                  disabled={product.returnQuantity <= 1 || product.registered}
+                                  className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
+                                  whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <Minus size={14} />
+                                </motion.button>
+
+                                <motion.span className="font-bold text-sm text-gray-800 min-w-[20px] text-center" key={product.returnQuantity} initial={{ scale: 1.2, color: "#16a34a" }} animate={{ scale: 1, color: "#1f2937" }} transition={{ duration: 0.2 }}>
+                                  {product.returnQuantity}
+                                </motion.span>
+
+                                <motion.button
+                                  onClick={() => handleUpdateQuantity(product.id, 1)}
+                                  disabled={product.returnQuantity >= product.quantity || product.registered}
+                                  className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
+                                  whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <Plus size={14} />
+                                </motion.button>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {/* Botón para abrir el modal de registro para este producto */}
+                                {!product.registered ? (
                                   <motion.button
-                                    onClick={() => handleUpdateQuantity(product.id, -1)}
-                                    disabled={product.returnQuantity <= 1}
-                                    className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
-                                    whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
-                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => handleOpenRegistration(idx)}
+                                    className="text-emerald-600 hover:text-emerald-800 transition-all p-2 rounded-md"
+                                    title="Registrar este producto"
                                   >
-                                    <Minus size={14} />
+                                    <CheckCircle size={18} />
                                   </motion.button>
-                                  <motion.span className="font-bold text-sm text-gray-800 min-w-[20px] text-center" key={product.returnQuantity} initial={{ scale: 1.2, color: "#16a34a" }} animate={{ scale: 1, color: "#1f2937" }} transition={{ duration: 0.2 }}>
-                                    {product.returnQuantity}
-                                  </motion.span>
-                                  <motion.button
-                                    onClick={() => handleUpdateQuantity(product.id, 1)}
-                                    disabled={product.returnQuantity >= product.quantity}
-                                    className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
-                                    whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
-                                    whileTap={{ scale: 0.9 }}
-                                  >
-                                    <Plus size={14} />
-                                  </motion.button>
-                                </div>
+                                ) : null}
+
                                 <motion.button onClick={() => handleRemoveProduct(product.id)} className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full" whileHover={{ scale: 1.2, backgroundColor: "#fee2e2", color: "#dc2626" }} whileTap={{ scale: 0.9 }}>
                                   <Trash2 size={16} />
                                 </motion.button>
-                              </motion.div>
-                            ))}
-                          </motion.div>
+                              </div>
+                            </motion.div>
+                          ))}
                         </motion.div>
-                      )}
-                    </AnimatePresence>
+                      </motion.div>
+                    )}
 
                     {/* Razón de la devolución */}
                     {selectedProducts.length > 0 && (
@@ -283,7 +373,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                         transition={{ delay: 0.6, duration: 0.4 }}
                       >
                         <h4 className="font-semibold text-gray-800 mb-3">Razón de la devolución</h4>
-                        <div className="space-y-3">
+                        <div className="flex flex-row gap-4">
                           {returnReasons.map((reason) => {
                             const isSelected = returnReason === reason.value;
                             return (
@@ -341,10 +431,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     {selectedProducts.length > 0 && (
                       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.4 }}>
                         <h4 className="font-semibold text-gray-800 mb-3">Acción a realizar</h4>
-                        <div className="space-y-3">
+                        <div className="flex flex-row gap-4">
                           {actionTypes.map((action) => {
                             const isSelected = actionType === action.value;
-                            const isDisabled = !returnReason; // <-- deshabilitado si no hay razón
+                            const isDisabled = !returnReason;
                             return (
                               <label
                                 key={action.value}
@@ -366,11 +456,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     setActionType(value);
 
                                     if (value === "registrar") {
-                                      if (selectedProducts.length === 0) {
-                                        alert("Debe seleccionar al menos un producto antes de registrar.");
-                                        setActionType("");
-                                        return;
-                                      }
+                                      // Abrimos el ciclo de registro en el primer no registrado
                                       handleOpenRegistration(0);
                                     } else {
                                       // cerrar modal de registro si estaba abierto
@@ -390,7 +476,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       : "bg-white border-gray-300"
                                     }`}
                                 >
-                                  {/* Solo mostramos el check si está seleccionado y no está deshabilitado */}
                                   {isSelected && !isDisabled && (
                                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -405,7 +490,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                           })}
                         </div>
 
-                        {/* Mensaje de ayuda cuando aún no se ha seleccionado una razón */}
                         {!returnReason && (
                           <p className="mt-2 text-sm text-gray-500">Selecciona una razón de devolución para habilitar las acciones.</p>
                         )}
@@ -435,7 +519,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       {/* Modal de registro de producto */}
       <ProductRegistrationModal
         isOpen={isRegistrationModalOpen}
-        onClose={() => setIsRegistrationModalOpen(false)}
+        onClose={() => {
+          setIsRegistrationModalOpen(false);
+          setProductToRegister(null);
+          setCurrentProductIndex(0);
+        }}
         product={productToRegister}
         onConfirm={handleConfirmRegistration}
       />

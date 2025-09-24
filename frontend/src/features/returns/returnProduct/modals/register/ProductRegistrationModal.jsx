@@ -17,7 +17,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 4);
 
-  // Resetear campos cuando se abre un producto nuevo
+  // Resetear campos cuando se abre un producto nuevo o cambia el producto
   React.useEffect(() => {
     if (isOpen) {
       setFormData({
@@ -75,7 +75,6 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
   // --- Helpers para el input number (evitar 'e', pegar no-numéricos, wheel)
   const handleQuantityKeyDown = (e) => {
-    // bloquear e, E, +, -, . y cualquier tecla no numérica razonable
     const blocked = ["e", "E", "+", "-", ".", ","];
     if (blocked.includes(e.key)) {
       e.preventDefault();
@@ -90,7 +89,6 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   };
 
   const handleQuantityWheel = (e) => {
-    // evitar que la rueda cambie el valor
     e.target.blur();
     setTimeout(() => e.target.focus(), 0);
   };
