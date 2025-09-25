@@ -1,15 +1,19 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from '../shared/components/sidebar.jsx';
-import NavBarDashboard from '../shared/components/navbars/navbarDashboard.jsx';
+import React from "react";
+import { Outlet } from "react-router-dom";
+import NavBarDashboard from "../shared/components/navbars/navbarDashboard.jsx";
 
 export default function DashboardLayout() {
   return (
-      <div className="flex flex-col flex-grow min-h-screen">
+    <div className="flex flex-col flex-1">
+      {/* Navbar que se extiende al lado de la sidebar */}
+      <div className="sticky top-0 z-50 w-full">
         <NavBarDashboard />
-        <main className="flex-grow p-8 relative">
-          <Outlet />
-        </main>
       </div>
+      
+      {/* Contenido de las páginas */}
+      <main className="flex-grow p-8 relative">
+        <Outlet />
+      </main>
+    </div>
   );
 }
