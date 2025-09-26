@@ -1,11 +1,9 @@
 import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
-
 // Auth
 import ForgotPassword from "./auth/ForgotPassword";
 import RecoverPassword from "./auth/RecoverPassword";
-
 // Features
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
@@ -21,7 +19,7 @@ import IndexClientReturns from "./features/returns/returnClient/indexClientRetur
 import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase"
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
-import DashboardLayout from "./layouts/dashboardLayout";
+import DashboardLayout from "./layouts/dashboard/dashboardLayout";
 import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
 import DashboardCategories from "./features/dashboard/dashboardCategories";
 import DashboardClients from "./features/dashboard/dashboardClients";
@@ -31,7 +29,6 @@ import DashboardPurchases from "./features/dashboard/dashboardPurchases";
 import DashboardReturnClients from "./features/dashboard/returns/dashboardReturnClients";
 import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
 import DashboardLows from "./features/dashboard/returns/dashboardLows";
-
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
 

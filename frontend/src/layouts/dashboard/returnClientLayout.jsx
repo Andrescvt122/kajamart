@@ -1,8 +1,8 @@
-import React from "react";
+import react from "react";
 import { Outlet } from "react-router-dom";
-import NavBarDashboard from "../shared/components/navbars/navbarDashboard.jsx";
+import NavBarDashboard from "../../shared/components/navbars/navbarDashboard.jsx";
 
-export default function DashboardLayout() {
+export default function returnClientLayout() {
   return (
     <div className="flex flex-col flex-1">
       {/* Navbar que se extiende al lado de la sidebar */}
