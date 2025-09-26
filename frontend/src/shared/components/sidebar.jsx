@@ -42,7 +42,7 @@ export default function Sidebar() {
   };
 
   const menuItems = [
-    { name: "Inicio", icon: <Home size={20} />, path: "/app" },
+    { name: "Dashboard", icon: <Home size={20} />, path: "/app" },
     { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
     { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
     { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
