@@ -4,11 +4,11 @@ import Sidebar from '../shared/components/sidebar.jsx';
 
 export default function MainLayout() {
   return (
-    <div className="flex">
+    <div className="flex position-sticky">
       <Sidebar />
       <main className="flex-grow p-8 relative">
         <Outlet />
       </main>
     </div>
-  );
+  );x
 }
