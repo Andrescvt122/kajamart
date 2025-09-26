@@ -19,11 +19,12 @@ import {
 import DetailsUsers from "./detailsUsers";
 import EditUsers from "./editUsers";
 import RegisterUsers from "./registerUsers";
-import DeleteUserModal from "./deleteUsers"; // ⬅️ renombrado para usar el nuevo modal
+import DeleteUserModal from "./deleteUsers";
 
 export default function IndexUsers() {
   const [users, setUsers] = useState([
     {
+      id: 1,
       Nombre: "Sophia Clark",
       Correo: "sophia.clark@example.com",
       Rol: "Administrador",
@@ -31,6 +32,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-01-15",
     },
     {
+      id: 2,
       Nombre: "Ethan Martinez",
       Correo: "ethan.martinez@example.com",
       Rol: "Vendedor",
@@ -38,6 +40,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-02-20",
     },
     {
+      id: 3,
       Nombre: "Olivia Rodriguez",
       Correo: "olivia.rodriguez@example.com",
       Rol: "Cliente",
@@ -45,6 +48,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-03-10",
     },
     {
+      id: 4,
       Nombre: "Liam Wilson",
       Correo: "liam.wilson@example.com",
       Rol: "Vendedor",
@@ -52,6 +56,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-04-05",
     },
     {
+      id: 5,
       Nombre: "Ava Garcia",
       Correo: "ava.garcia@example.com",
       Rol: "Administrador",
@@ -59,6 +64,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-05-12",
     },
     {
+      id: 6,
       Nombre: "Noah Lopez",
       Correo: "noah.lopez@example.com",
       Rol: "Cliente",
@@ -66,6 +72,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-06-18",
     },
     {
+      id: 7,
       Nombre: "Isabella Lee",
       Correo: "isabella.lee@example.com",
       Rol: "Vendedor",
@@ -101,7 +108,7 @@ export default function IndexUsers() {
     };
   }, [isModalOpen, isDetailsOpen, isEditOpen, isDeleteOpen]);
 
-  // Listeners globales (detalles / editar)
+  // Listeners globales
   useEffect(() => {
     const openDetails = (e) => {
       setSelectedUser(e.detail);
@@ -151,6 +158,7 @@ export default function IndexUsers() {
   // --- Lógica CRUD ---
   const handleRegisterUser = (formData) => {
     const newUser = {
+      id: Date.now(), // 👈 id único
       Nombre: `${formData.nombre} ${formData.apellido}`,
       Correo: formData.correo,
       Rol: formData.rol,
@@ -166,18 +174,15 @@ export default function IndexUsers() {
   };
 
   const handleDelete = (userToDelete) => {
-    setUsers((prev) =>
-      prev.filter((user) => user.Correo !== userToDelete.Correo)
-    );
+    setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
     showSuccessAlert("Usuario eliminado correctamente");
   };
 
   const handleSaveUser = (updated) => {
     setUsers((prev) =>
-      prev.map((u) =>
-        u.Correo === updated.Correo ? { ...u, ...updated } : u
-      )
+      prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u))
     );
+    showSuccessAlert("Usuario actualizado correctamente");
   };
 
   // Variantes de animación
@@ -278,9 +283,9 @@ export default function IndexUsers() {
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((user, i) => (
+                  pageItems.map((user) => (
                     <motion.tr
-                      key={`${user.Correo}-${i}`}
+                      key={user.id}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >

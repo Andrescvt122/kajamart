@@ -37,7 +37,7 @@ export default function FooterComponent() {
               width: "56px",
               height: "56px",
               objectFit: "cover",
-              borderRadius: "8px", // 🔲 cuadrado con bordes sutiles
+              borderRadius: "8px",
               display: "block",
               margin: 0,
             }}
@@ -49,163 +49,29 @@ export default function FooterComponent() {
           </div>
         </div>
 
-        {/* Enlaces + Contacto */}
-        <div
-          style={{
-            display: "flex",
-            gap: "2rem",
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
-          <nav>
-            <h3
-              style={{
-                fontWeight: "bold",
-                color: "#000", // 🖤 negro
-                margin: "0 0 0.35rem 0",
-              }}
-            >
-              Enlaces
-            </h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Inicio
-                </a>
-              </li>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Servicios
-                </a>
-              </li>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Productos
-                </a>
-              </li>
-            </ul>
-          </nav>
-
-          <address style={{ fontStyle: "normal" }}>
-            <h3
-              style={{
-                fontWeight: "bold",
-                color: "#000", // 🖤 negro
-                margin: "0 0 0.35rem 0",
-              }}
-            >
-              Contacto
-            </h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Contacto
-                </a>
-              </li>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Soporte
-                </a>
-              </li>
-              <li style={{ marginBottom: "0.35rem" }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "#0f1724",
-                    textDecoration: "none",
-                    transition: "all .15s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#065f46";
-                    e.target.style.transform = "translateX(4px)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0f1724";
-                    e.target.style.transform = "none";
-                  }}
-                >
-                  Política de privacidad
-                </a>
-              </li>
-            </ul>
-          </address>
-        </div>
+        {/* Información de contacto */}
+        <address style={{ fontStyle: "normal" }}>
+          <h3
+            style={{
+              fontWeight: "bold",
+              color: "#000",
+              margin: "0 0 0.35rem 0",
+            }}
+          >
+            Contacto
+          </h3>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <li style={{ marginBottom: "0.35rem", color: "#0f1724" }}>
+              📞 Teléfono: +57 300 123 4567
+            </li>
+            <li style={{ marginBottom: "0.35rem", color: "#0f1724" }}>
+              ✉️ Correo: contacto@kajamart.com
+            </li>
+            <li style={{ marginBottom: "0.35rem", color: "#0f1724" }}>
+              📍 Dirección: Calle 123 #45-67, Bogotá, Colombia
+            </li>
+          </ul>
+        </address>
 
         {/* Derechos reservados */}
         <div

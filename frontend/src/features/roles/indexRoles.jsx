@@ -109,8 +109,31 @@ export default function IndexRoles() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Rol creado:", form);
+
+    const nuevoRol = {
+      NombreRol: form.nombreRol,
+      Descripción: form.descripcion,
+      Estado: form.estado ? "Activo" : "Inactivo",
+      Permisos: Object.entries(form.permisos)
+        .filter(([_, checked]) => checked)
+        .map(([key]) => {
+          const [modulo, permiso] = key.split("-");
+          return { modulo, permiso };
+        }),
+    };
+
+    setRoles((prev) => [nuevoRol, ...prev]); // ✅ lo agrega al inicio de la tabla
     setIsModalOpen(false);
+
+    // Limpiar formulario
+    setForm({
+      nombreRol: "",
+      descripcion: "",
+      estado: true,
+      permisos: {},
+    });
+
+    showSuccessAlert("Rol creado correctamente.");
   };
 
   // --- Permisos disponibles agrupados ---

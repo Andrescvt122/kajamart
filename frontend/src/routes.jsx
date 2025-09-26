@@ -16,7 +16,6 @@ import IndexSettings from "./features/settings/indexSettings";
 import IndexPurchases from "./features/purchases/indexPurchases";
 import IndexClientReturns from "./features/returns/returnClient/indexClientReturns";
 import Landing from "./pages/landing/landing.jsx";
-import IndexClientReturns from "./features/returns/returnClient/indexClientReturns"
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 
