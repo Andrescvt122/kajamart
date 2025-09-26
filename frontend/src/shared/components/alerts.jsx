@@ -83,12 +83,16 @@ const showLoadingAlert = (mensaje) => {
     allowEscapeKey: false,
     didOpen: () => {
       Swal.showLoading();
+      setTimeout(() => {
+        Swal.close();
+      }, 1500); // cierra el alert después de 1.5 segundos
     },
     timer: 5000, // ⏳ máximo 5 segundos
     timerProgressBar: true,
   });
 };
 export { showLoadingAlert };
+
 
 // ✍️ Input (verde + café)
 export const showInputAlert = async (message = "Escribe algo") => {

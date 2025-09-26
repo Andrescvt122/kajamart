@@ -1,6 +1,6 @@
+// pages/categories/IndexCategories.jsx
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import {
-  ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
@@ -14,10 +14,11 @@ import CategoryDeleteModal from "./CategoryDeleteModal";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import CategoryRegisterModal from "./CategoryRegisterModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import Swal from "sweetalert2";
+import { showLoadingAlert } from "../../shared/components/alerts.jsx";
 
 export default function IndexCategories() {
-  const [categories] = useState([
+  const [categories, setCategories] = useState([
     {
       id: "CAT001",
       nombre: "Lácteos",
@@ -34,14 +35,14 @@ export default function IndexCategories() {
     {
       id: "CAT003",
       nombre: "Bebidas",
-      descripcion: "Jugos, aguas minerales, refrescos y bebidas energéticas.",
+      descripcion:
+        "Jugos, aguas minerales, refrescos y bebidas energéticas.",
       estado: "Activo",
     },
     {
       id: "CAT004",
       nombre: "Snacks",
-      descripcion:
-        "Papas fritas, galletas, dulces y otros productos empacados.",
+      descripcion: "Papas fritas, galletas, dulces y otros productos empacados.",
       estado: "Activo",
     },
   ]);
@@ -52,30 +53,21 @@ export default function IndexCategories() {
 
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  // Estados modales
+  // Modales
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  // ---------- FILTRO Y PAGINACIÓN ----------
+  // FILTRO Y PAGINACIÓN
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
-
-    if (!s) {
-      return categories;
-    }
-
-    // 2) si la búsqueda es exactamente "activo" / "activos" -> solo activos
+    if (!s) return categories;
     if (/^activos?$/.test(s)) {
       return categories.filter((c) => c.estado.toLowerCase() === "activo");
     }
-
-    // 3) si la búsqueda es exactamente "inactivo" / "inactivos" -> solo inactivos
     if (/^inactivos?$/.test(s)) {
       return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
     }
-
-    // 4) en cualquier otro caso -> búsqueda normal en TODOS los campos
     return categories.filter((c) =>
       Object.values(c).some((value) =>
         String(value).toLowerCase().includes(s)
@@ -94,33 +86,38 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  const handleDelete = (category) => {
-    console.log("Eliminar:", category);
-  };
-  const handleViewDetail = (category) => {
-    setSelectedCategory(category);
-    setIsDetailOpen(true);
-  };
-  const handleEdit = (category) => {
-    setSelectedCategory(category);
-    setIsEditModalOpen(true);
+  // ELIMINAR
+  const handleDeleteConfirm = (category) => {
+    showLoadingAlert("Eliminando categoría...");
+
+    setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Categoría eliminada",
+        text: `${category?.nombre} se eliminó correctamente.`,
+        background: "#e8f5e9",
+        color: "#1b5e20",
+        showConfirmButton: false,
+        timer: 1400,
+        timerProgressBar: true,
+      });
+
+      setCategories((prev) => prev.filter((c) => c.id !== category.id));
+      setIsDeleteOpen(false);
+      setSelectedCategory(null);
+
+      setTimeout(() => {
+        const newTotal = Math.max(1, Math.ceil((filtered.length - 1) / perPage));
+        if (currentPage > newTotal) setCurrentPage(newTotal);
+      }, 0);
+    }, 900);
   };
 
-  // ---------- MODAL REGISTRAR ----------
+  // REGISTRAR
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    nombre: "",
-    estado: "",
-    descripcion: "",
-  });
-
+  const [form, setForm] = useState({ nombre: "", estado: "", descripcion: "" });
   const [estadoOpen, setEstadoOpen] = useState(false);
   const estadoRef = useRef(null);
-
-  const estadoOptions = [
-    { value: "Activo", label: "Activo" },
-    { value: "Inactivo", label: "Inactivo" },
-  ];
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -139,27 +136,31 @@ export default function IndexCategories() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Categoría registrada:", form);
+    const newCat = {
+      id: `CAT${String(categories.length + 1).padStart(3, "0")}`,
+      nombre: form.nombre || "Sin nombre",
+      descripcion: form.descripcion || "",
+      estado: form.estado || "Activo",
+    };
+    setCategories((p) => [newCat, ...p]);
     setIsModalOpen(false);
     setForm({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
+    setCurrentPage(1);
   };
 
-  // ---------- ANIMACIONES ----------
+  // ---------- ANIMACIONES (usando tus variants) ----------
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
   };
   const rowVariants = {
-    hidden: { opacity: 0, y: 12 },
+    hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
   const listVariants = {
@@ -177,7 +178,7 @@ export default function IndexCategories() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen relative">
       {/* Fondo ondas */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
@@ -191,88 +192,80 @@ export default function IndexCategories() {
           zIndex: 0,
         }}
       />
-      <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-semibold">Categorías</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de Tienda
-              </p>
-            </div>
+
+      <div className="flex-1 relative min-h-screen p-8 overflow-hidden z-10">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-semibold">Categorías</h2>
+            <p className="text-sm text-gray-500 mt-1">Administrador de Tienda</p>
           </div>
+        </div>
 
-          {/* Barra búsqueda + Botones (buscador a la izquierda, ocupa 50%) */}
-          <div className="flex justify-between items-center mb-6 gap-4">
-            <div className="flex-grow">
-              <SearchBar
-                placeholder="Buscar categorías..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
-              <button
-                onClick={handleOpenModal}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nueva Categoría
-              </button>
-            </div>
+        {/* Barra búsqueda + botones */}
+        <div className="flex justify-between items-center mb-6 gap-4">
+          <div className="flex-grow">
+            <SearchBar
+              placeholder="Buscar categorías..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <ExportExcelButton>Excel</ExportExcelButton>
+            <ExportPDFButton>PDF</ExportPDFButton>
+            <button
+              onClick={handleOpenModal}
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+            >
+              Registrar Nueva Categoría
+            </button>
+          </div>
+        </div>
 
-          {/* Tabla */}
-          <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <table key={currentPage} className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">ID Categoría</th>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Descripción</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
+        {/* Tabla con animación */}
+        <motion.div
+          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          variants={tableVariants}
+          initial="hidden"
+          animate="visible"
+          key={`${currentPage}-${searchTerm}-${filtered.length}`}
+        >
+          <table className="min-w-full">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase">
+                <th className="px-6 py-4">ID Categoría</th>
+                <th className="px-6 py-4">Nombre</th>
+                <th className="px-6 py-4">Descripción</th>
+                <th className="px-6 py-4">Estado</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <motion.tbody className="divide-y divide-gray-100" variants={listVariants}>
+              <AnimatePresence initial={false} mode="popLayout">
                 {pageItems.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                  <motion.tr
+                    key="empty"
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                  >
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron categorías.
                     </td>
-                  </tr>
+                  </motion.tr>
                 ) : (
                   pageItems.map((c, i) => (
                     <motion.tr
-                      key={c.id + "-" + i}
+                      key={c.id}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {c.id}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {c.nombre}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {c.descripcion}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{c.nombre}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{c.descripcion}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
@@ -286,7 +279,12 @@ export default function IndexCategories() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
-                          <EditButton event={() => handleEdit(c)} />
+                          <EditButton
+                            event={() => {
+                              setSelectedCategory(c);
+                              setIsEditModalOpen(true);
+                            }}
+                          />
                           <DeleteButton
                             event={() => {
                               setSelectedCategory(c);
@@ -298,19 +296,19 @@ export default function IndexCategories() {
                     </motion.tr>
                   ))
                 )}
-              </motion.tbody>
-            </table>
-          </motion.div>
+              </AnimatePresence>
+            </motion.tbody>
+          </table>
+        </motion.div>
 
-          {/* Paginador */}
-          <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
-            goToPage={goToPage}
-          />
-        </div>
+        {/* Paginador */}
+        <Paginator
+          currentPage={currentPage}
+          perPage={perPage}
+          totalPages={totalPages}
+          filteredLength={filtered.length}
+          goToPage={goToPage}
+        />
 
         {/* Modales */}
         <CategoryDetailModal
@@ -328,25 +326,23 @@ export default function IndexCategories() {
           category={selectedCategory}
           onSave={(updated) => console.log("Guardado:", updated)}
         />
+
+        <CategoryDeleteModal
+          isOpen={isDeleteOpen}
+          onClose={() => {
+            setIsDeleteOpen(false);
+            setSelectedCategory(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          category={selectedCategory}
+        />
+
+        <CategoryRegisterModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onRegister={(newCategory) => console.log("Registrado:", newCategory)}
+        />
       </div>
-
-      {/* Modal Eliminar */}
-      <CategoryDeleteModal
-        isOpen={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setSelectedCategory(null);
-        }}
-        onConfirm={handleDelete}
-        category={selectedCategory}
-      />
-
-<CategoryRegisterModal
-  isOpen={isModalOpen}
-  onClose={() => setIsModalOpen(false)}
-  onRegister={(newCategory) => console.log("Registrado:", newCategory)}
-/>
-
     </div>
   );
 }
