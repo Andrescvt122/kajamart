@@ -1,7 +1,8 @@
 // src/pages/roles/editRoles.jsx
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, CheckCircle, HelpCircle } from "lucide-react";
+import { showConfirmAlert, showSuccessAlert } from "../../shared/components/alerts.jsx";
 
 export default function EditRoles({
   isOpen,
@@ -16,6 +17,26 @@ export default function EditRoles({
     estado: true,
     permisos: {},
   });
+
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Variantes de animación reutilizables
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.18 } },
+    exit: { opacity: 0, transition: { duration: 0.14 } },
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { type: "spring", stiffness: 300, damping: 28 },
+    },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.14 } },
+  };
 
   // ✅ Cargar datos iniciales cuando cambie el rol
   useEffect(() => {
@@ -35,13 +56,11 @@ export default function EditRoles({
     }
   }, [role]);
 
-  // ✅ Manejo de cambios en inputs de texto
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Manejo de cambios en checkboxes de permisos
   const handlePermisoChange = (key) => {
     setForm((prev) => ({
       ...prev,
@@ -52,11 +71,66 @@ export default function EditRoles({
     }));
   };
 
-  // ✅ Enviar actualización
+  // ✅ Seleccionar/Deseleccionar todos
+  const toggleSelectAll = () => {
+    const allSelected = Object.entries(permisosDisponibles).every(([modulo, permisos]) =>
+      permisos.every((permiso) => form.permisos[`${modulo}-${permiso}`])
+    );
+
+    const newPermisos = {};
+    Object.entries(permisosDisponibles).forEach(([modulo, permisos]) => {
+      permisos.forEach((permiso) => {
+        const key = `${modulo}-${permiso}`;
+        newPermisos[key] = !allSelected;
+      });
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      permisos: { ...prev.permisos, ...newPermisos },
+    }));
+  };
+
+  // ✅ Seleccionar/Deseleccionar por módulo
+  const toggleSelectModule = (modulo, permisos) => {
+    const allSelected = permisos.every(
+      (permiso) => form.permisos[`${modulo}-${permiso}`]
+    );
+
+    const newPermisos = {};
+    permisos.forEach((permiso) => {
+      const key = `${modulo}-${permiso}`;
+      newPermisos[key] = !allSelected;
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      permisos: { ...prev.permisos, ...newPermisos },
+    }));
+  };
+
+  const handleEstadoChange = () => {
+    const nuevoEstado = !form.estado;
+    const message = `¿Estás seguro de que quieres cambiar el estado a ${
+      nuevoEstado ? "'Activo'" : "'Inactivo'"
+    }?`;
+
+    showConfirmAlert(message).then((confirmed) => {
+      if (confirmed) setForm((prev) => ({ ...prev, estado: nuevoEstado }));
+    });
+  };
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.nombreRol.trim()) return;
+    if (!form.nombreRol.trim()) {
+      return;
+    }
 
+    showConfirmAlert("¿Confirmas actualizar este rol?").then((confirmed) => {
+      if (confirmed) confirmUpdate();
+    });
+  };
+
+  const confirmUpdate = () => {
     onUpdate({
       ...role,
       NombreRol: form.nombreRol,
@@ -69,31 +143,38 @@ export default function EditRoles({
           return { modulo, permiso };
         }),
     });
-    onClose();
+
+    showSuccessAlert("Rol actualizado correctamente").then(() => onClose());
   };
 
   return (
     <AnimatePresence>
       {isOpen && role && (
         <>
-          {/* Fondo */}
+          {/* Overlay principal */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={onClose}
           />
 
-          {/* Contenedor */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          {/* Contenedor principal */}
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -30 }}
-              transition={{ type: "spring", stiffness: 260, damping: 22 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative pointer-events-auto"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative pointer-events-auto max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Editar rol ${form.nombreRol}`}
             >
               {/* Header */}
               <div className="flex justify-between items-center px-6 py-4 border-b">
@@ -113,7 +194,7 @@ export default function EditRoles({
                 onSubmit={handleSubmit}
                 className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scroll"
               >
-                {/* Nombre y Descripción */}
+                {/* Nombre y descripción */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -124,7 +205,7 @@ export default function EditRoles({
                       name="nombreRol"
                       value={form.nombreRol}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-300 focus:outline-none"
+                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
                       placeholder="Nombre del rol"
                       required
                     />
@@ -138,9 +219,10 @@ export default function EditRoles({
                       name="descripcion"
                       value={form.descripcion}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-300 focus:outline-none"
+                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
                       rows={3}
                       placeholder="Descripción del rol"
+                      required
                     />
                   </div>
                 </div>
@@ -161,9 +243,7 @@ export default function EditRoles({
                     <input
                       type="checkbox"
                       checked={form.estado}
-                      onChange={() =>
-                        setForm((prev) => ({ ...prev, estado: !prev.estado }))
-                      }
+                      onChange={handleEstadoChange}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-green-500 transition"></div>
@@ -171,11 +251,29 @@ export default function EditRoles({
                   </label>
                 </div>
 
-                {/* Permisos (tabla estilo Crear Rol) */}
+                {/* Permisos */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Asignar permisos y privilegios
-                  </h3>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Asignar permisos y privilegios
+                    </h3>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        onChange={toggleSelectAll}
+                        checked={Object.entries(permisosDisponibles).every(
+                          ([modulo, permisos]) =>
+                            permisos.every(
+                              (permiso) => form.permisos[`${modulo}-${permiso}`]
+                            )
+                        )}
+                        className="custom-checkbox"
+                      />
+                      <span className="text-green-700 text-sm">
+                        Seleccionar todos
+                      </span>
+                    </label>
+                  </div>
                   <div className="overflow-hidden rounded-xl border max-h-64 overflow-y-auto custom-scroll">
                     <table className="min-w-full text-sm">
                       <thead className="bg-green-100 text-gray-700">
@@ -184,6 +282,7 @@ export default function EditRoles({
                           <th className="px-4 py-3 text-left">
                             Permisos/Privilegios
                           </th>
+                          <th className="px-4 py-3 text-center">Todos</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -191,11 +290,9 @@ export default function EditRoles({
                           Object.entries(permisosDisponibles).map(
                             ([modulo, permisos], i) => (
                               <tr key={i}>
-                                {/* Columna módulo */}
                                 <td className="px-4 py-3 font-medium text-gray-900">
                                   {modulo}
                                 </td>
-                                {/* Columna permisos */}
                                 <td className="px-4 py-3">
                                   <div className="flex flex-wrap gap-4">
                                     {permisos.map((permiso) => {
@@ -221,13 +318,26 @@ export default function EditRoles({
                                     })}
                                   </div>
                                 </td>
+                                <td className="px-4 py-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    onChange={() =>
+                                      toggleSelectModule(modulo, permisos)
+                                    }
+                                    checked={permisos.every(
+                                      (permiso) =>
+                                        form.permisos[`${modulo}-${permiso}`]
+                                    )}
+                                    className="custom-checkbox"
+                                  />
+                                </td>
                               </tr>
                             )
                           )
                         ) : (
                           <tr>
                             <td
-                              colSpan="2"
+                              colSpan="3"
                               className="px-4 py-3 text-center text-gray-500"
                             >
                               No hay permisos disponibles
@@ -257,43 +367,7 @@ export default function EditRoles({
                 </div>
               </form>
             </motion.div>
-          </div>
-
-          {/* Estilos personalizados */}
-          <style>{`
-            .custom-scroll::-webkit-scrollbar {
-              width: 8px;
-            }
-            .custom-scroll::-webkit-scrollbar-track {
-              background: #fff;
-            }
-            .custom-scroll::-webkit-scrollbar-thumb {
-              background-color: #ccc;
-              border-radius: 4px;
-            }
-            .custom-checkbox {
-              appearance: none;
-              width: 18px;
-              height: 18px;
-              border: 2px solid #ccc;
-              border-radius: 4px;
-              background: #fff;
-              cursor: pointer;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .custom-checkbox:checked {
-              background-color: #fff;
-              border-color: #22c55e;
-            }
-            .custom-checkbox:checked::after {
-              content: "✔";
-              color: #22c55e;
-              font-size: 14px;
-              font-weight: bold;
-            }
-          `}</style>
+          </motion.div>
         </>
       )}
     </AnimatePresence>

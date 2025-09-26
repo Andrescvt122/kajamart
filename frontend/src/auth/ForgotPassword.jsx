@@ -67,20 +67,24 @@ export default function ForgotPassword() {
               </p>
 
               {/* Botón para volver al inicio */}
-              <Link
-                to="/"
-                className="mt-8 inline-block w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
-              >
-                Volver al inicio
-              </Link>
+              <div className="mt-8">
+                <Link
+                  to="/"
+                  className="block w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
+                >
+                  Volver al inicio
+                </Link>
+              </div>
 
               {/* Botón para ir a RecoverPassword */}
-              <Link
-                to="/recover-password"
-                className="mt-4 inline-block w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 transition duration-200"
-              >
-                Ir a recuperar contraseña
-              </Link>
+              <div className="mt-4">
+                <Link
+                  to="/recover-password"
+                  className="block w-full text-center px-4 py-2 text-sm font-semibold text-emerald-600 bg-white rounded-xl shadow-lg hover:bg-gray-100 transition duration-200"
+                >
+                  Ir a recuperar contraseña
+                </Link>
+              </div>
             </div>
           ) : (
             <>
