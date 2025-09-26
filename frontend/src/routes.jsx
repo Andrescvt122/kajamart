@@ -1,8 +1,12 @@
 import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
+
+// Auth
 import ForgotPassword from "./auth/ForgotPassword";
 import RecoverPassword from "./auth/RecoverPassword";
+
+// Features
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
@@ -28,12 +32,17 @@ import DashboardReturnClients from "./features/dashboard/returns/dashboardReturn
 import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
 import DashboardLows from "./features/dashboard/returns/dashboardLows";
 
+import AllProductsPage from "./features/products/allProductsPage";
+import ProductsLayout from "./layouts/ProductsLayout";
+
 export default function RoutesAdmin() {
   return (
     <Routes>
+      {/* Auth routes */}
       <Route path="/" element={<AuthLayout />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/recover-password" element={<RecoverPassword />} />
+      {/* Main App */}
       <Route path="/app" element={<MainLayout />}>
         <Route path="suppliers" element={<IndexSuppliers />} />
         <Route path="categories" element={<IndexCategories />} />
@@ -43,11 +52,19 @@ export default function RoutesAdmin() {
         <Route path="purchases" element={<IndexPurchases />} />
         <Route path="purchases/register" element={<IndexRegisterPurchase />} />
         <Route path="products" element={<IndexProducts />} />
+        {/* Products */}
+        <Route path="products" element={<ProductsLayout />}>
+          <Route index element={<IndexProducts />} />
+          <Route path=":id/detalles" element={<AllProductsPage />} />
+        </Route>
+        {/* Returns */}
         <Route path="returns">
           <Route path="clients" element={<IndexClientReturns />} />
           <Route path="products" element={<IndexProductReturns />} />
           <Route path="low" element={<IndexLow />} />
         </Route>
+
+        {/* Settings */}
         <Route path="settings">
           <Route path="users" element={<IndexUsers />} />
           <Route path="roles" element={<IndexRoles />} />

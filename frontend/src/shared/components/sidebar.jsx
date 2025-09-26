@@ -145,7 +145,7 @@ export default function Sidebar() {
         }}
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{
-          y: [0, -10, 0],
+          y: [0, -5, 0],
           rotate: [-1, 2, -1],
           opacity: 1,
           scale: 1,

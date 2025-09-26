@@ -13,6 +13,11 @@ import SupplierDetailModal from "./SuplliersDetailModal.jsx";
 import SuppliersEditModal from "./SuplliersEditModal.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import SuplliersRegisterModal from "./SuplliersRegisterModal.jsx";
+import SuppliersDeleteModal from "./SuplliersDeleteModal.jsx";
+// ⬇️ agrega esto arriba con los imports
+import Swal from "sweetalert2";
+import { showLoadingAlert } from "../../shared/components/alerts.jsx";
+
 import {
   showErrorAlert,
   showInfoAlert,
@@ -23,7 +28,7 @@ import SearchBar from "../../shared/components/searchBars/searchbar";
 
 export default function IndexSuppliers() {
   // --- CORRECCIÓN: suppliers DEBE SER UN ARRAY (no array anidado) ---
-  const [suppliers] = useState([
+  const [suppliers, setSuppliers] = useState([
     {
       nit: "200",
       nombre: "Alimentos La Abundancia",
@@ -185,7 +190,35 @@ export default function IndexSuppliers() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedSupplierToDelete, setSelectedSupplierToDelete] = useState(null);
+  
+  const handleDeleteConfirm = (supplier) => {
+    showLoadingAlert("Eliminando proveedor...");
+  
+    setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Proveedor eliminado",
+        text: `${supplier?.nombre} se eliminó correctamente.`,
+        background: "#e8f5e9",
+        color: "#1b5e20",
+        showConfirmButton: false,
+        timer: 1800,
+        timerProgressBar: true,
+      });
+  
+      // Eliminar por NIT en vez de id
+      setSuppliers((prev) => prev.filter((s) => s.nit !== supplier.nit));
+    }, 1500);
+  };
+  
+  
+  const handleDeleteClick = (supplier) => {
+    setSelectedSupplierToDelete(supplier);
+    setIsDeleteModalOpen(true);
+  };
+  
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     if (isDetailOpen) {
@@ -614,9 +647,7 @@ export default function IndexSuppliers() {
                               }}
                             />
 
-                            <DeleteButton
-                              alert={() => showErrorAlert("Eliminar proveedor")}
-                            />
+                            <DeleteButton event={() => handleDeleteClick(s)} />
                           </div>
                         </td>
                       </motion.tr>
@@ -657,6 +688,12 @@ export default function IndexSuppliers() {
           />
         )}
       </AnimatePresence>
+      <SuppliersDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        supplier={selectedSupplierToDelete}
+      />
 
       {/* Suppliers Edit Modal */}
       <AnimatePresence>
