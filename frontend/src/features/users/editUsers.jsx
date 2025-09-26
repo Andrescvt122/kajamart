@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
+import { showConfirmAlert } from "../../shared/components/alerts.jsx";
 
 const EstadoToggle = ({ enabled, onChange }) => (
   <button
@@ -24,11 +25,10 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
     Nombre: "",
     Correo: "",
     Rol: "",
-    Estado: true, // boolean for toggle
+    Estado: true,
     FechaCreacion: "",
   });
 
-  // sincronizar cuando cambia el usuario seleccionado
   useEffect(() => {
     if (!user) {
       setForm({
@@ -57,23 +57,37 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
     setForm((p) => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // construir objeto con las mismas keys que IndexUsers usa
-    const updated = {
-      ...user,
-      Nombre: form.Nombre,
-      Correo: form.Correo,
-      Rol: form.Rol,
-      Estado: form.Estado ? "Activo" : "Inactivo",
-      FechaCreacion: form.FechaCreacion,
-    };
-    // onSave espera el objeto actualizado
-    onSave(updated);
-    onClose();
+  const handleEstadoChange = () => {
+    const nuevoEstado = !form.Estado;
+    const message = `¿Estás seguro de que quieres cambiar el estado a ${
+      nuevoEstado ? "'Activo'" : "'Inactivo'"
+    }?`;
+
+    showConfirmAlert(message).then((confirmed) => {
+      if (confirmed) setForm((p) => ({ ...p, Estado: nuevoEstado }));
+    });
   };
 
-  // Variantes para animación de overlay y modal
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Validación automática con required / type=email
+    showConfirmAlert("¿Confirmas actualizar este usuario?").then((confirmed) => {
+      if (confirmed) {
+        const updated = {
+          ...user,
+          Nombre: form.Nombre,
+          Correo: form.Correo,
+          Rol: form.Rol,
+          Estado: form.Estado ? "Activo" : "Inactivo",
+          FechaCreacion: form.FechaCreacion,
+        };
+        onSave(updated);
+        onClose();
+      }
+    });
+  };
+
   const overlayVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.18 } },
@@ -92,11 +106,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
   };
 
   return (
-    // No hacer early return: AnimatePresence necesita montar el componente para reproducir exit
     <AnimatePresence initial={false} mode="wait">
       {isOpen && (
         <>
-          {/* Fondo: motion para animación de entrada/salida */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             variants={overlayVariants}
@@ -106,7 +118,6 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
             onClick={onClose}
           />
 
-          {/* Modal: centrado, con variantes */}
           <motion.div
             variants={modalVariants}
             initial="hidden"
@@ -118,12 +129,10 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
               key="edit-modal"
               className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl relative pointer-events-auto max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
-              // pequeñas opciones de rendimiento / accesibilidad
               role="dialog"
               aria-modal="true"
               aria-label={`Editar usuario ${form.Nombre}`}
             >
-              {/* Botón cerrar */}
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -149,7 +158,8 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       name="Nombre"
                       value={form.Nombre}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black"
+                      required
+                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
                     />
                   </div>
 
@@ -159,10 +169,12 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       Correo Electrónico
                     </label>
                     <input
+                      type="email"
                       name="Correo"
                       value={form.Correo}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black"
+                      required
+                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
                     />
                   </div>
 
@@ -175,7 +187,8 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       name="Rol"
                       value={form.Rol}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black"
+                      required
+                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
                     />
                   </div>
 
@@ -187,8 +200,8 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                     <input
                       name="FechaCreacion"
                       value={form.FechaCreacion}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black"
+                      readOnly
+                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
                     />
                   </div>
 
@@ -200,7 +213,7 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                     <div className="flex items-center gap-3 mt-2">
                       <EstadoToggle
                         enabled={form.Estado}
-                        onChange={() => setForm((p) => ({ ...p, Estado: !p.Estado }))}
+                        onChange={handleEstadoChange}
                       />
                       <span className="text-sm text-gray-600">
                         {form.Estado ? "Activo" : "Inactivo"}
@@ -209,7 +222,7 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                   </div>
                 </div>
 
-                {/* Botones de acción */}
+                {/* Botones */}
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"

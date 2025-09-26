@@ -1,3 +1,4 @@
+// src/pages/users/indexUsers.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import {
   ViewButton,
@@ -12,18 +13,18 @@ import Paginator from "../../shared/components/paginator";
 import { motion } from "framer-motion";
 import {
   showSuccessAlert,
-  showConfirmAlert,
 } from "../../shared/components/alerts.jsx";
 
 // Importar modales
 import DetailsUsers from "./detailsUsers";
 import EditUsers from "./editUsers";
-import RegisterUsers from "./registerUsers"; // <-- IMPORTAR EL NUEVO MODAL
+import RegisterUsers from "./registerUsers";
+import DeleteUserModal from "./deleteUsers";
 
 export default function IndexUsers() {
   const [users, setUsers] = useState([
-    // ... (datos de usuarios iniciales sin cambios)
-     {
+    {
+      id: 1,
       Nombre: "Sophia Clark",
       Correo: "sophia.clark@example.com",
       Rol: "Administrador",
@@ -31,6 +32,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-01-15",
     },
     {
+      id: 2,
       Nombre: "Ethan Martinez",
       Correo: "ethan.martinez@example.com",
       Rol: "Vendedor",
@@ -38,6 +40,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-02-20",
     },
     {
+      id: 3,
       Nombre: "Olivia Rodriguez",
       Correo: "olivia.rodriguez@example.com",
       Rol: "Cliente",
@@ -45,6 +48,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-03-10",
     },
     {
+      id: 4,
       Nombre: "Liam Wilson",
       Correo: "liam.wilson@example.com",
       Rol: "Vendedor",
@@ -52,6 +56,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-04-05",
     },
     {
+      id: 5,
       Nombre: "Ava Garcia",
       Correo: "ava.garcia@example.com",
       Rol: "Administrador",
@@ -59,6 +64,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-05-12",
     },
     {
+      id: 6,
       Nombre: "Noah Lopez",
       Correo: "noah.lopez@example.com",
       Rol: "Cliente",
@@ -66,6 +72,7 @@ export default function IndexUsers() {
       FechaCreacion: "2023-06-18",
     },
     {
+      id: 7,
       Nombre: "Isabella Lee",
       Correo: "isabella.lee@example.com",
       Rol: "Vendedor",
@@ -77,19 +84,21 @@ export default function IndexUsers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
-  
-  // State para el modal de crear (solo para controlar si está abierto o cerrado)
+
+  // State para modal de crear
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Estados para otros modales y usuario seleccionado
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
-  // Bloquear scroll del body cuando CUALQUIER modal está abierto
+  // Bloquear scroll cuando algún modal está abierto
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
-    if (isModalOpen || isDetailsOpen || isEditOpen) {
+    if (isModalOpen || isDetailsOpen || isEditOpen || isDeleteOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = originalOverflow || "auto";
@@ -97,9 +106,9 @@ export default function IndexUsers() {
     return () => {
       document.body.style.overflow = originalOverflow || "auto";
     };
-  }, [isModalOpen, isDetailsOpen, isEditOpen]);
+  }, [isModalOpen, isDetailsOpen, isEditOpen, isDeleteOpen]);
 
-  // Escuchar eventos globales para abrir modales (detalles / editar)
+  // Listeners globales
   useEffect(() => {
     const openDetails = (e) => {
       setSelectedUser(e.detail);
@@ -119,7 +128,7 @@ export default function IndexUsers() {
     };
   }, []);
 
-  // Lógica de filtrado y paginación (sin cambios)
+  // --- Filtro y paginación ---
   const normalizeText = (text) =>
     text
       .toString()
@@ -146,38 +155,44 @@ export default function IndexUsers() {
     setCurrentPage(p);
   };
 
-  // Variantes de animación
-  const tableVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-  const rowVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
-  
-  // --- LÓGICA DE MANEJO DE DATOS ---
-
-  // NUEVO: Handler para registrar un usuario desde el modal
+  // --- Lógica CRUD ---
   const handleRegisterUser = (formData) => {
     const newUser = {
+      id: Date.now(), // 👈 id único
       Nombre: `${formData.nombre} ${formData.apellido}`,
       Correo: formData.correo,
       Rol: formData.rol,
       Estado: formData.estado ? "Activo" : "Inactivo",
-      FechaCreacion: new Date().toISOString().split('T')[0], // Fecha de hoy
+      FechaCreacion: new Date().toISOString().split("T")[0],
     };
-    setUsers(prevUsers => [newUser, ...prevUsers]);
+    setUsers((prev) => [newUser, ...prev]);
   };
 
-  const handleDelete = async (userToDelete) => {
-    const confirmed = await showConfirmAlert(
-      `¿Estás seguro de que deseas eliminar al usuario ${userToDelete.Nombre}?`
-    );
-    if (confirmed) {
-      setUsers((prev) =>
-        prev.filter((user) => user.Correo !== userToDelete.Correo)
-      );
-      showSuccessAlert("Usuario eliminado correctamente");
-    }
+  const openDeleteModal = (user) => {
+    setUserToDelete(user);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = (userToDelete) => {
+    setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
+    showSuccessAlert("Usuario eliminado correctamente");
   };
 
   const handleSaveUser = (updated) => {
-    setUsers(prev => prev.map(u => (u.Correo === updated.Correo) ? { ...u, ...updated } : u));
+    setUsers((prev) =>
+      prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u))
+    );
+    showSuccessAlert("Usuario actualizado correctamente");
+  };
+
+  // Variantes de animación
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
   };
 
   return (
@@ -193,9 +208,10 @@ export default function IndexUsers() {
           zIndex: 0,
         }}
       />
-      
+
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
         <div className="relative z-10">
+          {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Gestión de Usuarios</h2>
@@ -204,6 +220,8 @@ export default function IndexUsers() {
               </p>
             </div>
           </div>
+
+          {/* Buscador + botones */}
           <div className="mb-6 flex items-center gap-3">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -232,6 +250,7 @@ export default function IndexUsers() {
             </div>
           </div>
 
+          {/* Tabla */}
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
             variants={tableVariants}
@@ -240,8 +259,7 @@ export default function IndexUsers() {
             key={currentPage}
           >
             <table className="min-w-full">
-               {/* ... (contenido de la tabla sin cambios) ... */}
-               <thead>
+              <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">Nombre</th>
                   <th className="px-6 py-4">Correo</th>
@@ -251,32 +269,60 @@ export default function IndexUsers() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                    <td
+                      colSpan={6}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
                       No se encontraron usuarios.
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((user, i) => (
-                    <motion.tr key={`${user.Correo}-${i}`} className="hover:bg-gray-50" variants={rowVariants}>
-                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">{user.Nombre}</td>
-                      <td className="px-6 py-4 align-top text-sm text-green-700">{user.Correo}</td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{user.Rol}</td>
+                  pageItems.map((user) => (
+                    <motion.tr
+                      key={user.id}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                        {user.Nombre}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-green-700">
+                        {user.Correo}
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {user.Rol}
+                      </td>
                       <td className="px-6 py-4 align-top">
                         {user.Estado === "Activo" ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">Activo</span>
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            Activo
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">Inactivo</span>
+                          <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                            Inactivo
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">{user.FechaCreacion}</td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {user.FechaCreacion}
+                      </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => window.dispatchEvent(new CustomEvent("open-user-details", { detail: user }))}
+                            onClick={() =>
+                              window.dispatchEvent(
+                                new CustomEvent("open-user-details", {
+                                  detail: user,
+                                })
+                              )
+                            }
                             className="rounded"
                           >
                             <ViewButton />
@@ -284,13 +330,25 @@ export default function IndexUsers() {
 
                           <button
                             type="button"
-                            onClick={() => window.dispatchEvent(new CustomEvent("open-user-edit", { detail: user }))}
+                            onClick={() =>
+                              window.dispatchEvent(
+                                new CustomEvent("open-user-edit", {
+                                  detail: user,
+                                })
+                              )
+                            }
                             className="rounded"
                           >
                             <EditButton />
                           </button>
 
-                          <DeleteButton alert={() => handleDelete(user)} />
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(user)}
+                            className="rounded"
+                          >
+                            <DeleteButton alert={() => openDeleteModal(user)} />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -300,6 +358,7 @@ export default function IndexUsers() {
             </table>
           </motion.div>
 
+          {/* Paginador */}
           <Paginator
             currentPage={currentPage}
             perPage={perPage}
@@ -309,9 +368,9 @@ export default function IndexUsers() {
           />
         </div>
       </div>
-      
+
       {/* --- MODALES --- */}
-      <RegisterUsers 
+      <RegisterUsers
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onRegister={handleRegisterUser}
@@ -328,6 +387,13 @@ export default function IndexUsers() {
         onClose={() => setIsEditOpen(false)}
         user={selectedUser}
         onSave={handleSaveUser}
+      />
+
+      <DeleteUserModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDelete}
+        user={userToDelete}
       />
     </>
   );
