@@ -81,7 +81,7 @@ const rowVariants = {
 const hoverPower = { scale: 1.02, rotate: -0.8, transition: { type: "spring", stiffness: 220, damping: 12 } };
 
 /* --- COMPONENTE PRINCIPAL --- */
-export default function DashboardProductsFinal() {
+export default function DashboardProducts() {
   // datos demo
   const rawTopProducts = [
     { label: "Arroz Diana", value: 5000, date: "2025-09-20", category: "Alimentos", provider: "Diana" },
@@ -334,7 +334,7 @@ export default function DashboardProductsFinal() {
           <motion.div variants={childFadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <AnimatedCard title="Productos" value={totalCount} />
             <AnimatedCard title="Agotados" value={agotadosCount} />
-            <AnimatedCard title="Valor Inventario" value={`$ ${valorCount.toLocaleString()}`} small />
+            <AnimatedCard title="Valor Inventario" value={`$${valorCount.toLocaleString()}`} small />
             <AnimatedCard title="Rotación" value={metricas.rotacionPromedio} small />
           </motion.div>
 
@@ -445,3 +445,4 @@ function AnimatedCard({ title, value, small = false }) {
     </motion.div>
   );
 }
+
