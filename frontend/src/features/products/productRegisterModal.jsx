@@ -34,14 +34,17 @@ export default function ProductRegisterModal({
       case "precioCompra":
       case "precioVenta":
       case "stock":
+      case "subidaVenta":
         if (value === "" || value < 0) error = "Debe ser un número válido.";
         break;
-        case "iva":
-            if (value && !/^\d{1,2}%?$/.test(value)) {
-              error = "Solo números o con % (ej: 19%).";
-            }
-            break;
-          
+      case "iva":
+        if (value && !/^\d{1,2}%?$/.test(value)) {
+          error = "Solo números o con % (ej: 19%).";
+        }
+        break;
+      case "icu":
+        if (!value.trim()) error = "El ICU es obligatorio.";
+        break;
       case "estado":
         if (!value) error = "Selecciona un estado.";
         break;
@@ -73,7 +76,9 @@ export default function ProductRegisterModal({
       "nombre",
       "precioCompra",
       "precioVenta",
+      "subidaVenta",
       "stock",
+      "icu",
       "iva",
       "estado",
       "categoria",
@@ -131,6 +136,27 @@ export default function ProductRegisterModal({
                 />
                 {errors.nombre && (
                   <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>
+                )}
+              </div>
+
+              {/* ICU */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-800">
+                  ICU*
+                </label>
+                <input
+                  name="icu"
+                  value={form.icu}
+                  onChange={handleChange}
+                  onBlur={(e) => validateField("icu", e.target.value)}
+                  placeholder="Código único (ICU)"
+                  className={`mt-1 w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 ${
+                    errors.icu ? "border-red-500" : "border-gray-300"
+                  }`}
+                  required
+                />
+                {errors.icu && (
+                  <p className="text-red-500 text-xs mt-1">{errors.icu}</p>
                 )}
               </div>
 
@@ -195,7 +221,7 @@ export default function ProductRegisterModal({
               </div>
 
               {/* Precios y stock */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {/* Compra */}
                 <div>
                   <label className="block text-sm font-semibold">
@@ -249,6 +275,33 @@ export default function ProductRegisterModal({
                   )}
                 </div>
 
+                {/* Subida de venta */}
+                <div>
+                  <label className="block text-sm font-semibold">
+                    Subida de Venta (%)
+                  </label>
+                  <input
+                    name="subidaVenta"
+                    value={form.subidaVenta}
+                    onBlur={handleChange}
+                    type="number"
+                    min="0"
+                    placeholder="Ej: 10"
+                    className={`mt-1 w-full px-3 py-2 border rounded-lg bg-white text-gray-900 ${
+                      errors.subidaVenta ? "border-red-500" : "border-gray-300"
+                    }`}
+                    required
+                    onKeyDown={(e) =>
+                      ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+                    }
+                  />
+                  {errors.subidaVenta && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.subidaVenta}
+                    </p>
+                  )}
+                </div>
+
                 {/* IVA */}
                 <div>
                   <label className="block text-sm font-semibold">IVA</label>
@@ -272,7 +325,7 @@ export default function ProductRegisterModal({
                 </div>
               </div>
 
-              {/* Stock */}
+              {/* Stock, Estado, Categoría */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-semibold">Stock*</label>
