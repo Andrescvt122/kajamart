@@ -20,20 +20,16 @@ import Landing from "./pages/landing/landing.jsx";
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 import  IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
-import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase"
-import IndexRegisterSale from "./features/sales/indexRegisterSale";
-import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
-import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
 import DashboardLayout from "./layouts/dashboard/dashboardLayout";
-// import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
-// import DashboardCategories from "./features/dashboard/dashboardCategories";
-// import DashboardClients from "./features/dashboard/dashboardClients";
-// import DashboardSales from "./features/dashboard/dashboardSales";
+import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
+import DashboardCategories from "./features/dashboard/dashboardCategories";
+import DashboardClients from "./features/dashboard/dashboardClients";
+import DashboardSales from "./features/dashboard/dashboardSales";
 import DashboardProducts from "./features/dashboard/dashboardProducts";
-// import DashboardPurchases from "./features/dashboard/dashboardPurchases";
-// import DashboardReturnClients from "./features/dashboard/returns/dashboardReturnClients";
-// import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
-// import DashboardLows from "./features/dashboard/returns/dashboardLows";
+import DashboardPurchases from "./features/dashboard/dashboardPurchases";
+import DashboardReturnClients from "./features/dashboard/returns/dashboardReturnClients";
+import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
+import DashboardLows from "./features/dashboard/returns/dashboardLows";
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
 
@@ -41,7 +37,6 @@ export default function RoutesAdmin() {
   return (
     <Routes>
       {/* Auth routes */}
-      <Route path="/" element={<AuthLayout />} />
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<AuthLayout />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

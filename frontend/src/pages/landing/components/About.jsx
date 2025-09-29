@@ -1,8 +1,8 @@
 import React from "react";
-import abarrotes from "../assets/8111255286-95833d8f35-o-1024x576-c.jpg";
-import licores from "../assets/tienda-1.jpg";
-import dulceria from "../assets/5a1099d2a5e3d.jpeg";
-import canastaFamiliar from "../assets/NOTA-1-FOTO-1-TIENDA-DE-BARRIO-scaled.webp";
+import abarrotes from "../../../assets/8111255286-95833d8f35-o-1024x576-c.jpg";
+import licores from "../../../assets/tienda-1.jpg";
+import dulceria from "../../../assets/5a1099d2a5e3d.jpeg";
+import canastaFamiliar from "../../../assets/NOTA-1-FOTO-1-TIENDA-DE-BARRIO-scaled.webp";
 
 const About = () => {
   return (
