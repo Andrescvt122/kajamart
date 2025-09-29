@@ -19,7 +19,7 @@ import IndexClientReturns from "./features/returns/returnClient/indexClientRetur
 import Landing from "./pages/landing/landing.jsx";
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
-import  IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
+import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
 import DashboardLayout from "./layouts/dashboard/dashboardLayout";
 import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
 import DashboardCategories from "./features/dashboard/dashboardCategories";
