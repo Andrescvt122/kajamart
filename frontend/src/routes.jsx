@@ -28,7 +28,7 @@ import DashboardLayout from "./layouts/dashboard/dashboardLayout";
 import DashboardProducts from "./features/dashboard/dashboardProducts";
 // import DashboardPurchases from "./features/dashboard/dashboardPurchases";
 // import DashboardReturnClients from "./features/dashboard/returns/dashboardReturnClients";
-// import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
+import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
 // import DashboardLows from "./features/dashboard/returns/dashboardLows";
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
