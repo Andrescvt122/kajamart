@@ -1,10 +1,10 @@
 import React from "react";
-import papelHigienico from "../assets/Papel-Expert-FAMILIA-234-mts-3383519_a.webp";
-import detergente from "../assets/135860_1_262.webp"
-import cafe from "../assets/D_NQ_NP_709823-MLU74087044383_012024-O.webp"
-import lecheCondensada from "../assets/Leche-Condensada-La-Lechera-Con-Calcio-X-395g-13940_b.webp"
-import ricostilla from "../assets/caldo-costilla-maggi-especias-desmenuzado-caja-x-12-und.jpg"
-import piazza from "../assets/Bandeja-Barquillos-De-Chocolate-X-44-gr-13515_a.webp"
+import papelHigienico from "../../../assets/Papel-Expert-FAMILIA-234-mts-3383519_a.webp";
+import detergente from "../../../assets/135860_1_262.webp"
+import cafe from "../../../assets/D_NQ_NP_709823-MLU74087044383_012024-O.webp"
+import lecheCondensada from "../../../assets/Leche-Condensada-La-Lechera-Con-Calcio-X-395g-13940_b.webp"
+import ricostilla from "../../../assets/caldo-costilla-maggi-especias-desmenuzado-caja-x-12-und.jpg"
+import piazza from "../../../assets/Bandeja-Barquillos-De-Chocolate-X-44-gr-13515_a.webp"
 
 const products = [
   { name: "Papel Higiénico", price: "10.000$", img: papelHigienico },

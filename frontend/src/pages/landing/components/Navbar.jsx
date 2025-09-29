@@ -1,9 +1,9 @@
 import React from "react";
-import logo from "../assets/logo.png";
+import logo from "../../../assets/logo.png";
 
 const Navbar = () => {
   return (
-    <nav className="flex justify-between items-center px-8 py-4 bg-white shadow-md">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-8 py-4 bg-white shadow-md">
       <img src={logo} alt="Logo" className="h-12" />
 
       {/* Se cambió `text-black` por `text-gray-900` para un negro más oscuro */}
