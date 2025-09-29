@@ -445,3 +445,4 @@ function AnimatedCard({ title, value, small = false }) {
     </motion.div>
   );
 }
+

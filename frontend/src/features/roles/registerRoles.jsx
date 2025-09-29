@@ -1,4 +1,3 @@
-// src/pages/roles/registerRoles.jsx
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -12,6 +11,44 @@ export default function RegisterRoles({
   handleSubmit,
   permisosAgrupados,
 }) {
+  // Seleccionar/Deseleccionar todos
+  const toggleSelectAll = () => {
+    const allSelected = Object.entries(permisosAgrupados).every(([modulo, permisos]) =>
+      permisos.every((permiso) => form.permisos[`${modulo}-${permiso}`])
+    );
+
+    const newPermisos = {};
+    Object.entries(permisosAgrupados).forEach(([modulo, permisos]) => {
+      permisos.forEach((permiso) => {
+        const key = `${modulo}-${permiso}`;
+        newPermisos[key] = !allSelected;
+      });
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      permisos: { ...prev.permisos, ...newPermisos },
+    }));
+  };
+
+  // Seleccionar/Deseleccionar todos los permisos de un módulo
+  const toggleSelectModule = (modulo, permisos) => {
+    const allSelected = permisos.every(
+      (permiso) => form.permisos[`${modulo}-${permiso}`]
+    );
+
+    const newPermisos = {};
+    permisos.forEach((permiso) => {
+      const key = `${modulo}-${permiso}`;
+      newPermisos[key] = !allSelected;
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      permisos: { ...prev.permisos, ...newPermisos },
+    }));
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -82,6 +119,7 @@ export default function RegisterRoles({
                       className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-300 focus:outline-none"
                       rows={3}
                       placeholder="Descripción del rol"
+                      required
                     />
                   </div>
                 </motion.div>
@@ -114,54 +152,72 @@ export default function RegisterRoles({
 
                 {/* Permisos agrupados */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Asignar permisos y privilegios
-                  </h3>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Asignar permisos y privilegios
+                    </h3>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        onChange={toggleSelectAll}
+                        checked={Object.entries(permisosAgrupados).every(
+                          ([modulo, permisos]) =>
+                            permisos.every(
+                              (permiso) => form.permisos[`${modulo}-${permiso}`]
+                            )
+                        )}
+                        className="custom-checkbox"
+                      />
+                      <span className="text-green-700 text-sm">
+                        Seleccionar todos
+                      </span>
+                    </label>
+                  </div>
                   <div className="overflow-hidden rounded-xl border max-h-64 overflow-y-auto custom-scroll">
                     <table className="min-w-full text-sm">
                       <thead className="bg-green-50 text-gray-700">
                         <tr>
                           <th className="px-4 py-3 text-left">Módulo</th>
-                          <th className="px-4 py-3 text-left">
-                            Permisos/Privilegios
-                          </th>
+                          <th className="px-4 py-3 text-left">Permisos/Privilegios</th>
+                          <th className="px-4 py-3 text-center">Todos</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {Object.entries(permisosAgrupados).map(
-                          ([modulo, permisos], i) => (
-                            <tr key={i}>
-                              <td className="px-4 py-3 font-medium text-gray-900">
-                                {modulo}
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-3">
-                                  {permisos.map((permiso, j) => {
-                                    const key = `${modulo}-${permiso}`;
-                                    return (
-                                      <label
-                                        key={j}
-                                        className="flex items-center gap-2"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={form.permisos[key] || false}
-                                          onChange={() =>
-                                            handlePermisoChange(modulo, permiso)
-                                          }
-                                          className="custom-checkbox"
-                                        />
-                                        <span className="text-green-600">
-                                          {permiso}
-                                        </span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        )}
+                        {Object.entries(permisosAgrupados).map(([modulo, permisos], i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-3 font-medium text-gray-900">
+                              {modulo}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-3">
+                                {permisos.map((permiso, j) => {
+                                  const key = `${modulo}-${permiso}`;
+                                  return (
+                                    <label key={j} className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={form.permisos[key] || false}
+                                        onChange={() => handlePermisoChange(modulo, permiso)}
+                                        className="custom-checkbox"
+                                      />
+                                      <span className="text-green-600">{permiso}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="checkbox"
+                                onChange={() => toggleSelectModule(modulo, permisos)}
+                                checked={permisos.every(
+                                  (permiso) => form.permisos[`${modulo}-${permiso}`]
+                                )}
+                                className="custom-checkbox"
+                              />
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>

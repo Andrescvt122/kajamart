@@ -19,7 +19,7 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Si pasa validaciones nativas, ejecuta login
+    // Valida con el navegador
     if (e.target.checkValidity()) {
       setLoading(true);
       setTimeout(() => {
@@ -27,8 +27,7 @@ export default function Login() {
         navigate("/app");
       }, 2000);
     } else {
-      // Fuerza mostrar tooltips nativos si hay errores
-      e.target.reportValidity();
+      e.target.reportValidity(); // 🔹 fuerza mostrar el tooltip
     }
   };
 
@@ -38,7 +37,7 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Fondo vidrioso */}
+      {/* Fondo */}
       <div
         className="absolute inset-0"
         style={{
@@ -91,8 +90,10 @@ export default function Login() {
               </label>
               <input
                 type="email"
+                name="email"
                 placeholder="tu@email.com"
                 required
+                title="Por favor ingresa un correo válido."
                 className="w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
             </div>
@@ -104,6 +105,7 @@ export default function Login() {
               </label>
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
                 placeholder="••••••••"
                 required
                 minLength={8}
@@ -120,7 +122,7 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Link */}
+            {/* Link olvidar contraseña */}
             <div className="flex items-center justify-between">
               <Link
                 className="text-sm font-medium text-white/90 hover:text-white drop-shadow"
@@ -137,6 +139,14 @@ export default function Login() {
             >
               Ingresar
             </button>
+
+            {/* Botón volver */}
+            <Link
+              to="/"
+              className="block w-full text-center px-4 py-2 text-sm font-semibold text-emerald-600 bg-white rounded-xl shadow-lg hover:bg-gray-100 transition duration-200"
+            >
+              Volver
+            </Link>
           </form>
         </div>
       </div>
