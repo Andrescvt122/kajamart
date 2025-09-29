@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-// import NavBarDashboard from "./NavBarDashboard";
+import NavBarDashboard from "../../shared/components/navbars/navbarDashboard"
 
 export default function DashboardLayout() {
   return (
