@@ -15,6 +15,6 @@ class MyApp extends StatelessWidget {
       title: 'Kajamart',
       theme: ThemeData(primarySwatch: Colors.green),
       home: const HomeScreen(),
-    );
+      );
   }
 }
