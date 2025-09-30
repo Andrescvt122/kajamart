@@ -1,15 +1,18 @@
 import Swal from "sweetalert2";
 
 // ✅ Éxito (verde principal)
-export const showSuccessAlert = (message = "Operación realizada con éxito") => {
+export const showSuccessAlert = (
+  message = "Operación realizada con éxito"
+) => {
   Swal.fire({
     icon: "success",
     title: "Éxito",
     text: message,
-    confirmButtonText: "Aceptar",
-    confirmButtonColor: "#4CAF50", // Verde principal
-    background: "#f6ddcc",         // Fondo café claro
-    color: "#3e2723",              // Texto marrón oscuro
+    timer: 2000, // ⏳ se cierra automáticamente en 2 segundos
+    timerProgressBar: true, // 🔄 barra de tiempo visible
+    showConfirmButton: false, // ❌ sin botón, se cierra solo
+    background: "#f6ddcc",    // Fondo café claro
+    color: "#3e2723",         // Texto marrón oscuro
   });
 };
 
@@ -72,17 +75,24 @@ export const showInfoAlert = (message = "Información importante") => {
 };
 
 // ⏳ Cargando (sin botón, solo coherencia de fondo)
-export const showLoadingAlert = (message = "Procesando...") => {
+const showLoadingAlert = (mensaje) => {
   Swal.fire({
-    title: message,
+    title: mensaje,
+    text: "Por favor espera...",
     allowOutsideClick: false,
-    background: "#f6ddcc",
-    color: "#3e2723",
+    allowEscapeKey: false,
     didOpen: () => {
       Swal.showLoading();
+      setTimeout(() => {
+        Swal.close();
+      }, 1500); // cierra el alert después de 1.5 segundos
     },
+    timer: 5000, // ⏳ máximo 5 segundos
+    timerProgressBar: true,
   });
 };
+export { showLoadingAlert };
+
 
 // ✍️ Input (verde + café)
 export const showInputAlert = async (message = "Escribe algo") => {

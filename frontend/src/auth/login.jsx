@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 // Assets
 import tiendaImg from "../assets/image.png";
@@ -13,23 +14,30 @@ import Loading from "../features/onboarding/loading";
 export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
-    setLoading(true); // activamos el loading
-    // Simulamos la carga de datos (2s por ejemplo)
-    setTimeout(() => {
-      setLoading(false);
-      navigate("/app"); // navegamos después del loading
-    }, 2000);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Valida con el navegador
+    if (e.target.checkValidity()) {
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        navigate("/app");
+      }, 2000);
+    } else {
+      e.target.reportValidity(); // 🔹 fuerza mostrar el tooltip
+    }
   };
 
   if (loading) {
-    return <Loading />; // mostramos el loading mientras
+    return <Loading />;
   }
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Fondo vidrioso */}
+      {/* Fondo */}
       <div
         className="absolute inset-0"
         style={{
@@ -48,95 +56,73 @@ export default function Login() {
         <div className="w-full max-w-md p-8 space-y-6 bg-white/20 backdrop-blur-md rounded-3xl shadow-xl">
           {/* Logo */}
           <motion.img
-            src={logo} // tu PNG con transparencia
+            src={logo}
             alt="Logo"
-            className="w-40 mt-6 mb-8 mx-auto block relative z-50 cursor-pointer"
-            style={{
-              // contorno nítido que sigue la silueta + sombra limpia abajo (sin crear recuadro)
-              filter: `
-      drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
-      drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
-      drop-shadow(0 12px 18px rgba(255, 255, 255, 0.14))
-    `,
-              willChange: "transform, filter",
-              WebkitBackfaceVisibility: "hidden",
-              backfaceVisibility: "hidden",
-            }}
+            className="w-40 mt-6 mb-8 mx-auto block cursor-pointer"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{
-              // ligera flotación/respiración para dar vida sin pasarse
               y: [0, -10, 0],
               rotate: [-1, 2, -1],
               opacity: 1,
               scale: 1,
             }}
             transition={{
-              // animación idle: solo transform/rotate (GPU-friendly)
-              y: {
-                duration: 4.4,
-                repeat: Infinity,
-                repeatType: "loop",
-                ease: "easeInOut",
-              },
-              rotate: {
-                duration: 9.4,
-                repeat: Infinity,
-                repeatType: "loop",
-                ease: "easeInOut",
-              },
+              y: { duration: 4.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+              rotate: { duration: 9.4, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
             }}
-            whileHover={{
-              // Hover más notorio: escala, elevación, micro-tilt + filtro puntual (solo on-demand)
-              scale: 1.18,
-              y: -12,
-              rotate: -3,
-              filter: `
-      drop-shadow(2px 2px 0 rgba(255,255,255,1))
-      drop-shadow(-2px -2px 0 rgba(255,255,255,1))
-      drop-shadow(0 28px 44px rgba(2,6,23,0.28))
-      /* acento de luz colorida pero controlada (no mancha) */
-      drop-shadow(0 0 18px rgba(255, 255, 255, 0.28))
-      brightness(1.12) saturate(1.15)
-    `,
-            }}
+            whileHover={{ scale: 1.1, rotate: -3 }}
           />
 
           {/* Encabezado */}
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-white drop-shadow-md">
-              Bienvenido
-            </h1>
+            <h1 className="text-3xl font-bold text-white drop-shadow-md">Bienvenido</h1>
             <p className="mt-2 text-sm text-white/90 drop-shadow-sm">
               Inicia sesión para continuar
             </p>
           </div>
 
           {/* Formulario */}
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-white drop-shadow">
                 Correo electrónico
               </label>
               <input
                 type="email"
-                required
+                name="email"
                 placeholder="tu@email.com"
+                required
+                title="Por favor ingresa un correo válido."
                 className="w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
             </div>
 
-            <div>
+            {/* Password */}
+            <div className="relative">
               <label className="block text-sm font-medium text-white drop-shadow">
                 Contraseña
               </label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="••••••••"
                 required
-                placeholder="********"
-                className="w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
+                minLength={8}
+                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
+                title="Debe tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
+                className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-[34px] text-gray-500 hover:text-emerald-600"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
 
+            {/* Link olvidar contraseña */}
             <div className="flex items-center justify-between">
               <Link
                 className="text-sm font-medium text-white/90 hover:text-white drop-shadow"
@@ -146,13 +132,21 @@ export default function Login() {
               </Link>
             </div>
 
+            {/* Botón ingresar */}
             <button
-              type="button"
-              onClick={handleLogin}
+              type="submit"
               className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
             >
               Ingresar
             </button>
+
+            {/* Botón volver */}
+            <Link
+              to="/"
+              className="block w-full text-center px-4 py-2 text-sm font-semibold text-emerald-600 bg-white rounded-xl shadow-lg hover:bg-gray-100 transition duration-200"
+            >
+              Volver
+            </Link>
           </form>
         </div>
       </div>

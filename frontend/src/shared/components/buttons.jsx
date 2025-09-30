@@ -1,6 +1,6 @@
 import React from "react";
 import { FiEye, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
-import { FiPrinter } from "react-icons/fi";
+import { FiPrinter, FiCheckCircle, FiXCircle, FiAlertCircle, FiInfo, FiLoader, FiMessageSquare } from "react-icons/fi";
 import { AiFillFileExcel, AiFillFilePdf } from "react-icons/ai";
 import { showConfirmAlert, showErrorAlert, showInfoAlert, showInputAlert, showLoadingAlert, showSuccessAlert, showWarningAlert } from "./alerts";
 
@@ -12,8 +12,7 @@ const withClickAnimation = (Component, className) => {
       const btn = e.currentTarget;
       btn.classList.add("active-click");
       setTimeout(() => btn.classList.remove("active-click"), 150); // duración animación
-    };
-    return (
+    };    return (
       <Component className={className} onClick={handleClick}>
         {children}
       </Component>
@@ -24,8 +23,8 @@ const withClickAnimation = (Component, className) => {
 /* ----------------------------- */
 /* Botones cuadrados con iconos  */
 /* ----------------------------- */
-export const ViewButton = ({alert}) => (
-  <button className="button-square view-btn" onClick={alert}>
+export const ViewButton = ({event}) => (
+  <button className="button-square view-btn" onClick={event}>
     <FiEye size={20} />
   </button>
 );
@@ -36,14 +35,14 @@ export const ViewDetailsButton = ({event}) => (
   </button>
 );
 
-export const EditButton = ({alert}) => (
-  <button className="button-square edit-btn" onClick={alert}>
+export const EditButton = ({event}) => (
+  <button className="button-square edit-btn" onClick={event}>
     <FiEdit2 size={20} />
   </button>
 );
 
-export const DeleteButton = ({alert}) => (
-  <button className="button-square delete-btn" onClick={alert}>
+export const DeleteButton = ({event}) => (
+  <button className="button-square delete-btn" onClick={event}>
     <FiTrash2 size={20} />
   </button>
 );
@@ -120,7 +119,7 @@ export const PrinterButton = ({ alert }) => (
 {/* Botones de prueba para las alertas */}
 <div className="flex flex-wrap gap-4 mt-8">
 {/* Éxito */}
-<button
+<button 
   onClick={() => showSuccessAlert("Se guardó correctamente 🎉")}
   className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg shadow hover:bg-[#43a047]"
 >

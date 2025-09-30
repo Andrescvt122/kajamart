@@ -39,34 +39,43 @@ export default function Paginator({
 }) {
   const pages = buildPages(totalPages, currentPage, maxButtons);
 
-  // estilo inline para forzar blanco en "Mostrando" y números
-  const whiteText = { color: "#ffffff" };
-  const whiteStrong = { color: "#ffffff", fontWeight: 600 };
+  // estilo inline: texto negro con sombra blanca
+  const blackText = { color: "#000000", textShadow: "1px 1px 2px #ffffff" };
+  const blackStrong = {
+    color: "#000000",
+    fontWeight: 600,
+    textShadow: "1px 1px 2px #ffffff",
+  };
 
   return (
     <div className="paginator glass">
-      {/* Forzamos blanco en todo el bloque de info */}
-      <div className="paginator-info" style={whiteText}>
-        <div className="paginator-range" style={whiteText}>
+      {/* Bloque de info */}
+      <div className="paginator-info" style={blackText}>
+        <div className="paginator-range" style={blackText}>
           Mostrando{" "}
-          <span className="p-strong" style={whiteStrong}>
+          <span className="p-strong" style={blackStrong}>
             {(currentPage - 1) * perPage + 1}
           </span>{" "}
           -{" "}
-          <span className="p-strong" style={whiteStrong}>
+          <span className="p-strong" style={blackStrong}>
             {Math.min(currentPage * perPage, filteredLength)}
           </span>{" "}
           de{" "}
-          <span className="p-strong" style={whiteStrong}>
+          <span className="p-strong" style={blackStrong}>
             {filteredLength}
           </span>
         </div>
 
-        <div className="paginator-smpage" style={whiteText}>
-          Página <span className="p-strong" style={whiteStrong}>{currentPage}</span> / {totalPages}
+        <div className="paginator-smpage" style={blackText}>
+          Página{" "}
+          <span className="p-strong" style={blackStrong}>
+            {currentPage}
+          </span>{" "}
+          / {totalPages}
         </div>
       </div>
 
+      {/* Navegación */}
       <nav className="paginator-nav" aria-label="Paginación">
         <button
           className="p-btn p-nav"

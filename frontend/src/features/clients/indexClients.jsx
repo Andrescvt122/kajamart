@@ -1,132 +1,119 @@
-
-import React, { useMemo, useState, useRef, useEffect } from "react";
-import Sidebar from "../../shared/sidebar";
+// IndexClients.jsx
+import React, { useState, useMemo, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Search } from "lucide-react";
+import ondas from "../../assets/ondasHorizontal.png";
+import Paginator from "../../shared/components/paginator";
 import {
   ViewButton,
   EditButton,
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
-} from "../../shared/buttons";
-import { Search, ChevronDown } from "lucide-react";
-import ondas from "../../assets/ondasHorizontal.png";
-import Paginator from "../../shared/paginator";
-import { motion, AnimatePresence } from "framer-motion";
-
+} from "../../shared/components/buttons";
+import RegisterClientModal from "./RegisterClientModal";
 
 export default function IndexClients() {
-  const [clients] = useState([
-    {
-      id: "C001",
-      nombre: "Sofía Rodríguez",
-      documento: "C.C: 1234567890",
-      telefono: "555-123-4567",
-      estado: "Activo",
-      fecha: "2023-01-15",
-    },
-    {
-      id: "C002",
-      nombre: "Carlos López",
-      documento: "T.I: 0987654321",
-      telefono: "555-987-6543",
-      estado: "Inactivo",
-      fecha: "2023-11-20",
-    },
-    {
-      id: "C004",
-      nombre: "Diego García",
-      documento: "DNI: 854433211",
-      telefono: "555-333-4444",
-      estado: "Activo",
-      fecha: "2023-09-28",
-    },
-    {
-      id: "C008",
-      nombre: "Martín Gómez",
-      documento: "C.C: 778899001",
-      telefono: "555-222-3333",
-      estado: "Inactivo",
-      fecha: "2023-10-12",
-    },
-    {
-      id: "C009",
-      nombre: "Valentina Ruiz",
-      documento: "C.C: 3344556677",
-      telefono: "555-444-5555",
-      estado: "Activo",
-      fecha: "2023-08-18",
-    },
-  ]);
+  // Cliente fijo de caja
+  const clienteCaja = {
+    id: "C000",
+    nombre: "Cliente de Caja",
+    tipoDocumento: "N/A",
+    numeroDocumento: "N/A",
+    correo: "caja@correo.com",
+    telefono: "N/A",
+    estado: "Activo",
+    fecha: new Date().toISOString().split("T")[0],
+  };
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 5;
+  // ✅ Estado inicial: leer de localStorage
+  const [clients, setClients] = useState(() => {
+    const stored = JSON.parse(localStorage.getItem("clientes")) || [];
+    // Garantizar siempre que exista Cliente de Caja
+    if (!stored.some((c) => c.id === "C000")) {
+      const updated = [clienteCaja, ...stored];
+      localStorage.setItem("clientes", JSON.stringify(updated));
+      return updated;
+    }
+    return stored;
+  });
 
-  // Control modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tipoOpen, setTipoOpen] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
     numeroDocumento: "",
     correo: "",
     telefono: "",
-    activo: false,
+    activo: true,
   });
-
-  // Dropdown state for "Tipo de Documento"
-  const [tipoOpen, setTipoOpen] = useState(false);
-  const tipoRef = useRef(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 5;
 
   const tipoOptions = [
-    { value: "C.C", label: "Cédula de Ciudadanía" },
-    { value: "T.I", label: "Tarjeta de Identidad" },
-    { value: "C.E", label: "Cédula de Extranjería" },
+    { label: "Cédula de Ciudadanía", value: "CC" },
+    { label: "Tarjeta de Identidad", value: "TI" },
+    { label: "Cédula de Extranjería", value: "CE" },
+    { label: "NIT", value: "NIT" },
   ];
 
+  // ✅ Guardar en localStorage cada vez que cambien los clientes
   useEffect(() => {
-    // Close dropdown when clicking outside of it (but still inside modal)
-    function handleClickOutside(e) {
-      if (tipoRef.current && !tipoRef.current.contains(e.target)) {
-        setTipoOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    localStorage.setItem("clientes", JSON.stringify(clients));
+  }, [clients]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Cliente registrado:", form);
-    setIsModalOpen(false);
+  // ✅ Agregar cliente con ID incremental
+  const addClient = (newClient) => {
+    const nextIdNumber = clients.length;
+    const nextId = `C${String(nextIdNumber).padStart(3, "0")}`;
+    const clientWithId = {
+      ...newClient,
+      id: nextId,
+      estado: newClient.activo ? "Activo" : "Inactivo",
+      fecha: new Date().toISOString().split("T")[0],
+    };
+    setClients((prev) => [...prev, clientWithId]);
     setForm({
       nombre: "",
       tipoDocumento: "",
       numeroDocumento: "",
       correo: "",
       telefono: "",
-      activo: false,
+      activo: true,
     });
-    setTipoOpen(false);
+    setIsModalOpen(false);
   };
 
+  // Normalización de búsqueda
+  const normalizeText = (text) =>
+    String(text ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  // ✅ Filtrar + ordenar clientes
   const filtered = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
-    if (!s) return clients;
-    return clients.filter((c) =>
-      `${c.id} ${c.nombre} ${c.documento} ${c.telefono} ${c.estado}`
-        .toLowerCase()
-        .includes(s)
-    );
+    const s = normalizeText(searchTerm.trim());
+
+    // Filtrar
+    let result = clients;
+    if (s) {
+      result = clients.filter((c) =>
+        Object.values(c).some((value) => normalizeText(value).includes(s))
+      );
+    }
+
+    // Ordenar por ID (ejemplo: C000, C001, C002...)
+    return result.sort((a, b) => {
+      const numA = parseInt(a.id.replace("C", ""), 10);
+      const numB = parseInt(b.id.replace("C", ""), 10);
+      return numA - numB; // ascendente
+    });
   }, [clients, searchTerm]);
 
+  // ✅ Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -138,36 +125,38 @@ export default function IndexClients() {
     setCurrentPage(p);
   };
 
-  // 🎬 Variantes para animaciones tabla
+  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
   };
-
   const rowVariants = {
     hidden: { opacity: 0, y: 12 },
     visible: { opacity: 1, y: 0 },
   };
 
-  // Dropdown animation variants
-  const listVariants = {
-    hidden: { opacity: 0, y: -6, scale: 0.98 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { staggerChildren: 0.02 } },
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: -6 },
-    visible: { opacity: 1, y: 0 },
+  // ✅ Editar cliente
+  const editClient = (client) => {
+    setForm({
+      nombre: client.nombre,
+      tipoDocumento: client.tipoDocumento,
+      numeroDocumento: client.numeroDocumento,
+      correo: client.correo,
+      telefono: client.telefono,
+      activo: client.estado === "Activo",
+    });
+    setIsModalOpen(true);
   };
 
-  // Helper to get label from value
-  const tipoLabel = (val) => {
-    const found = tipoOptions.find((o) => o.value === val);
-    return found ? found.label : "";
+  // ✅ Eliminar cliente (excepto caja)
+  const deleteClient = (id) => {
+    if (id === "C000") return; // no borrar Cliente de Caja
+    setClients((prev) => prev.filter((c) => c.id !== id));
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Fondo de ondas */}
+    <>
+      {/* Fondo ondas */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
@@ -180,283 +169,157 @@ export default function IndexClients() {
           zIndex: 0,
         }}
       />
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
-        {/* Contenido */}
-        <div className="relative z-10">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-semibold">Clientes</h2>
-              <p className="text-sm text-gray-500 mt-1">Administrador de Clientes</p>
-            </div>
+
+      {/* Contenedor principal */}
+      <div className="relative z-10 min-h-screen flex flex-col p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-semibold">Clientes</h2>
+            <p className="text-sm text-gray-500 mt-1">Listado de clientes</p>
           </div>
-
-          {/* Barra búsqueda + botones */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar por nombre, documento o teléfono..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-              />
-            </div>
-
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nuevo Cliente
-              </button>
-            </div>
-          </div>
-
-          {/* Tabla con animación */}
-          <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <table key={currentPage} className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">ID Cliente</th>
-                  <th className="px-6 py-4">Nombre Completo</th>
-                  <th className="px-6 py-4">Documento</th>
-                  <th className="px-6 py-4">Teléfono</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4">Fecha de Registro</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-
-              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
-                {pageItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                      No se encontraron clientes.
-                    </td>
-                  </tr>
-                ) : (
-                  pageItems.map((c, i) => (
-                    <motion.tr
-                      key={c.id + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{c.nombre}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.documento}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.telefono}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                            c.estado === "Activo" ? "bg-green-50 text-green-700" : "bg-gray-200 text-gray-600"
-                          }`}
-                        >
-                          {c.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.fecha}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <ViewButton />
-                          <EditButton />
-                          <DeleteButton />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </motion.tbody>
-            </table>
-          </motion.div>
-
-          {/* Paginador */}
-          <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
-            goToPage={goToPage}
-          />
         </div>
-      </div>
 
-      {/* Modal con animación */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsModalOpen(false)} // cerrar al hacer click fuera
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -40 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
-              onClick={(e) => e.stopPropagation()} // evita cerrar si clickean dentro
+        {/* Barra búsqueda + botones */}
+        <div className="mb-6 flex items-center gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search size={18} className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar clientes..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+            />
+          </div>
+
+          <div className="flex gap-2 flex-shrink-0">
+            <ExportExcelButton>Excel</ExportExcelButton>
+            <ExportPDFButton>PDF</ExportPDFButton>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
-              <h2 className="text-2xl font-bold mb-6 text-gray-800">Registro de Cliente</h2>
+              Registrar Cliente
+            </button>
+          </div>
+        </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Nombre */}
-                <div>
-                  <input
-                    name="nombre"
-                    value={form.nombre}
-                    autoComplete="off"
-                    onChange={handleChange}
-                    placeholder="Nombre y Apellido"
-                    className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                    required
-                  />
-                </div>
+        {/* Tabla de clientes */}
+        <motion.div
+          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          variants={tableVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <table key={currentPage} className="min-w-full">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase">
+                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Nombre</th>
+                <th className="px-6 py-4">Documento</th>
+                <th className="px-6 py-4">Correo</th>
+                <th className="px-6 py-4">Teléfono</th>
+                <th className="px-6 py-4">Estado</th>
+                <th className="px-6 py-4">Fecha</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
 
-                {/* Documento: custom animated dropdown + input */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative" ref={tipoRef}>
-                    <button
-                      type="button"
-                      onClick={() => setTipoOpen((s) => !s)}
-                      className="w-full flex items-center justify-between px-4 py-3 border rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
-                      aria-haspopup="listbox"
-                      aria-expanded={tipoOpen}
-                    >
-                      <span className={`text-sm ${form.tipoDocumento ? "text-gray-800" : "text-gray-400"}`}>
-                        {form.tipoDocumento ? tipoLabel(form.tipoDocumento) : "Tipo de Documento"}
+            <motion.tbody
+              className="divide-y divide-gray-100"
+              variants={tableVariants}
+            >
+              {pageItems.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-gray-400"
+                  >
+                    No se encontraron clientes.
+                  </td>
+                </tr>
+              ) : (
+                pageItems.map((c, i) => (
+                  <motion.tr
+                    key={c.id + "-" + i}
+                    className="hover:bg-gray-50"
+                    variants={rowVariants}
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                      {c.nombre}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {c.numeroDocumento}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {c.correo}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {c.telefono}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          c.estado === "Activo"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {c.estado}
                       </span>
-                      <motion.span animate={{ rotate: tipoOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
-                        <ChevronDown size={18} />
-                      </motion.span>
-                    </button>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {c.fecha}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <ViewButton />
+                        <EditButton
+                          onClick={() => c.id !== "C000" && editClient(c)}
+                          disabled={c.id === "C000"}
+                        />
+                        <DeleteButton
+                          onClick={() => deleteClient(c.id)}
+                          disabled={c.id === "C000"}
+                        />
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </motion.tbody>
+          </table>
+        </motion.div>
 
-                    <AnimatePresence>
-                      {tipoOpen && (
-                        <motion.ul
-                          className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-hidden z-50"
-                          initial="hidden"
-                          animate="visible"
-                          exit="hidden"
-                          variants={listVariants}
-                        >
-                          {tipoOptions.map((opt) => (
-                            <motion.li
-                              key={opt.value}
-                              variants={itemVariants}
-                              onClick={() => {
-                                setForm((prev) => ({ ...prev, tipoDocumento: opt.value }));
-                                setTipoOpen(false);
-                              }}
-                              className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
-                            >
-                              {opt.label}
-                            </motion.li>
-                          ))}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </div>
+        {/* Paginación */}
+        <Paginator
+          currentPage={currentPage}
+          perPage={perPage}
+          totalPages={totalPages}
+          filteredLength={filtered.length}
+          goToPage={goToPage}
+        />
 
-                  <div>
-                    <input
-                      type="text"
-                      name="numeroDocumento"
-                      autoComplete="off"
-                      value={form.numeroDocumento}
-                      onChange={handleChange}
-                      placeholder="Número de Documento"
-                      className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Correo */}
-                <div>
-                  <input
-                    type="email"
-                    name="correo"
-                    autoComplete="off"
-                    value={form.correo}
-                    onChange={handleChange}
-                    placeholder="Correo Electrónico"
-                    className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                    required
-                  />
-                </div>
-
-                {/* Teléfono */}
-                <div>
-                  <input
-                    type="text"
-                    name="telefono"
-                    value={form.telefono}
-                    autoComplete="off"
-                    onChange={handleChange}
-                    placeholder="Teléfono"
-                    className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
-                    required
-                  />
-                </div>
-            
-              {/* Checkbox Activo */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="activo"
-                  name="activo"
-                  checked={form.activo}
-                  onChange={handleChange}
-                  className="h-5 w-5 appearance-none border border-gray-300 rounded bg-white 
-                            checked:border-green-600 checked:after:content-['✔'] 
-                            checked:after:text-green-600 checked:after:block 
-                            checked:after:text-center checked:after:leading-4"
-                  required
-                />
-                <label htmlFor="activo" className="text-sm text-black">
-                  Activo
-                </label>
-              </div>
-
-                {/* Botones */}
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      setTipoOpen(false);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
-                  >
-                    Registrar Cliente
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        {/* Modal de registro */}
+        <RegisterClientModal
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+          form={form}
+          setForm={setForm}
+          tipoOptions={tipoOptions}
+          tipoOpen={tipoOpen}
+          setTipoOpen={setTipoOpen}
+          addClient={addClient}
+          onClose={() => setIsModalOpen(false)}
+        />
+      </div>
+    </>
   );
 }

@@ -9,15 +9,15 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
+import { useNavigate } from "react-router-dom";
 
 export default function IndexPurchases() {
+  const navigate = useNavigate();
   const [purchases] = useState([
     {
       id: "C001",
       proveedor: "Global Supplies Inc.",
       subtotal: 1200,
-      iva: 19,
-      icu: 15,
       total: 1608,
       fecha: "2024-07-26",
       estado: "Completada",
@@ -26,8 +26,6 @@ export default function IndexPurchases() {
       id: "C002",
       proveedor: "Local Goods Co.",
       subtotal: 850,
-      iva: 8,
-      icu: 0,
       total: 918,
       fecha: "2024-07-25",
       estado: "Anulada",
@@ -36,8 +34,6 @@ export default function IndexPurchases() {
       id: "C003",
       proveedor: "Tech Gadgets Ltd.",
       subtotal: 2500,
-      iva: 19,
-      icu: 15,
       total: 3350,
       fecha: "2024-07-24",
       estado: "Anulada",
@@ -46,8 +42,6 @@ export default function IndexPurchases() {
       id: "C004",
       proveedor: "Office Essentials LLC",
       subtotal: 450,
-      iva: 0,
-      icu: 0,
       total: 450,
       fecha: "2024-07-23",
       estado: "Completada",
@@ -56,8 +50,6 @@ export default function IndexPurchases() {
       id: "C005",
       proveedor: "Wholesale Foods Corp.",
       subtotal: 1800,
-      iva: 8,
-      icu: 15,
       total: 2190,
       fecha: "2024-07-22",
       estado: "Completada",
@@ -133,7 +125,10 @@ export default function IndexPurchases() {
             <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton>Excel</ExportExcelButton>
               <ExportPDFButton>PDF</ExportPDFButton>
-              <button className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700">
+              <button
+                onClick={() => navigate("/app/purchases/register")}
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              >
                 Registrar Nueva Compra
               </button>
             </div>
@@ -146,8 +141,6 @@ export default function IndexPurchases() {
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">Proveedor</th>
                   <th className="px-6 py-4">Subtotal</th>
-                  <th className="px-6 py-4">IVA</th>
-                  <th className="px-6 py-4">ICU</th>
                   <th className="px-6 py-4">Total</th>
                   <th className="px-6 py-4">Fecha</th>
                   <th className="px-6 py-4">Estado</th>
@@ -164,7 +157,7 @@ export default function IndexPurchases() {
                       exit={{ opacity: 0 }}
                     >
                       <td
-                        colSpan={8}
+                        colSpan={6}
                         className="px-6 py-8 text-center text-gray-400"
                       >
                         No se encontraron compras.
@@ -185,12 +178,6 @@ export default function IndexPurchases() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           ${v.subtotal.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {v.iva}%
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {v.icu}%
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           ${v.total.toLocaleString()}
