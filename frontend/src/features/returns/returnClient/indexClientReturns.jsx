@@ -56,6 +56,7 @@ export default function IndexClientReturns() {
       ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
+      responsable: `Empleado ${i}`,
       typeReturn:
         i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,

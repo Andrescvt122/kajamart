@@ -21,19 +21,30 @@ import {
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+// 1. IMPORTAR useNavigate
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import ondasHorizontal from "../../assets/ondasHorizontal.png"; // fondo borroso inferior
+import { showConfirmAlert } from "./alerts";
 
 export default function Sidebar() {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    showConfirmAlert("¿Estás seguro de que quieres cerrar la sesión?").then(
+      (confirmed) => {
+        if (confirmed) navigate("/");
+      }
+    );
+  };
 
   const menuItems = [
     { name: "Inicio", icon: <Home size={20} />, path: "/app" },
     { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
-    { name: "Compras",icon: <ShoppingCart size={20} />,path: "/app/purchases",},
+    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
     { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
     { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
     { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
@@ -59,22 +70,16 @@ export default function Sidebar() {
         },
       ],
     },
-    
-
     {
       name: "Configuración",
       icon: <Settings size={20} />,
       submenu: [
         { name: "Usuarios", icon: <Users size={20} />, path: "/app/settings/users" },
         { name: "Roles", icon: <ShieldUser size={20} />, path: "/app/settings/roles" },
-        {
-          name: "General",
-          icon: <Settings size={20} />,
-          path: "/app/settings/general",
-        },
       ],
     },
-    { name: "Salir", icon: <ArrowLeftToLine size={20} />, path: "/" },
+    // El path se elimina ya que no usaremos Link, pero se deja para mantener la estructura
+    { name: "Salir", icon: <ArrowLeftToLine size={20} />, action: handleLogout },
   ];
 
   const containerVariants = {
@@ -94,7 +99,6 @@ export default function Sidebar() {
       style={{
         backgroundColor: "#b4debf",
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
-        
       }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
     >
@@ -109,7 +113,6 @@ export default function Sidebar() {
           backgroundPosition: "0% bottom",
           backgroundSize: "cover",
           filter: "blur(18px) contrast(1.15) brightness(0.95)",
-          // transform: "scale(1.05)",
           zIndex: 0,
           opacity: 0.5,
         }}
@@ -137,15 +140,15 @@ export default function Sidebar() {
         }`}
         style={{
           filter: `drop-shadow(1px 1px 0 rgba(255,255,255,0.98))
-                   drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
-                   drop-shadow(0 12px 18px rgba(2,6,23,0.14))`,
+                       drop-shadow(-1px -1px 0 rgba(255,255,255,0.98))
+                       drop-shadow(0 12px 18px rgba(2,6,23,0.14))`,
           willChange: "transform, filter",
           WebkitBackfaceVisibility: "hidden",
           backfaceVisibility: "hidden",
         }}
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{
-          y: [0, -10, 0],
+          y: [0, -5, 0],
           rotate: [-1, 2, -1],
           opacity: 1,
           scale: 1,
@@ -212,6 +215,14 @@ export default function Sidebar() {
                     ) : (
                       <ChevronDown size={20} />
                     ))}
+                </button>
+              ) : item.action ? (
+                // 4. RENDERIZADO CONDICIONAL PARA EL BOTÓN DE SALIR
+                <button
+                  onClick={item.action}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200 text-gray-700 hover:text-white hover:bg-emerald-600/40`}
+                >
+                  {item.icon} {!isCollapsed && <span>{item.name}</span>}
                 </button>
               ) : (
                 <Link
