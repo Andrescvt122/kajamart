@@ -8,6 +8,10 @@ import {
   Layers,
   Package,
   Hash,
+  DollarSign,
+  Percent,
+  TrendingUp,
+  QrCode,
   XCircle,
 } from "lucide-react";
 
@@ -18,6 +22,11 @@ export default function DetailProductModal({ isOpen, onClose, product }) {
     { label: "Producto ID", value: product.id, icon: Hash },
     { label: "Nombre", value: product.nombre, icon: Package },
     { label: "Código de barras", value: product.barcode, icon: Barcode },
+    { label: "ICU", value: product.icu, icon: QrCode },
+    { label: "Precio Compra", value: product.precioCompra, icon: DollarSign },
+    { label: "Precio Venta", value: product.precioVenta, icon: DollarSign },
+    { label: "Subida de Venta (%)", value: product.subidaVenta, icon: TrendingUp },
+    { label: "IVA", value: product.iva, icon: Percent },
     { label: "Fecha de vencimiento", value: product.vencimiento, icon: Calendar },
     { label: "Max Stock", value: product.maxStock ?? 500, icon: Boxes },
     { label: "Mini Stock", value: product.minStock ?? 50, icon: Layers },
@@ -92,9 +101,6 @@ export default function DetailProductModal({ isOpen, onClose, product }) {
                 </div>
               ))}
             </div>
-
-            {/* Footer */}
-           
           </motion.div>
         </motion.div>
       )}
