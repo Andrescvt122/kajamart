@@ -93,16 +93,27 @@ export default function IndexClients() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // ✅ Filtrar clientes
+  // ✅ Filtrar + ordenar clientes
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return clients;
-    return clients.filter((c) =>
-      Object.values(c).some((value) => normalizeText(value).includes(s))
-    );
+
+    // Filtrar
+    let result = clients;
+    if (s) {
+      result = clients.filter((c) =>
+        Object.values(c).some((value) => normalizeText(value).includes(s))
+      );
+    }
+
+    // Ordenar por ID (ejemplo: C000, C001, C002...)
+    return result.sort((a, b) => {
+      const numA = parseInt(a.id.replace("C", ""), 10);
+      const numB = parseInt(b.id.replace("C", ""), 10);
+      return numA - numB; // ascendente
+    });
   }, [clients, searchTerm]);
 
-  // Paginación
+  // ✅ Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
