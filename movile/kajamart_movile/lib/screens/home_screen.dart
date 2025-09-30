@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'product_list_screen.dart';
+import 'category_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -13,8 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     ProductListScreen(),
-    const Center(
-        child: Text("📂 Categorías", style: TextStyle(fontSize: 22))),
+    const CategoryScreen(),
     const Center(child: Text("👤 Mi Perfil", style: TextStyle(fontSize: 22))),
   ];
 
