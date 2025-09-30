@@ -20,8 +20,6 @@ import Landing from "./pages/landing/landing.jsx";
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
-import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase"
-import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import DashboardLayout from "./layouts/dashboard/dashboardLayout";
 import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
 import DashboardCategories from "./features/dashboard/dashboardCategories";
@@ -39,7 +37,6 @@ export default function RoutesAdmin() {
   return (
     <Routes>
       {/* Auth routes */}
-      <Route path="/" element={<AuthLayout />} />
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<AuthLayout />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -73,16 +70,16 @@ export default function RoutesAdmin() {
           <Route path="general" element={<IndexSettings />} />
         </Route>
         <Route path="" element={<DashboardLayout />}>
-          <Route path="dashboard/suppliers" element={<DashboardSuppliers />} />
+           <Route path="dashboard/suppliers" element={<DashboardSuppliers />} />
           <Route path="dashboard/categories" element={<DashboardCategories />} />
           <Route path="dashboard/clients" element={<DashboardClients />} />
-          <Route path="dashboard/sales" element={<DashboardSales />} />
+          <Route path="dashboard/sales" element={<DashboardSales />} /> 
           <Route path="dashboard/products" element={<DashboardProducts />} />
-          <Route path="dashboard/purchases" element={<DashboardPurchases />} />
+           <Route path="dashboard/purchases" element={<DashboardPurchases />} /> 
           <Route path="dashboard/return">
-            <Route path="clients" element={<DashboardReturnClients />} />
+             <Route path="clients" element={<DashboardReturnClients />} />
             <Route path="products" element={<DashboardReturnProducts />} />
-            <Route path="low" element={<DashboardLows />} />
+            <Route path="low" element={<DashboardLows />} /> 
           </Route>
         </Route>
       </Route>

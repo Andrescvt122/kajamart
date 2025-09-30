@@ -1,5 +1,5 @@
 import React from "react";
-import logo from "../assets/Kajamart.jpeg";
+import logo from "../../../assets/Kajamart.jpeg";
 
 export default function FooterComponent() {
   return (

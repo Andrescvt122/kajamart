@@ -4,33 +4,35 @@ import { useNavigate } from "react-router-dom";
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
 
-  const [proveedor, setProveedor] = useState(null); // Proveedor seleccionado
-  const [codigoProveedor, setCodigoProveedor] = useState(""); // input de proveedor
-  const [codigoProducto, setCodigoProducto] = useState(""); // input de producto
-  const [productos, setProductos] = useState([]); // productos agregados
-  const [mensaje, setMensaje] = useState(null); // mensajes de error/éxito
-  const [metodoPago, setMetodoPago] = useState(""); // efectivo o transferencia
+  // Estados
+  const [proveedor, setProveedor] = useState(null);
+  const [codigoProveedor, setCodigoProveedor] = useState("");
+  const [codigoProducto, setCodigoProducto] = useState("");
+  const [productos, setProductos] = useState([]);
+  const [mensaje, setMensaje] = useState(null);
+  const [metodoPago, setMetodoPago] = useState("");
 
-  // Simulación de proveedores en BD
+  // Simulación de BD
   const proveedoresDB = [
     { codigo: "PR001", nombre: "Proveedor A" },
     { codigo: "PR002", nombre: "Proveedor B" },
     { codigo: "PR003", nombre: "Proveedor C" },
   ];
 
-  // Simulación de productos en BD
   const productosDB = [
     { codigo: "P001", nombre: "Producto 1", precio: 10 },
     { codigo: "P002", nombre: "Producto 2", precio: 20 },
     { codigo: "P003", nombre: "Producto 3", precio: 30 },
   ];
 
-  // Buscar proveedor automáticamente
+  // Funciones
   const handleSearchProveedor = () => {
     if (!codigoProveedor.trim()) return;
 
     const provEncontrado = proveedoresDB.find(
-      (p) => p.codigo === codigoProveedor || p.nombre.toLowerCase() === codigoProveedor.toLowerCase()
+      (p) =>
+        p.codigo === codigoProveedor ||
+        p.nombre.toLowerCase() === codigoProveedor.toLowerCase()
     );
 
     if (!provEncontrado) {
@@ -40,16 +42,20 @@ export default function IndexRegisterPurchase() {
     }
 
     setProveedor(provEncontrado);
-    setMensaje({ tipo: "ok", texto: `✅ Proveedor seleccionado: ${provEncontrado.nombre}` });
+    setMensaje({
+      tipo: "ok",
+      texto: `✅ Proveedor seleccionado: ${provEncontrado.nombre}`,
+    });
     setCodigoProveedor("");
   };
 
-  // Buscar producto automáticamente
   const handleSearchProducto = () => {
     if (!codigoProducto.trim()) return;
 
     const productoEncontrado = productosDB.find(
-      (p) => p.codigo === codigoProducto || p.nombre.toLowerCase() === codigoProducto.toLowerCase()
+      (p) =>
+        p.codigo === codigoProducto ||
+        p.nombre.toLowerCase() === codigoProducto.toLowerCase()
     );
 
     if (!productoEncontrado) {
@@ -67,13 +73,12 @@ export default function IndexRegisterPurchase() {
 
     setProductos((prev) => [
       ...prev,
-      { ...productoEncontrado, cantidad: 1, estado: "Pendiente", subtotal: productoEncontrado.precio },
+      { ...productoEncontrado, cantidad: 1, subtotal: productoEncontrado.precio },
     ]);
     setMensaje({ tipo: "ok", texto: "✅ Producto agregado" });
     setCodigoProducto("");
   };
 
-  // Finalizar compra
   const handleFinalizarCompra = () => {
     if (!proveedor) {
       setMensaje({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
@@ -101,9 +106,10 @@ export default function IndexRegisterPurchase() {
     comprasGuardadas.push(nuevaCompra);
     localStorage.setItem("compras", JSON.stringify(comprasGuardadas));
 
-    navigate("/app/purchases"); // redirige al listado de compras
+    navigate("/app/purchases");
   };
 
+  // Render
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
       {/* Header */}
@@ -114,14 +120,6 @@ export default function IndexRegisterPurchase() {
         </p>
       </div>
 
-      {/* Botón volver */}
-      <button
-        onClick={() => navigate("/app/purchases")}
-        className="px-4 py-2 w-fit rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 mb-6"
-      >
-        ← Volver al listado
-      </button>
-
       {/* Buscar proveedor */}
       <div className="mb-4">
         <label className="block text-sm text-gray-600 mb-1">Buscar Proveedor</label>
@@ -130,12 +128,7 @@ export default function IndexRegisterPurchase() {
           value={codigoProveedor}
           onChange={(e) => setCodigoProveedor(e.target.value)}
           onBlur={handleSearchProveedor}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearchProveedor();
-            }
-          }}
+          onKeyDown={(e) => e.key === "Enter" && handleSearchProveedor()}
           placeholder="Ingrese código o nombre del proveedor"
           className="w-full border rounded px-3 py-2 bg-white text-black"
         />
@@ -156,12 +149,7 @@ export default function IndexRegisterPurchase() {
           value={codigoProducto}
           onChange={(e) => setCodigoProducto(e.target.value)}
           onBlur={handleSearchProducto}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearchProducto();
-            }
-          }}
+          onKeyDown={(e) => e.key === "Enter" && handleSearchProducto()}
           placeholder="Ingrese código o nombre del producto"
           className="w-full border rounded px-3 py-2 bg-white text-black"
         />
@@ -178,14 +166,14 @@ export default function IndexRegisterPurchase() {
         </p>
       )}
 
-      {/* Tabla de productos */}
+     {/* Tabla de productos */}
       <table className="w-full border-collapse border border-gray-300 mb-4">
         <thead>
           <tr className="bg-gray-100">
             <th className="border border-gray-300 px-3 py-2">Nombre</th>
             <th className="border border-gray-300 px-3 py-2">Cantidad</th>
-            <th className="border border-gray-300 px-3 py-2">Precio</th>
-            <th className="border border-gray-300 px-3 py-2">Estado</th>
+            <th className="border border-gray-300 px-3 py-2">Precio Compra</th>
+            <th className="border border-gray-300 px-3 py-2">Precio Venta</th>
             <th className="border border-gray-300 px-3 py-2">Subtotal</th>
             <th className="border border-gray-300 px-3 py-2">Acciones</th>
           </tr>
@@ -200,9 +188,7 @@ export default function IndexRegisterPurchase() {
           ) : (
             productos.map((prod, i) => (
               <tr key={i}>
-                <td className="border border-gray-300 px-3 py-2 text-black">
-                  {prod.nombre}
-                </td>
+                <td className="border border-gray-300 px-3 py-2 text-black">{prod.nombre}</td>
                 <td className="border border-gray-300 px-3 py-2 text-center">
                   <input
                     type="number"
@@ -212,42 +198,24 @@ export default function IndexRegisterPurchase() {
                       const nuevaCantidad = parseInt(e.target.value) || 1;
                       const nuevosProductos = [...productos];
                       nuevosProductos[i].cantidad = nuevaCantidad;
-                      nuevosProductos[i].subtotal =
-                        nuevaCantidad * nuevosProductos[i].precio;
+                      nuevosProductos[i].subtotal = nuevaCantidad * nuevosProductos[i].precio;
                       setProductos(nuevosProductos);
                     }}
                     className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
                   />
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-center text-black">
-                  ${prod.precio}
+                  ${prod.precio} {/* Precio de compra */}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-center">
-                  <select
-                    value={prod.estado}
-                    onChange={(e) => {
-                      const nuevosProductos = [...productos];
-                      nuevosProductos[i].estado = e.target.value;
-                      setProductos(nuevosProductos);
-                    }}
-                    className="border rounded px-2 py-1 bg-white text-black"
-                  >
-                    <option>Pendiente</option>
-                    <option>Completada</option>
-                    <option>Anulada</option>
-                  </select>
+                <td className="border border-gray-300 px-3 py-2 text-center text-black">
+                  ${prod.precioVenta || prod.precio} {/* Precio de venta, si no existe usar el mismo */}
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-center text-black">
                   ${prod.subtotal}
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-center">
                   <button
-                    onClick={() => {
-                      const nuevosProductos = productos.filter(
-                        (_, index) => index !== i
-                      );
-                      setProductos(nuevosProductos);
-                    }}
+                    onClick={() => setProductos(productos.filter((_, index) => index !== i))}
                     className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                   >
                     Eliminar
@@ -259,35 +227,43 @@ export default function IndexRegisterPurchase() {
         </tbody>
       </table>
 
-      {/* Método de pago */}
-      <div className="mb-4">
-        <p className="font-semibold mb-2">Método de Pago</p>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setMetodoPago("efectivo")}
-            className={`px-4 py-2 rounded text-white ${
-              metodoPago === "efectivo" ? "bg-green-600" : "bg-gray-500"
-            }`}
-          >
-            Efectivo
-          </button>
-          <button
-            onClick={() => setMetodoPago("transferencia")}
-            className={`px-4 py-2 rounded text-white ${
-              metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
-            }`}
-          >
-            Transferencia
-          </button>
-        </div>
-      </div>
 
-      {/* Total y acciones */}
-      <div className="flex justify-between items-center">
-        <p className="text-lg font-semibold">
-          ${productos.reduce((acc, p) => acc + p.subtotal, 0).toLocaleString()}
-        </p>
-        <div className="flex space-x-2">
+      {/* Métodos de pago + Total */}
+        <div className="mb-4 flex items-center justify-between">
+          {/* Método de pago */}
+          <div>
+            <p className="font-semibold mb-2">Método de Pago</p>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setMetodoPago("efectivo")}
+                className={`px-4 py-2 rounded text-white ${
+                  metodoPago === "efectivo" ? "bg-green-600" : "bg-gray-500"
+                }`}
+              >
+                Efectivo
+              </button>
+              <button
+                onClick={() => setMetodoPago("transferencia")}
+                className={`px-4 py-2 rounded text-white ${
+                  metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
+                }`}
+              >
+                Transferencia
+              </button>
+            </div>
+          </div>
+
+          {/* Total a pagar */}
+          <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
+            <p className="text-sm text-gray-600">Total a pagar</p>
+            <p className="text-2xl font-bold text-green-700">
+              ${productos.reduce((acc, p) => acc + p.subtotal, 0).toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="flex justify-end items-center space-x-2">
           <button
             onClick={() => navigate("/app/purchases")}
             className="px-4 py-2 rounded bg-gray-500 text-white"
@@ -301,7 +277,6 @@ export default function IndexRegisterPurchase() {
             Finalizar Compra
           </button>
         </div>
-      </div>
     </div>
   );
 }
