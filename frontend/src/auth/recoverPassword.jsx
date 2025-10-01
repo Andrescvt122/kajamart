@@ -1,3 +1,4 @@
+// src/auth/RecoverPassword.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -34,8 +35,10 @@ export default function RecoverPassword() {
       setError("Las contraseñas no coinciden.");
       return;
     }
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+
+    // ✅ Si pasa las validaciones nativas, seguimos
+    if (!e.target.checkValidity()) {
+      e.target.reportValidity();
       return;
     }
 
@@ -79,7 +82,7 @@ export default function RecoverPassword() {
                 sesión con tus nuevas credenciales.
               </p>
               <Link
-                to="/"
+                to="/auth"
                 className="mt-8 inline-block w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
               >
                 Ir a Iniciar Sesión
@@ -88,7 +91,7 @@ export default function RecoverPassword() {
           ) : (
             <>
               {/* Logo */}
-              <Link to="/login">
+              <Link to="/auth">
                 <motion.img
                   src={logoImg}
                   alt="Logo"
@@ -109,7 +112,8 @@ export default function RecoverPassword() {
               </div>
 
               {/* Formulario */}
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                {/* Nueva contraseña */}
                 <div className="relative">
                   <label className="block text-sm font-medium text-white drop-shadow">
                     Nueva contraseña
@@ -120,6 +124,9 @@ export default function RecoverPassword() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
+                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
+                    title="Debe tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
                     className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
                   />
                   <button
@@ -131,6 +138,7 @@ export default function RecoverPassword() {
                   </button>
                 </div>
 
+                {/* Confirmar contraseña */}
                 <div className="relative">
                   <label className="block text-sm font-medium text-white drop-shadow">
                     Confirmar contraseña
@@ -141,6 +149,9 @@ export default function RecoverPassword() {
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    minLength={8}
+                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
+                    title="Debe coincidir con la contraseña y tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
                     className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
                   />
                   <button
@@ -148,20 +159,18 @@ export default function RecoverPassword() {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-[34px] text-gray-500 hover:text-emerald-600"
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff size={20} />
-                    ) : (
-                      <Eye size={20} />
-                    )}
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
 
+                {/* Error */}
                 {error && (
                   <p className="text-sm text-red-300 bg-red-900/50 px-3 py-2 rounded-lg text-center drop-shadow-md">
                     {error}
                   </p>
                 )}
 
+                {/* Botón enviar */}
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   type="submit"

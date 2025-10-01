@@ -3,7 +3,7 @@ import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
 // Auth
 import ForgotPassword from "./auth/ForgotPassword";
-import RecoverPassword from "./auth/RecoverPassword";
+import RecoverPassword from "./auth/recoverPassword";
 // Features
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
