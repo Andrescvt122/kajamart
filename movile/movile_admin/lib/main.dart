@@ -72,12 +72,42 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildOffstageNavigator(int index) {
+    String initialRoute;
+    switch (index) {
+      case 0:
+        initialRoute = '/'; // productos
+        break;
+      case 1:
+        initialRoute = '/suppliers'; // proveedores
+        break;
+      case 2:
+        initialRoute = '/purchases';
+        break;
+      case 3:
+        initialRoute = '/sales';
+        break;
+      case 4:
+        initialRoute = '/clients';
+        break;
+      case 5:
+        initialRoute = '/profile';
+        break;
+      default:
+        initialRoute = '/';
+    }
+
     return Offstage(
       offstage: _selectedIndex != index,
       child: Navigator(
         key: _navigatorKeys[index],
+        initialRoute: initialRoute, // 👈 aquí está el cambio clave
         onGenerateRoute: (settings) {
-          return NavigationService.onGenerateRoute(settings, context);
+          return NavigationService.onGenerateRoute(settings, context) ??
+              MaterialPageRoute(
+                builder: (_) => const Scaffold(
+                  body: Center(child: Text('Página no encontrada')),
+                ),
+              );
         },
       ),
     );

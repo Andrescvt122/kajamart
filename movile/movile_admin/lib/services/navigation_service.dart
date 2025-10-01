@@ -12,14 +12,17 @@ import '../screens/provider_list.dart';
 import '../screens/provider_detail.dart';
 
 class NavigationService {
-  static const int navigationItemCount = 6;
+  static int get navigationItemCount => getNavigationItems().length;
 
   static Route<dynamic>? onGenerateRoute(
     RouteSettings settings,
     BuildContext context,
   ) {
-    final productService =  Provider.of<ProductService>(context, listen: false);
-    final providerService = Provider.of<ProviderService>(context, listen: false);
+    final productService = Provider.of<ProductService>(context, listen: false);
+    final providerService = Provider.of<ProviderService>(
+      context,
+      listen: false,
+    );
 
     switch (settings.name) {
       case '/':
@@ -29,7 +32,8 @@ class NavigationService {
 
       case '/suppliers':
         return MaterialPageRoute(
-          builder: (_) => ProviderListScreen(providers: providerService.providers),
+          builder: (_) =>
+              ProviderListScreen(providers: providerService.providers),
         );
 
       case '/batches':
@@ -47,7 +51,9 @@ class NavigationService {
         );
 
       case '/provider-detail':
-        final provider = settings.arguments != null ? settings.arguments as model.Provider : null;
+        final provider = settings.arguments != null
+            ? settings.arguments as model.Provider
+            : null;
         return MaterialPageRoute(
           builder: (_) => ProviderDetailScreen(provider: provider),
           settings: RouteSettings(name: settings.name, arguments: provider),
@@ -88,12 +94,14 @@ class NavigationService {
 
     // Puedes expandir esta lógica según necesites
     switch (name) {
-      case '/suppliers':
+      case '/':
         return 1;
-      case '/purchases':
+      case '/suppliers':
         return 2;
-      case '/sales':
+      case '/purchases':
         return 3;
+      case '/sales':
+        return 4;
       case '/clients':
         return 4;
       case '/profile':
