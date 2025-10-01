@@ -21,16 +21,15 @@ for (let i = 1; i <= 44; i++) {
   baseReturns.push({
     idReturn: i,
     products: [
-      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true },
-      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false },
-      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true },
-      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false },
-      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true },
-      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false },
+      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true, reason: "Cerca de vencer" },
+      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false, reason: "Vencido" },
+      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true, reason: "Cerca de vencer" },
+      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false, reason: "Vencido" },
+      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true, reason: "Cerca de vencer" },
+      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false, reason: "Vencido" },
     ],
     dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    responsable: `Empleado ${i}`,
-    reason: i % 2 === 0 ? "Cerca de vencer" : "Vencido",
+    responsable: `Empleado ${i}`, 
     total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
   });
 }
