@@ -1,42 +1,39 @@
+// lib/screens/provider_list.dart
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/provider.dart';
+import '../constants/app_constants.dart';
 
-class ProductListScreen extends StatefulWidget {
-  final List<Product> products;
+class ProviderListScreen extends StatefulWidget {
+  final List<Provider> providers;
 
-  const ProductListScreen({Key? key, required this.products}) : super(key: key);
+  const ProviderListScreen({Key? key, required this.providers}) : super(key: key);
 
   @override
-  State<ProductListScreen> createState() => _ProductListScreenState();
+  State<ProviderListScreen> createState() => _ProviderListScreenState();
 }
 
-class _ProductListScreenState extends State<ProductListScreen> {
+class _ProviderListScreenState extends State<ProviderListScreen> {
   String _selectedFilter = "Todos";
   String _searchQuery = "";
 
-  List<String> get filters => ["Todas", "Activos", "Inactivos", "Stock bajo"];
+  List<String> get filters => ["Todos", "Activos", "Inactivos"];
 
-  List<Product> get filteredProducts {
-    List<Product> list;
+  List<Provider> get filteredProviders {
+    List<Provider> list;
 
     switch (_selectedFilter) {
       case "Activos":
-        list = widget.products
-            .where((p) => p.status.toLowerCase() == "activo")
+        list = widget.providers
+            .where((p) => p.status == ProviderStatus.activo)
             .toList();
         break;
       case "Inactivos":
-        list = widget.products
-            .where((p) => p.status.toLowerCase() != "activo")
-            .toList();
-        break;
-      case "Stock bajo":
-        list = widget.products
-            .where((p) => p.currentStock <= p.minStock)
+        list = widget.providers
+            .where((p) => p.status == ProviderStatus.inactivo)
             .toList();
         break;
       default:
-        list = widget.products;
+        list = widget.providers;
     }
 
     // Filtro de búsqueda
@@ -45,7 +42,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
           .where(
             (p) =>
                 p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                p.category.toLowerCase().contains(_searchQuery.toLowerCase()),
+                p.contactName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                p.nit.toLowerCase().contains(_searchQuery.toLowerCase()),
           )
           .toList();
     }
@@ -56,19 +54,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc), // Fondo suave
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(
-          215,
-          180,
-          222,
-          191,
-        ), // Verde claro principal
+        backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
-        title: const Text(
-          'Productos',
+        title: Text(
+          'Proveedores',
           style: TextStyle(
-            color: Color(0xff343b45),
+            color: AppConstants.textDarkColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -86,26 +79,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: "Buscar producto...",
-                prefixIcon: const Icon(Icons.search, color: Color(0xff626762)),
+                hintText: "Buscar proveedor...",
+                prefixIcon: Icon(Icons.search, color: AppConstants.textLightColor),
                 filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
+                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 0,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xffb4debf)),
+                  borderSide: BorderSide(color: AppConstants.secondaryColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xff626762)),
+                  borderSide: BorderSide(color: AppConstants.textLightColor),
                 ),
               ),
             ),
           ),
-          // Filtros tipo Temu
+          // Filtros
           SizedBox(
             height: 50,
             child: ListView.separated(
@@ -122,12 +115,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     style: TextStyle(
                       color: isSelected
                           ? Colors.white
-                          : const Color(0xff343b45),
+                          : AppConstants.textDarkColor,
                     ),
                   ),
                   selected: isSelected,
-                  selectedColor: const Color(0xff626762),
-                  backgroundColor: const Color(0xffd4e6d7),
+                  selectedColor: AppConstants.textLightColor,
+                  backgroundColor: AppConstants.secondaryColor.withOpacity(0.3),
                   onSelected: (_) {
                     setState(() {
                       _selectedFilter = filter;
@@ -138,23 +131,23 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
           const Divider(height: 1),
-          // Lista de productos
+          // Lista de proveedores
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.all(12),
-              itemCount: filteredProducts.length,
+              itemCount: filteredProviders.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final p = filteredProducts[index];
+                final provider = filteredProviders[index];
                 return GestureDetector(
                   onTap: () {
-                    Navigator.pushNamed(context, '/batches', arguments: p);
+                    Navigator.pushNamed(context, '/provider-detail', arguments: provider);
                   },
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xffd4e6d7)),
+                      border: Border.all(color: AppConstants.secondaryColor.withOpacity(0.5)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
@@ -166,30 +159,30 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Imagen ajustada y cuadrada
+                        // Imagen
                         ClipRRect(
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(12),
                             bottomLeft: Radius.circular(12),
                           ),
                           child: Image.network(
-                            p.imageUrl,
+                            provider.imageUrl ?? 'https://via.placeholder.com/300x200?text=No+Image',
                             width: 100,
                             height: 100,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
                               width: 100,
                               height: 100,
-                              color: const Color(0xffd4e6d7),
-                              child: const Icon(
-                                Icons.image,
-                                color: Color(0xff626762),
+                              color: AppConstants.secondaryColor.withOpacity(0.3),
+                              child: Icon(
+                                Icons.business,
+                                color: AppConstants.textLightColor,
                               ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Info
+                        // Información
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -197,32 +190,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  p.name,
-                                  style: const TextStyle(
+                                  provider.name,
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: Color(0xff343b45),
+                                    color: AppConstants.textDarkColor,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  p.category,
-                                  style: const TextStyle(
+                                  'NIT: ${provider.nit}',
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: Color(0xff626762),
+                                    color: AppConstants.textLightColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Contacto: ${provider.contactName}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppConstants.textLightColor,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
                                     Icon(
-                                      Icons.inventory,
+                                      Icons.phone,
                                       size: 16,
                                       color: Colors.grey[600],
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      "Stock: ${p.currentStock}",
+                                      provider.phone,
                                       style: TextStyle(
                                         color: Colors.grey[700],
                                         fontSize: 13,
@@ -232,12 +233,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "\$${p.price.toStringAsFixed(0)}",
-                                  style: const TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                  provider.categoriesDisplay,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppConstants.textLightColor,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -246,13 +247,23 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         // Estado
                         Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            p.status,
-                            style: TextStyle(
-                              color: p.status.toLowerCase() == "activo"
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.w600,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Color(provider.status.colorValue).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Color(provider.status.colorValue),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              provider.status.displayName,
+                              style: TextStyle(
+                                color: Color(provider.status.colorValue),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
