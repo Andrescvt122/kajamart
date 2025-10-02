@@ -8,6 +8,7 @@ import 'models/batch.dart';
 import 'screens/product_list.dart';
 import 'screens/product_batches.dart';
 import 'screens/product_detail.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -103,7 +104,7 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
-    6,
+    7, // Aumentamos a 7 para coincidir con los items, aunque el último no se use para un Offstage.
     (_) => GlobalKey<NavigatorState>(),
   );
 
@@ -113,7 +114,8 @@ class _MainScreenState extends State<MainScreen> {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       return;
     }
-    if (_selectedIndex == index) {
+    // Aseguramos que el índice esté dentro de los límites de los navigator keys.
+    if (_selectedIndex == index && index < _navigatorKeys.length) {
       _navigatorKeys[index].currentState!.popUntil((r) => r.isFirst);
     } else {
       setState(() => _selectedIndex = index);
@@ -122,7 +124,8 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildOffstageNavigator(int index) {
     // No se construye un navigator para el botón de salir.
-    if (index >= _navigatorKeys.length) {
+    if (index >= 6) {
+      // El índice 6 es 'Salir' y no tiene vista.
       return Container();
     }
     return Offstage(
@@ -154,6 +157,11 @@ class _MainScreenState extends State<MainScreen> {
             );
           }
 
+          if (index == 5) {
+            // Sección Perfil
+            return MaterialPageRoute(builder: (_) => const ProfileScreen());
+          }
+
           // Otras secciones todavía no implementadas
           return MaterialPageRoute(
             builder: (_) => Scaffold(
@@ -179,6 +187,8 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
+        // Generamos 6 vistas (0 a 5) para los OffstageNavigators.
+        // El item 6 (Salir) no tiene vista.
         children: List.generate(6, (index) => _buildOffstageNavigator(index)),
       ),
       bottomNavigationBar: BottomNavigationBar(
