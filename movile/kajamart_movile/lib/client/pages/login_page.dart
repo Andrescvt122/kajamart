@@ -1,7 +1,54 @@
 import 'package:flutter/material.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _login() {
+    String email = _emailController.text.trim();
+    String password = _passwordController.text;
+
+    // Validación de credenciales
+    if (email == 'admin@gmail.com' && password == '123456') {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/admin-home',
+        (route) => false,
+      );
+    } else if (email == 'cliente@gmail.com' && password == '123456') {
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Credenciales incorrectas. Usa admin@gmail.com/123456 o cliente@gmail.com/123456',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +102,9 @@ class LoginPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const TextField(
-                    decoration: InputDecoration(
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
                       filled: true,
                       fillColor: Colors.white,
                       hintText: 'tu@email.com',
@@ -80,9 +128,10 @@ class LoginPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const TextField(
+                  TextField(
+                    controller: _passwordController,
                     obscureText: true,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       filled: true,
                       fillColor: Colors.white,
                       hintText: '********',
@@ -112,13 +161,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (route) => false,
-                      );
-                    },
+                    onPressed: _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 18),
