@@ -5,8 +5,9 @@ import {
   DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
+  ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search } from "lucide-react";
+import { Search, Check, XCircle } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
@@ -15,23 +16,24 @@ import {
 } from "../../../shared/components/alerts";
 import { Button } from "primereact/button";
 import ProductReturnModal from "./modals/register/ProductReturnModal";
+import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
+import { generateProductReturnsPDF } from "./helper/exportToPdf";
+import { generateProductReturnsXLS } from "./helper/exportToXls";
 
 const baseReturns = [];
 for (let i = 1; i <= 44; i++) {
   baseReturns.push({
     idReturn: i,
     products: [
-      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true },
-      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false },
-      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true },
-      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false },
-      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true },
-      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false },
+      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true, reason: "Cerca de vencer", supplier: "Proveedor A" },
+      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false, reason: "Vencido", supplier: "Proveedor B" },
+      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true, reason: "Cerca de vencer", supplier: "Proveedor C" },
+      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false, reason: "Vencido", supplier: "Proveedor D" },
+      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true, reason: "Cerca de vencer", supplier: "Proveedor E" },
+      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false, reason: "Vencido", supplier: "Proveedor F" },
     ],
     dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    responsable: `Empleado ${i}`,
-    reason: i % 2 === 0 ? "Cerca de vencer" : "Vencido",
-    total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
+    responsable: `Empleado ${i}`, 
   });
 }
 
@@ -40,6 +42,8 @@ export default function IndexProductReturns() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedReturnData, setSelectedReturnData] = useState(null);
   const perPage = 6;
 
   // Normalización de texto
@@ -50,14 +54,26 @@ export default function IndexProductReturns() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
+  // Función para aplanar los datos y mostrar productos individuales
+  const flattenedProducts = useMemo(() => {
+    return returns.flatMap(returnItem =>
+      returnItem.products.map(product => ({
+        idReturn: returnItem.idReturn,
+        dateReturn: returnItem.dateReturn,
+        responsable: returnItem.responsable,
+        ...product
+      }))
+    );
+  }, [returns]);
+
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return returns;
+    if (!s) return flattenedProducts;
 
-    return returns.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
+    return flattenedProducts.filter((product) =>
+      Object.values(product).some((value) => normalizeText(value).includes(s))
     );
-  }, [returns, searchTerm]);
+  }, [flattenedProducts, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -76,6 +92,20 @@ export default function IndexProductReturns() {
 
   const handleCloseReturnModal = () => {
     setIsReturnModalOpen(false);
+  };
+
+  const handleOpenDetailsModal = (productData) => {
+    // Necesitamos encontrar la devolución completa que contiene este producto
+    const returnItem = returns.find(r => r.idReturn === productData.idReturn);
+    if (returnItem) {
+      setSelectedReturnData(returnItem);
+      setIsDetailsModalOpen(true);
+    }
+  };
+
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedReturnData(null);
   };
 
   // Animaciones
@@ -127,7 +157,7 @@ export default function IndexProductReturns() {
             </div>
             <input
               type="text"
-              placeholder="Buscar devoluciones..."
+              placeholder="Buscar productos en devoluciones..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -138,8 +168,8 @@ export default function IndexProductReturns() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
             <motion.button
               onClick={handleOpenReturnModal}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-all font-medium"
@@ -165,9 +195,10 @@ export default function IndexProductReturns() {
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Devolución</th>
-                <th className="px-6 py-4">Fecha</th>
+                <th className="px-6 py-4">Producto</th>
+                <th className="px-6 py-4">Cantidad</th>
+                <th className="px-6 py-4">Descuento</th>
                 <th className="px-6 py-4">Responsable</th>
-                <th className="px-6 py-4">Total</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -178,35 +209,42 @@ export default function IndexProductReturns() {
               {pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-8 text-center text-gray-400"
                   >
-                    No se encontraron devoluciones.
+                    No se encontraron productos en devoluciones.
                   </td>
                 </tr>
               ) : (
-                pageItems.map((s, i) => (
+                pageItems.map((product, i) => (
                   <motion.tr
-                    key={s.idReturn + "-" + i}
+                    key={`${product.idReturn}-${product.idProduct}-${i}`}
                     className="hover:bg-gray-50 transition-colors"
                     variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      #{s.idReturn.toString().padStart(4, '0')}
+                      #{product.idReturn.toString().padStart(4, '0')}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {product.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {product.quantity}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {product.discount ? (
+                        <Check size={20} className="text-green-600" />
+                      ) : (
+                        <XCircle size={20} className="text-red-500" />
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
-                      {s.dateReturn}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-green-700">
-                      {s.responsable}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">
-                      ${s.total.toLocaleString()}
+                      {product.responsable}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton
-                          alert={() => showInfoAlert("Ver devolución")}
+                        <ViewDetailsButton
+                          event={() => handleOpenDetailsModal(product)}
                         />
                       </div>
                     </td>
@@ -231,6 +269,13 @@ export default function IndexProductReturns() {
       <ProductReturnModal
         isOpen={isReturnModalOpen}
         onClose={handleCloseReturnModal}
+      />
+
+      {/* Modal de detalles de devolución */}
+      <DetailsReturnProduct
+        isOpen={isDetailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        returnData={selectedReturnData}
       />
     </>
   );
