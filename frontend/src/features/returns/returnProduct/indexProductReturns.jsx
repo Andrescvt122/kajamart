@@ -17,6 +17,8 @@ import {
 import { Button } from "primereact/button";
 import ProductReturnModal from "./modals/register/ProductReturnModal";
 import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
+import { generateProductReturnsPDF } from "./helper/exportToPdf";
+import { generateProductReturnsXLS } from "./helper/exportToXls";
 
 const baseReturns = [];
 for (let i = 1; i <= 44; i++) {
@@ -166,8 +168,8 @@ export default function IndexProductReturns() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
             <motion.button
               onClick={handleOpenReturnModal}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-all font-medium"
