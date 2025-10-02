@@ -1,7 +1,6 @@
 // lib/screens/product_batches.dart
 import 'package:flutter/material.dart';
 import '../models/product.dart';
-import '../models/batch.dart';
 
 class ProductBatchesScreen extends StatefulWidget {
   const ProductBatchesScreen({Key? key}) : super(key: key);

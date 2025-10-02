@@ -13,6 +13,8 @@ import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
+import generateProductReturnsPDF from "./helpers/exportToPdf";
+import generateProductReturnsXLS from "../returnProduct/helper/exportToXls";
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
@@ -198,8 +200,8 @@ export default function IndexClientReturns() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
