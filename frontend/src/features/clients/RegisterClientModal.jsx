@@ -14,6 +14,8 @@ export default function RegisterClientModal({
   tipoOptions,
   addClient,
   onClose,
+  title,
+  editingClientId,
 }) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -81,13 +83,19 @@ export default function RegisterClientModal({
       return;
     }
 
-    try {
+   try {
       addClient(form);
       setTouched({});
       setIsModalOpen(false);
-      showSuccessAlert("Cliente registrado correctamente 🎉"); // ✅ Éxito
+
+      if (editingClientId) {
+        showSuccessAlert("Cliente actualizado correctamente 🎉");
+      } else {
+        showSuccessAlert("Cliente registrado correctamente 🎉");
+      }
+
     } catch (error) {
-      showErrorAlert("No se pudo registrar el cliente ❌"); // ✅ Error
+      showErrorAlert("No se pudo guardar el cliente ❌");
     }
   };
 
@@ -117,7 +125,7 @@ export default function RegisterClientModal({
         exit={{ opacity: 0, scale: 0.85 }}
         className="relative bg-white text-black rounded-xl shadow-lg p-6 w-full max-w-2xl z-10"
       >
-        <h2 className="text-2xl font-semibold mb-6">Registrar Cliente</h2>
+          <h2 className="text-2xl font-semibold mb-4">{title}</h2>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
           {/* Nombre */}
@@ -267,20 +275,23 @@ export default function RegisterClientModal({
 
           {/* Botones */}
           <div className="flex justify-end gap-2 col-span-2 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-              disabled={Object.keys(errors).length > 0}
-            >
-              Registrar
-            </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+          >
+            Cancelar
+          </button>
+
+          {/* Registrar / Guardar */}
+          <button
+            type="submit"
+            className={`px-4 py-2 rounded text-white ${
+              editingClientId ? "bg-green-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {editingClientId ? "Guardar Cambios" : "Registrar Cliente"}
+          </button>
           </div>
         </form>
       </motion.div>

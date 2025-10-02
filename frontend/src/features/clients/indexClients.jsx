@@ -3,15 +3,19 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
+import Swal from "sweetalert2";
 import Paginator from "../../shared/components/paginator";
 import {
+  ExportExcelButton,
+  ExportPDFButton,
   ViewButton,
   EditButton,
   DeleteButton,
-  ExportExcelButton,
-  ExportPDFButton,
 } from "../../shared/components/buttons";
 import RegisterClientModal from "./RegisterClientModal";
+import ClientDetailModal from "./ClientDetailModal";
+import { exportToXls } from "..//clients/helpers/exportToXls";
+import { exportToPdf } from "../clients/helpers/exportToPdf";
 
 export default function IndexClients() {
   // Cliente fijo de caja
@@ -26,10 +30,9 @@ export default function IndexClients() {
     fecha: new Date().toISOString().split("T")[0],
   };
 
-  // ✅ Estado inicial: leer de localStorage
+  // Estados
   const [clients, setClients] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("clientes")) || [];
-    // Garantizar siempre que exista Cliente de Caja
     if (!stored.some((c) => c.id === "C000")) {
       const updated = [clienteCaja, ...stored];
       localStorage.setItem("clientes", JSON.stringify(updated));
@@ -38,8 +41,12 @@ export default function IndexClients() {
     return stored;
   });
 
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tipoOpen, setTipoOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState(null);
+
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
@@ -48,6 +55,7 @@ export default function IndexClients() {
     telefono: "",
     activo: true,
   });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
@@ -59,22 +67,44 @@ export default function IndexClients() {
     { label: "NIT", value: "NIT" },
   ];
 
-  // ✅ Guardar en localStorage cada vez que cambien los clientes
+  // Guardar en localStorage
   useEffect(() => {
     localStorage.setItem("clientes", JSON.stringify(clients));
   }, [clients]);
 
-  // ✅ Agregar cliente con ID incremental
+  // Agregar o editar cliente
   const addClient = (newClient) => {
-    const nextIdNumber = clients.length;
-    const nextId = `C${String(nextIdNumber).padStart(3, "0")}`;
-    const clientWithId = {
-      ...newClient,
-      id: nextId,
-      estado: newClient.activo ? "Activo" : "Inactivo",
-      fecha: new Date().toISOString().split("T")[0],
-    };
-    setClients((prev) => [...prev, clientWithId]);
+    if (editingClientId) {
+      // Editando cliente existente
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === editingClientId
+            ? {
+                ...c,
+                nombre: newClient.nombre,
+                tipoDocumento: newClient.tipoDocumento,
+                numeroDocumento: newClient.numeroDocumento,
+                correo: newClient.correo,
+                telefono: newClient.telefono,
+                estado: newClient.activo ? "Activo" : "Inactivo",
+              }
+            : c
+        )
+      );
+    } else {
+      // Agregando cliente nuevo
+      const nextIdNumber = clients.length;
+      const nextId = `C${String(nextIdNumber).padStart(3, "0")}`;
+      const clientWithId = {
+        ...newClient,
+        id: nextId,
+        estado: newClient.activo ? "Activo" : "Inactivo",
+        fecha: new Date().toISOString().split("T")[0],
+      };
+      setClients((prev) => [...prev, clientWithId]);
+    }
+
+    // Reset formulario
     setForm({
       nombre: "",
       tipoDocumento: "",
@@ -83,6 +113,7 @@ export default function IndexClients() {
       telefono: "",
       activo: true,
     });
+    setEditingClientId(null);
     setIsModalOpen(false);
   };
 
@@ -93,33 +124,30 @@ export default function IndexClients() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // ✅ Filtrar + ordenar clientes
+  // Filtrar + ordenar clientes
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-
-    // Filtrar
     let result = clients;
     if (s) {
       result = clients.filter((c) =>
-        Object.values(c).some((value) => normalizeText(value).includes(s))
+        Object.values(c).some((value) =>
+          normalizeText(value).includes(s)
+        )
       );
     }
-
-    // Ordenar por ID (ejemplo: C000, C001, C002...)
     return result.sort((a, b) => {
       const numA = parseInt(a.id.replace("C", ""), 10);
       const numB = parseInt(b.id.replace("C", ""), 10);
-      return numA - numB; // ascendente
+      return numA - numB;
     });
   }, [clients, searchTerm]);
 
-  // ✅ Paginación
+  // Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage]);
-
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
@@ -135,7 +163,7 @@ export default function IndexClients() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // ✅ Editar cliente
+  // Editar cliente
   const editClient = (client) => {
     setForm({
       nombre: client.nombre,
@@ -145,13 +173,20 @@ export default function IndexClients() {
       telefono: client.telefono,
       activo: client.estado === "Activo",
     });
+    setEditingClientId(client.id);
     setIsModalOpen(true);
   };
 
-  // ✅ Eliminar cliente (excepto caja)
+  // Eliminar cliente
   const deleteClient = (id) => {
-    if (id === "C000") return; // no borrar Cliente de Caja
+    if (id === "C000") return;
     setClients((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // Ver detalles
+  const handleView = (client) => {
+    setSelectedClient(client);
+    setIsViewModalOpen(true);
   };
 
   return (
@@ -170,9 +205,7 @@ export default function IndexClients() {
         }}
       />
 
-      {/* Contenedor principal */}
       <div className="relative z-10 min-h-screen flex flex-col p-6">
-        {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Clientes</h2>
@@ -199,10 +232,41 @@ export default function IndexClients() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            {/* Exportar a Excel */}
+            <ExportExcelButton
+              onClick={() => exportToXls(clients.map(c => ({
+                ...c,
+                correo: c.correo?.trim() || "N/A",
+                telefono: c.telefono?.trim() || "N/A"
+              })))}
+            >
+              Excel
+            </ExportExcelButton>
+
+            {/* Exportar a PDF */}
+            <ExportPDFButton
+              onClick={() => exportToPdf(clients.map(c => ({
+                ...c,
+                correo: c.correo?.trim() || "N/A",
+                telefono: c.telefono?.trim() || "N/A"
+              })))}
+            >
+              PDF
+            </ExportPDFButton>
+
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setForm({
+                  nombre: "",
+                  tipoDocumento: "",
+                  numeroDocumento: "",
+                  correo: "",
+                  telefono: "",
+                  activo: true,
+                });
+                setEditingClientId(null);
+                setIsModalOpen(true);
+              }}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
               Registrar Cliente
@@ -237,10 +301,7 @@ export default function IndexClients() {
             >
               {pageItems.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron clientes.
                   </td>
                 </tr>
@@ -252,42 +313,49 @@ export default function IndexClients() {
                     variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      {c.nombre}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {c.numeroDocumento}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {c.correo}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {c.telefono}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{c.nombre}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{c.numeroDocumento}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{c.correo?.trim() ? c.correo : "N/A"}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{c.telefono?.trim() ? c.telefono : "N/A"}</td>
+
                     <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                          c.estado === "Activo"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {c.estado}
-                      </span>
+                      <span className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                        c.estado === "Activo"
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}>{c.estado}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {c.fecha}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{c.fecha}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton />
+                        <ViewButton event={() => handleView(c)} />
                         <EditButton
-                          onClick={() => c.id !== "C000" && editClient(c)}
-                          disabled={c.id === "C000"}
+                          event={() => {
+                            if (c.id === "C000") {
+                              Swal.fire({
+                                icon: "warning",
+                                title: "Atención",
+                                text: "El Cliente de Caja no se puede editar ni eliminar",
+                                confirmButtonColor: "#fbbf24",
+                              });
+                            } else {
+                              editClient(c);
+                            }
+                          }}
                         />
                         <DeleteButton
-                          onClick={() => deleteClient(c.id)}
-                          disabled={c.id === "C000"}
+                          event={() => {
+                            if (c.id === "C000") {
+                              Swal.fire({
+                                icon: "error",
+                                title: "Atención",
+                                text: "El Cliente de Caja no se puede editar ni eliminar",
+                                confirmButtonColor: "#ef4444",
+                              });
+                            } else {
+                              deleteClient(c.id);
+                            }
+                          }}
                         />
                       </div>
                     </td>
@@ -307,17 +375,28 @@ export default function IndexClients() {
           goToPage={goToPage}
         />
 
-        {/* Modal de registro */}
-        <RegisterClientModal
-          isModalOpen={isModalOpen}
-          setIsModalOpen={setIsModalOpen}
-          form={form}
-          setForm={setForm}
-          tipoOptions={tipoOptions}
-          tipoOpen={tipoOpen}
-          setTipoOpen={setTipoOpen}
-          addClient={addClient}
-          onClose={() => setIsModalOpen(false)}
+        {/* Modal de registro / edición */}
+       <RegisterClientModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        form={form}
+        setForm={setForm}
+        tipoOptions={tipoOptions}
+        tipoOpen={tipoOpen}
+        setTipoOpen={setTipoOpen}
+        addClient={addClient}
+        onClose={() => setIsModalOpen(false)}
+        title={editingClientId ? "Editar Cliente" : "Registrar Cliente"} // ← nuevo
+        editingClientId={editingClientId} // ← Pasar aquí
+
+      />
+
+
+        {/* Modal de detalles */}
+        <ClientDetailModal
+          isOpen={isViewModalOpen}
+          onClose={() => setIsViewModalOpen(false)}
+          client={selectedClient}
         />
       </div>
     </>
