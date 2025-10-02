@@ -11,10 +11,6 @@ import { Search, Check, XCircle } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import {
-  showInfoAlert,
-} from "../../../shared/components/alerts";
-import { Button } from "primereact/button";
 import ProductReturnModal from "./modals/register/ProductReturnModal";
 import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
