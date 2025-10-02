@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
-import 'pages/login_page.dart';
-import 'pages/recover_password.dart';
-import 'pages/check_email_page.dart';
+import 'client/screens/home_screen.dart';
+import 'client/pages/login_page.dart';
+import 'client/pages/recover_password.dart';
+import 'client/pages/check_email_page.dart';
 
 void main() {
   runApp(const KajamartApp());
