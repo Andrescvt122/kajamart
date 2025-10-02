@@ -91,15 +91,15 @@ export const CloseButton = () => (
 /* ----------------------------- */
 /* Botones rectangulares pequeños para exportar */
 /* ----------------------------- */
-export const ExportExcelButton = ({ children = "Exportar" }) => (
-  <button className="btn-export-excel">
+export const ExportExcelButton = ({ children = "Exportar", onClick }) => (
+  <button className="btn-export-excel" onClick={onClick}>
     <AiFillFileExcel size={18} />
     {children}
   </button>
 );
 
-export const ExportPDFButton = ({ children = "Exportar" }) => (
-  <button className="btn-export-pdf">
+export const ExportPDFButton = ({ children = "Exportar", onClick }) => (
+  <button className="btn-export-pdf" onClick={onClick}>
     <AiFillFilePdf size={18} />
     {children}
   </button>
