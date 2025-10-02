@@ -13,6 +13,8 @@ import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import RegisterLow from "./modals/registerLow";
 import DetailsLow from './modals/detailsLow';
+import generateProductLowsPDF from "./helpers/exportToPdf";
+import generateProductLowsXLS from "./helpers/exportToXls";
 
 // Datos base de bajas
 const baseLows = [];
@@ -124,13 +126,13 @@ export default function IndexLow() {
             />
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductLowsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductLowsPDF}>PDF</ExportPDFButton>
             <button
               onClick={() => setIsOpen(true)} // 👈 abre el modal
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
-              Registrar nueva devolución
+              Registrar nueva baja
             </button>
           </div>
         </div>
