@@ -14,7 +14,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   String _selectedFilter = "Todos";
   String _searchQuery = "";
 
-  List<String> get filters => ["Todos", "Activos", "Inactivos", "Stock bajo"];
+  List<String> get filters => ["Todas", "Activos", "Inactivos", "Stock bajo"];
 
   List<Product> get filteredProducts {
     List<Product> list;
