@@ -4,9 +4,7 @@ import {
   ViewButton,
   EditButton,
   DeleteButton,
-  ExportExcelButton,
-  ExportPDFButton,
-} from "../../shared/components/buttons";
+} from "../../shared/components/buttons"; // ✅ Quité Excel y PDF
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
@@ -257,8 +255,7 @@ export default function IndexRoles() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            {/* ✅ Quité los botones de Excel y PDF */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
