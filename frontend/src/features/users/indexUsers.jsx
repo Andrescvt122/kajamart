@@ -268,8 +268,8 @@ export default function IndexUsers() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton onClick={handleExportExcel}>Excel</ExportExcelButton>
-              <ExportPDFButton onClick={handleExportPdf}>PDF</ExportPDFButton>
+              <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
+              <ExportPDFButton event={handleExportPdf}>PDF</ExportPDFButton>
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
