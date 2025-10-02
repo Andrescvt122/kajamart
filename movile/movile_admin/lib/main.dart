@@ -1,5 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:movile_admin/pages/check_email_page.dart';
+import 'package:movile_admin/pages/login_page.dart';
+import 'package:movile_admin/pages/recover_password.dart';
 import 'models/product.dart';
 import 'models/batch.dart';
 import 'screens/product_list.dart';
@@ -77,7 +80,13 @@ class MyApp extends StatelessWidget {
       title: 'Admin - Inventario',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-      home: MainScreen(products: sampleProducts),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/home': (context) => MainScreen(products: sampleProducts),
+        '/recover': (context) => const RecoverPasswordPage(),
+        '/check-email': (context) => const CheckEmailPage(),
+      },
     );
   }
 }
@@ -99,6 +108,11 @@ class _MainScreenState extends State<MainScreen> {
   );
 
   void _onItemTapped(int index) {
+    if (index == 6) {
+      // Índice del botón "Salir"
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      return;
+    }
     if (_selectedIndex == index) {
       _navigatorKeys[index].currentState!.popUntil((r) => r.isFirst);
     } else {
@@ -107,6 +121,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildOffstageNavigator(int index) {
+    // No se construye un navigator para el botón de salir.
+    if (index >= _navigatorKeys.length) {
+      return Container();
+    }
     return Offstage(
       offstage: _selectedIndex != index,
       child: Navigator(
@@ -191,6 +209,10 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Clientes'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.exit_to_app),
+            label: 'Salir',
+          ),
         ],
       ),
     );
