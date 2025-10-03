@@ -116,6 +116,8 @@ export const PrinterButton = ({ alert }) => (
     <FiPrinter size={20} />
   </button>
 );
+
+
 {/* Botones de prueba para las alertas */}
 <div className="flex flex-wrap gap-4 mt-8">
 {/* Éxito */}
