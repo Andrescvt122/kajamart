@@ -46,8 +46,8 @@ export default function DashboardReturnProducts() {
   // Razones de devolución enfocadas en vencimiento
   const returnReasons = useMemo(
     () => ({
-      labels: ["Cerca de Vencer", "Vencido", "Defectuoso", "Cliente Insatisfecho", "Otro"],
-      values: [52, 38, 29, 24, 18],
+      labels: ["Cerca de Vencer", "Vencido"],
+      values: [52, 38],
     }),
     []
   );
@@ -247,22 +247,6 @@ export default function DashboardReturnProducts() {
               <span className="text-3xl font-bold text-gray-900">{totalReturns.toLocaleString()}</span>
             </div>
             <p className="text-sm text-emerald-700 mt-3">Últimos 12 Meses</p>
-          </div>
-
-          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Valor Promedio</p>
-            <div className="mt-3 flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gray-900">${avgReturnValue.toFixed(2)}</span>
-            </div>
-            <p className="text-sm text-emerald-700 mt-3">Por producto devuelto</p>
-          </div>
-
-          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Productos Más Devueltos</p>
-            <div className="mt-3 flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gray-900">{topReturnedProducts.labels.length}</span>
-            </div>
-            <p className="text-sm text-emerald-700 mt-3">Productos principales</p>
           </div>
 
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">

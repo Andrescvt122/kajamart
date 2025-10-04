@@ -46,8 +46,8 @@ export default function DashboardLows() {
   // Razones de baja
   const lowReasons = useMemo(
     () => ({
-      labels: ["Vencido", "Defectuoso", "Obsoleto", "Daño", "Otro"],
-      values: [45, 38, 32, 29, 18],
+      labels: ["Supero fecha de vencimiento", "Daño"],
+      values: [45, 38],
     }),
     []
   );
@@ -249,14 +249,6 @@ export default function DashboardLows() {
               <span className="text-3xl font-bold text-gray-900">${avgLowValue.toFixed(2)}</span>
             </div>
             <p className="text-sm text-emerald-700 mt-3">Por producto dado de baja</p>
-          </div>
-
-          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Productos Más Afectados</p>
-            <div className="mt-3 flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gray-900">{topLowProducts.labels.length}</span>
-            </div>
-            <p className="text-sm text-emerald-700 mt-3">Productos principales</p>
           </div>
 
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">

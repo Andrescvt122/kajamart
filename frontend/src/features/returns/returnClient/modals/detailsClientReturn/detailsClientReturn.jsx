@@ -14,18 +14,26 @@ import {
 
 const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   const [currentCarouselStep, setCurrentCarouselStep] = useState(0);
-  // Estado para paginación de productos de la venta
+
+  // Estado para paginación de Productos devueltos
   const [salePage, setSalePage] = useState(1);
   const salePerPage = 5;
-  const saleProducts = returnData?.productsClientReturn || [];
+  const saleProducts = returnData?.productsToReturn || [];
   const saleTotalPages = Math.ceil(saleProducts.length / salePerPage);
-  const salePageProducts = saleProducts.slice((salePage - 1) * salePerPage, salePage * salePerPage);
-  // Estado para paginación de productos a devolver
+  const salePageProducts = saleProducts.slice(
+    (salePage - 1) * salePerPage,
+    salePage * salePerPage
+  );
+
+  // Estado para paginación de Productos cliente devueltos
   const [returnPage, setReturnPage] = useState(1);
   const returnPerPage = 5;
-  const returnProducts = returnData?.productsToReturn || [];
+  const returnProducts = returnData?.productsClientReturn || [];
   const returnTotalPages = Math.ceil(returnProducts.length / returnPerPage);
-  const returnPageProducts = returnProducts.slice((returnPage - 1) * returnPerPage, returnPage * returnPerPage);
+  const returnPageProducts = returnProducts.slice(
+    (returnPage - 1) * returnPerPage,
+    returnPage * returnPerPage
+  );
 
   if (!isOpen || !returnData) return null;
 
@@ -42,7 +50,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   };
 
   const calculateTotalReturn = () => {
-    return returnData.productsToReturn.reduce((total, product) => {
+    return returnData.productsClientReturn.reduce((total, product) => {
       return total + calculateProductTotal(product);
     }, 0);
   };
@@ -149,7 +157,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 <div className="flex items-center gap-3 mb-2">
                   <RefreshCw className="text-green-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
-                    Resaponsable
+                    Responsable
                   </span>
                 </div>
                 <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
@@ -168,6 +176,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 </p>
               </div>
             </div>
+
             {/* Carrusel de Productos */}
             <div className="space-y-4">
               {/* Navegación del Carrusel */}
@@ -181,7 +190,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos de la Venta
+                    Productos devueltos
                   </button>
                   <button
                     onClick={() => setCurrentCarouselStep(1)}
@@ -191,7 +200,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos a Devolver
+                    Productos cliente devueltos
                   </button>
                 </div>
 
@@ -234,11 +243,11 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
 
               {/* Contenido del Carrusel */}
               <div className="relative min-h-[300px]">
-                {/* Productos de la Venta Original */}
+                {/* Productos devueltos */}
                 {currentCarouselStep === 0 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos de la Venta Original
+                      Productos devueltos
                     </h3>
                     <div className="bg-green-50 rounded-lg border border-green-200 overflow-hidden">
                       <table className="min-w-full">
@@ -290,11 +299,11 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   </div>
                 )}
 
-                {/* Productos a Devolver */}
+                {/* Productos cliente devueltos */}
                 {currentCarouselStep === 1 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos a Devolver
+                      Productos cliente devueltos
                     </h3>
                     <div className="bg-red-50 rounded-lg border border-red-200 overflow-hidden">
                       <table className="min-w-full">
