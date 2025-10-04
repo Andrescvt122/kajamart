@@ -272,7 +272,7 @@ const PrintSaleButton = ({ sale }) => (
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <ViewButton event={() => handleView(v)} />
-                        <PrintSaleButton sale={v} />
+                      <PrintSaleButton sale={v} />
                       </div>
                     </td>
                   </motion.tr>
@@ -293,9 +293,11 @@ const PrintSaleButton = ({ sale }) => (
 
         {/* Modal de detalles */}
         <SaleDetailModal
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          sale={selectedSale}
+        sale={selectedSale}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedSale(null);
+          }}
         />
       </div>
     </>
