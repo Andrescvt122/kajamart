@@ -17,7 +17,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   // Estado para paginación de productos de la venta
   const [salePage, setSalePage] = useState(1);
   const salePerPage = 5;
-  const saleProducts = returnData?.products || [];
+  const saleProducts = returnData?.productsClientReturn || [];
   const saleTotalPages = Math.ceil(saleProducts.length / salePerPage);
   const salePageProducts = saleProducts.slice((salePage - 1) * salePerPage, salePage * salePerPage);
   // Estado para paginación de productos a devolver
@@ -50,7 +50,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   return (
     <>
       {/* Estilos CSS para animaciones */}
-      <style jsx>{`
+      <style>{`
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-in-out;
         }
