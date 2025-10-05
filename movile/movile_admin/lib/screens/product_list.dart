@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:movile_admin/constants/app_constants.dart';
 import '../models/product.dart';
 
 class ProductListScreen extends StatefulWidget {
@@ -56,14 +57,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc), // Fondo suave
+      backgroundColor: AppConstants.backgroundColor, // Fondo blanco
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(
-          215,
-          180,
-          222,
-          191,
-        ), // Verde claro principal
+        backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
         title: const Text(
           'Productos',
@@ -89,18 +85,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 hintText: "Buscar producto...",
                 prefixIcon: const Icon(Icons.search, color: Color(0xff626762)),
                 filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
+                fillColor: AppConstants.backgroundColor,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 0,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xffb4debf)),
+                  borderSide: const BorderSide(color: AppConstants.secondaryColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xff626762)),
+                  borderSide: const BorderSide(color: AppConstants.primaryColor),
                 ),
               ),
             ),
@@ -126,8 +122,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                   ),
                   selected: isSelected,
-                  selectedColor: const Color(0xff626762),
-                  backgroundColor: const Color(0xffd4e6d7),
+                  selectedColor: AppConstants.primaryColor,
+                  backgroundColor: AppConstants.secondaryColor.withOpacity(0.5),
                   onSelected: (_) {
                     setState(() {
                       _selectedFilter = filter;
@@ -154,7 +150,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xffd4e6d7)),
+                      border: Border.all(color: AppConstants.secondaryColor.withOpacity(0.6)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
@@ -180,7 +176,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             errorBuilder: (_, __, ___) => Container(
                               width: 100,
                               height: 100,
-                              color: const Color(0xffd4e6d7),
+                              color: AppConstants.secondaryColor.withOpacity(0.5),
                               child: const Icon(
                                 Icons.image,
                                 color: Color(0xff626762),
@@ -234,7 +230,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 Text(
                                   "\$${p.price.toStringAsFixed(0)}",
                                   style: const TextStyle(
-                                    color: Colors.green,
+                                    color: AppConstants.primaryColor,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
                                   ),
@@ -250,7 +246,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             p.status,
                             style: TextStyle(
                               color: p.status.toLowerCase() == "activo"
-                                  ? Colors.green
+                                  ? AppConstants.primaryColor
                                   : Colors.red,
                               fontWeight: FontWeight.w600,
                             ),

@@ -12,6 +12,7 @@ applyPlugin(jsPDF);
  * @param {string} fileName - El nombre del archivo (sin extensión).
  */
 export const exportToPdf = (data, headers, title, fileName) => {
+  
   if (!data || data.length === 0) {
     console.error("No hay datos para exportar a PDF.");
     return;
@@ -36,4 +37,5 @@ export const exportToPdf = (data, headers, title, fileName) => {
 
   // Guardar el PDF
   doc.save(`${fileName}.pdf`);
+  
 };

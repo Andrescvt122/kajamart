@@ -192,7 +192,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Fecha de vencimiento (opcional)</label>
+                    <label className="text-sm font-medium text-gray-700">Fecha de vencimiento</label>
 
                     {/* PrimeReact Calendar */}
                     <div className="mt-1">

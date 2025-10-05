@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:movile_admin/constants/app_constants.dart';
 import '../models/product.dart';
 import '../models/batch.dart';
 
@@ -40,9 +41,9 @@ class ProductDetailScreen extends StatelessWidget {
     final Batch batch = args['batch'] as Batch;
 
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc),
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xffb4debf), // Verde claro
+        backgroundColor: AppConstants.secondaryColor, // Verde claro
         elevation: 0,
         title: Text(
           'Detalle - ${product.name}',

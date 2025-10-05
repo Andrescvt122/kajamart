@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Hash,
   Trash2,
+  DollarSign,
 } from "lucide-react";
 
 const DetailsLow = ({ isOpen, onClose, lowData }) => {
@@ -88,19 +89,17 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                   {lowData.dateLow}
                 </p>
               </div>
-
               <div className="bg-gray-50 rounded-lg p-4 ">
                 <div className="flex items-center gap-3 mb-2">
-                  <FileText className="text-red-600" size={20} />
+                  <DollarSign className="text-red-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
-                    Tipo
+                    Total
                   </span>
                 </div>
-                <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-800">
-                  {lowData.type}
-                </span>
+                <p className="text-lg font-semibold text-gray-900">
+                  {lowData.total}
+                </p>
               </div>
-
               <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
                 <div className="flex items-center gap-3 mb-2">
                   <User className="text-red-600" size={20} />
@@ -135,9 +134,7 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">Razon</div>
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
-                        Cantidad Total
-                      </th>
+
                       <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
                           Cantidad de Baja
@@ -159,11 +156,6 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {product.reason}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                            {product.quantity}
-                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                           <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-red-200 text-red-800">
