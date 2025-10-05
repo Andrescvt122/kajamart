@@ -5,6 +5,7 @@ import 'package:kajamart_movile/admin/models/provider.dart' as model;
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/provider_service.dart';
+import '../constants/app_constants.dart';
 import '../screens/product_list.dart';
 import '../screens/product_batches.dart';
 import '../screens/product_detail.dart';
@@ -75,14 +76,14 @@ class NavigationService {
 
   static Widget _buildUnderConstructionScreen(int? sectionIndex) {
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc),
+      backgroundColor: AppConstants.backgroundColor,
       body: Center(
         child: Text(
           'Sección ${sectionIndex ?? 'desconocida'} en construcción',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w500,
-            color: Color(0xff343b45),
+            color: AppConstants.textDarkColor,
           ),
         ),
       ),

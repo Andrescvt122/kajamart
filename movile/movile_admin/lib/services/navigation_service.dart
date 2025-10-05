@@ -1,6 +1,7 @@
 // lib/services/navigation_service.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:movile_admin/constants/app_constants.dart';
 import 'package:movile_admin/models/provider.dart' as model;
 import '../models/product.dart';
 import '../services/product_service.dart';
@@ -75,7 +76,7 @@ class NavigationService {
 
   static Widget _buildUnderConstructionScreen(int? sectionIndex) {
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc),
+      backgroundColor: AppConstants.backgroundColor,
       body: Center(
         child: Text(
           'Sección ${sectionIndex ?? 'desconocida'} en construcción',

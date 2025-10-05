@@ -1,5 +1,6 @@
 // lib/screens/product_batches.dart
 import 'package:flutter/material.dart';
+import '../constants/app_constants.dart';
 import '../models/product.dart';
 
 class ProductBatchesScreen extends StatefulWidget {
@@ -37,14 +38,14 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xffb4debf), // Verde claro
+        backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
         title: Text(
           'Lotes de: ${product.name}',
-          style: const TextStyle(
-            color: Color(0xff343b45),
+          style: TextStyle(
+            color: AppConstants.textDarkColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -64,20 +65,21 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
               },
               decoration: InputDecoration(
                 hintText: "Buscar lote (ID, código, fecha)...",
-                prefixIcon: const Icon(Icons.search, color: Color(0xff626762)),
+                prefixIcon:
+                    Icon(Icons.search, color: AppConstants.textLightColor),
                 filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
+                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 0,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xffb4debf)),
+                  borderSide: BorderSide(color: AppConstants.secondaryColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xff626762)),
+                  borderSide: BorderSide(color: AppConstants.textLightColor),
                 ),
               ),
             ),
@@ -86,9 +88,9 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Text(
               'Producto ID: ${product.id}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xff343b45),
+                color: AppConstants.textDarkColor,
               ),
             ),
           ),
@@ -113,7 +115,9 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xffd4e6d7)),
+                      border: Border.all(
+                        color: AppConstants.secondaryColor.withOpacity(0.6),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
@@ -128,26 +132,26 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                       children: [
                         Text(
                           "ID Lote: ${b.idDetalle}",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Color(0xff343b45),
+                            color: AppConstants.textDarkColor,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Código: ${b.barcode}",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xff626762),
+                            color: AppConstants.textLightColor,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Vence: ${b.expiryDate.toIso8601String().split('T')[0]}",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xff626762),
+                            color: AppConstants.textLightColor,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -185,8 +189,8 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                         const SizedBox(height: 6),
                         Text(
                           "\$${b.price.toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            color: Colors.green,
+                          style: TextStyle(
+                            color: AppConstants.primaryColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
