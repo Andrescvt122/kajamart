@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'provider_list.dart';
-import 'product_list.dart';
+import '../constants/app_constants.dart';
 import '../services/data_service.dart';
+import 'product_list.dart';
 import 'profile_screen.dart';
+import 'provider_list.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -45,6 +46,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: Text(
           _titles[_selectedIndex],
@@ -53,7 +55,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF00C853),
+        backgroundColor: AppConstants.primaryColor,
         elevation: 0,
       ),
       body: _buildScreenContent(),
@@ -69,7 +71,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             });
           }
         },
-        selectedItemColor: const Color(0xFF00C853),
+        selectedItemColor: AppConstants.primaryColor,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
