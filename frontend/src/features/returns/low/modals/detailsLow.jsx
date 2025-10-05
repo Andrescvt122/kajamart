@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Hash,
   Trash2,
+  DollarSign,
 } from "lucide-react";
 
 const DetailsLow = ({ isOpen, onClose, lowData }) => {
@@ -86,6 +87,17 @@ const DetailsLow = ({ isOpen, onClose, lowData }) => {
                 </div>
                 <p className="text-lg font-semibold text-gray-900">
                   {lowData.dateLow}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 ">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="text-red-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Total
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {lowData.total}
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">

@@ -21,13 +21,14 @@ for (let i = 1; i <= 44; i++) {
     dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
     responsible: i % 2 === 0 ? "Arturo" : "Federico",
     type: i % 2 === 0 ? "Dañado" : "Vencido",
+    total: i * 100,
     products: [
       { id: 1, name: "Producto A", lowQuantity: 2, reason: "Producto dañado" },
       { id: 2, name: "Producto B", lowQuantity: 1, reason: "Producto vencido" },
       { id: 3, name: "Producto C", lowQuantity: 3, reason: "Producto no requerido" },
       { id: 4, name: "Producto D", lowQuantity: 5, reason: "Producto dañado" },
       { id: 5, name: "Producto E", lowQuantity: 2, reason: "Producto vencido" },
-    ],
+    ]
   });
 }
 
