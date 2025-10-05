@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ProductListScreen extends StatefulWidget {
+  const ProductListScreen({super.key});
+
   @override
   _ProductListScreenState createState() => _ProductListScreenState();
 }

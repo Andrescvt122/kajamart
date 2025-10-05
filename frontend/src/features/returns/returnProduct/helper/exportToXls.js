@@ -136,6 +136,8 @@ export const generateProductReturnsXLS = async () => {
   } catch (err) {
     console.error("Error generando XLS:", err);
     alert("Error generando XLS");
+  } finally{
+    console.log("pene");
   }
 };
 

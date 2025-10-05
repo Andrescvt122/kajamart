@@ -1,5 +1,6 @@
 // lib/screens/product_batches.dart
 import 'package:flutter/material.dart';
+import 'package:movile_admin/constants/app_constants.dart';
 import '../models/product.dart';
 
 class ProductBatchesScreen extends StatefulWidget {
@@ -37,9 +38,9 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc),
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xffb4debf), // Verde claro
+        backgroundColor: AppConstants.secondaryColor, // Verde claro
         elevation: 0,
         title: Text(
           'Lotes de: ${product.name}',
@@ -66,18 +67,18 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                 hintText: "Buscar lote (ID, código, fecha)...",
                 prefixIcon: const Icon(Icons.search, color: Color(0xff626762)),
                 filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
+                fillColor: AppConstants.backgroundColor,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 0,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xffb4debf)),
+                  borderSide: const BorderSide(color: AppConstants.secondaryColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xff626762)),
+                  borderSide: const BorderSide(color: AppConstants.primaryColor),
                 ),
               ),
             ),
@@ -113,7 +114,9 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xffd4e6d7)),
+                      border: Border.all(
+                        color: AppConstants.secondaryColor.withOpacity(0.6),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
@@ -186,7 +189,7 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
                         Text(
                           "\$${b.price.toStringAsFixed(0)}",
                           style: const TextStyle(
-                            color: Colors.green,
+                            color: AppConstants.primaryColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),

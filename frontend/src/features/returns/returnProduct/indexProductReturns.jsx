@@ -11,10 +11,6 @@ import { Search, Check, XCircle } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
-import {
-  showInfoAlert,
-} from "../../../shared/components/alerts";
-import { Button } from "primereact/button";
 import ProductReturnModal from "./modals/register/ProductReturnModal";
 import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
@@ -198,6 +194,7 @@ export default function IndexProductReturns() {
                 <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Cantidad</th>
                 <th className="px-6 py-4">Descuento</th>
+                <th className="px-6 py-4">Razon</th>
                 <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -240,6 +237,9 @@ export default function IndexProductReturns() {
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {product.responsable}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {product.reason}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
