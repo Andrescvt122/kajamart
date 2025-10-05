@@ -12,6 +12,11 @@ import ondas from "../../assets/ondasHorizontal.png";
 import DetailProductModal from "./DetailProductModal";
 import ProductDeleteModal from "./productDeleteModal";
 import { showLoadingAlert } from "../../shared/components/alerts";
+import { ExportExcelButton,ExportPDFButton } from "../../shared/components/buttons";
+import { exportProductsToExcel} from "./helpers/exportToXlsProducts"
+import { exportProductsToPDF} from "./helpers/exportToPdfProducts"
+
+
 
 export default function AllProductsPage() {
   const { state } = useLocation();
@@ -132,6 +137,15 @@ export default function AllProductsPage() {
                   setCurrentPage(1);
                 }}
               />
+            </div>
+
+            <div className="flex gap-2 flex-shrink-0">
+              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
+                Excel
+              </ExportExcelButton>
+              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                PDF
+              </ExportPDFButton>
             </div>
           </div>
 

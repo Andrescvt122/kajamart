@@ -12,6 +12,8 @@ import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion } from "framer-motion";
+import { exportProductsToExcel } from "./helpers/exportToXls";
+import { exportProductsToPDF } from "./helpers/exportToPdf";
 
 import {
   showInfoAlert,
@@ -22,7 +24,6 @@ import {
 import ProductRegisterModal from "./productRegisterModal.jsx";
 import ProductEditModal from "./productEditModal.jsx";
 import ProductDeleteModal from "./productDeleteModal.jsx";
-
 
 if (typeof document !== "undefined") {
   document.documentElement.style.overflowX = "hidden";
@@ -282,47 +283,46 @@ export default function IndexProducts() {
   });
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-const [selectedProduct, setSelectedProduct] = useState({
-  nombre: "",
-  descripcion: "",
-  precioCompra: "",
-  precioVenta: "",
-  iva: "",
-  stock: "",
-  estado: "",
-  categoria: "",
-  imagenes: [],
-});
-const listVariants = {
-  hidden: { opacity: 0, y: -10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-};
-
-const handleEditClick = (product) => {
-  setSelectedProduct({
-    nombre: product.nombre,
-    descripcion: product.descripcion,
-    precioCompra: product.precioCompra,
-    precioVenta: product.precioVenta,
-    iva: product.iva,
-    stock: product.stock,
-    estado: product.estado,
-    categoria: product.categoria,
-    imagenes: product.imagenes || [],
+  const [selectedProduct, setSelectedProduct] = useState({
+    nombre: "",
+    descripcion: "",
+    precioCompra: "",
+    precioVenta: "",
+    iva: "",
+    stock: "",
+    estado: "",
+    categoria: "",
+    imagenes: [],
   });
-  setIsEditModalOpen(true);
-};
-const handleEditSubmit = (e) => {
-  e.preventDefault();
-  console.log("Producto editado:", selectedProduct);
-  setIsEditModalOpen(false);
-};
+  const listVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  };
 
+  const itemVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+  };
+
+  const handleEditClick = (product) => {
+    setSelectedProduct({
+      nombre: product.nombre,
+      descripcion: product.descripcion,
+      precioCompra: product.precioCompra,
+      precioVenta: product.precioVenta,
+      iva: product.iva,
+      stock: product.stock,
+      estado: product.estado,
+      categoria: product.categoria,
+      imagenes: product.imagenes || [],
+    });
+    setIsEditModalOpen(true);
+  };
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    console.log("Producto editado:", selectedProduct);
+    setIsEditModalOpen(false);
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -527,8 +527,12 @@ const handleEditSubmit = (e) => {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
+              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
+                Excel
+              </ExportExcelButton>
+              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                PDF
+              </ExportPDFButton>
               <button
                 onClick={handleOpenModal}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -634,9 +638,7 @@ const handleEditSubmit = (e) => {
                           />
 
                           <EditButton event={() => handleEditClick(p)} />
-                          <DeleteButton
-                            event={() => handleDeleteClick(p)}
-                          />
+                          <DeleteButton event={() => handleDeleteClick(p)} />
                         </div>
                       </td>
                     </motion.tr>
