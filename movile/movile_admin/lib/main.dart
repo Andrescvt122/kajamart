@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:movile_admin/constants/app_constants.dart';
 import 'package:movile_admin/pages/check_email_page.dart';
 import 'package:movile_admin/pages/login_page.dart';
 import 'package:movile_admin/pages/recover_password.dart';
@@ -80,7 +81,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Admin - Inventario',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppConstants.primaryColor,
+          background: AppConstants.backgroundColor,
+        ),
+        scaffoldBackgroundColor: AppConstants.backgroundColor,
+        useMaterial3: true,
+      ),
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
@@ -165,7 +173,7 @@ class _MainScreenState extends State<MainScreen> {
           // Otras secciones todavía no implementadas
           return MaterialPageRoute(
             builder: (_) => Scaffold(
-              backgroundColor: const Color(0xffe8e5dc),
+              backgroundColor: AppConstants.backgroundColor,
               body: Center(
                 child: Text(
                   'Sección $index en construcción',
@@ -194,7 +202,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xffb4debf), // Verde claro
+        backgroundColor: AppConstants.backgroundColor,
         selectedItemColor: const Color(
           0xff343b45,
         ), // Texto oscuro al seleccionar
