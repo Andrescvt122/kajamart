@@ -194,6 +194,7 @@ export default function IndexProductReturns() {
                 <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Cantidad</th>
                 <th className="px-6 py-4">Descuento</th>
+                <th className="px-6 py-4">Razon</th>
                 <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
@@ -236,6 +237,9 @@ export default function IndexProductReturns() {
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {product.responsable}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {product.reason}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">

@@ -1,74 +1,13 @@
+// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
-import 'product_list_screen.dart';
 import 'package:intl/intl.dart';
-import '../pages/login_page.dart';
-import 'category_screen.dart';
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
-  @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _screens = [
-    ProductListScreen(),
-    const CategoryScreen(),
-    const ProfileScreen(),
-  ];
-
-  void _onItemTapped(int index) {
-    if (index == 3) {
-      // Navegar a la página de login y remover las rutas anteriores.
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (Route<dynamic> route) => false,
-      );
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.storefront),
-            label: "Productos",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category),
-            label: "Categorías",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Perfil"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.exit_to_app),
-            label: "Salir",
-          ),
-        ],
-      ),
-    );
-  }
-}
+import '../constants/app_constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -89,14 +28,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final DateTime _creationDate = DateTime(2023, 1, 15);
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _roleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text("Mi Perfil"),
-        backgroundColor: const Color.fromARGB(136, 135, 234, 129),
+        title: Text(
+          "Mi Perfil",
+          style: TextStyle(
+            color: AppConstants.textDarkColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppConstants.secondaryColor,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            icon: Icon(
+              _isEditing ? Icons.save : Icons.edit,
+              color: AppConstants.textDarkColor,
+            ),
             onPressed: () {
               setState(() {
                 _isEditing = !_isEditing;
@@ -114,8 +73,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Foto de perfil
             CircleAvatar(
               radius: 60,
-              backgroundColor: Colors.grey.shade300,
-              child: const Icon(Icons.person, size: 80, color: Colors.white),
+              backgroundColor: AppConstants.secondaryColor.withOpacity(0.5),
+              child: Icon(
+                Icons.person,
+                size: 80,
+                color: AppConstants.textDarkColor,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -168,13 +131,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: AppConstants.textLightColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: !_isEditing,
-        fillColor: Colors.grey[200],
+        fillColor: AppConstants.secondaryColor.withOpacity(0.2),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: AppConstants.secondaryColor),
         ),
       ),
     );
@@ -186,14 +149,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade400),
-        color: _isEditing ? Colors.transparent : Colors.grey[200],
+        color: _isEditing
+            ? Colors.transparent
+            : AppConstants.secondaryColor.withOpacity(0.2),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              Icon(Icons.power_settings_new, color: Colors.grey.shade600),
+              Icon(
+                Icons.power_settings_new,
+                color: AppConstants.textLightColor,
+              ),
               const SizedBox(width: 12),
               const Text("Estado", style: TextStyle(fontSize: 16)),
             ],
@@ -207,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     });
                   }
                 : null,
-            activeColor: Colors.green,
+            activeColor: AppConstants.primaryColor,
           ),
         ],
       ),
@@ -221,11 +189,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return Row(
       children: [
-        Icon(icon, color: Colors.grey.shade600),
+        Icon(icon, color: AppConstants.textLightColor),
         const SizedBox(width: 16),
         Text(
           "$label:",
-          style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+          style: TextStyle(fontSize: 16, color: AppConstants.textDarkColor),
         ),
         const Spacer(),
         Text(

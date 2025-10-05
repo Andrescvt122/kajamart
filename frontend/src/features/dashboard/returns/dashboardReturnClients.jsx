@@ -46,8 +46,8 @@ export default function DashboardReturnClients() {
   // Razones de devolución (vertical bar)
   const reasons = useMemo(
     () => ({
-      labels: ["Defectuoso", "Artículo Incorrecto", "Dañado", "No Necesitado", "Otro"],
-      values: [18, 22, 15, 20, 12],
+      labels: ["Vencido", "Artículo Incorrecto", "Dañado", "Articulo no requerido"],
+      values: [18, 22, 15, 20],
     }),
     []
   );
