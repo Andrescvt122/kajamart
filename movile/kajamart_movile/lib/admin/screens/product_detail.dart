@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_constants.dart';
 import '../models/product.dart';
 import '../models/batch.dart';
 
@@ -15,16 +16,16 @@ class ProductDetailScreen extends StatelessWidget {
             width: 160,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xff343b45),
+                color: AppConstants.textDarkColor,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Color(0xff626762)),
+              style: TextStyle(color: AppConstants.textLightColor),
             ),
           ),
         ],
@@ -40,14 +41,14 @@ class ProductDetailScreen extends StatelessWidget {
     final Batch batch = args['batch'] as Batch;
 
     return Scaffold(
-      backgroundColor: const Color(0xffe8e5dc),
+      backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xffb4debf), // Verde claro
+        backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
         title: Text(
           'Detalle - ${product.name}',
-          style: const TextStyle(
-            color: Color(0xff343b45),
+          style: TextStyle(
+            color: AppConstants.textDarkColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -78,10 +79,10 @@ class ProductDetailScreen extends StatelessWidget {
                 child: Image.network(
                   product.imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
+                  errorBuilder: (_, __, ___) => Icon(
                     Icons.image,
                     size: 80,
-                    color: Color(0xff626762),
+                    color: AppConstants.textLightColor,
                   ),
                 ),
               ),
