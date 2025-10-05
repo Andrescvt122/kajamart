@@ -16,6 +16,8 @@ import CategoryRegisterModal from "./CategoryRegisterModal";
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import { showLoadingAlert } from "../../shared/components/alerts.jsx";
+import { exportCategoriesToPDF } from "../../features/categories/helpers/exportToPdf";
+import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 
 export default function IndexCategories() {
   const [categories, setCategories] = useState([
@@ -35,14 +37,14 @@ export default function IndexCategories() {
     {
       id: "CAT003",
       nombre: "Bebidas",
-      descripcion:
-        "Jugos, aguas minerales, refrescos y bebidas energéticas.",
+      descripcion: "Jugos, aguas minerales, refrescos y bebidas energéticas.",
       estado: "Activo",
     },
     {
       id: "CAT004",
       nombre: "Snacks",
-      descripcion: "Papas fritas, galletas, dulces y otros productos empacados.",
+      descripcion:
+        "Papas fritas, galletas, dulces y otros productos empacados.",
       estado: "Activo",
     },
   ]);
@@ -69,9 +71,7 @@ export default function IndexCategories() {
       return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
     }
     return categories.filter((c) =>
-      Object.values(c).some((value) =>
-        String(value).toLowerCase().includes(s)
-      )
+      Object.values(c).some((value) => String(value).toLowerCase().includes(s))
     );
   }, [categories, searchTerm]);
 
@@ -107,7 +107,10 @@ export default function IndexCategories() {
       setSelectedCategory(null);
 
       setTimeout(() => {
-        const newTotal = Math.max(1, Math.ceil((filtered.length - 1) / perPage));
+        const newTotal = Math.max(
+          1,
+          Math.ceil((filtered.length - 1) / perPage)
+        );
         if (currentPage > newTotal) setCurrentPage(newTotal);
       }, 0);
     }, 900);
@@ -197,7 +200,9 @@ export default function IndexCategories() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Categorías</h2>
-            <p className="text-sm text-gray-500 mt-1">Administrador de Tienda</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Administrador de Tienda
+            </p>
           </div>
         </div>
 
@@ -214,8 +219,12 @@ export default function IndexCategories() {
             />
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={exportCategoriesToExcel}>
+              Excel
+            </ExportExcelButton>
+
+            <ExportPDFButton event={exportCategoriesToPDF}>PDF</ExportPDFButton>
+
             <button
               onClick={handleOpenModal}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -243,7 +252,10 @@ export default function IndexCategories() {
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <motion.tbody className="divide-y divide-gray-100" variants={listVariants}>
+            <motion.tbody
+              className="divide-y divide-gray-100"
+              variants={listVariants}
+            >
               <AnimatePresence initial={false} mode="popLayout">
                 {pageItems.length === 0 ? (
                   <motion.tr
@@ -252,7 +264,10 @@ export default function IndexCategories() {
                     animate="visible"
                     exit="hidden"
                   >
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                    <td
+                      colSpan={5}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
                       No se encontraron categorías.
                     </td>
                   </motion.tr>
@@ -263,9 +278,15 @@ export default function IndexCategories() {
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{c.nombre}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.descripcion}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {c.id}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {c.nombre}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {c.descripcion}
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
