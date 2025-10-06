@@ -184,9 +184,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           if (provider.address != null) _buildInfoRow('Dirección', provider.address!),
           if (provider.registrationDate != null)
             _buildInfoRow('Fecha de Registro',
-                '${provider.registrationDate!.day}/${provider.registrationDate!.month}/${provider.registrationDate!.year}'),
-          if (provider.averageRating != null)
-            _buildInfoRow('Calificación', '${provider.averageRating} ⭐'),
+                '${provider.registrationDate!.day}/${provider.registrationDate!.month}/${provider.registrationDate!.year}')
         ],
       ),
     );
