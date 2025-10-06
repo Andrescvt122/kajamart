@@ -108,71 +108,43 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Imagen del proveedor
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              provider.imageUrl ?? 'https://via.placeholder.com/300x200?text=No+Image',
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 80,
-                height: 80,
-                color: AppConstants.secondaryColor.withOpacity(0.3),
-                child: Icon(
-                  Icons.business,
-                  color: AppConstants.textLightColor,
-                  size: 40,
-                ),
-              ),
+          Text(
+            provider.name,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppConstants.textDarkColor,
             ),
           ),
-          const SizedBox(width: 16),
-          // Información básica
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  provider.name,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.textDarkColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'NIT: ${provider.nit}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppConstants.textLightColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(provider.status.colorValue).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Color(provider.status.colorValue),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    provider.status.displayName,
-                    style: TextStyle(
-                      color: Color(provider.status.colorValue),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            'NIT: ${provider.nit}',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppConstants.textLightColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Color(provider.status.colorValue).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Color(provider.status.colorValue),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              provider.status.displayName,
+              style: TextStyle(
+                color: Color(provider.status.colorValue),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
