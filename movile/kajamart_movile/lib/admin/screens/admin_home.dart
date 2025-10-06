@@ -50,17 +50,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      appBar: AppBar(
-        title: Text(
-          _titles[_selectedIndex],
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: AppConstants.primaryColor,
-        elevation: 0,
-      ),
+      appBar: _buildAppBar(),
       body: _buildScreenContent(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -107,6 +97,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  PreferredSizeWidget? _buildAppBar() {
+    const screensWithOwnAppBar = {0, 1, 5};
+
+    if (screensWithOwnAppBar.contains(_selectedIndex)) {
+      return null;
+    }
+
+    return AppBar(
+      title: Text(
+        _titles[_selectedIndex],
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: AppConstants.primaryColor,
+      elevation: 0,
     );
   }
 
