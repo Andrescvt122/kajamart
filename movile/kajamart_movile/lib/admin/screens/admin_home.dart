@@ -4,6 +4,9 @@ import '../services/data_service.dart';
 import 'product_list.dart';
 import 'profile_screen.dart';
 import 'provider_list.dart';
+import 'client_list.dart';
+import 'sale_list.dart';
+import 'purchase_list.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -135,69 +138,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildSalesScreen() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.point_of_sale, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Gestión de Ventas',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Aquí podrás gestionar todas las ventas del sistema',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+    return SaleListScreen(sales: DataService.sampleSales);
   }
 
   Widget _buildPurchasesScreen() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shopping_cart, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Gestión de Compras',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Aquí podrás gestionar todas las compras del sistema',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+    return PurchaseListScreen(purchases: DataService.samplePurchases);
   }
 
   Widget _buildClientsScreen() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people, size: 80, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Gestión de Clientes',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Aquí podrás gestionar todos los clientes del sistema',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+    return ClientListScreen(clients: DataService.sampleClients);
   }
 
   Widget _buildMyProfileScreen() {
