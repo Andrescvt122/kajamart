@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
   ViewButton,
-  EditButton,
-  DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
   ViewDetailsButton,
@@ -12,49 +10,64 @@ import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import RegisterLow from "./modals/registerLow";
-import DetailsLow from './modals/detailsLow';
+import DetailsLow from "./modals/detailsLow";
+import generateProductLowsPDF from "./helpers/exportToPdf";
+import generateProductLowsXLS from "./helpers/exportToXls";
 
-// Datos base de bajas
 const baseLows = [];
 for (let i = 1; i <= 44; i++) {
   baseLows.push({
     idLow: i,
-    idDetailProduct: 100 + i,
     dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
-    responsible: i % 3 === 0 ? "Arturo" : "Federico",
-    cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
-    products:[
-      { id: 1, name: "Producto A", lowQuantity: 2, quantity: 5,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
-      { id: 2, name: "Producto B", lowQuantity: 1, quantity: 3,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
-      { id: 3, name: "Producto C", lowQuantity: 4, quantity: 1,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite", },
-      { id: 4, name: "Producto D", lowQuantity: 3, quantity: 8,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
-      { id: 5, name: "Producto E", lowQuantity: 2, quantity: 6,reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",},
+    responsible: i % 2 === 0 ? "Arturo" : "Federico",
+    type: i % 2 === 0 ? "Dañado" : "Vencido",
+    total: i * 100,
+    products: [
+      { id: 1, name: "Producto A", lowQuantity: 2, reason: "Producto dañado" },
+      { id: 2, name: "Producto B", lowQuantity: 1, reason: "Producto vencido" },
+      { id: 3, name: "Producto C", lowQuantity: 3, reason: "Producto no requerido" },
+      { id: 4, name: "Producto D", lowQuantity: 5, reason: "Producto dañado" },
+      { id: 5, name: "Producto E", lowQuantity: 2, reason: "Producto vencido" },
     ]
   });
 }
-
 
 export default function IndexLow() {
   const [lows, setLows] = useState([...baseLows]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isOpen, setIsOpen] = useState(false); // 👈 Estado del modal
-  const [selectedLow, setSelectedLow] = useState(null); // 👈 Estado para el producto de baja seleccionado
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedLow, setSelectedLow] = useState(null);
   const perPage = 6;
 
   // Normalización de texto
   const normalizeText = (text) =>
     text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+  // Filtrado + expansión de productos
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return lows;
-    return lows.filter((p) =>
-      Object.values(p).some((value) => normalizeText(value).includes(s))
+    const match = (val) => normalizeText(String(val ?? "")).includes(s);
+
+    const expanded = lows.flatMap((low) =>
+      low.products.map((product) => ({
+        ...low,
+        currentProduct: product,
+      }))
+    );
+
+    if (!s) return expanded;
+
+    return expanded.filter((item) =>
+      Object.values(item).some((val) =>
+        typeof val === "object"
+          ? Object.values(val).some((v) => match(v))
+          : match(val)
+      )
     );
   }, [lows, searchTerm]);
 
+  // Paginación basada en filas (productos)
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -66,24 +79,19 @@ export default function IndexLow() {
     setCurrentPage(p);
   };
 
-  // 👇 Cuando se confirma un producto de baja en el modal
   const handleConfirmLow = (product) => {
     const newLow = {
       idLow: lows.length + 1,
-      idDetailProduct: product.id,
       dateLow: new Date().toISOString().split("T")[0],
-      reason: product.reason,
       responsible: "Administrador",
-      cantidad: product.requestedQuantity,
+      products: [product],
     };
-    // Insertar como primer registro
     setLows((prev) => [newLow, ...prev]);
-    console.log("Nueva baja registrada:", newLow);
   };
 
   return (
     <>
-      {/* Fondo de ondas */}
+      {/* Fondo decorativo */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
@@ -96,7 +104,6 @@ export default function IndexLow() {
         }}
       />
 
-      {/* Contenido */}
       <div className="relative z-10">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
@@ -106,7 +113,7 @@ export default function IndexLow() {
           </div>
         </div>
 
-        {/* Barra de búsqueda + botones */}
+        {/* Buscador y botones */}
         <div className="mb-6 flex items-center gap-3">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -114,7 +121,7 @@ export default function IndexLow() {
             </div>
             <input
               type="text"
-              placeholder="Buscar devoluciones..."
+              placeholder="Buscar bajas..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -124,18 +131,18 @@ export default function IndexLow() {
             />
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductLowsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductLowsPDF}>PDF</ExportPDFButton>
             <button
-              onClick={() => setIsOpen(true)} // 👈 abre el modal
+              onClick={() => setIsOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
             >
-              Registrar nueva devolución
+              Registrar nueva baja
             </button>
           </div>
         </div>
 
-        {/* Tabla con animación */}
+        {/* Tabla */}
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           initial="hidden"
@@ -145,49 +152,58 @@ export default function IndexLow() {
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">Baja</th>
-                <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Responsable</th>
+                <th className="px-6 py-4">Producto</th>
                 <th className="px-6 py-4">Cantidad</th>
+                <th className="px-6 py-4">Razón</th>
+                <th className="px-6 py-4">Responsable</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
             <motion.tbody className="divide-y divide-gray-100">
               {pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
-                    No se encontraron devoluciones.
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-gray-400"
+                  >
+                    No se encontraron productos dados de baja.
                   </td>
                 </tr>
               ) : (
-                pageItems.map((s, i) => (
+                pageItems.map((item, i) => (
                   <motion.tr
-                    key={s.idLow + "-" + i}
+                    key={`${item.idLow}-${item.currentProduct.id}-${i}`}
                     className="hover:bg-gray-50"
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {s.idLow}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.idDetailProduct}
+                      {item.idLow}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
-                      {s.dateLow}
+                      {item.dateLow}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {item.currentProduct.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {item.currentProduct.lowQuantity}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {item.currentProduct.reason}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                        {s.responsible}
+                        {item.responsible}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {s.cantidad}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewDetailsButton event={() => {
-                          setSelectedLow(s);
-                          setIsOpen(true);
-                        }} />
+                        <ViewDetailsButton
+                          event={() => {
+                            setSelectedLow(item);
+                            setIsOpen(true);
+                          }}
+                        />
                       </div>
                     </td>
                   </motion.tr>
@@ -207,7 +223,7 @@ export default function IndexLow() {
         />
       </div>
 
-      {/* Modal de baja */}
+      {/* Modal de registro */}
       <RegisterLow
         isOpen={isOpen && !selectedLow}
         onClose={() => setIsOpen(false)}

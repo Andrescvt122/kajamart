@@ -17,6 +17,8 @@ import SuppliersDeleteModal from "./SuplliersDeleteModal.jsx";
 // ⬇️ agrega esto arriba con los imports
 import Swal from "sweetalert2";
 import { showLoadingAlert } from "../../shared/components/alerts.jsx";
+import { exportSuppliersToExcel } from "./helpers/exportToXls";
+import { exportSuppliersToPDF } from "./helpers/exportToPdf";
 
 import {
   showErrorAlert,
@@ -191,11 +193,12 @@ export default function IndexSuppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedSupplierToDelete, setSelectedSupplierToDelete] = useState(null);
-  
+  const [selectedSupplierToDelete, setSelectedSupplierToDelete] =
+    useState(null);
+
   const handleDeleteConfirm = (supplier) => {
     showLoadingAlert("Eliminando proveedor...");
-  
+
     setTimeout(() => {
       Swal.fire({
         icon: "success",
@@ -207,18 +210,17 @@ export default function IndexSuppliers() {
         timer: 1800,
         timerProgressBar: true,
       });
-  
+
       // Eliminar por NIT en vez de id
       setSuppliers((prev) => prev.filter((s) => s.nit !== supplier.nit));
     }, 1500);
   };
-  
-  
+
   const handleDeleteClick = (supplier) => {
     setSelectedSupplierToDelete(supplier);
     setIsDeleteModalOpen(true);
   };
-  
+
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     if (isDetailOpen) {
@@ -515,8 +517,14 @@ export default function IndexSuppliers() {
       />
 
       <div className="flex gap-2 flex-shrink-0">
-        <ExportExcelButton>Excel</ExportExcelButton>
-        <ExportPDFButton>PDF</ExportPDFButton>
+        <ExportExcelButton event={() => exportSuppliersToExcel(suppliers)}>
+          Excel
+        </ExportExcelButton>
+
+        <ExportPDFButton event={() => exportSuppliersToPDF(suppliers)}>
+          PDF
+        </ExportPDFButton>
+
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"

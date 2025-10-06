@@ -46,8 +46,8 @@ export default function DashboardReturnClients() {
   // Razones de devolución (vertical bar)
   const reasons = useMemo(
     () => ({
-      labels: ["Defectuoso", "Artículo Incorrecto", "Dañado", "No Necesitado", "Otro"],
-      values: [18, 22, 15, 20, 12],
+      labels: ["Vencido", "Artículo Incorrecto", "Dañado", "Articulo no requerido"],
+      values: [18, 22, 15, 20],
     }),
     []
   );
@@ -222,7 +222,7 @@ export default function DashboardReturnClients() {
 
         {/* Top products (horizontal bars) */}
         <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Devoluciones de Productos</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos devueltos</h2>
 
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
             <p className="text-sm text-gray-600">Top 5 Productos Devueltos</p>

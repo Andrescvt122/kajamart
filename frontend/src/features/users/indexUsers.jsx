@@ -15,6 +15,10 @@ import {
   showSuccessAlert,
 } from "../../shared/components/alerts.jsx";
 
+// Importar helpers de exportación
+import { exportToExcel } from "./helper/exportToExcel.js";
+import { exportToPdf } from "./helper/exportToPdf.js";
+
 // Importar modales
 import DetailsUsers from "./detailsUsers";
 import EditUsers from "./editUsers";
@@ -185,6 +189,31 @@ export default function IndexUsers() {
     showSuccessAlert("Usuario actualizado correctamente");
   };
 
+  // --- Lógica de exportación ---
+  const handleExportExcel = () => {
+    exportToExcel(filtered, "usuarios", "Usuarios");
+  };
+
+  const handleExportPdf = () => {
+    // Define las cabeceras que quieres en el PDF
+    const headers = [
+      "Nombre",
+      "Correo",
+      "Rol asignado",
+      "Estado",
+      "Fecha creación",
+    ];
+    // Mapea los datos filtrados para que coincidan con las cabeceras
+    const dataToExport = filtered.map((user) => ({
+      Nombre: user.Nombre,
+      Correo: user.Correo,
+      Rol: user.Rol,
+      Estado: user.Estado,
+      FechaCreacion: user.FechaCreacion,
+    }));
+    exportToPdf(dataToExport, headers, "Listado de Usuarios", "usuarios");
+  };
+
   // Variantes de animación
   const tableVariants = {
     hidden: { opacity: 0 },
@@ -239,8 +268,8 @@ export default function IndexUsers() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
+              <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
+              <ExportPDFButton event={handleExportPdf}>PDF</ExportPDFButton>
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -314,41 +343,29 @@ export default function IndexUsers() {
                       </td>
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
+                          <ViewButton
+                            event={() =>
                               window.dispatchEvent(
                                 new CustomEvent("open-user-details", {
                                   detail: user,
                                 })
                               )
                             }
-                            className="rounded"
-                          >
-                            <ViewButton />
-                          </button>
+                          />
 
-                          <button
-                            type="button"
-                            onClick={() =>
+                          <EditButton
+                            event={() =>
                               window.dispatchEvent(
                                 new CustomEvent("open-user-edit", {
                                   detail: user,
                                 })
                               )
                             }
-                            className="rounded"
-                          >
-                            <EditButton />
-                          </button>
+                          />
 
-                          <button
-                            type="button"
-                            onClick={() => openDeleteModal(user)}
-                            className="rounded"
-                          >
-                            <DeleteButton alert={() => openDeleteModal(user)} />
-                          </button>
+                          <DeleteButton
+                            event={() => openDeleteModal(user)}
+                          />
                         </div>
                       </td>
                     </motion.tr>

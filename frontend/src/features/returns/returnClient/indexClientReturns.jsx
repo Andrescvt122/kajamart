@@ -13,6 +13,8 @@ import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
+import generateProductReturnsPDF from "./helpers/exportToPdf";
+import generateProductReturnsXLS from "../returnProduct/helper/exportToXls";
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
@@ -41,18 +43,18 @@ export default function IndexClientReturns() {
     baseReturns.push({
       idReturn: i,
       idSale: 100 + i,
-      products: [
+      productsToReturn: [
         { idProduct: 1, name: "Producto A", quantity: 2, price: 100 },
         { idProduct: 2, name: "Producto B", quantity: 1, price: 200 },
         { idProduct: 3, name: "Producto C", quantity: 3, price: 150 },
-        { idProduct: 4, name: "Producto D", quantity: 5, price: 50 },
-        { idProduct: 5, name: "Producto E", quantity: 1, price: 300 },
-        { idProduct: 6, name: "Producto F", quantity: 2, price: 250 },
       ],
-      productsToReturn: [
+      productsClientReturn: [
         { idProduct: 1, name: "Producto A", quantity: 2, price: 100, reason, statusSuppliers },
         { idProduct: 2, name: "Producto B", quantity: 1, price: 200, reason, statusSuppliers },
         { idProduct: 3, name: "Producto C", quantity: 3, price: 150, reason, statusSuppliers },
+        { idProduct: 4, name: "Producto D", quantity: 5, price: 50, reason, statusSuppliers },
+        { idProduct: 5, name: "Producto E", quantity: 1, price: 300, reason, statusSuppliers },
+        { idProduct: 6, name: "Producto F", quantity: 2, price: 250, reason, statusSuppliers },
       ],
       dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
       client: `Cliente ${i}`,
@@ -62,13 +64,25 @@ export default function IndexClientReturns() {
       total: Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000,
     });
   }
-  const [returns] = useState([...baseReturns]);
+  const [returns, setReturns] = useState([...baseReturns]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
   const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
+
+  const supplierStatusOptions = [
+    "a proveedor",
+    "completado",
+    "registrado",
+    "rechazado",
+  ];
+
+  const lockedSupplierStatuses = new Set(["completado", "rechazado", "n/a"]);
+
+  const [activeStatusEditor, setActiveStatusEditor] = useState(null);
+
 
   // Función para abrir el modal de detalles
   const handleViewDetails = (rowData) => {
@@ -98,14 +112,14 @@ export default function IndexClientReturns() {
     if (!s) {
       // Expandir cada devolución en múltiples filas, una por producto
       return returns.flatMap((returnItem) =>
-        returnItem.productsToReturn.map((product) => ({
+        returnItem.productsClientReturn.map((product) => ({
           ...returnItem,
           currentProduct: product,
         }))
       );
     }
 
-    // Filtrar (incluyendo campos de productsToReturn) y luego expandir los resultados filtrados
+    // Filtrar (incluyendo campos de productsClientReturn) y luego expandir los resultados filtrados
     return returns
       .filter((returnItem) => {
         // Buscar en campos simples del return
@@ -113,14 +127,14 @@ export default function IndexClientReturns() {
           if (Array.isArray(v)) return false;
           return match(v);
         });
-        // Buscar dentro de cada productToReturn
-        const productMatch = returnItem.productsToReturn.some((prod) =>
+        // Buscar dentro de cada productsClientReturn
+        const productMatch = returnItem.productsClientReturn.some((prod) =>
           Object.values(prod).some((val) => match(val))
         );
         return topMatch || productMatch;
       })
       .flatMap((returnItem) =>
-        returnItem.productsToReturn.map((product) => ({
+        returnItem.productsClientReturn.map((product) => ({
           ...returnItem,
           currentProduct: product,
         }))
@@ -136,7 +150,34 @@ export default function IndexClientReturns() {
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
+    setActiveStatusEditor(null);
   };
+  const getStatusEditorKey = (returnId, productId) => `${returnId}-${productId}`;
+
+  const handleStatusClick = (returnId, productId, statusLabel = "") => {
+    const normalized = (statusLabel || "").toLowerCase();
+    if (lockedSupplierStatuses.has(normalized)) return;
+    const key = getStatusEditorKey(returnId, productId);
+    setActiveStatusEditor((prev) => (prev === key ? null : key));
+  };
+
+  const handleStatusChange = (returnId, productId, nextStatus) => {
+    setReturns((prev) =>
+      prev.map((returnItem) => {
+        if (returnItem.idReturn !== returnId) return returnItem;
+        return {
+          ...returnItem,
+          productsClientReturn: returnItem.productsClientReturn.map((prod) =>
+            prod.idProduct === productId
+              ? { ...prod, statusSuppliers: nextStatus }
+              : prod
+          ),
+        };
+      })
+    );
+    setActiveStatusEditor(null);
+  };
+
 
   // Animaciones
   const tableVariants = {
@@ -192,14 +233,15 @@ export default function IndexClientReturns() {
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
+                setActiveStatusEditor(null);
               }}
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton>Excel</ExportExcelButton>
-            <ExportPDFButton>PDF</ExportPDFButton>
+            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
+            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -280,14 +322,59 @@ export default function IndexClientReturns() {
                       {/* Proveedor - estilos condicionales */}
                       <div>
                         {(() => {
-                          const st = (s.currentProduct.statusSuppliers || "").toLowerCase();
-                          const isNegative = st === "rechazado" || st === "n/a";
-                          const positiveClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700";
-                          const negativeClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
+                          const statusLabel = s.currentProduct.statusSuppliers || "Sin estado";
+                          const normalizedStatus = statusLabel.toLowerCase();
+                          const isNegativeStatus = normalizedStatus === "rechazado" || normalizedStatus === "n/a";
+                          const statusKey = getStatusEditorKey(s.idReturn, s.currentProduct.idProduct);
+                          const isLockedStatus = lockedSupplierStatuses.has(normalizedStatus);
+                          const isDropdownOpen = activeStatusEditor === statusKey;
+                          const badgeBaseClass = "inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full";
+                          const badgePaletteClass = isNegativeStatus ? "bg-red-100 text-red-700" : "bg-green-50 text-green-700";
+                          const badgeInteractiveClass = isLockedStatus ? "" : " cursor-pointer transition-shadow hover:shadow";
+                          const badgeClassName = badgeBaseClass + " " + badgePaletteClass + badgeInteractiveClass;
                           return (
-                            <span className={isNegative ? negativeClass : positiveClass}>
-                              {s.currentProduct.statusSuppliers}
-                            </span>
+                            <div className="relative inline-block text-left">
+                              <button
+                                type="button"
+                                className={badgeClassName}
+                                onClick={() =>
+                                  handleStatusClick(
+                                    s.idReturn,
+                                    s.currentProduct.idProduct,
+                                    statusLabel
+                                  )
+                                }
+                              >
+                                {statusLabel}
+                              </button>
+                              {isDropdownOpen && (
+                                <div className="absolute right-0 z-10 mt-2 w-40 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                                  <ul className="py-1">
+                                    {supplierStatusOptions.map((option) => (
+                                      <li key={option}>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleStatusChange(
+                                              s.idReturn,
+                                              s.currentProduct.idProduct,
+                                              option
+                                            )
+                                          }
+                                          className={"w-full px-4 py-2 text-left text-sm " + (
+                                            option === statusLabel
+                                              ? "bg-green-50 text-green-700"
+                                              : "text-gray-700 hover:bg-gray-100"
+                                          )}
+                                        >
+                                          {option}
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
