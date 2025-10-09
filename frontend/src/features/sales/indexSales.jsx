@@ -10,7 +10,7 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
-
+import SaleDetailModal from "./SaleDetailModal";
 
 // ✅ Función para formatear dinero
 const formatMoney = (value) =>
@@ -20,35 +20,45 @@ const formatMoney = (value) =>
     minimumFractionDigits: 0,
   }).format(value);
 
+  
 export default function IndexSales() {
-    const navigate = useNavigate();
-const [sales] = useState([
-  {
-    id: "V001",
-    fecha: "2023-12-01",
-    cliente: "Sofía Rodríguez",
-    total: 250000,
-    medioPago: "Tarjeta",
-    iva: 47500,   // ✅ Nuevo campo
-    icu: 2000,    // ✅ Nuevo campo
-    estado: "Completada",
-  },
-  {
-    id: "V002",
-    fecha: "2023-12-05",
-    cliente: "Carlos López",
-    total: 150000,
-    medioPago: "Efectivo",
-    iva: 28500,   // ✅ Nuevo campo
-    icu: 1200,    // ✅ Nuevo campo
-    estado: "Completada",
-  },
-]);
+  const navigate = useNavigate();
 
+  const [sales] = useState([
+    {
+      id: "V001",
+      fecha: "2023-12-01",
+      cliente: "Sofía Rodríguez",
+      total: 250000,
+      medioPago: "Tarjeta",
+      iva: 47500,
+      icu: 2000,
+      estado: "Completada",
+    },
+    {
+      id: "V002",
+      fecha: "2023-12-05",
+      cliente: "Carlos López",
+      total: 150000,
+      medioPago: "Efectivo",
+      iva: 28500,
+      icu: 1200,
+      estado: "Completada",
+    },
+  ]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
+
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  // Función para abrir modal
+  const handleView = (sale) => {
+    setSelectedSale(sale);
+    setIsViewModalOpen(true);
+  };
 
   // ✅ Normalizar texto para búsqueda
   const normalizeText = (text) =>
@@ -62,7 +72,9 @@ const [sales] = useState([
     const s = normalizeText(searchTerm.trim());
     if (!s) return sales;
     return sales.filter((v) =>
-      Object.values(v).some((value) => normalizeText(value).includes(s))
+      Object.values(v).some((value) =>
+        normalizeText(value).includes(s)
+      )
     );
   }, [sales, searchTerm]);
 
@@ -87,8 +99,46 @@ const [sales] = useState([
     visible: { opacity: 1, y: 0 },
   };
 
-  //iva y icu
+  // Formateo de IVA y ICU
   const formatCurrency = (value) => Number(value.toFixed(2));
+  // ✅ Botón de imprimir venta con estilo original y funcionalidad
+const PrintSaleButton = ({ sale }) => (
+  <PrinterButton
+    alert={() => {
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Venta ${sale.id}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              h2 { text-align: center; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              td, th { border: 1px solid #ddd; padding: 8px; }
+              th { background-color: #f4f4f4; text-align: left; }
+            </style>
+          </head>
+          <body>
+            <h2>Detalle de Venta - ${sale.id}</h2>
+            <table>
+              <tr><th>ID Venta</th><td>${sale.id}</td></tr>
+              <tr><th>Fecha</th><td>${sale.fecha}</td></tr>
+              <tr><th>Cliente</th><td>${sale.cliente}</td></tr>
+              <tr><th>Total</th><td>${formatMoney(sale.total)}</td></tr>
+              <tr><th>Medio de Pago</th><td>${sale.medioPago}</td></tr>
+              <tr><th>IVA</th><td>${Number(sale.iva.toFixed(2))}</td></tr>
+              <tr><th>ICU</th><td>${Number(sale.icu.toFixed(2))}</td></tr>
+              <tr><th>Estado</th><td>${sale.estado}</td></tr>
+            </table>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }}
+  />
+);
 
 
   return (
@@ -138,12 +188,12 @@ const [sales] = useState([
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton>Excel</ExportExcelButton>
             <ExportPDFButton>PDF</ExportPDFButton>
-             <button
-                onClick={() => navigate("/app/sales/register")}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nueva Venta
-              </button>
+            <button
+              onClick={() => navigate("/app/sales/register")}
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+            >
+              Registrar Nueva Venta
+            </button>
           </div>
         </div>
 
@@ -176,7 +226,7 @@ const [sales] = useState([
               {pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     No se encontraron ventas.
@@ -221,8 +271,8 @@ const [sales] = useState([
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <ViewButton />
-                        <PrinterButton />
+                        <ViewButton event={() => handleView(v)} />
+                      <PrintSaleButton sale={v} />
                       </div>
                     </td>
                   </motion.tr>
@@ -239,6 +289,15 @@ const [sales] = useState([
           totalPages={totalPages}
           filteredLength={filtered.length}
           goToPage={goToPage}
+        />
+
+        {/* Modal de detalles */}
+        <SaleDetailModal
+        sale={selectedSale}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedSale(null);
+          }}
         />
       </div>
     </>

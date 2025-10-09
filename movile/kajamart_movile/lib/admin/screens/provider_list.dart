@@ -159,33 +159,10 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Imagen
-                        ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            bottomLeft: Radius.circular(12),
-                          ),
-                          child: Image.network(
-                            provider.imageUrl ?? 'https://via.placeholder.com/300x200?text=No+Image',
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 100,
-                              height: 100,
-                              color: AppConstants.secondaryColor.withOpacity(0.3),
-                              child: Icon(
-                                Icons.business,
-                                color: AppConstants.textLightColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         // Información
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
