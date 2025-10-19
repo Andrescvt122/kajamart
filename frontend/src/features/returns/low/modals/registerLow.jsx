@@ -10,6 +10,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
     { value: "danado", label: "Producto dañado" },
+    { value: "requerido_personal", label: "Requerido personal" },
   ];
 
   const handleAddProduct = (product) => {
