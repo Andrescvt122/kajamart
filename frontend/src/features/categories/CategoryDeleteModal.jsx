@@ -43,10 +43,7 @@ export default function CategoryDeleteModal({ isOpen, onClose, onConfirm, catego
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  onConfirm(category);
-                  onClose();
-                }}
+                onClick={() => onConfirm(category)} // 👈 sin doble cierre
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition"
               >
                 Eliminar

@@ -39,6 +39,7 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         backgroundColor: AppConstants.secondaryColor, // Verde claro
         elevation: 0,
