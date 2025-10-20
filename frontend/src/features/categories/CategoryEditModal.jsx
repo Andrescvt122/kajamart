@@ -1,4 +1,3 @@
-// src/features/categories/CategoryEditModal.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -18,7 +17,6 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     { value: "Inactivo", label: "Inactivo" },
   ];
 
-  // precargar datos de la categoría seleccionada
   useEffect(() => {
     if (category) {
       setForm({
@@ -29,7 +27,6 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     }
   }, [category]);
 
-  // cerrar dropdown al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(e) {
       if (estadoRef.current && !estadoRef.current.contains(e.target)) {
@@ -40,35 +37,27 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // bloquear scroll
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    }
-    return () => {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    };
+    document.body.style.overflow = isOpen ? "hidden" : "auto";
   }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSave) onSave(form);
-    onClose();
+    if (onSave && category?.id_categoria) {
+      onSave({
+        id_categoria: category.id_categoria,
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        estado: form.estado,
+      });
+    }
   };
 
-  // animaciones lista
   const listVariants = {
     hidden: { opacity: 0, y: -6, scale: 0.98 },
     visible: {
@@ -78,6 +67,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
       transition: { staggerChildren: 0.02 },
     },
   };
+
   const itemVariants = {
     hidden: { opacity: 0, y: -6 },
     visible: { opacity: 1, y: 0 },
@@ -91,22 +81,21 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose} // cerrar al hacer clic fuera
+          onClick={onClose}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: -40 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -40 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="sticky bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
-            onClick={(e) => e.stopPropagation()} // evitar cierre al hacer clic dentro
+            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
+            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-6 text-gray-800">
               Editar Categoría
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Nombre */}
               <div>
                 <input
                   name="nombre"
@@ -119,28 +108,25 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                 />
               </div>
 
-              {/* Estado */}
+              {/* Dropdown estado */}
               <div className="relative" ref={estadoRef}>
                 <label className="block text-sm font-semibold text-gray-800">
                   Estado*
                 </label>
 
                 <div
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
-      ${
-        form.estado === "Activo"
-          ? "border-green-500 bg-green-50"
-          : form.estado === "Inactivo"
-          ? "border-red-500 bg-red-50"
-          : "border-gray-300 bg-white"
-      }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition ${
+                    form.estado === "Activo"
+                      ? "border-green-500 bg-green-50"
+                      : form.estado === "Inactivo"
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-white"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setEstadoOpen((s) => !s)}
                     className="flex w-full items-center justify-between text-sm focus:outline-none"
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
                   >
                     <span
                       className={`${
@@ -186,10 +172,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                           key={opt.value}
                           variants={itemVariants}
                           onClick={() => {
-                            setForm((prev) => ({
-                              ...prev,
-                              estado: opt.value,
-                            }));
+                            setForm((prev) => ({ ...prev, estado: opt.value }));
                             setEstadoOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer text-sm ${
@@ -227,7 +210,13 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
 
               {/* Botones */}
               <div className="flex justify-end gap-3 pt-4">
-                
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"

@@ -1,3 +1,4 @@
+// pages/categories/CategoryRegisterModal.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -37,12 +38,11 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onRegister) {
-      onRegister(form);
-    }
+    if (!form.estado) return;
+    onRegister?.(form);
     setForm({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
-    onClose();
+    onClose?.();
   };
 
   const listVariants = {
