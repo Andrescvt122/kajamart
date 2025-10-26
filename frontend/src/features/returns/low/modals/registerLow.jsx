@@ -135,7 +135,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
               </div>
 
-              {/* Contenido */}
+              {/* Contenido */}  
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
                 <ProductSearch onAddProduct={handleAddProduct} />
 
