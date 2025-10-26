@@ -108,8 +108,12 @@ export default function IndexLow() {
             />
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={generateProductLowsXLS}>Excel</ExportExcelButton>
-            <ExportPDFButton event={generateProductLowsPDF}>PDF</ExportPDFButton>
+            <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
+              Excel
+            </ExportExcelButton>
+            <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
+              PDF
+            </ExportPDFButton>
             <button
               onClick={() => setIsOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -135,17 +139,17 @@ export default function IndexLow() {
             </div>
           ) : (
             <table key={currentPage} className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">Baja</th>
-                  <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Producto</th>
-                <th className="px-6 py-4">Cantidad</th>
-                <th className="px-6 py-4">Razón</th>
-                <th className="px-6 py-4">Responsable</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase">
+                    <th className="px-6 py-4">Baja</th>
+                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">Producto</th>
+                    <th className="px-6 py-4">Cantidad</th>
+                    <th className="px-6 py-4">Razón</th>
+                    <th className="px-6 py-4">Responsable</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
             <motion.tbody className="divide-y divide-gray-100">
               {pageItems.length === 0 ? (
                 <tr>
