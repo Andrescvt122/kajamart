@@ -1,9 +1,8 @@
-// pages/categories/CategoryRegisterModal.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
-export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
+export default function CategoryEditModal({ isOpen, onClose, category, onSave }) {
   const [form, setForm] = useState({
     nombre: "",
     estado: "",
@@ -19,6 +18,16 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
   ];
 
   useEffect(() => {
+    if (category) {
+      setForm({
+        nombre: category.nombre || "",
+        estado: category.estado || "",
+        descripcion: category.descripcion || "",
+      });
+    }
+  }, [category]);
+
+  useEffect(() => {
     function handleClickOutside(e) {
       if (estadoRef.current && !estadoRef.current.contains(e.target)) {
         setEstadoOpen(false);
@@ -28,21 +37,25 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "auto";
+  }, [isOpen]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.estado) return;
-    onRegister?.(form);
-    setForm({ nombre: "", estado: "", descripcion: "" });
-    setEstadoOpen(false);
-    onClose?.();
+    if (onSave && category?.id_categoria) {
+      onSave({
+        id_categoria: category.id_categoria,
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        estado: form.estado,
+      });
+    }
   };
 
   const listVariants = {
@@ -75,15 +88,14 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -40 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="sticky bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
+            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-6 text-gray-800">
-              Registro de Categoría
+              Editar Categoría
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Nombre */}
               <div>
                 <input
                   name="nombre"
@@ -96,28 +108,25 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                 />
               </div>
 
-              {/* Estado */}
+              {/* Dropdown estado */}
               <div className="relative" ref={estadoRef}>
                 <label className="block text-sm font-semibold text-gray-800">
                   Estado*
                 </label>
 
                 <div
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
-                    ${
-                      form.estado === "Activo"
-                        ? "border-green-500 bg-green-50"
-                        : form.estado === "Inactivo"
-                        ? "border-red-500 bg-red-50"
-                        : "border-gray-300 bg-gray-100"
-                    }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition ${
+                    form.estado === "Activo"
+                      ? "border-green-500 bg-green-50"
+                      : form.estado === "Inactivo"
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-white"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setEstadoOpen((s) => !s)}
                     className="flex w-full items-center justify-between text-sm focus:outline-none"
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
                   >
                     <span
                       className={`${
@@ -163,10 +172,7 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                           key={opt.value}
                           variants={itemVariants}
                           onClick={() => {
-                            setForm((prev) => ({
-                              ...prev,
-                              estado: opt.value,
-                            }));
+                            setForm((prev) => ({ ...prev, estado: opt.value }));
                             setEstadoOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer text-sm ${
@@ -207,7 +213,7 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
                 >
                   Cancelar
                 </button>
@@ -215,7 +221,7 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
                 >
-                  Registrar Categoría
+                  Guardar Cambios
                 </button>
               </div>
             </form>

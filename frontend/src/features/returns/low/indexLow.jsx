@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from "react";
 import {
-  ViewButton,
   ExportExcelButton,
   ExportPDFButton,
   ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion } from "framer-motion";
@@ -13,27 +12,11 @@ import RegisterLow from "./modals/registerLow";
 import DetailsLow from "./modals/detailsLow";
 import generateProductLowsPDF from "./helpers/exportToPdf";
 import generateProductLowsXLS from "./helpers/exportToXls";
+import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
 
-const baseLows = [];
-for (let i = 1; i <= 44; i++) {
-  baseLows.push({
-    idLow: i,
-    dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    responsible: i % 2 === 0 ? "Arturo" : "Federico",
-    type: i % 2 === 0 ? "Dañado" : "Vencido",
-    total: i * 100,
-    products: [
-      { id: 1, name: "Producto A", lowQuantity: 2, reason: "Producto dañado" },
-      { id: 2, name: "Producto B", lowQuantity: 1, reason: "Producto vencido" },
-      { id: 3, name: "Producto C", lowQuantity: 3, reason: "Producto no requerido" },
-      { id: 4, name: "Producto D", lowQuantity: 5, reason: "Producto dañado" },
-      { id: 5, name: "Producto E", lowQuantity: 2, reason: "Producto vencido" },
-    ]
-  });
-}
 
 export default function IndexLow() {
-  const [lows, setLows] = useState([...baseLows]);
+  const { data: lows, loading, error, refetch } = useGetLowProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
@@ -79,14 +62,8 @@ export default function IndexLow() {
     setCurrentPage(p);
   };
 
-  const handleConfirmLow = (product) => {
-    const newLow = {
-      idLow: lows.length + 1,
-      dateLow: new Date().toISOString().split("T")[0],
-      responsible: "Administrador",
-      products: [product],
-    };
-    setLows((prev) => [newLow, ...prev]);
+  const handleConfirmLow = () => {
+    refetch();
   };
 
   return (
@@ -131,8 +108,12 @@ export default function IndexLow() {
             />
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={generateProductLowsXLS}>Excel</ExportExcelButton>
-            <ExportPDFButton event={generateProductLowsPDF}>PDF</ExportPDFButton>
+            <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
+              Excel
+            </ExportExcelButton>
+            <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
+              PDF
+            </ExportPDFButton>
             <button
               onClick={() => setIsOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -148,18 +129,27 @@ export default function IndexLow() {
           initial="hidden"
           animate="visible"
         >
-          <table key={currentPage} className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">Baja</th>
-                <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Producto</th>
-                <th className="px-6 py-4">Cantidad</th>
-                <th className="px-6 py-4">Razón</th>
-                <th className="px-6 py-4">Responsable</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 size={24} className="animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-64 text-red-500">
+              Error al cargar las bajas
+            </div>
+          ) : (
+            <table key={currentPage} className="min-w-full">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase">
+                    <th className="px-6 py-4">Baja</th>
+                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">Producto</th>
+                    <th className="px-6 py-4">Cantidad</th>
+                    <th className="px-6 py-4">Razón</th>
+                    <th className="px-6 py-4">Responsable</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
             <motion.tbody className="divide-y divide-gray-100">
               {pageItems.length === 0 ? (
                 <tr>
@@ -211,7 +201,9 @@ export default function IndexLow() {
               )}
             </motion.tbody>
           </table>
+          )}
         </motion.div>
+        
 
         {/* Paginador */}
         <Paginator

@@ -6,7 +6,7 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons.jsx";
-import { Search, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator.jsx";
 import SupplierDetailModal from "./SuplliersDetailModal.jsx";
@@ -28,167 +28,34 @@ import {
 } from "../../shared/components/alerts.jsx";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 
+// ⬇️ Importa los hooks de proveedores (mantenemos todo dentro de la carpeta de hooks)
+import {
+  useSuppliers as useSuppliersQuery,
+  useDeleteSupplier,
+} from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+
 export default function IndexSuppliers() {
-  // --- CORRECCIÓN: suppliers DEBE SER UN ARRAY (no array anidado) ---
-  const [suppliers, setSuppliers] = useState([
-    {
-      nit: "200",
-      nombre: "Alimentos La Abundancia",
-      contacto: "María Rodríguez",
-      telefono: "3104567890",
-      estado: "Activo",
-      tipoPersona: "Jurídica",
-      correo: "contacto@abundancia.com",
-      direccion: "Cra 25 #15-78 Bogotá",
-      productos: [
-        {
-          nombre: "Leche deslactosada",
-          categoria: "Lácteos",
-          precio: 3200,
-          stock: 300,
-        },
-        {
-          nombre: "Pan tajado",
-          categoria: "Panadería",
-          precio: 4800,
-          stock: 150,
-        },
-        {
-          nombre: "Mantequilla",
-          categoria: "Lácteos",
-          precio: 6500,
-          stock: 200,
-        },
-        {
-          nombre: "Mantequilla",
-          categoria: "Lácteos",
-          precio: 6500,
-          stock: 200,
-        },
-        {
-          nombre: "Mantequilla",
-          categoria: "Lácteos",
-          precio: 6500,
-          stock: 200,
-        },
-        {
-          nombre: "Mantequilla",
-          categoria: "Lácteos",
-          precio: 6500,
-          stock: 200,
-        },
-        {
-          nombre: "Mantequilla",
-          categoria: "Lácteos",
-          precio: 6500,
-          stock: 200,
-        },
-      ],
-    },
-    {
-      nit: "201",
-      nombre: "Distribuidora El Campesino",
-      contacto: "Carlos Pérez",
-      telefono: "3119876543",
-      estado: "Inactivo",
-      tipoPersona: "Natural",
-      correo: "ventas@elcampesino.com",
-      direccion: "Av 68 #50-90 Medellín",
-      productos: [
-        {
-          nombre: "Tomate chonto",
-          categoria: "Verduras",
-          precio: 2000,
-          stock: 800,
-        },
-        {
-          nombre: "Pollo despresado",
-          categoria: "Carnes",
-          precio: 16000,
-          stock: 120,
-        },
-        { nombre: "Cilantro", categoria: "Verduras", precio: 500, stock: 400 },
-      ],
-    },
-    {
-      nit: "202",
-      nombre: "Refrescos Tropical",
-      contacto: "Laura Martínez",
-      telefono: "3201122334",
-      estado: "Activo",
-      tipoPersona: "Jurídica",
-      correo: "info@refrescostropical.com",
-      direccion: "Calle 60 #30-12 Barranquilla",
-      productos: [
-        {
-          nombre: "Jugo de naranja",
-          categoria: "Bebidas",
-          precio: 2500,
-          stock: 1000,
-        },
-        {
-          nombre: "Galletas de avena",
-          categoria: "Panadería",
-          precio: 3500,
-          stock: 500,
-        },
-      ],
-    },
-    {
-      nit: "203",
-      nombre: "La Gran Cosecha",
-      contacto: "Andrés Gómez",
-      telefono: "3129988776",
-      estado: "Activo",
-      tipoPersona: "Natural",
-      correo: "lagrancosecha@correo.com",
-      direccion: "Km 12 Vía Cali - Palmira",
-      productos: [
-        {
-          nombre: "Queso campesino",
-          categoria: "Lácteos",
-          precio: 7800,
-          stock: 100,
-        },
-        {
-          nombre: "Carne molida",
-          categoria: "Carnes",
-          precio: 23000,
-          stock: 50,
-        },
-        {
-          nombre: "Lechuga crespa",
-          categoria: "Verduras",
-          precio: 1200,
-          stock: 300,
-        },
-      ],
-    },
-    {
-      nit: "204",
-      nombre: "Panificadora San Jorge",
-      contacto: "Elena Suárez",
-      telefono: "3134455667",
-      estado: "Activo",
-      tipoPersona: "Jurídica",
-      correo: "ventas@sanjorge.com",
-      direccion: "Zona Industrial Cali",
-      productos: [
-        {
-          nombre: "Pan francés",
-          categoria: "Panadería",
-          precio: 3000,
-          stock: 600,
-        },
-        {
-          nombre: "Leche achocolatada",
-          categoria: "Bebidas",
-          precio: 3500,
-          stock: 400,
-        },
-      ],
-    },
-  ]);
+  // === CARGA DESDE BACKEND (sin datos quemados) ===
+  const {
+    data: suppliersRaw = [],
+    isLoading,
+    isError,
+    error,
+  } = useSuppliersQuery();
+
+  // Mapeo ligero para que la UI siga mostrando "Activo/Inactivo" y NIT como string
+  const suppliers = useMemo(() => {
+    if (!Array.isArray(suppliersRaw)) return [];
+    return suppliersRaw.map((s) => ({
+      ...s,
+      nit: s?.nit != null ? String(s.nit) : "",
+      estado: s?.estado ? "Activo" : "Inactivo",
+      productos: Array.isArray(s?.productos) ? s.productos : [],
+    }));
+  }, [suppliersRaw]);
+
+  const deleteMutation = useDeleteSupplier();
+
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -197,23 +64,41 @@ export default function IndexSuppliers() {
     useState(null);
 
   const handleDeleteConfirm = (supplier) => {
+    // Ahora eliminamos en backend por id_proveedor
+    const id = supplier?.id_proveedor;
+    if (!id) {
+      showErrorAlert && showErrorAlert("No se encontró id_proveedor.");
+      return;
+    }
+
     showLoadingAlert("Eliminando proveedor...");
-
-    setTimeout(() => {
-      Swal.fire({
-        icon: "success",
-        title: "Proveedor eliminado",
-        text: `${supplier?.nombre} se eliminó correctamente.`,
-        background: "#e8f5e9",
-        color: "#1b5e20",
-        showConfirmButton: false,
-        timer: 1800,
-        timerProgressBar: true,
-      });
-
-      // Eliminar por NIT en vez de id
-      setSuppliers((prev) => prev.filter((s) => s.nit !== supplier.nit));
-    }, 1500);
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        // cerrar el loading si está abierto
+        try { Swal.close(); } catch (_) {}
+        Swal.fire({
+          icon: "success",
+          title: "Proveedor eliminado",
+          text: `${supplier?.nombre} se eliminó correctamente.`,
+          background: "#e8f5e9",
+          color: "#1b5e20",
+          showConfirmButton: false,
+          timer: 1800,
+          timerProgressBar: true,
+        });
+        setIsDeleteModalOpen(false);
+        setSelectedSupplierToDelete(null);
+      },
+      onError: (err) => {
+        // cerrar el loading si está abierto
+        try { Swal.close(); } catch (_) {}
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Error al eliminar el proveedor.";
+        showErrorAlert && showErrorAlert(msg);
+      },
+    });
   };
 
   const handleDeleteClick = (supplier) => {
@@ -535,6 +420,26 @@ export default function IndexSuppliers() {
     </div>
   );
 
+  // === Loading / Error desde React Query ===
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-gray-600">Cargando proveedores...</p>
+      </div>
+    );
+  }
+  if (isError) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Error al cargar proveedores.";
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-red-600">{msg}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <div
@@ -609,21 +514,21 @@ export default function IndexSuppliers() {
                         : `${cats.slice(0, 2).join(", ")} +${cats.length - 2}`;
                     return (
                       <motion.tr
-                        key={s.nit + "-" + i}
+                        key={(s.id_proveedor ?? s.nit ?? i) + "-" + i}
                         className="hover:bg-gray-50"
                         variants={rowVariants}
                       >
                         <td className="px-6 py-4 align-top text-sm text-gray-600">
-                          {s.nit}
+                          {s.nit ?? "—"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
-                          {s.nombre}
+                          {s.nombre ?? "—"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-green-700">
-                          {s.contacto}
+                          {s.contacto ?? "—"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-600">
-                          {s.telefono}
+                          {s.telefono ?? "—"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-700">
                           {displayCats}

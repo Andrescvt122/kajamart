@@ -58,6 +58,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor, // Fondo blanco
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255), // Fondo suave
       appBar: AppBar(
         backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
