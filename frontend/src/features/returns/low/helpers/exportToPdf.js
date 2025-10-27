@@ -1,60 +1,56 @@
 import jsPDF from "jspdf";
 
 // --------------------
-// Datos de ejemplo
+// Utilidades
 // --------------------
-const baseLows = [];
-for (let i = 1; i <= 44; i++) {
-  baseLows.push({
-    idLow: i,
-    idDetailProduct: 100 + i,
-    dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
-    responsible: i % 3 === 0 ? "Arturo" : "Federico",
-    cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
-    products: [
-      {
-        id: 1,
-        name: "Producto A",
-        lowQuantity: 2,
-        quantity: 5,
-        reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-      {
-        id: 2,
-        name: "Producto B",
-        lowQuantity: 1,
-        quantity: 3,
-        reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-      {
-        id: 3,
-        name: "Producto C",
-        lowQuantity: 4,
-        quantity: 1,
-        reason: i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-    ],
-  });
-}
+const formatDate = (date) => {
+  if (!date) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toISOString().split("T")[0];
+};
 
-// --------------------
-// Aplanar para tabla
-// --------------------
-const getFlattenedProducts = () =>
-  baseLows.flatMap((low) =>
-    low.products.map((prod) => ({
-      idLow: low.idLow,
-      idDetailProduct: low.idDetailProduct,
-      dateLow: low.dateLow,
-      type: low.type,
-      responsible: low.responsible,
-      productName: prod.name,
-      lowQuantity: prod.lowQuantity,
-      stockQuantity: prod.quantity,
-      reason: prod.reason,
-    }))
-  );
+const flattenProductLows = (lows = []) => {
+  if (!Array.isArray(lows)) return [];
+
+  return lows.flatMap((low) => {
+    const baseInfo = {
+      idLow: low?.idLow ?? "",
+      dateLow: formatDate(low?.dateLow),
+      responsible: low?.responsible ?? "",
+    };
+
+    if (low?.currentProduct) {
+      const product = low.currentProduct;
+      return [
+        {
+          ...baseInfo,
+          productName: product?.name ?? "",
+          lowQuantity: product?.lowQuantity ?? "",
+          reason: product?.reason ?? "",
+        },
+      ];
+    }
+
+    if (Array.isArray(low?.products) && low.products.length > 0) {
+      return low.products.map((product) => ({
+        ...baseInfo,
+        productName: product?.name ?? "",
+        lowQuantity: product?.lowQuantity ?? "",
+        reason: product?.reason ?? "",
+      }));
+    }
+
+    return [
+      {
+        ...baseInfo,
+        productName: "",
+        lowQuantity: "",
+        reason: "",
+      },
+    ];
+  });
+};
 
 // --------------------
 // Utilidad para logo
@@ -79,10 +75,15 @@ const getBase64Image = (imgPath) => {
 // --------------------
 // Generar PDF
 // --------------------
-export const generateProductLowsPDF = async () => {
+export const generateProductLowsPDF = async (lows = []) => {
   try {
     const doc = new jsPDF();
-    const products = getFlattenedProducts();
+    const products = flattenProductLows(lows);
+
+    if (products.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
 
     // Colores
     const mintGreenDark = [102, 187, 106];
@@ -112,16 +113,13 @@ export const generateProductLowsPDF = async () => {
     // Encabezados
     const headers = [
       "ID Baja",
-      "ID Detalle",
       "Fecha",
-      "Tipo",
-      "Responsable",
       "Producto",
       "Cant. Baja",
-      "Stock",
       "Motivo",
+      "Responsable",
     ];
-    const widths = [15, 20, 20, 25, 25, 25, 20, 15, 35];
+    const widths = [25, 25, 35, 25, 35, 25];
 
     doc.setFillColor(...lightMint);
     doc.rect(20, y, 170, 8, "F");
@@ -157,14 +155,11 @@ export const generateProductLowsPDF = async () => {
 
       const row = [
         `#${p.idLow}`,
-        `${p.idDetailProduct}`,
         p.dateLow,
-        p.type.substring(0, 12),
-        p.responsible.substring(0, 12),
-        p.productName.substring(0, 15),
+        (p.productName || "").substring(0, 20),
         `${p.lowQuantity}`,
-        `${p.stockQuantity}`,
-        p.reason.substring(0, 20),
+        (p.reason || "").substring(0, 30),
+        (p.responsible || "").substring(0, 20),
       ];
 
       x = 20;
