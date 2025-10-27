@@ -1,17 +1,7 @@
 import jsPDF from "jspdf";
 
 // --------------------
-// Datos quemados
-// --------------------
-const categoriesData = [
-  { id: "CAT001", nombre: "Lácteos", descripcion: "Productos derivados de la leche como queso, yogurt y mantequilla.", estado: "Activo" },
-  { id: "CAT002", nombre: "Carnes", descripcion: "Variedad de cortes de res, cerdo y pollo frescos.", estado: "Inactivo" },
-  { id: "CAT003", nombre: "Bebidas", descripcion: "Jugos, aguas minerales, refrescos y bebidas energéticas.", estado: "Activo" },
-  { id: "CAT004", nombre: "Snacks", descripcion: "Papas fritas, galletas, dulces y otros productos empacados.", estado: "Activo" },
-];
-
-// --------------------
-// Utilidad para logo
+// Utilidad para logo (sin cambios)
 // --------------------
 const getBase64Image = (imgPath) => {
   return new Promise((resolve, reject) => {
@@ -31,10 +21,32 @@ const getBase64Image = (imgPath) => {
 };
 
 // --------------------
-// Generar PDF
+// Normalizador de datos (DB -> diseño actual)
 // --------------------
-export const exportCategoriesToPDF = async () => {
+const normalizeCategories = (categories = []) =>
+  (Array.isArray(categories) ? categories : []).map((c) => {
+    const id =
+      c.id ??
+      (c.id_categoria != null
+        ? `CAT${String(c.id_categoria).padStart(3, "0")}`
+        : "");
+    const nombre = c.nombre ?? c.nombre_categoria ?? "";
+    const descripcion = c.descripcion ?? c.descripcion_categoria ?? "";
+    const estado =
+      typeof c.estado === "boolean"
+        ? c.estado
+          ? "Activo"
+          : "Inactivo"
+        : c.estado ?? "";
+    return { id, nombre, descripcion, estado };
+  });
+
+// --------------------
+// Generar PDF (DISEÑO IGUAL; solo cambia la fuente de datos)
+// --------------------
+export const exportCategoriesToPDF = async (categories = []) => {
   try {
+    const data = normalizeCategories(categories);
     const doc = new jsPDF();
 
     const mintGreenDark = [102, 187, 106];
@@ -57,11 +69,11 @@ export const exportCategoriesToPDF = async () => {
     doc.setFontSize(10);
     doc.setTextColor(80, 80, 80);
     doc.text("Generado el: " + new Date().toLocaleDateString(), 60, 35);
-    doc.text("Total de registros: " + categoriesData.length, 60, 42);
+    doc.text("Total de registros: " + data.length, 60, 42);
 
     let y = 55;
 
-    // Encabezados
+    // Encabezados (mismos)
     const headers = ["ID", "Nombre", "Descripción", "Estado"];
     const widths = [20, 40, 80, 30];
 
@@ -77,8 +89,8 @@ export const exportCategoriesToPDF = async () => {
     });
     y += 8;
 
-    // Filas
-    categoriesData.forEach((c, i) => {
+    // Filas (mismo layout; ahora con datos reales)
+    data.forEach((c, i) => {
       if (y > 270) {
         doc.addPage();
         y = 20;
@@ -98,10 +110,10 @@ export const exportCategoriesToPDF = async () => {
       }
 
       const row = [
-        c.id,
-        c.nombre,
-        c.descripcion.substring(0, 40),
-        c.estado,
+        c.id || "",
+        c.nombre || "",
+        (c.descripcion || "").substring(0, 40),
+        c.estado || "",
       ];
 
       x = 20;
@@ -112,7 +124,7 @@ export const exportCategoriesToPDF = async () => {
       y += 6;
     });
 
-    // Footer
+    // Footer (igual)
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
