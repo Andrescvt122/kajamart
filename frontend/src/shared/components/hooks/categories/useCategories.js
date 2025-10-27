@@ -1,7 +1,8 @@
 // shared/hooks/useCategories.js
 import { useEffect, useRef, useState, useCallback } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart";
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart";
 const API = `${API_BASE}/api/categories`;
 
 const mapFromApi = (cat) => ({
@@ -56,7 +57,9 @@ export function useCategories() {
 
   const updateLocal = useCallback((updated) => {
     setCategories((prev) =>
-      prev.map((c) => (c.id_categoria === updated.id_categoria ? mapFromApi(updated) : c))
+      prev.map((c) =>
+        c.id_categoria === updated.id_categoria ? mapFromApi(updated) : c
+      )
     );
   }, []);
 
