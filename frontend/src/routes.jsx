@@ -8,7 +8,7 @@ import RecoverPassword from "./auth/recoverPassword";
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
 import IndexClients from "./features/clients/indexClients";
-import IndexSales from "./features/Sales/indexSales";
+import IndexSales from "./features/sales/indexSales";
 import IndexProducts from "./features/products/indexProducts";
 import IndexLow from "./features/returns/low/indexLow";
 import IndexUsers from "./features/users/indexUsers";
@@ -32,6 +32,7 @@ import DashboardReturnProducts from "./features/dashboard/returns/dashboardRetur
 import DashboardLows from "./features/dashboard/returns/dashboardLows";
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
+import Welcome from "./pages/dashboard/Welcome";
 
 export default function RoutesAdmin() {
   return (
@@ -70,6 +71,7 @@ export default function RoutesAdmin() {
           <Route path="general" element={<IndexSettings />} />
         </Route>
         <Route path="" element={<DashboardLayout />}>
+          <Route index element={<Welcome />} />
            <Route path="dashboard/suppliers" element={<DashboardSuppliers />} />
           <Route path="dashboard/categories" element={<DashboardCategories />} />
           <Route path="dashboard/clients" element={<DashboardClients />} />
