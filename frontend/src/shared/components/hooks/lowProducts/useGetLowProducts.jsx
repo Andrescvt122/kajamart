@@ -14,7 +14,6 @@ export const useGetLowProducts = () => {
     try {
       const response = await axios.get(API_URL);
 
-      // 🧮 Adaptar datos a la estructura que usa la tabla
       const adaptedData = response.data.map((low) => ({
         idLow: low.id_baja_productos,
         dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
@@ -24,8 +23,17 @@ export const useGetLowProducts = () => {
           low.detalle_productos_baja?.map((p) => ({
             id: p.id_detalle_productos,
             name: p.nombre_producto,
-            lowQuantity: p.cantidad,
+            lowQuantity: Number(p.cantidad) || 0,
             reason: p.motivo,
+            category:
+              p.categoria ||
+              p.categoria_producto ||
+              p.categoriaProducto ||
+              p.nombre_categoria ||
+              p.nombreCategoria ||
+              p.category ||
+              "Sin categoría",
+            totalValue: Number(p.total_producto_baja ?? 0),
           })) || [],
       }));
 
