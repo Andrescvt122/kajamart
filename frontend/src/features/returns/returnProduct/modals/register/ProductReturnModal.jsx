@@ -208,7 +208,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                 </motion.div>
 
                 {/* Contenido */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
                   <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.5 }}>
                     {/* Búsqueda y listado de productos */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4 }}>

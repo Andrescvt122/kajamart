@@ -18,6 +18,7 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
   const perPage = 5;
   const products = returnData?.products || [];
   const totalPages = Math.ceil(products.length / perPage);
+  console.log(products);
   const pageProducts = products.slice((page - 1) * perPage, page * perPage);
 
   if (!isOpen || !returnData) return null;

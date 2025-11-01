@@ -15,26 +15,11 @@ import ProductReturnModal from "./modals/register/ProductReturnModal";
 import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
+import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 
-const baseReturns = [];
-for (let i = 1; i <= 44; i++) {
-  baseReturns.push({
-    idReturn: i,
-    products: [
-      { idProduct: 1, name: "Producto A", quantity: 2, price: 100, discount: true, reason: "Cerca de vencer", supplier: "Proveedor A" },
-      { idProduct: 2, name: "Producto B", quantity: 1, price: 200, discount: false, reason: "Vencido", supplier: "Proveedor B" },
-      { idProduct: 3, name: "Producto C", quantity: 3, price: 150, discount: true, reason: "Cerca de vencer", supplier: "Proveedor C" },
-      { idProduct: 4, name: "Producto D", quantity: 5, price: 50, discount: false, reason: "Vencido", supplier: "Proveedor D" },
-      { idProduct: 5, name: "Producto E", quantity: 1, price: 300, discount: true, reason: "Cerca de vencer", supplier: "Proveedor E" },
-      { idProduct: 6, name: "Producto F", quantity: 2, price: 250, discount: false, reason: "Vencido", supplier: "Proveedor F" },
-    ],
-    dateReturn: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    responsable: `Empleado ${i}`, 
-  });
-}
 
 export default function IndexProductReturns() {
-  const [returns] = useState([...baseReturns]);
+  const {returns, loading, error, refetch} = useFetchReturnProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -53,11 +38,11 @@ export default function IndexProductReturns() {
   // Función para aplanar los datos y mostrar productos individuales
   const flattenedProducts = useMemo(() => {
     return returns.flatMap(returnItem =>
-      returnItem.products.map(product => ({
+      returnItem.products.map(products => ({
         idReturn: returnItem.idReturn,
         dateReturn: returnItem.dateReturn,
         responsable: returnItem.responsable,
-        ...product
+        ...products
       }))
     );
   }, [returns]);
@@ -92,6 +77,7 @@ export default function IndexProductReturns() {
 
   const handleOpenDetailsModal = (productData) => {
     // Necesitamos encontrar la devolución completa que contiene este producto
+    console.log(productData);
     const returnItem = returns.find(r => r.idReturn === productData.idReturn);
     if (returnItem) {
       setSelectedReturnData(returnItem);
@@ -213,38 +199,38 @@ export default function IndexProductReturns() {
                   </td>
                 </tr>
               ) : (
-                pageItems.map((product, i) => (
+                pageItems.map((products, i) => (
                   <motion.tr
-                    key={`${product.idReturn}-${product.idProduct}-${i}`}
+                    key={`${products.idReturn}-${products.idProduct}-${i}`}
                     className="hover:bg-gray-50 transition-colors"
                     variants={rowVariants}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      #{product.idReturn.toString().padStart(4, '0')}
+                      #{products.idReturn.toString().padStart(4, '0')}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {product.name}
+                      {products.name}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {product.quantity}
+                      {products.quantity}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {product.discount ? (
+                      {products.discount ? (
                         <Check size={20} className="text-green-600" />
                       ) : (
                         <XCircle size={20} className="text-red-500" />
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
-                      {product.responsable}
+                      {products.responsable}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
-                      {product.reason}
+                      {products.reason}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <ViewDetailsButton
-                          event={() => handleOpenDetailsModal(product)}
+                          event={() => handleOpenDetailsModal(products)}
                         />
                       </div>
                     </td>
