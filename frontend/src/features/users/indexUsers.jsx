@@ -26,64 +26,7 @@ import RegisterUsers from "./registerUsers";
 import DeleteUserModal from "./deleteUsers";
 
 export default function IndexUsers() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      Nombre: "Sophia Clark",
-      Correo: "sophia.clark@example.com",
-      Rol: "Administrador",
-      Estado: "Activo",
-      FechaCreacion: "2023-01-15",
-    },
-    {
-      id: 2,
-      Nombre: "Ethan Martinez",
-      Correo: "ethan.martinez@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-02-20",
-    },
-    {
-      id: 3,
-      Nombre: "Olivia Rodriguez",
-      Correo: "olivia.rodriguez@example.com",
-      Rol: "Cliente",
-      Estado: "Inactivo",
-      FechaCreacion: "2023-03-10",
-    },
-    {
-      id: 4,
-      Nombre: "Liam Wilson",
-      Correo: "liam.wilson@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-04-05",
-    },
-    {
-      id: 5,
-      Nombre: "Ava Garcia",
-      Correo: "ava.garcia@example.com",
-      Rol: "Administrador",
-      Estado: "Activo",
-      FechaCreacion: "2023-05-12",
-    },
-    {
-      id: 6,
-      Nombre: "Noah Lopez",
-      Correo: "noah.lopez@example.com",
-      Rol: "Cliente",
-      Estado: "Inactivo",
-      FechaCreacion: "2023-06-18",
-    },
-    {
-      id: 7,
-      Nombre: "Isabella Lee",
-      Correo: "isabella.lee@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-07-22",
-    },
-  ]);
+  const [users, setUsers] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
