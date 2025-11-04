@@ -17,7 +17,6 @@ export const useFetchProduct = (searchParam) => {
 
       try {
         const response = await axios.get(`${API_URL}/${searchParam}`);
-        console.log(response.data);
         setData(response.data);
       } catch (err) {
         console.error("Error al obtener el producto:", err);

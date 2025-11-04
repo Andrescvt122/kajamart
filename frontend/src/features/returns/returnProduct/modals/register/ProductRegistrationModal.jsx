@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
+import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 
 const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
+  const { postDetailProduct, loading, error, success } = usePostDetailProduct();
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: "",
-    expiryDate: "" // formato 'YYYY-MM-DD' para facilidad
+    expiryDate: "", // formato 'YYYY-MM-DD' para facilidad
   });
 
   const [errors, setErrors] = useState({});
@@ -23,24 +25,25 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       setFormData({
         barcode: "",
         quantity: "",
-        expiryDate: ""
+        expiryDate: "",
       });
       setErrors({});
     }
   }, [isOpen, product]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const validate = () => {
     const errs = {};
     if (!formData.barcode) errs.barcode = "Código de barras requerido";
-    if (!formData.quantity || Number(formData.quantity) < 1) errs.quantity = "Cantidad inválida";
+    if (!formData.quantity || Number(formData.quantity) < 1)
+      errs.quantity = "Cantidad inválida";
     return errs;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
@@ -50,17 +53,23 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       ...product,
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
-      registeredExpiry: formData.expiryDate || null
+      registeredExpiry: formData.expiryDate || null,
     };
 
-    if (typeof onConfirm === "function") onConfirm(registered);
+    // 🧾 Enviar al backend
+    const response = await postDetailProduct(registered);
+
+    if (response) {
+      alert("✅ Detalle de producto registrado correctamente");
+      handleClose();
+    }
   };
 
   const handleClose = () => {
     setFormData({
       barcode: "",
       quantity: "",
-      expiryDate: ""
+      expiryDate: "",
     });
     setErrors({});
     onClose();
@@ -154,59 +163,94 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Nombre</label>
-                    <div className="mt-1 text-gray-800 font-medium">{product?.name || "—"}</div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Nombre
+                    </label>
+                    <div className="mt-1 text-gray-800 font-medium">
+                      {product?.productos.nombre || "—"}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Precio</label>
-                    <div className="mt-1 text-gray-700">{product ? formatPrice(product.salePrice) : "—"}</div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Precio
+                    </label>
+                    <div className="mt-1 text-gray-700">
+                      {product
+                        ? formatPrice(product.productos.precio_venta)
+                        : "—"}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Código de barras</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Código de barras
+                    </label>
                     <input
                       value={formData.barcode}
                       onChange={(e) => handleChange("barcode", e.target.value)}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       placeholder="Ingrese código de barras"
                     />
-                    {errors.barcode && <div className="text-red-500 text-sm mt-1">{errors.barcode}</div>}
+                    {errors.barcode && (
+                      <div className="text-red-500 text-sm mt-1">
+                        {errors.barcode}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Cantidad a registrar</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Cantidad a registrar
+                    </label>
                     <input
                       type="number"
                       min={1}
                       inputMode="numeric"
                       value={formData.quantity}
-                      onChange={(e) => handleChange("quantity", e.target.value.replace(/\D+/g, ""))}
+                      onChange={(e) =>
+                        handleChange(
+                          "quantity",
+                          e.target.value.replace(/\D+/g, "")
+                        )
+                      }
                       onKeyDown={handleQuantityKeyDown}
                       onPaste={handleQuantityPaste}
                       onWheel={handleQuantityWheel}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       placeholder="0"
                     />
-                    {errors.quantity && <div className="text-red-500 text-sm mt-1">{errors.quantity}</div>}
+                    {errors.quantity && (
+                      <div className="text-red-500 text-sm mt-1">
+                        {errors.quantity}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Fecha de vencimiento</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Fecha de vencimiento
+                    </label>
 
                     {/* PrimeReact Calendar */}
                     <div className="mt-1">
                       <Calendar
-                        value={formData.expiryDate ? new Date(formData.expiryDate) : null}
+                        value={
+                          formData.expiryDate
+                            ? new Date(formData.expiryDate)
+                            : null
+                        }
                         onChange={(e) => {
-                          const dateVal = e.value ? e.value.toISOString().slice(0, 10) : "";
+                          const dateVal = e.value
+                            ? e.value.toISOString().slice(0, 10)
+                            : "";
                           handleChange("expiryDate", dateVal);
                         }}
                         minDate={minDate}
                         showIcon
                         dateFormat="yy-mm-dd"
                         placeholder="YYYY-MM-DD"
-                        className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                        className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       />
                     </div>
                   </div>
@@ -214,12 +258,29 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200">
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200"
+                  >
                     Cancelar
                   </button>
-                  <button type="submit" className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
-                    <CheckCircle size={16} />
-                    Registrar
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`px-4 py-2 rounded-md flex items-center gap-2 transition ${
+                      loading
+                        ? "bg-green-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
+                  >
+                    {loading ? (
+                      "Registrando..."
+                    ) : (
+                      <>
+                        <CheckCircle size={16} /> Registrar
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

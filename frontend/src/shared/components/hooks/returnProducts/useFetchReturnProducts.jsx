@@ -29,7 +29,6 @@ export const useFetchReturnProducts = () => {
         }))
       })
       );
-      console.log(flattened);
 
       setReturns(flattened);
     } catch (err) {
@@ -38,6 +37,7 @@ export const useFetchReturnProducts = () => {
     } finally {
       setLoading(false);
     }
+    console.log("refetch");
   };
 
   useEffect(() => {

@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch"
+import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
+import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
+
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -20,9 +23,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
+  const { postReturnProducts, loading, error, success } = usePostReturnProducts();
+  const { refetch } = useFetchReturnProducts();
 
   const returnReasons = [
-    { value: "cerca_vencer", label: "Cerca de vencer" },
+    { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" }
   ];
 
@@ -98,39 +103,32 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setCurrentProductIndex(0);
     onClose();
   };
+const handleConfirmReturn = async () => {
+  if (selectedProducts.length === 0) {
+    alert("Debe seleccionar al menos un producto para devolver");
+    return;
+  }
+  if (!returnReason) {
+    alert("Debe seleccionar una razón para la devolución");
+    return;
+  }
+  if (!actionType) {
+    alert("Debe seleccionar una acción a realizar");
+    return;
+  }
 
-  const handleConfirmReturn = () => {
-    if (selectedProducts.length === 0) {
-      alert("Debe seleccionar al menos un producto para devolver");
-      return;
-    }
+  const id_responsable = 1; // ⚠️ reemplazar con el ID real del usuario logueado
+  const isDiscount = actionType === "descuento";
 
-    if (!returnReason) {
-      alert("Debe seleccionar una razón para la devolución");
-      return;
-    }
-
-    if (!actionType) {
-      alert("Debe seleccionar una acción a realizar");
-      return;
-    }
-
-    if (actionType === "registrar") {
-      // Iniciar proceso de registro para cada producto
-      handleOpenRegistration(0);
-      return;
-    }
-
-    // Si es descuento, procesar directamente
-    console.log("Devolución confirmada:", {
-      products: selectedProducts,
-      reason: returnReason,
-      action: actionType
-    });
-
-    alert("Devolución procesada exitosamente");
+  const result = await postReturnProducts(id_responsable, selectedProducts, returnReason, isDiscount);
+  console.log("result");
+  if (result) {
+    refetch();
+    alert("✅ Devolución registrada exitosamente");
     handleCloseModal();
-  };
+  }
+};
+
 
   const formatPrice = (price) =>
     new Intl.NumberFormat("es-CO", {
@@ -215,7 +213,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">Buscar y agregar productos</h3>
                       <ProductSearch onAddProduct={handleAddProduct} />
                     </motion.div>
-
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
                       {selectedProducts.length > 0 && (
@@ -239,8 +236,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                   <Package className="w-4 h-4 text-green-700" />
                                 </motion.div>
                                 <div className="flex-1">
-                                  <p className="font-medium text-sm text-gray-800">{product.name}</p>
-                                  <p className="text-xs text-gray-500">{formatPrice(product.salePrice)} c/u</p>
+                                  <p className="font-medium text-sm text-gray-800">{product.productos.nombre}</p>
+                                  <p className="text-xs text-gray-500">{formatPrice(product.productos.precio_venta)} c/u</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <motion.button

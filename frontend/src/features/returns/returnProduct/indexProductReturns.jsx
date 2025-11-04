@@ -73,11 +73,11 @@ export default function IndexProductReturns() {
 
   const handleCloseReturnModal = () => {
     setIsReturnModalOpen(false);
+    refetch();
   };
 
   const handleOpenDetailsModal = (productData) => {
     // Necesitamos encontrar la devolución completa que contiene este producto
-    console.log(productData);
     const returnItem = returns.find(r => r.idReturn === productData.idReturn);
     if (returnItem) {
       setSelectedReturnData(returnItem);
