@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
 import generateProductReturnsPDF from "./helpers/exportToPdf";
-import generateProductReturnsXLS from "../returnProduct/helper/exportToXls";
+import generateProductReturnsXLS from "./helpers/exportToXls";
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
