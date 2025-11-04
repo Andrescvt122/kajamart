@@ -150,8 +150,8 @@ export default function IndexProductReturns() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
-            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
+            <ExportExcelButton event={() => generateProductReturnsXLS(filtered)}>Excel</ExportExcelButton>
+            <ExportPDFButton event={() => generateProductReturnsPDF(filtered)}>PDF</ExportPDFButton>
             <motion.button
               onClick={handleOpenReturnModal}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition-all font-medium"
