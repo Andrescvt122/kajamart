@@ -16,19 +16,32 @@ export const useFetchReturnProducts = () => {
       const data = res.data.returnProducts || [];
 
       // 🧮 Adaptar los datos al formato que usa tu tabla
-      const flattened = data.flatMap((r) =>({
-        idReturn: r.id_devolucion_product,
-        dateReturn: new Date(r.fecha_devolucion).toLocaleDateString("es-CO"),
-        responsable: r.nombre_responsable,
-        products : (r.detalle_devolucion_producto || []).map((d) => ({
-          idProduct: d.id_detalle_producto,
-          name: d.nombre_producto,
-          quantity: d.cantidad_devuelta,
-          discount: d.es_descuento,
-          reason: d.motivo,
-        }))
-      })
-      );
+      const flattened = data.flatMap((r) => {
+        const date = r.fecha_devolucion ? new Date(r.fecha_devolucion) : null;
+
+        return {
+          idReturn: r.id_devolucion_product,
+          dateReturn: date ? date.toLocaleDateString("es-CO") : "",
+          dateISO: date ? date.toISOString() : null,
+          responsable: r.nombre_responsable,
+          products:
+            (r.detalle_devolucion_producto || []).map((d) => ({
+              idProduct: d.id_detalle_producto,
+              name: d.nombre_producto,
+              quantity: Number(d.cantidad_devuelta) || 0,
+              discount: d.es_descuento,
+              reason: d.motivo,
+              category:
+                d.categoria ||
+                d.categoria_producto ||
+                d.categoriaProducto ||
+                d.nombre_categoria ||
+                d.nombreCategoria ||
+                d.category ||
+                "Sin categoría",
+            })) || [],
+        };
+      });
 
       setReturns(flattened);
     } catch (err) {
@@ -44,5 +57,5 @@ export const useFetchReturnProducts = () => {
     fetchReturnProducts();
   }, []);
 
-  return { returns, loading, error, refetch:fetchReturnProducts };
+  return { returns, loading, error, refetch: fetchReturnProducts };
 };
