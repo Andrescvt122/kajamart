@@ -14,8 +14,8 @@ import {
 } from "../../shared/components/buttons";
 import RegisterClientModal from "./RegisterClientModal";
 import ClientDetailModal from "./ClientDetailModal";
-import { exportToXls } from "../clients/helpers/exportToXls.js";
-import { exportToPdf } from "../clients/helpers/exportToPdf.js";
+import { exportToXls } from "./helpers/exportToXls.js";
+import { exportToPdf } from "./helpers/exportToPdf.js";
 
 export default function IndexClients() {
   // Cliente fijo de caja
@@ -185,6 +185,8 @@ export default function IndexClients() {
     setSelectedClient(client);
     setIsViewModalOpen(true);
   };
+  console.log("exportToXls:", exportToXls);
+  console.log("exportToPdf:", exportToPdf);
 
   return (
     <>
@@ -212,70 +214,68 @@ export default function IndexClients() {
 
         {/* Barra búsqueda + botones */}
         <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar clientes..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-            />
-          </div>
+  <div className="relative flex-1">
+    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <Search size={18} className="text-gray-400" />
+    </div>
+    <input
+      type="text"
+      placeholder="Buscar clientes..."
+      value={searchTerm}
+      onChange={(e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+    />
+  </div>
 
-          <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton
-              onClick={() =>
-                exportToXls(
-                  clients.map((c) => ({
-                    ...c,
-                    correo: c.correo?.trim() || "N/A",
-                    telefono: c.telefono?.trim() || "N/A",
-                  }))
-                )
-              }
-            >
-              Excel
-            </ExportExcelButton>
+  <div className="flex gap-2 flex-shrink-0">
+    <ExportExcelButton
+      onClick={() => {
+        const dataToExport = clients.map((c) => ({
+          ...c,
+          correo: c.correo ?? "N/A",
+          telefono: c.telefono ?? "N/A",
+        }));
+        exportToXls(dataToExport, "Clientes.xlsx");
+      }}
+    >
+      Excel
+    </ExportExcelButton>
 
-            <ExportPDFButton
-              onClick={() =>
-                exportToPdf(
-                  clients.map((c) => ({
-                    ...c,
-                    correo: c.correo?.trim() || "N/A",
-                    telefono: c.telefono?.trim() || "N/A",
-                  }))
-                )
-              }
-            >
-              PDF
-            </ExportPDFButton>
+    <ExportPDFButton
+      onClick={() => {
+        const dataToExport = clients.map((c) => ({
+          ...c,
+          correo: c.correo ?? "N/A",
+          telefono: c.telefono ?? "N/A",
+        }));
+        exportToPdf(dataToExport, "Clientes.pdf");
+      }}
+    >
+      PDF
+    </ExportPDFButton>
 
-            <button
-              onClick={() => {
-                setForm({
-                  nombre: "",
-                  tipoDocumento: "",
-                  numeroDocumento: "",
-                  correo: "",
-                  telefono: "",
-                  activo: true,
-                });
-                setEditingClientId(null);
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-            >
-              Registrar Cliente
-            </button>
-          </div>
-        </div>
+    <button
+      onClick={() => {
+        setForm({
+          nombre: "",
+          tipoDocumento: "",
+          numeroDocumento: "",
+          correo: "",
+          telefono: "",
+          activo: true,
+        });
+        setEditingClientId(null);
+        setIsModalOpen(true);
+      }}
+      className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+    >
+      Registrar Cliente
+    </button>
+  </div>
+</div>
 
         {/* Tabla más compacta */}
         <motion.div
