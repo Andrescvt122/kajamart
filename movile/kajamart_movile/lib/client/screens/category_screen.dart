@@ -15,6 +15,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   String searchQuery = "";
+  final Map<int, Future<_CategoryImageResult>> _imageFutures = {};
 
   @override
   void initState() {
@@ -86,6 +87,51 @@ class _CategoryScreenState extends State<CategoryScreen> {
         .where((category) =>
             category.name.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
+  }
+
+  Future<_CategoryImageResult> _fetchCategoryImage(int categoryId) {
+    return _imageFutures.putIfAbsent(categoryId, () async {
+      try {
+        final http.Response response = await http.get(Uri.parse(
+            'http://localhost:3000/kajamart/api/products/$categoryId'));
+
+        if (response.statusCode == 200) {
+          final dynamic decodedBody = jsonDecode(response.body);
+          dynamic productData;
+
+          if (decodedBody is Map<String, dynamic>) {
+            final dynamic possibleProduct = decodedBody['product'];
+            if (possibleProduct is Map<String, dynamic>) {
+              productData = possibleProduct;
+            } else {
+              productData = decodedBody;
+            }
+          }
+
+          if (productData is Map<String, dynamic>) {
+            final String? imageUrl = productData['url_imagen']?.toString();
+            if (imageUrl != null && imageUrl.isNotEmpty) {
+              return _CategoryImageResult(imageUrl: imageUrl);
+            }
+          }
+
+          return const _CategoryImageResult(notFound: true);
+        }
+
+        if (response.statusCode == 404) {
+          return const _CategoryImageResult(notFound: true);
+        }
+
+        return _CategoryImageResult(
+          errorMessage:
+              'No se pudo cargar la imagen. Código: ${response.statusCode}',
+        );
+      } catch (error) {
+        return const _CategoryImageResult(
+          errorMessage: 'Ocurrió un error al cargar la imagen.',
+        );
+      }
+    });
   }
 
   @override
@@ -213,14 +259,83 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Expanded(
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.category,
-                                      size: 48,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                    ),
+                                  child: FutureBuilder<_CategoryImageResult>(
+                                    future: _fetchCategoryImage(category.id),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                          child: SizedBox(
+                                            width: 32,
+                                            height: 32,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      final _CategoryImageResult? result =
+                                          snapshot.data;
+
+                                      if (result?.imageUrl != null &&
+                                          result!.imageUrl!.isNotEmpty) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            child: Image.network(
+                                              result.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              loadingBuilder:
+                                                  (context, child, progress) {
+                                                if (progress == null) {
+                                                  return child;
+                                                }
+                                                return const Center(
+                                                  child: SizedBox(
+                                                    width: 32,
+                                                    height: 32,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2.5,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return const _ImageNotFoundMessage();
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      if (result?.notFound ?? false) {
+                                        return const _ImageNotFoundMessage();
+                                      }
+
+                                      if (result?.errorMessage != null) {
+                                        return Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              result!.errorMessage!,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black54,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      return const _ImageNotFoundMessage();
+                                    },
                                   ),
                                 ),
                                 Padding(
@@ -300,6 +415,40 @@ class _Category {
           : json['estado'] is bool
               ? json['estado'] as bool
               : json['estado'].toString().toLowerCase() == 'true',
+    );
+  }
+}
+
+class _CategoryImageResult {
+  const _CategoryImageResult({
+    this.imageUrl,
+    this.notFound = false,
+    this.errorMessage,
+  });
+
+  final String? imageUrl;
+  final bool notFound;
+  final String? errorMessage;
+}
+
+class _ImageNotFoundMessage extends StatelessWidget {
+  const _ImageNotFoundMessage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text(
+          'imagen no encontrada por el momento',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 }
