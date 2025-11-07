@@ -30,8 +30,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
     });
 
     try {
-      final response = await http
-          .get(Uri.parse('http://localhost:3000/kajamart/api/categories'));
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/kajamart/api/categories'),
+      );
 
       if (response.statusCode == 200) {
         final dynamic decodedBody = jsonDecode(response.body);
@@ -84,16 +85,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
 
     return _categories
-        .where((category) =>
-            category.name.toLowerCase().contains(searchQuery.toLowerCase()))
+        .where(
+          (category) =>
+              category.name.toLowerCase().contains(searchQuery.toLowerCase()),
+        )
         .toList();
   }
 
   Future<_CategoryImageResult> _fetchCategoryImage(int categoryId) {
     return _imageFutures.putIfAbsent(categoryId, () async {
       try {
-        final http.Response response = await http.get(Uri.parse(
-            'http://localhost:3000/kajamart/api/products/$categoryId'));
+        final http.Response response = await http.get(
+          Uri.parse(
+            'http://localhost:3000/kajamart/api/products/random?q=$categoryId',
+          ),
+        );
 
         if (response.statusCode == 200) {
           final dynamic decodedBody = jsonDecode(response.body);
@@ -211,11 +217,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     padding: const EdgeInsets.all(8),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 0.9,
-                    ),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.9,
+                        ),
                     itemCount: filteredCategories.length,
                     itemBuilder: (context, index) {
                       final _Category category = filteredCategories[index];
@@ -236,9 +242,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(
-                                  'Categoría: ${category.name}',
-                                ),
+                                content: Text('Categoría: ${category.name}'),
                                 duration: const Duration(seconds: 2),
                               ),
                             );
@@ -283,32 +287,33 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                         return Padding(
                                           padding: const EdgeInsets.all(8.0),
                                           child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             child: Image.network(
                                               result.imageUrl!,
                                               fit: BoxFit.cover,
                                               width: double.infinity,
                                               loadingBuilder:
                                                   (context, child, progress) {
-                                                if (progress == null) {
-                                                  return child;
-                                                }
-                                                return const Center(
-                                                  child: SizedBox(
-                                                    width: 32,
-                                                    height: 32,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2.5,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
+                                                    if (progress == null) {
+                                                      return child;
+                                                    }
+                                                    return const Center(
+                                                      child: SizedBox(
+                                                        width: 32,
+                                                        height: 32,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2.5,
+                                                            ),
+                                                      ),
+                                                    );
+                                                  },
                                               errorBuilder:
                                                   (context, error, stackTrace) {
-                                                return const _ImageNotFoundMessage();
-                                              },
+                                                    return const _ImageNotFoundMessage();
+                                                  },
                                             ),
                                           ),
                                         );
@@ -413,8 +418,8 @@ class _Category {
       isActive: json['estado'] == null
           ? true
           : json['estado'] is bool
-              ? json['estado'] as bool
-              : json['estado'].toString().toLowerCase() == 'true',
+          ? json['estado'] as bool
+          : json['estado'].toString().toLowerCase() == 'true',
     );
   }
 }
