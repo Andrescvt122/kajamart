@@ -2,8 +2,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/kajamart/api/suppliers";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
+const API_URL = `${API_BASE}/suppliers`;
 
+// 🔹 Obtener todos los proveedores
 export const useSuppliers = () =>
   useQuery({
     queryKey: ["suppliers"],
@@ -13,6 +15,7 @@ export const useSuppliers = () =>
     },
   });
 
+// 🔹 Obtener proveedor por ID (con productos y categorías)
 export const useSupplier = (id) =>
   useQuery({
     queryKey: ["supplier", id],
@@ -23,11 +26,12 @@ export const useSupplier = (id) =>
     enabled: !!id,
   });
 
+// 🔹 Crear proveedor
 export const useCreateSupplier = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      // payload debe incluir: {nombre, nit, telefono, direccion, estado:boolean, categoriaIds:number[], ...extras}
+      // el modal ya envía categorias como [id_categoria]
       const { data } = await axios.post(API_URL, payload);
       return data;
     },
@@ -35,18 +39,19 @@ export const useCreateSupplier = () => {
   });
 };
 
+// 🔹 Actualizar proveedor
 export const useUpdateSupplier = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }) => {
-      // data idem create
-      const res = await axios.put(`${API_URL}/${id}`, data);
-      return res.data;
+    mutationFn: async ({ id, ...rest }) => {
+      const { data } = await axios.put(`${API_URL}/${id}`, rest);
+      return data;
     },
     onSuccess: () => qc.invalidateQueries(["suppliers"]),
   });
 };
 
+// 🔹 Eliminar proveedor
 export const useDeleteSupplier = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -56,3 +61,17 @@ export const useDeleteSupplier = () => {
     onSuccess: () => qc.invalidateQueries(["suppliers"]),
   });
 };
+ // 👇 al final del archivo suppliers.hooks.js
+export const useSupplierDetail = (id) =>
+  useQuery({
+    queryKey: ["supplier-detail", id],
+    enabled: !!id,
+    queryFn: async () => {
+      // Endpoint combinado del backend: /suppliers/:id/detail
+      const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
+      const API_URL = `${API_BASE}/suppliers`;
+      const { data } = await axios.get(`${API_URL}/${id}/detail`);
+      return data; // { ...proveedor, categorias:[...], productos:[...] }
+    },
+    staleTime: 60_000,
+  });

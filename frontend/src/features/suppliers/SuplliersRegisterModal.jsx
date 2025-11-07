@@ -1,11 +1,10 @@
 // SuplliersRegisterModal.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
 // hooks y alerts
 import { useCreateSupplier } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-// ⚠️ ruta corregida al hook de categorías
 import { useCategories } from "../../shared/components/hooks/categories/useCategories.js";
 
 import Swal from "sweetalert2";
@@ -19,7 +18,7 @@ export default function SuplliersRegisterModal({
   isOpen,
   onClose,
   onSubmit,
-  categoriasOptions = [], // si viene desde el padre, se respeta
+  categoriasOptions = [], // se respeta si viene, pero se prefiere el hook (porque trae IDs)
 }) {
   const [form, setForm] = useState({
     nombre: "",
@@ -29,37 +28,69 @@ export default function SuplliersRegisterModal({
     telefono: "",
     correo: "",
     estado: "Activo",
-    categorias: [],
+    categorias: [], // ← IDs numéricos
     direccion: "",
   });
 
   const createMutation = useCreateSupplier();
 
-  // categorías desde BD (fallback si no vienen por props)
+  // categorías desde BD
   const {
     categories,
     loading: loadingCats,
     error: catsError,
   } = useCategories();
 
-  // si el padre NO pasó opciones, usamos las activas desde el hook
-  const categoriasFromHook = Array.isArray(categories)
-    ? Array.from(
-        new Set(
-          categories
-            .filter((c) => c.estado === "Activo")
-            .map((c) => (c?.nombre || "").trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b))
-    : [];
+  /**
+   * Normalizamos opciones de categorías para que SIEMPRE sean { id, label },
+   * priorizando las del hook (porque traen id_categoria real).
+   * - El hook useCategories retorna: { id_categoria, nombre, estado, ... }
+   * - Solo usamos las Activas
+   */
+  const hookOptions = useMemo(() => {
+    if (!Array.isArray(categories)) return [];
+    return categories
+      .filter((c) => c.estado === "Activo")
+      .map((c) => ({
+        id: Number(c.id_categoria),
+        label: (c.nombre || "").trim(),
+      }))
+      .filter((o) => o.id && o.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [categories]);
+
+  /**
+   * Si por alguna razón no hay categorías en el hook,
+   * intentamos usar las que vengan por props (si traen nombre, tratamos de mapear a id con el hook).
+   * Si no podemos mapear (no hay hook), se ignoran para evitar enviar categorías sin IDs válidos.
+   */
+  const propOptionsMapped = useMemo(() => {
+    if (
+      !Array.isArray(categoriasOptions) ||
+      categoriasOptions.length === 0 ||
+      hookOptions.length === 0
+    ) {
+      return [];
+    }
+    const nameToId = new Map(
+      hookOptions.map((o) => [o.label.toLowerCase(), o.id])
+    );
+    // categoriasOptions (strings) -> intentar mapear a id usando los nombres del hook
+    return categoriasOptions
+      .map((name) => {
+        const id = nameToId.get(String(name).trim().toLowerCase());
+        return id ? { id, label: String(name).trim() } : null;
+      })
+      .filter(Boolean);
+  }, [categoriasOptions, hookOptions]);
 
   const mergedCategoriasOptions =
-    categoriasOptions && categoriasOptions.length > 0
-      ? Array.from(new Set(categoriasOptions.map((x) => (x || "").trim()).filter(Boolean))).sort(
-          (a, b) => a.localeCompare(b)
-        )
-      : categoriasFromHook;
+    hookOptions.length > 0 ? hookOptions : propOptionsMapped;
+
+  // Mapa id->label para resolver textos de chips
+  const optionsMap = useMemo(() => {
+    return new Map(mergedCategoriasOptions.map((o) => [o.id, o.label]));
+  }, [mergedCategoriasOptions]);
 
   const [errors, setErrors] = useState({});
   const [personaOpen, setPersonaOpen] = useState(false);
@@ -77,7 +108,10 @@ export default function SuplliersRegisterModal({
         setPersonaOpen(false);
       if (estadoRef.current && !estadoRef.current.contains(event.target))
         setEstadoOpen(false);
-      if (categoriasRef.current && !categoriasRef.current.contains(event.target))
+      if (
+        categoriasRef.current &&
+        !categoriasRef.current.contains(event.target)
+      )
         setCategoriasOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -92,7 +126,6 @@ export default function SuplliersRegisterModal({
     if (name === "nit" || name === "telefono") {
       newValue = value.replace(/[eE]/g, "");
     }
-
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
 
@@ -117,37 +150,56 @@ export default function SuplliersRegisterModal({
       e.preventDefault();
   };
 
-  const toggleCategoria = (categoria) => {
-    setForm((prev) => ({
-      ...prev,
-      categorias: prev.categorias.includes(categoria)
-        ? prev.categorias.filter((c) => c !== categoria)
-        : [...prev.categorias, categoria],
-    }));
+  // Toggle por ID
+  const toggleCategoria = (categoriaId) => {
+    setForm((prev) => {
+      const id = Number(categoriaId);
+      const exists = prev.categorias.includes(id);
+      return {
+        ...prev,
+        categorias: exists
+          ? prev.categorias.filter((c) => c !== id)
+          : [...prev.categorias, id],
+      };
+    });
     setErrors((prev) => ({ ...prev, categorias: "" }));
   };
 
-  const removeCategoriaTag = (categoria) => {
+  const removeCategoriaTag = (categoriaId) => {
     setForm((prev) => ({
       ...prev,
-      categorias: prev.categorias.filter((c) => c !== categoria),
+      categorias: prev.categorias.filter((c) => c !== Number(categoriaId)),
     }));
   };
 
   const validateAll = () => {
     const newErrors = {};
     Object.entries(form).forEach(([key, value]) => {
-      if (key !== "direccion" && !value?.toString().trim())
+      if (
+        key !== "direccion" &&
+        (value === null ||
+          value === undefined ||
+          value?.toString().trim() === "")
+      ) {
         newErrors[key] = "Este campo es obligatorio";
-      else if (key === "correo") {
+      } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
+        if (value && !emailRegex.test(value))
+          newErrors[key] = "Correo inválido";
       } else if (key === "telefono" || key === "nit") {
         if (value && !/^\d+$/.test(value))
           newErrors[key] = "Solo se permiten números";
       }
+      else if (key === "max_porcentaje_de_devolucion") {
+        if (
+          value &&
+          (isNaN(value) || Number(value) < 0 || Number(value) > 100)
+        ) {
+          newErrors[key] = "Debe ser un número entre 0 y 100";
+        }
+      }      
     });
-    if (form.categorias.length === 0)
+    if (!Array.isArray(form.categorias) || form.categorias.length === 0)
       newErrors.categorias = "Seleccione al menos una categoría";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -157,7 +209,7 @@ export default function SuplliersRegisterModal({
     e.preventDefault();
     if (!validateAll()) return;
 
-    // payload al backend (mapeo mínimo)
+    // payload al backend (categorias son IDs)
     const payload = {
       nombre: form.nombre.trim(),
       nit: Number(form.nit),
@@ -167,8 +219,12 @@ export default function SuplliersRegisterModal({
       correo: form.correo.trim(),
       direccion: form.direccion.trim(),
       estado: form.estado === "Activo",
-      categorias: form.categorias, // nombres de categorías seleccionadas
+      categorias: form.categorias,
+      max_porcentaje_de_devolucion: form.max_porcentaje_de_devolucion
+        ? parseFloat(form.max_porcentaje_de_devolucion)
+        : null,
     };
+    
 
     showLoadingAlert("Registrando proveedor...");
     createMutation.mutate(payload, {
@@ -323,7 +379,10 @@ export default function SuplliersRegisterModal({
                             key={opt}
                             variants={itemVariants}
                             onClick={() => {
-                              setForm((prev) => ({ ...prev, personaType: opt }));
+                              setForm((prev) => ({
+                                ...prev,
+                                personaType: opt,
+                              }));
                               setPersonaOpen(false);
                             }}
                             className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
@@ -402,9 +461,7 @@ export default function SuplliersRegisterModal({
                   required
                 />
                 {errors.correo && (
-                  <span className="text-red-500 text-xs">
-                    {errors.correo}
-                  </span>
+                  <span className="text-red-500 text-xs">{errors.correo}</span>
                 )}
               </div>
 
@@ -495,20 +552,61 @@ export default function SuplliersRegisterModal({
                 )}
               </div>
             </div>
+            {/* Máximo porcentaje de devolución */}
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">
+                Máx. % de devolución
+              </label>
+              <input
+                name="max_porcentaje_de_devolucion"
+                value={form.max_porcentaje_de_devolucion}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Solo números y un punto decimal
+                  if (/^\d*\.?\d*$/.test(value)) {
+                    setForm((prev) => ({
+                      ...prev,
+                      max_porcentaje_de_devolucion: value,
+                    }));
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  let error = "";
+                  if (
+                    value &&
+                    (isNaN(value) || Number(value) < 0 || Number(value) > 100)
+                  ) {
+                    error = "Debe ser un número entre 0 y 100";
+                  }
+                  setErrors((prev) => ({
+                    ...prev,
+                    max_porcentaje_de_devolucion: error,
+                  }));
+                }}
+                inputMode="decimal"
+                placeholder="Ej: 10.5"
+                className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
+              />
+              {errors.max_porcentaje_de_devolucion && (
+                <span className="text-red-500 text-xs">
+                  {errors.max_porcentaje_de_devolucion}
+                </span>
+              )}
+            </div>
 
-            {/* Categorías */}
+            {/* Categorías (IDs) */}
             <div ref={categoriasRef} className="mt-2">
               <label className="block text-sm text-gray-700 mb-1">
                 Categorías
               </label>
 
               {/* Error de categorías */}
-              {catsError &&
-                (!categoriasOptions || categoriasOptions.length === 0) && (
-                  <p className="text-xs text-red-600 mb-1">
-                    Error al cargar categorías: {String(catsError)}
-                  </p>
-                )}
+              {catsError && mergedCategoriasOptions.length === 0 && (
+                <p className="text-xs text-red-600 mb-1">
+                  Error al cargar categorías: {String(catsError)}
+                </p>
+              )}
 
               <div className="relative mt-1 w-full">
                 <div className="w-full border border-gray-300 bg-white rounded-lg">
@@ -520,7 +618,9 @@ export default function SuplliersRegisterModal({
                       setCategoriasOpen((s) => !s);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
-                    disabled={loadingCats && mergedCategoriasOptions.length === 0}
+                    disabled={
+                      loadingCats && mergedCategoriasOptions.length === 0
+                    }
                     title={
                       loadingCats && mergedCategoriasOptions.length === 0
                         ? "Cargando categorías..."
@@ -567,13 +667,13 @@ export default function SuplliersRegisterModal({
                       ) : (
                         mergedCategoriasOptions.map((opt) => (
                           <motion.li
-                            key={opt}
+                            key={opt.id}
                             variants={itemVariants}
-                            onClick={() => toggleCategoria(opt)}
+                            onClick={() => toggleCategoria(opt.id)}
                             className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between"
                           >
-                            <span>{opt}</span>
-                            {form.categorias.includes(opt) && (
+                            <span>{opt.label}</span>
+                            {form.categorias.includes(opt.id) && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
                                 ✓
                               </span>
@@ -587,16 +687,16 @@ export default function SuplliersRegisterModal({
               </div>
 
               <div className="mt-2 flex flex-wrap gap-2">
-                {form.categorias.map((c) => (
+                {form.categorias.map((id) => (
                   <div
-                    key={c}
+                    key={id}
                     className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs"
                   >
-                    <span>{c}</span>
+                    <span>{optionsMap.get(id) || id}</span>
                     <button
                       type="button"
-                      onClick={() => removeCategoriaTag(c)}
-                      aria-label={`Eliminar ${c}`}
+                      onClick={() => removeCategoriaTag(id)}
+                      aria-label={`Eliminar ${optionsMap.get(id) || id}`}
                       className="opacity-70 hover:opacity-100"
                     >
                       ×
