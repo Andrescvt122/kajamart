@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 // hooks y alerts
 import { useCreateSupplier } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-import { useCategories } from "../../shared/components/hooks/categories/useCategories.js";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
 import Swal from "sweetalert2";
 import {

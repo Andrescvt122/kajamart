@@ -10,6 +10,12 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
     descripcion: "",
   });
 
+  const [errors, setErrors] = useState({
+    nombre: "",
+    estado: "",
+    descripcion: "",
+  });
+
   const [estadoOpen, setEstadoOpen] = useState(false);
   const estadoRef = useRef(null);
 
@@ -34,13 +40,39 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
       ...prev,
       [name]: value,
     }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validate = () => {
+    const newErrors = {
+      nombre: "",
+      estado: "",
+      descripcion: "",
+    };
+
+    if (!form.nombre.trim()) newErrors.nombre = "El nombre es obligatorio.";
+    if (!form.estado) newErrors.estado = "Selecciona un estado.";
+    if (!form.descripcion.trim())
+      newErrors.descripcion = "La descripción es obligatoria.";
+
+    setErrors(newErrors);
+    // si no hay ningún mensaje, es válido
+    return !Object.values(newErrors).some((msg) => msg);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.estado) return;
-    onRegister?.(form);
+    if (!validate()) return;
+
+    const payload = {
+      nombre: form.nombre.trim(),
+      estado: form.estado,
+      descripcion: form.descripcion.trim(),
+    };
+
+    onRegister?.(payload);
     setForm({ nombre: "", estado: "", descripcion: "" });
+    setErrors({ nombre: "", estado: "", descripcion: "" });
     setEstadoOpen(false);
     onClose?.();
   };
@@ -85,20 +117,30 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nombre */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Nombre*
+                </label>
                 <input
                   name="nombre"
                   value={form.nombre}
                   autoComplete="off"
                   onChange={handleChange}
                   placeholder="Nombre de la categoría"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.nombre ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.nombre && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.nombre}
+                  </p>
+                )}
               </div>
 
               {/* Estado */}
               <div className="relative" ref={estadoRef}>
-                <label className="block text-sm font-semibold text-gray-800">
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
                   Estado*
                 </label>
 
@@ -109,6 +151,8 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                         ? "border-green-500 bg-green-50"
                         : form.estado === "Inactivo"
                         ? "border-red-500 bg-red-50"
+                        : errors.estado
+                        ? "border-red-500 bg-white"
                         : "border-gray-300 bg-gray-100"
                     }`}
                 >
@@ -148,6 +192,11 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                     </motion.span>
                   </button>
                 </div>
+                {errors.estado && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.estado}
+                  </p>
+                )}
 
                 <AnimatePresence>
                   {estadoOpen && (
@@ -167,6 +216,7 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
                               ...prev,
                               estado: opt.value,
                             }));
+                            setErrors((prev) => ({ ...prev, estado: "" }));
                             setEstadoOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer text-sm ${
@@ -191,15 +241,25 @@ export default function CategoryRegisterModal({ isOpen, onClose, onRegister }) {
 
               {/* Descripción */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Descripción*
+                </label>
                 <textarea
                   name="descripcion"
                   value={form.descripcion}
                   onChange={handleChange}
                   placeholder="Descripción de la categoría"
                   rows="4"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.descripcion ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.descripcion && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.descripcion}
+                  </p>
+                )}
               </div>
 
               {/* Botones */}
