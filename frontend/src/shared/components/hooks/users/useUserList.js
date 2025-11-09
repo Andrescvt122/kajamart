@@ -26,5 +26,6 @@ export const useUsuariosList = () => {
     getUsuarios();
   }, []);
 
-  return { usuarios, loading, error, getUsuarios };
+  // Devolvemos también setUsuarios para permitir actualizaciones locales (optimistas)
+  return { usuarios, setUsuarios, loading, error, getUsuarios };
 };
