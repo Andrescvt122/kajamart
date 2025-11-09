@@ -1,8 +1,12 @@
+// src/pages/roles/deleteRoles.jsx
 import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { showSuccessAlert } from "../../shared/components/alerts.jsx";
+import { useDeleteRole } from "../../shared/components/hooks/roles/useDeleteRole.js";
 
-export default function DeleteRoleModal({ isOpen, onClose, onConfirm, role }) {
+export default function DeleteRoleModal({ isOpen, onClose, onRoleDeleted, role }) {
   const cancelButtonRef = useRef(null);
+  const { deleteRole, loading, error } = useDeleteRole();
 
   // Enfocar botón Cancelar al abrir
   useEffect(() => {
@@ -19,6 +23,16 @@ export default function DeleteRoleModal({ isOpen, onClose, onConfirm, role }) {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
+
+  const handleDelete = async () => {
+    if (!role?.rol_id) return;
+    const success = await deleteRole(role.rol_id);
+    if (success) {
+      showSuccessAlert("Rol eliminado correctamente.");
+      onRoleDeleted(role.rol_id); // 🚀 Notifica al padre que el rol fue eliminado
+      onClose(); // Cierra el modal
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -45,37 +59,37 @@ export default function DeleteRoleModal({ isOpen, onClose, onConfirm, role }) {
             className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2
-              id="modal-title"
-              className="text-2xl font-bold mb-4 text-gray-800"
-            >
+            <h2 id="modal-title" className="text-2xl font-bold mb-4 text-gray-800">
               Confirmar Eliminación
             </h2>
 
             <p id="modal-description" className="text-gray-600 mb-6">
               ¿Estás seguro de que deseas eliminar el rol{" "}
               <span className="font-semibold text-red-600">
-                {role?.NombreRol || ""}
+                {role?.rol_nombre || ""}
               </span>
               ? Esta acción no se puede deshacer.
             </p>
+
+            {error && <p className="text-red-600 mb-3">{error}</p>}
 
             <div className="flex justify-end gap-3">
               <button
                 ref={cancelButtonRef}
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+                disabled={loading}
               >
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  if (role) onConfirm(role);
-                  onClose();
-                }}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition"
+                onClick={handleDelete}
+                className={`px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition ${
+                  loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+                disabled={loading}
               >
-                Eliminar
+                {loading ? "Eliminando..." : "Eliminar"}
               </button>
             </div>
           </motion.div>
