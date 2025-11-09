@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+// frontend/src/features/products/productRegisterModal.jsx
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Upload, X } from "lucide-react";
 import Swal from "sweetalert2";
@@ -6,9 +7,9 @@ import Swal from "sweetalert2";
 // Hooks reales
 import { useCreateProduct } from "../../shared/components/hooks/products/products.hooks.js";
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js"; // ajusta la ruta si difiere
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
-// Alerts (opcional)
+// Alerts
 import {
   showLoadingAlert,
   showErrorAlert,
@@ -22,57 +23,57 @@ const listVariants = {
   hidden: { opacity: 0, y: -10 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.18 } },
 };
+
 const itemVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
 };
 
 export default function ProductRegisterModal({ isOpen, onClose }) {
-  // === CARGA DE CATEGORÍAS Y PROVEEDORES (backend real) ===
-  const { data: categoriesRaw = [], isLoading: catLoading } = useCategories?.() ?? { data: [], isLoading: false };
-  const { data: suppliersRaw = [], isLoading: supLoading } = useSuppliersQuery();
+  // === CATEGORÍAS (hook propio) ===
+  const {
+    categories: catList = [],
+    loading: catLoading,
+    error: catError,
+  } = useCategories();
 
-  // Normalización mínima
-  const categories = useMemo(() => {
-    if (!Array.isArray(categoriesRaw)) return [];
-    // intenta mapear a {id, nombre}
-    return categoriesRaw.map((c) => ({
-      id: c.id_categoria ?? c.id ?? null,
-      nombre:
-        c.nombre_categoria ??
-        c.nombre ??
-        (typeof c === "string" ? c : "") ??
-        "",
-    })).filter((c) => c.id && c.nombre);
-  }, [categoriesRaw]);
+  // Solo categorías activas
+  const activeCategories = catList.filter(
+    (c) => c.estado === "Activo" || c.estado === "activo"
+  );
 
-  const suppliers = useMemo(() => {
-    if (!Array.isArray(suppliersRaw)) return [];
-    return suppliersRaw
-      .map((s) => ({
-        id: s.id_proveedor ?? null,
-        nombre: s.nombre ?? "",
-        estado: s.estado === true || s.estado === "Activo",
-      }))
-      .filter((s) => s.id && s.nombre);
-  }, [suppliersRaw]);
+  // === PROVEEDORES (React Query) ===
+  const { data: suppliersRaw = [], isLoading: supLoading } =
+    useSuppliersQuery();
+
+  const suppliers = Array.isArray(suppliersRaw)
+    ? suppliersRaw
+        .map((s) => ({
+          id: s.id_proveedor ?? null,
+          nombre: s.nombre ?? "",
+          estado: s.estado === true || s.estado === "Activo",
+        }))
+        .filter((s) => s.id && s.nombre)
+    : [];
 
   // === FORM STATE ===
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
-    url_imagen: "", // URL Cloudinary
     precioCompra: "",
     precioVenta: "",
     subidaVenta: "",
-    iva: "", // lo dejamos como string por ahora, pero enviaremos 0 al backend
+    iva: "",
     stock: "",
     stockMin: "",
     stockMax: "",
-    estado: "", // "Activo" | "Inactivo"
-    categoriaId: "", // id_categoria
-    proveedorId: "", // id_proveedor
+    estado: "",
+    categoriaId: "",
+    proveedorId: "",
   });
+
+  // 🔹 archivo de imagen (solo 1)
+  const [imagenFile, setImagenFile] = useState(null);
 
   const [errors, setErrors] = useState({});
 
@@ -89,6 +90,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     { value: "Inactivo", label: "Inactivo" },
   ];
 
+  // Cerrar dropdowns al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e) {
       if (estadoRef.current && !estadoRef.current.contains(e.target)) {
@@ -105,13 +107,12 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Reset al abrir/cerrar
+  // Reset al abrir
   useEffect(() => {
     if (!isOpen) return;
     setForm({
       nombre: "",
       descripcion: "",
-      url_imagen: "",
       precioCompra: "",
       precioVenta: "",
       subidaVenta: "",
@@ -123,6 +124,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       categoriaId: "",
       proveedorId: "",
     });
+    setImagenFile(null);
     setErrors({});
     setEstadoOpen(false);
     setCategoriaOpen(false);
@@ -146,11 +148,6 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
           error = "Debe ser un número válido (>= 0).";
         }
         break;
-      case "url_imagen":
-        if (value && !/^https?:\/\//i.test(value)) {
-          error = "Debe ser una URL http/https válida (Cloudinary).";
-        }
-        break;
       case "estado":
         if (!value) error = "Selecciona un estado.";
         break;
@@ -168,18 +165,26 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    if (type === "number" && /[eE+\-]/.test(value)) return; // bloquear e/E +/- en numéricos
+    if (type === "number" && /[eE+\-]/.test(value)) return;
     setForm((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
   };
 
-  // === MUTATION (POST) ===
+  // 🔹 Manejar cambio de imagen (solo 1)
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setImagenFile(null);
+      return;
+    }
+    setImagenFile(file);
+  };
+
   const createMutation = useCreateProduct();
 
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar campos requeridos
     const required = [
       "nombre",
       "precioCompra",
@@ -189,45 +194,60 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       "estado",
       "categoriaId",
       "proveedorId",
-      // url_imagen no es obligatorio, pero si lo pones, debe ser URL válida
     ];
     let valid = true;
     required.forEach((f) => {
       validateField(f, form[f]);
       if (!form[f] || errors[f]) valid = false;
     });
-    if (form.url_imagen) validateField("url_imagen", form.url_imagen);
+
+    if (!imagenFile) {
+      valid = false;
+      showErrorAlert && showErrorAlert("Debes subir una imagen.");
+    }
 
     if (!valid) {
-      showErrorAlert && showErrorAlert("Por favor corrige los campos resaltados.");
+      if (!imagenFile) return;
+      showErrorAlert &&
+        showErrorAlert("Por favor corrige los campos resaltados.");
       return;
     }
 
-    // Mapear a payload backend
-    const payload = {
-      nombre: form.nombre.trim(),
-      descripcion: form.descripcion?.trim() || null,
-      stock_actual: Number(form.stock) || 0,
-      stock_minimo: form.stockMin !== "" ? Number(form.stockMin) : 0,
-      stock_maximo:
+    // 🔹 Payload como FormData (incluye imagen)
+    const fd = new FormData();
+    fd.append("nombre", form.nombre.trim());
+    fd.append("descripcion", form.descripcion?.trim() || "");
+    fd.append("stock_actual", String(Number(form.stock) || 0));
+    fd.append(
+      "stock_minimo",
+      String(form.stockMin !== "" ? Number(form.stockMin) : 0)
+    );
+    fd.append(
+      "stock_maximo",
+      String(
         form.stockMax !== ""
           ? Number(form.stockMax)
-          : (Number(form.stock) || 0) * 5,
-      estado: form.estado === "Activo",
-      id_categoria: Number(form.categoriaId),
-      // impuestos: por ahora 0 (si luego conectas tabla de impuestos, aquí mapeamos los ids reales)
-      iva: 0,
-      icu: 0,
-      porcentaje_incremento: Number(form.subidaVenta) || 0,
-      costo_unitario: Number(form.precioCompra),
-      precio_venta: Number(form.precioVenta),
-      id_proveedor: Number(form.proveedorId),
-      url_imagen: form.url_imagen?.trim() || null,
-    };
+          : (Number(form.stock) || 0) * 5
+      )
+    );
+    fd.append("estado", form.estado === "Activo" ? "true" : "false");
+    fd.append("id_categoria", String(form.categoriaId));
+    fd.append("iva", "0");
+    fd.append("icu", "0");
+    fd.append(
+      "porcentaje_incremento",
+      String(Number(form.subidaVenta) || 0)
+    );
+    fd.append("costo_unitario", String(Number(form.precioCompra)));
+    fd.append("precio_venta", String(Number(form.precioVenta)));
+    fd.append("id_proveedor", String(form.proveedorId));
+
+    // 🔹 imagen (campo "imagen" debe coincidir con multer.single("imagen"))
+    fd.append("imagen", imagenFile);
 
     try {
       showLoadingAlert && showLoadingAlert("Registrando producto...");
-      await createMutation.mutateAsync(payload);
+      await createMutation.mutateAsync(fd);
       try {
         Swal.close();
       } catch (_) {}
@@ -309,32 +329,53 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                   onChange={handleChange}
                   placeholder="Descripción corta"
                   rows="3"
-                  className={`mt-1 w-full px-3 py-2 border rounded-lg bg-white border-gray-300`}
+                  className="mt-1 w-full px-3 py-2 border rounded-lg bg-white border-gray-300"
                 />
               </div>
 
-              {/* URL Imagen (Cloudinary) */}
+              {/* Imagen (archivo único) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-800">
-                  URL de Imagen (Cloudinary)
+                  Imagen del producto*
                 </label>
-                <div className="flex items-center gap-2">
+
+                <label className="mt-2 block w-full rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-green-300 cursor-pointer p-4 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Upload size={20} className="text-gray-600" />
+                    <span className="text-sm text-gray-700">
+                      Selecciona una imagen desde tu dispositivo
+                    </span>
+                  </div>
                   <input
-                    name="url_imagen"
-                    value={form.url_imagen}
-                    onChange={handleChange}
-                    onBlur={(e) => validateField("url_imagen", e.target.value)}
-                    placeholder="https://res.cloudinary.com/tu-cloud/imagen.jpg"
-                    className={`${inputClass} ${
-                      errors.url_imagen ? "border-red-500" : "border-gray-300"
-                    }`}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
                   />
-                  <Upload size={18} className="text-gray-500" />
-                </div>
-                {errors.url_imagen && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.url_imagen}
-                  </p>
+                </label>
+
+                {imagenFile && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-md overflow-hidden border bg-gray-100 flex items-center justify-center">
+                      <img
+                        src={URL.createObjectURL(imagenFile)}
+                        alt={imagenFile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col text-sm">
+                      <span className="font-medium text-gray-800">
+                        {imagenFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImagenFile(null)}
+                        className="text-xs text-red-500 hover:underline mt-1 text-left"
+                      >
+                        Quitar imagen
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -431,7 +472,6 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                     name="iva"
                     value={form.iva}
                     onChange={(e) => {
-                      // solo permitir números y %
                       const val = e.target.value.replace(/[^0-9%]/g, "");
                       setForm((prev) => ({ ...prev, iva: val }));
                     }}
@@ -507,8 +547,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              {/* Estado */}
+              {/* Estado, categoría, proveedor */}
               <div className="grid grid-cols-3 gap-3">
+                {/* Estado */}
                 <div className="relative" ref={estadoRef}>
                   <label className="block text-sm font-semibold">Estado*</label>
                   <div
@@ -564,7 +605,10 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                             key={opt.value}
                             variants={itemVariants}
                             onClick={() => {
-                              setForm((prev) => ({ ...prev, estado: opt.value }));
+                              setForm((prev) => ({
+                                ...prev,
+                                estado: opt.value,
+                              }));
                               validateField("estado", opt.value);
                               setEstadoOpen(false);
                             }}
@@ -588,9 +632,11 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                   </AnimatePresence>
                 </div>
 
-                {/* Categoría */}
+                {/* Categoría (solo activas) */}
                 <div className="relative" ref={categoriaRef}>
-                  <label className="block text-sm font-semibold">Categoría*</label>
+                  <label className="block text-sm font-semibold">
+                    Categoría*
+                  </label>
                   <div
                     className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${
                       errors.categoriaId ? "border-red-500" : "border-gray-300"
@@ -598,15 +644,31 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                   >
                     <button
                       type="button"
-                      onClick={() => setCategoriaOpen((s) => !s)}
-                      className="flex w-full items-center justify-between text-sm"
-                      disabled={catLoading}
+                      onClick={() => {
+                        if (!catLoading && activeCategories.length > 0) {
+                          setCategoriaOpen((s) => !s);
+                        }
+                      }}
+                      className="flex w-full items-center justify-between text-sm disabled:opacity-60"
+                      disabled={catLoading || activeCategories.length === 0}
                     >
-                      <span className={form.categoriaId ? "text-gray-900 font-medium" : "text-gray-500"}>
-                        {form.categoriaId
-                          ? categories.find((c) => String(c.id) === String(form.categoriaId))?.nombre
-                          : catLoading
+                      <span
+                        className={
+                          form.categoriaId
+                            ? "text-gray-900 font-medium"
+                            : "text-gray-500"
+                        }
+                      >
+                        {catLoading
                           ? "Cargando categorías…"
+                          : activeCategories.length === 0
+                          ? "No hay categorías activas"
+                          : form.categoriaId
+                          ? activeCategories.find(
+                              (c) =>
+                                String(c.id_categoria ?? c.id) ===
+                                String(form.categoriaId)
+                            )?.nombre || "Seleccionar categoría"
                           : "Seleccionar categoría"}
                       </span>
                       <motion.span
@@ -618,7 +680,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                     </button>
                   </div>
                   {errors.categoriaId && (
-                    <p className="text-red-500 text-xs mt-1">{errors.categoriaId}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.categoriaId}
+                    </p>
                   )}
                   <AnimatePresence>
                     {categoriaOpen && (
@@ -629,20 +693,30 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                         exit="hidden"
                         variants={listVariants}
                       >
-                        {categories.map((c) => (
-                          <motion.li
-                            key={c.id}
-                            variants={itemVariants}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, categoriaId: c.id }));
-                              validateField("categoriaId", c.id);
-                              setCategoriaOpen(false);
-                            }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
-                          >
-                            {c.nombre}
-                          </motion.li>
-                        ))}
+                        {activeCategories.map((c) => {
+                          const catId = c.id_categoria ?? c.id;
+                          return (
+                            <motion.li
+                              key={catId}
+                              variants={itemVariants}
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  categoriaId: catId,
+                                }));
+                                validateField("categoriaId", catId);
+                                setCategoriaOpen(false);
+                              }}
+                              className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${
+                                String(form.categoriaId) === String(catId)
+                                  ? "bg-green-100 font-medium"
+                                  : ""
+                              }`}
+                            >
+                              {c.nombre}
+                            </motion.li>
+                          );
+                        })}
                       </motion.ul>
                     )}
                   </AnimatePresence>
@@ -650,7 +724,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
 
                 {/* Proveedor */}
                 <div className="relative" ref={proveedorRef}>
-                  <label className="block text-sm font-semibold">Proveedor*</label>
+                  <label className="block text-sm font-semibold">
+                    Proveedor*
+                  </label>
                   <div
                     className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${
                       errors.proveedorId ? "border-red-500" : "border-gray-300"
@@ -659,14 +735,25 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                     <button
                       type="button"
                       onClick={() => setProveedorOpen((s) => !s)}
-                      className="flex w-full items-center justify-between text-sm"
-                      disabled={supLoading}
+                      className="flex w-full items-center justify-between text-sm disabled:opacity-60"
+                      disabled={supLoading || suppliers.length === 0}
                     >
-                      <span className={form.proveedorId ? "text-gray-900 font-medium" : "text-gray-500"}>
-                        {form.proveedorId
-                          ? suppliers.find((s) => String(s.id) === String(form.proveedorId))?.nombre
-                          : supLoading
+                      <span
+                        className={
+                          form.proveedorId
+                            ? "text-gray-900 font-medium"
+                            : "text-gray-500"
+                        }
+                      >
+                        {supLoading
                           ? "Cargando proveedores…"
+                          : suppliers.length === 0
+                          ? "No hay proveedores"
+                          : form.proveedorId
+                          ? suppliers.find(
+                              (s) =>
+                                String(s.id) === String(form.proveedorId)
+                            )?.nombre || "Seleccionar proveedor"
                           : "Seleccionar proveedor"}
                       </span>
                       <motion.span
@@ -678,7 +765,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                     </button>
                   </div>
                   {errors.proveedorId && (
-                    <p className="text-red-500 text-xs mt-1">{errors.proveedorId}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.proveedorId}
+                    </p>
                   )}
                   <AnimatePresence>
                     {proveedorOpen && (
@@ -694,11 +783,18 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                             key={s.id}
                             variants={itemVariants}
                             onClick={() => {
-                              setForm((prev) => ({ ...prev, proveedorId: s.id }));
+                              setForm((prev) => ({
+                                ...prev,
+                                proveedorId: s.id,
+                              }));
                               validateField("proveedorId", s.id);
                               setProveedorOpen(false);
                             }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                            className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${
+                              String(form.proveedorId) === String(s.id)
+                                ? "bg-green-100 font-medium"
+                                : ""
+                            }`}
                           >
                             {s.nombre}
                           </motion.li>

@@ -26,6 +26,7 @@ import {
 import ProductRegisterModal from "./productRegisterModal.jsx";
 import ProductEditModal from "./productEditModal.jsx";
 import ProductDeleteModal from "./productDeleteModal.jsx";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
 // 🔹 Hooks reales
 import {
@@ -573,25 +574,11 @@ export default function IndexProducts() {
         itemVariants={itemVariants}
       />
 
-      {/* Modal de registro (aún sin backend) */}
-      <ProductRegisterModal
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
-        form={form}
-        setForm={setForm}
-        handleChange={handleChange}
-        handleSubmit={handleSubmit}
-        handleImages={handleImages}
-        removeImageAt={removeImageAt}
-        estadoOpen={estadoOpen}
-        setEstadoOpen={setEstadoOpen}
-        categoriaOpen={categoriaOpen}
-        setCategoriaOpen={setCategoriaOpen}
-        estadoRef={estadoRef}
-        categoriaRef={categoriaRef}
-        categories={categories}
-        estadoOptions={estadoOptions}
+            {/* Modal de registro (conectado al backend) */}
+            <ProductRegisterModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </div>
   );
-}
+};

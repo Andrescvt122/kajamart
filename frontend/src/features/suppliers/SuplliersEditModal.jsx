@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
 // Hooks
-import { useCategories } from "../../shared/components/hooks/categories/useCategories.js";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 import { useUpdateSupplier } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 
 // Alerts
