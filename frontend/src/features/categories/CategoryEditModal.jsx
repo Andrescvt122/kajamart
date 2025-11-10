@@ -9,6 +9,12 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     descripcion: "",
   });
 
+  const [errors, setErrors] = useState({
+    nombre: "",
+    estado: "",
+    descripcion: "",
+  });
+
   const [estadoOpen, setEstadoOpen] = useState(false);
   const estadoRef = useRef(null);
 
@@ -17,6 +23,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     { value: "Inactivo", label: "Inactivo" },
   ];
 
+  // Cargar datos cuando cambia la categoría
   useEffect(() => {
     if (category) {
       setForm({
@@ -24,9 +31,11 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
         estado: category.estado || "",
         descripcion: category.descripcion || "",
       });
+      setErrors({ nombre: "", estado: "", descripcion: "" });
     }
   }, [category]);
 
+  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e) {
       if (estadoRef.current && !estadoRef.current.contains(e.target)) {
@@ -37,6 +46,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Bloquear scroll cuando el modal está abierto
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "auto";
   }, [isOpen]);
@@ -44,18 +54,39 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validate = () => {
+    const newErrors = {
+      nombre: "",
+      estado: "",
+      descripcion: "",
+    };
+
+    if (!form.nombre.trim()) newErrors.nombre = "El nombre es obligatorio.";
+    if (!form.estado) newErrors.estado = "Selecciona un estado.";
+    if (!form.descripcion.trim())
+      newErrors.descripcion = "La descripción es obligatoria.";
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some((msg) => msg);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSave && category?.id_categoria) {
-      onSave({
-        id_categoria: category.id_categoria,
-        nombre: form.nombre,
-        descripcion: form.descripcion,
-        estado: form.estado,
-      });
-    }
+    if (!category?.id_categoria) return;
+
+    if (!validate()) return;
+
+    const payload = {
+      id_categoria: category.id_categoria,
+      nombre: form.nombre.trim(),
+      descripcion: form.descripcion.trim(),
+      estado: form.estado,
+    };
+
+    onSave?.(payload); // IndexCategories lo manda al hook updateCategory
   };
 
   const listVariants = {
@@ -96,21 +127,32 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Nombre */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Nombre*
+                </label>
                 <input
                   name="nombre"
                   value={form.nombre}
                   autoComplete="off"
                   onChange={handleChange}
                   placeholder="Nombre de la categoría"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.nombre ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.nombre && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.nombre}
+                  </p>
+                )}
               </div>
 
               {/* Dropdown estado */}
               <div className="relative" ref={estadoRef}>
-                <label className="block text-sm font-semibold text-gray-800">
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
                   Estado*
                 </label>
 
@@ -120,6 +162,8 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                       ? "border-green-500 bg-green-50"
                       : form.estado === "Inactivo"
                       ? "border-red-500 bg-red-50"
+                      : errors.estado
+                      ? "border-red-500 bg-white"
                       : "border-gray-300 bg-white"
                   }`}
                 >
@@ -157,6 +201,11 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                     </motion.span>
                   </button>
                 </div>
+                {errors.estado && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.estado}
+                  </p>
+                )}
 
                 <AnimatePresence>
                   {estadoOpen && (
@@ -173,6 +222,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                           variants={itemVariants}
                           onClick={() => {
                             setForm((prev) => ({ ...prev, estado: opt.value }));
+                            setErrors((prev) => ({ ...prev, estado: "" }));
                             setEstadoOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer text-sm ${
@@ -197,15 +247,25 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
 
               {/* Descripción */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Descripción*
+                </label>
                 <textarea
                   name="descripcion"
                   value={form.descripcion}
                   onChange={handleChange}
                   placeholder="Descripción de la categoría"
                   rows="4"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.descripcion ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.descripcion && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.descripcion}
+                  </p>
+                )}
               </div>
 
               {/* Botones */}

@@ -1,131 +1,98 @@
 // lib/services/provider_service.dart
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
 import '../models/provider.dart';
-import '../models/provider_category.dart';
 
 class ProviderService extends ChangeNotifier {
-  List<Provider> _providers = [];
+  ProviderService({http.Client? client, String? baseUrl})
+      : _client = client ?? http.Client(),
+        _baseUrl = baseUrl ?? 'http://localhost:3000/kajamart/api';
 
-  ProviderService() {
-    _loadSampleData();
-  }
+  final http.Client _client;
+  final String _baseUrl;
+
+  List<Provider> _providers = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   List<Provider> get providers => _providers;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
-  void _loadSampleData() {
-    _providers = _getSampleProviders();
+  Uri get _suppliersUri => Uri.parse('$_baseUrl/suppliers');
+
+  Future<void> fetchProviders() async {
+    _setLoading(true);
+
+    try {
+      final response = await _client.get(_suppliersUri);
+
+      if (response.statusCode != 200) {
+        throw HttpException('Error ${response.statusCode}: ${response.reasonPhrase}');
+      }
+
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> supplierList = _extractSuppliers(decoded);
+
+      _providers = supplierList
+          .whereType<Map<String, dynamic>>()
+          .map(Provider.fromJson)
+          .toList();
+      _errorMessage = null;
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Error al obtener proveedores: $error');
+      }
+      _providers = [];
+      _errorMessage = 'No se pudieron cargar los proveedores.';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
     notifyListeners();
   }
 
-  List<Provider> _getSampleProviders() {
-    final categories = _getSampleCategories();
+  List<dynamic> _extractSuppliers(dynamic decoded) {
+    if (decoded is List) {
+      return decoded;
+    }
 
-    return [
-      Provider(
-        nit: '900123456-1',
-        name: 'Distribuidora ABC S.A.S',
-        contactName: 'María González',
-        phone: '3001234567',
-        categories: [categories[0], categories[1]],
-        status: ProviderStatus.activo,
-        email: 'contacto@distribuidoraabc.com',
-        address: 'Calle 45 # 23-12, Bogotá',
-        registrationDate: DateTime(2023, 3, 15),
-        averageRating: 4.5,
-        imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d',
-      ),
-      Provider(
-        nit: '800987654-2',
-        name: 'Alimentos del Campo Ltda',
-        contactName: 'Carlos Rodríguez',
-        phone: '3109876543',
-        categories: [categories[2], categories[3]],
-        status: ProviderStatus.activo,
-        email: 'ventas@alimentosdelcampo.com',
-        address: 'Carrera 15 # 67-89, Medellín',
-        registrationDate: DateTime(2023, 1, 20),
-        averageRating: 4.2,
-        imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
-      ),
-      Provider(
-        nit: '901234567-3',
-        name: 'Productos Naturales E.U',
-        contactName: 'Ana Martínez',
-        phone: '3204567890',
-        categories: [categories[4]],
-        status: ProviderStatus.inactivo,
-        email: 'info@productosnaturales.com',
-        address: 'Avenida 7 # 34-56, Cali',
-        registrationDate: DateTime(2022, 8, 10),
-        averageRating: 3.8,
-      ),
-      Provider(
-        nit: '805678901-4',
-        name: 'Importaciones Internacionales',
-        contactName: 'Roberto Sánchez',
-        phone: '3156789012',
-        categories: [categories[5], categories[6]],
-        status: ProviderStatus.activo,
-        email: 'comercial@importaciones.com',
-        address: 'Calle 100 # 45-67, Barranquilla',
-        registrationDate: DateTime(2023, 5, 5),
-        averageRating: 4.7,
-        imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4',
-      ),
-    ];
-  }
+    if (decoded is Map<String, dynamic>) {
+      final candidates = [
+        decoded['data'],
+        decoded['suppliers'],
+        decoded['items'],
+        decoded['results'],
+      ];
 
-  List<ProviderCategory> _getSampleCategories() {
-    return [
-      const ProviderCategory(
-        id: 'CAT001',
-        name: 'Lácteos',
-        description: 'Productos derivados de la leche',
-      ),
-      const ProviderCategory(
-        id: 'CAT002',
-        name: 'Carnes',
-        description: 'Productos cárnicos y derivados',
-      ),
-      const ProviderCategory(
-        id: 'CAT003',
-        name: 'Frutas y Verduras',
-        description: 'Productos agrícolas frescos',
-      ),
-      const ProviderCategory(
-        id: 'CAT004',
-        name: 'Cereales',
-        description: 'Granos y productos derivados',
-      ),
-      const ProviderCategory(
-        id: 'CAT005',
-        name: 'Bebidas',
-        description: 'Refrescos, jugos y bebidas alcohólicas',
-      ),
-      const ProviderCategory(
-        id: 'CAT006',
-        name: 'Envasados',
-        description: 'Productos envasados y procesados',
-      ),
-      const ProviderCategory(
-        id: 'CAT007',
-        name: 'Limpieza',
-        description: 'Productos de aseo y limpieza',
-      ),
-    ];
+      for (final candidate in candidates) {
+        if (candidate is List) {
+          return candidate;
+        }
+      }
+    }
+
+    return const [];
   }
 
   Provider? getProviderByNit(String nit) {
     try {
       return _providers.firstWhere((provider) => provider.nit == nit);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
   List<Provider> getProvidersByCategory(String categoryName) {
     return _providers.where((provider) {
-      return provider.categories.any((category) => category.name == categoryName);
+      return provider.categories
+          .any((category) => category.name.toLowerCase() == categoryName.toLowerCase());
     }).toList();
   }
 
@@ -144,38 +111,23 @@ class ProviderService extends ChangeNotifier {
         categorySet.add(category.name);
       }
     }
-    return categorySet.toList()..sort();
+    final categories = categorySet.toList();
+    categories.sort();
+    return categories;
   }
 
-  // Métodos para futuras funcionalidades
-  Future<void> addProvider(Provider provider) async {
-    _providers.add(provider);
-    notifyListeners();
+  @override
+  void dispose() {
+    _client.close();
+    super.dispose();
   }
+}
 
-  Future<void> updateProvider(Provider updatedProvider) async {
-    final index = _providers.indexWhere((provider) => provider.nit == updatedProvider.nit);
-    if (index != -1) {
-      _providers[index] = updatedProvider;
-      notifyListeners();
-    }
-  }
+class HttpException implements Exception {
+  HttpException(this.message);
 
-  Future<void> deleteProvider(String nit) async {
-    _providers.removeWhere((provider) => provider.nit == nit);
-    notifyListeners();
-  }
+  final String message;
 
-  // Estadísticas rápidas
-  int get totalProviders => _providers.length;
-
-  int get activeProvidersCount => getActiveProviders().length;
-
-  int get inactiveProvidersCount => getInactiveProviders().length;
-
-  double get averageRating {
-    if (_providers.isEmpty) return 0.0;
-    final totalRating = _providers.fold(0.0, (sum, provider) => sum + (provider.averageRating ?? 0.0));
-    return totalRating / _providers.length;
-  }
+  @override
+  String toString() => 'HttpException: $message';
 }

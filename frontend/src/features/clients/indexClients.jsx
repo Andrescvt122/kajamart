@@ -14,8 +14,8 @@ import {
 } from "../../shared/components/buttons";
 import RegisterClientModal from "./RegisterClientModal";
 import ClientDetailModal from "./ClientDetailModal";
-import { exportToXls } from "..//clients/helpers/exportToXls";
-import { exportToPdf } from "../clients/helpers/exportToPdf";
+import { exportToXls } from "./helpers/exportToXls.js";
+import { exportToPdf } from "./helpers/exportToPdf.js";
 
 export default function IndexClients() {
   // Cliente fijo de caja
@@ -104,7 +104,6 @@ export default function IndexClients() {
       setClients((prev) => [...prev, clientWithId]);
     }
 
-    // Reset formulario
     setForm({
       nombre: "",
       tipoDocumento: "",
@@ -130,9 +129,7 @@ export default function IndexClients() {
     let result = clients;
     if (s) {
       result = clients.filter((c) =>
-        Object.values(c).some((value) =>
-          normalizeText(value).includes(s)
-        )
+        Object.values(c).some((value) => normalizeText(value).includes(s))
       );
     }
     return result.sort((a, b) => {
@@ -188,6 +185,8 @@ export default function IndexClients() {
     setSelectedClient(client);
     setIsViewModalOpen(true);
   };
+  console.log("exportToXls:", exportToXls);
+  console.log("exportToPdf:", exportToPdf);
 
   return (
     <>
@@ -205,7 +204,7 @@ export default function IndexClients() {
         }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col p-6">
+      <div className="relative z-10 min-h-screen flex flex-col p-6 max-w-7xl mx-auto">
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="text-3xl font-semibold">Clientes</h2>
@@ -215,83 +214,88 @@ export default function IndexClients() {
 
         {/* Barra búsqueda + botones */}
         <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar clientes..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-            />
-          </div>
+  <div className="relative flex-1">
+    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <Search size={18} className="text-gray-400" />
+    </div>
+    <input
+      type="text"
+      placeholder="Buscar clientes..."
+      value={searchTerm}
+      onChange={(e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+    />
+  </div>
 
-          <div className="flex gap-2 flex-shrink-0">
-            {/* Exportar a Excel */}
-            <ExportExcelButton
-              onClick={() => exportToXls(clients.map(c => ({
-                ...c,
-                correo: c.correo?.trim() || "N/A",
-                telefono: c.telefono?.trim() || "N/A"
-              })))}
-            >
-              Excel
-            </ExportExcelButton>
+  <div className="flex gap-2 flex-shrink-0">
+    <ExportExcelButton
+      onClick={() => {
+        const dataToExport = clients.map((c) => ({
+          ...c,
+          correo: c.correo ?? "N/A",
+          telefono: c.telefono ?? "N/A",
+        }));
+        exportToXls(dataToExport, "Clientes.xlsx");
+      }}
+    >
+      Excel
+    </ExportExcelButton>
 
-            {/* Exportar a PDF */}
-            <ExportPDFButton
-              onClick={() => exportToPdf(clients.map(c => ({
-                ...c,
-                correo: c.correo?.trim() || "N/A",
-                telefono: c.telefono?.trim() || "N/A"
-              })))}
-            >
-              PDF
-            </ExportPDFButton>
+    <ExportPDFButton
+      onClick={() => {
+        const dataToExport = clients.map((c) => ({
+          ...c,
+          correo: c.correo ?? "N/A",
+          telefono: c.telefono ?? "N/A",
+        }));
+        exportToPdf(dataToExport, "Clientes.pdf");
+      }}
+    >
+      PDF
+    </ExportPDFButton>
 
-            <button
-              onClick={() => {
-                setForm({
-                  nombre: "",
-                  tipoDocumento: "",
-                  numeroDocumento: "",
-                  correo: "",
-                  telefono: "",
-                  activo: true,
-                });
-                setEditingClientId(null);
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-            >
-              Registrar Cliente
-            </button>
-          </div>
-        </div>
+    <button
+      onClick={() => {
+        setForm({
+          nombre: "",
+          tipoDocumento: "",
+          numeroDocumento: "",
+          correo: "",
+          telefono: "",
+          activo: true,
+        });
+        setEditingClientId(null);
+        setIsModalOpen(true);
+      }}
+      className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+    >
+      Registrar Cliente
+    </button>
+  </div>
+</div>
 
-        {/* Tabla de clientes */}
+        {/* Tabla más compacta */}
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden max-w-6xl mx-auto"
           variants={tableVariants}
           initial="hidden"
           animate="visible"
+          style={{ fontSize: "0.9rem" }}
         >
           <table key={currentPage} className="min-w-full">
             <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">ID</th>
-                <th className="px-6 py-4">Nombre</th>
-                <th className="px-6 py-4">Documento</th>
-                <th className="px-6 py-4">Correo</th>
-                <th className="px-6 py-4">Teléfono</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
+              <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                <th className="px-4 py-3">ID</th>
+                <th className="px-4 py-3">Nombre</th>
+                <th className="px-4 py-3">Documento</th>
+                <th className="px-4 py-3">Correo</th>
+                <th className="px-4 py-3">Teléfono</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
 
@@ -301,7 +305,10 @@ export default function IndexClients() {
             >
               {pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-gray-400"
+                  >
                     No se encontraron clientes.
                   </td>
                 </tr>
@@ -312,22 +319,35 @@ export default function IndexClients() {
                     className="hover:bg-gray-50"
                     variants={rowVariants}
                   >
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{c.nombre}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.numeroDocumento}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.correo?.trim() ? c.correo : "N/A"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.telefono?.trim() ? c.telefono : "N/A"}</td>
-
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                        c.estado === "Activo"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}>{c.estado}</span>
+                    <td className="px-4 py-3 text-sm text-gray-600">{c.id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                      {c.nombre}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.fecha}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {c.numeroDocumento}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {c.correo?.trim() ? c.correo : "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {c.telefono?.trim() ? c.telefono : "N/A"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          c.estado === "Activo"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {c.estado}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {c.fecha}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-1">
                         <ViewButton event={() => handleView(c)} />
                         <EditButton
                           event={() => {
@@ -376,21 +396,19 @@ export default function IndexClients() {
         />
 
         {/* Modal de registro / edición */}
-       <RegisterClientModal
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
-        form={form}
-        setForm={setForm}
-        tipoOptions={tipoOptions}
-        tipoOpen={tipoOpen}
-        setTipoOpen={setTipoOpen}
-        addClient={addClient}
-        onClose={() => setIsModalOpen(false)}
-        title={editingClientId ? "Editar Cliente" : "Registrar Cliente"} // ← nuevo
-        editingClientId={editingClientId} // ← Pasar aquí
-
-      />
-
+        <RegisterClientModal
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+          form={form}
+          setForm={setForm}
+          tipoOptions={tipoOptions}
+          tipoOpen={tipoOpen}
+          setTipoOpen={setTipoOpen}
+          addClient={addClient}
+          onClose={() => setIsModalOpen(false)}
+          title={editingClientId ? "Editar Cliente" : "Registrar Cliente"}
+          editingClientId={editingClientId}
+        />
 
         {/* Modal de detalles */}
         <ClientDetailModal

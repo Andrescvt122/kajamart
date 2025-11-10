@@ -135,18 +135,22 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
               </div>
 
-              {/* Contenido */}
-              <div className="space-y-6 mb-6 p-6">
+              {/* Contenido */}  
+              <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
                 <ProductSearch onAddProduct={handleAddProduct} />
 
                 {selectedProducts.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 space-y-2">
+                  <div
+                    className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 
+                 flex-1 overflow-y-auto max-h-[45vh] space-y-2 pr-2 custom-scroll"
+                  >
                     {selectedProducts.map((p) => (
                       <motion.div
                         key={p.id}
                         className="flex flex-col gap-3 bg-gray-50 p-3 rounded-lg"
                         layout
                       >
+                        {/* Producto */}
                         <div className="flex items-center gap-4">
                           <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                             <Package className="w-4 h-4 text-green-700" />
