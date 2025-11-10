@@ -230,32 +230,28 @@ export default function IndexClients() {
     />
   </div>
 
-  <div className="flex gap-2 flex-shrink-0">
-    <ExportExcelButton
-      onClick={() => {
-        const dataToExport = clients.map((c) => ({
-          ...c,
-          correo: c.correo ?? "N/A",
-          telefono: c.telefono ?? "N/A",
-        }));
-        exportToXls(dataToExport, "Clientes.xlsx");
-      }}
-    >
-      Excel
-    </ExportExcelButton>
+          <div className="flex gap-2 flex-shrink-0">
+            {/* Exportar a Excel */}
+            {/* <ExportExcelButton
+              onClick={() => exportToXls(clients.map(c => ({
+                ...c,
+                correo: c.correo?.trim() || "N/A",
+                telefono: c.telefono?.trim() || "N/A"
+              })))}
+            >
+              Excel
+            </ExportExcelButton> */}
 
-    <ExportPDFButton
-      onClick={() => {
-        const dataToExport = clients.map((c) => ({
-          ...c,
-          correo: c.correo ?? "N/A",
-          telefono: c.telefono ?? "N/A",
-        }));
-        exportToPdf(dataToExport, "Clientes.pdf");
-      }}
-    >
-      PDF
-    </ExportPDFButton>
+            {/* Exportar a PDF */}
+            {/* <ExportPDFButton
+              onClick={() => exportToPdf(clients.map(c => ({
+                ...c,
+                correo: c.correo?.trim() || "N/A",
+                telefono: c.telefono?.trim() || "N/A"
+              })))}
+            >
+              PDF
+            </ExportPDFButton> */}
 
     <button
       onClick={() => {

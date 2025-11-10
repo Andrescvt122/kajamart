@@ -1,10 +1,15 @@
-// src/features/categories/CategoryEditModal.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
 export default function CategoryEditModal({ isOpen, onClose, category, onSave }) {
   const [form, setForm] = useState({
+    nombre: "",
+    estado: "",
+    descripcion: "",
+  });
+
+  const [errors, setErrors] = useState({
     nombre: "",
     estado: "",
     descripcion: "",
@@ -18,7 +23,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     { value: "Inactivo", label: "Inactivo" },
   ];
 
-  // precargar datos de la categoría seleccionada
+  // Cargar datos cuando cambia la categoría
   useEffect(() => {
     if (category) {
       setForm({
@@ -26,10 +31,11 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
         estado: category.estado || "",
         descripcion: category.descripcion || "",
       });
+      setErrors({ nombre: "", estado: "", descripcion: "" });
     }
   }, [category]);
 
-  // cerrar dropdown al hacer clic fuera
+  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e) {
       if (estadoRef.current && !estadoRef.current.contains(e.target)) {
@@ -40,35 +46,49 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // bloquear scroll
+  // Bloquear scroll cuando el modal está abierto
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    }
-    return () => {
-      document.body.style.overflowY = "auto";
-      document.body.style.overflowX = "hidden";
-    };
+    document.body.style.overflow = isOpen ? "hidden" : "auto";
   }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validate = () => {
+    const newErrors = {
+      nombre: "",
+      estado: "",
+      descripcion: "",
+    };
+
+    if (!form.nombre.trim()) newErrors.nombre = "El nombre es obligatorio.";
+    if (!form.estado) newErrors.estado = "Selecciona un estado.";
+    if (!form.descripcion.trim())
+      newErrors.descripcion = "La descripción es obligatoria.";
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some((msg) => msg);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSave) onSave(form);
-    onClose();
+    if (!category?.id_categoria) return;
+
+    if (!validate()) return;
+
+    const payload = {
+      id_categoria: category.id_categoria,
+      nombre: form.nombre.trim(),
+      descripcion: form.descripcion.trim(),
+      estado: form.estado,
+    };
+
+    onSave?.(payload); // IndexCategories lo manda al hook updateCategory
   };
 
-  // animaciones lista
   const listVariants = {
     hidden: { opacity: 0, y: -6, scale: 0.98 },
     visible: {
@@ -78,6 +98,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
       transition: { staggerChildren: 0.02 },
     },
   };
+
   const itemVariants = {
     hidden: { opacity: 0, y: -6 },
     visible: { opacity: 1, y: 0 },
@@ -91,15 +112,15 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose} // cerrar al hacer clic fuera
+          onClick={onClose}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: -40 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -40 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="sticky bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
-            onClick={(e) => e.stopPropagation()} // evitar cierre al hacer clic dentro
+            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative"
+            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-6 text-gray-800">
               Editar Categoría
@@ -108,39 +129,48 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nombre */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Nombre*
+                </label>
                 <input
                   name="nombre"
                   value={form.nombre}
                   autoComplete="off"
                   onChange={handleChange}
                   placeholder="Nombre de la categoría"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.nombre ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.nombre && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.nombre}
+                  </p>
+                )}
               </div>
 
-              {/* Estado */}
+              {/* Dropdown estado */}
               <div className="relative" ref={estadoRef}>
-                <label className="block text-sm font-semibold text-gray-800">
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
                   Estado*
                 </label>
 
                 <div
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition
-      ${
-        form.estado === "Activo"
-          ? "border-green-500 bg-green-50"
-          : form.estado === "Inactivo"
-          ? "border-red-500 bg-red-50"
-          : "border-gray-300 bg-white"
-      }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-md border transition ${
+                    form.estado === "Activo"
+                      ? "border-green-500 bg-green-50"
+                      : form.estado === "Inactivo"
+                      ? "border-red-500 bg-red-50"
+                      : errors.estado
+                      ? "border-red-500 bg-white"
+                      : "border-gray-300 bg-white"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setEstadoOpen((s) => !s)}
                     className="flex w-full items-center justify-between text-sm focus:outline-none"
-                    aria-haspopup="listbox"
-                    aria-expanded={estadoOpen}
                   >
                     <span
                       className={`${
@@ -171,6 +201,11 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                     </motion.span>
                   </button>
                 </div>
+                {errors.estado && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.estado}
+                  </p>
+                )}
 
                 <AnimatePresence>
                   {estadoOpen && (
@@ -186,10 +221,8 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                           key={opt.value}
                           variants={itemVariants}
                           onClick={() => {
-                            setForm((prev) => ({
-                              ...prev,
-                              estado: opt.value,
-                            }));
+                            setForm((prev) => ({ ...prev, estado: opt.value }));
+                            setErrors((prev) => ({ ...prev, estado: "" }));
                             setEstadoOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer text-sm ${
@@ -214,20 +247,36 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
 
               {/* Descripción */}
               <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">
+                  Descripción*
+                </label>
                 <textarea
                   name="descripcion"
                   value={form.descripcion}
                   onChange={handleChange}
                   placeholder="Descripción de la categoría"
                   rows="4"
-                  className="w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition"
+                  className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
+                    errors.descripcion ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.descripcion && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.descripcion}
+                  </p>
+                )}
               </div>
 
               {/* Botones */}
               <div className="flex justify-end gap-3 pt-4">
-                
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"

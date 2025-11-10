@@ -137,7 +137,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildProvidersScreen() {
-    return ProviderListScreen(providers: DataService.sampleProviders);
+    return const ProviderListScreen();
   }
 
   Widget _buildProductsScreen() {

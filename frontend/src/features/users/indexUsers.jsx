@@ -1,4 +1,5 @@
 // src/pages/users/indexUsers.jsx
+
 import React, { useMemo, useState, useEffect } from "react";
 import {
   ViewButton,
@@ -25,65 +26,13 @@ import EditUsers from "./editUsers";
 import RegisterUsers from "./registerUsers";
 import DeleteUserModal from "./deleteUsers";
 
+// Importar hook
+import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
+
 export default function IndexUsers() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      Nombre: "Sophia Clark",
-      Correo: "sophia.clark@example.com",
-      Rol: "Administrador",
-      Estado: "Activo",
-      FechaCreacion: "2023-01-15",
-    },
-    {
-      id: 2,
-      Nombre: "Ethan Martinez",
-      Correo: "ethan.martinez@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-02-20",
-    },
-    {
-      id: 3,
-      Nombre: "Olivia Rodriguez",
-      Correo: "olivia.rodriguez@example.com",
-      Rol: "Cliente",
-      Estado: "Inactivo",
-      FechaCreacion: "2023-03-10",
-    },
-    {
-      id: 4,
-      Nombre: "Liam Wilson",
-      Correo: "liam.wilson@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-04-05",
-    },
-    {
-      id: 5,
-      Nombre: "Ava Garcia",
-      Correo: "ava.garcia@example.com",
-      Rol: "Administrador",
-      Estado: "Activo",
-      FechaCreacion: "2023-05-12",
-    },
-    {
-      id: 6,
-      Nombre: "Noah Lopez",
-      Correo: "noah.lopez@example.com",
-      Rol: "Cliente",
-      Estado: "Inactivo",
-      FechaCreacion: "2023-06-18",
-    },
-    {
-      id: 7,
-      Nombre: "Isabella Lee",
-      Correo: "isabella.lee@example.com",
-      Rol: "Vendedor",
-      Estado: "Activo",
-      FechaCreacion: "2023-07-22",
-    },
-  ]);
+  // Usar hook centralizado
+  const { usuarios, setUsuarios, loading, error } = useUsuariosList();
+  const users = usuarios || [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,14 +111,16 @@ export default function IndexUsers() {
   // --- Lógica CRUD ---
   const handleRegisterUser = (formData) => {
     const newUser = {
-      id: Date.now(), // 👈 id único
+      id: Date.now(),
       Nombre: `${formData.nombre} ${formData.apellido}`,
       Correo: formData.correo,
-      Rol: formData.rol,
-      Estado: formData.estado ? "Activo" : "Inactivo",
-      FechaCreacion: new Date().toISOString().split("T")[0],
+      Documento: formData.documento,
+      Telefono: formData.telefono,
+      Rol: formData.rol,              // ⬅️ Campo Rol restaurado
+      Estado: formData.estado ? "Activo" : "Inactivo", // ⬅️ Campo Estado restaurado
     };
-    setUsers((prev) => [newUser, ...prev]);
+    setUsuarios((prev) => [newUser, ...(prev || [])]);
+    showSuccessAlert("Usuario registrado correctamente");
   };
 
   const openDeleteModal = (user) => {
@@ -178,13 +129,13 @@ export default function IndexUsers() {
   };
 
   const handleDelete = (userToDelete) => {
-    setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
+    setUsuarios((prev) => (prev || []).filter((user) => user.id !== userToDelete.id));
     showSuccessAlert("Usuario eliminado correctamente");
   };
 
   const handleSaveUser = (updated) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u))
+    setUsuarios((prev) =>
+      (prev || []).map((u) => (u.id === updated.id ? { ...u, ...updated } : u))
     );
     showSuccessAlert("Usuario actualizado correctamente");
   };
@@ -199,17 +150,19 @@ export default function IndexUsers() {
     const headers = [
       "Nombre",
       "Correo",
-      "Rol asignado",
-      "Estado",
-      "Fecha creación",
+      "Documento", 
+      "Teléfono", 
+      "Rol asignado", // ⬅️ Campo Rol restaurado para PDF
+      "Estado",       // ⬅️ Campo Estado restaurado para PDF
     ];
     // Mapea los datos filtrados para que coincidan con las cabeceras
     const dataToExport = filtered.map((user) => ({
       Nombre: user.Nombre,
       Correo: user.Correo,
-      Rol: user.Rol,
-      Estado: user.Estado,
-      FechaCreacion: user.FechaCreacion,
+      Documento: user.Documento, 
+      Telefono: user.Telefono,   
+      Rol: user.Rol,             // ⬅️ Campo Rol restaurado
+      Estado: user.Estado,       // ⬅️ Campo Estado restaurado
     }));
     exportToPdf(dataToExport, headers, "Listado de Usuarios", "usuarios");
   };
@@ -292,9 +245,10 @@ export default function IndexUsers() {
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">Nombre</th>
                   <th className="px-6 py-4">Correo</th>
-                  <th className="px-6 py-4">Rol asignado</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4">Fecha creación</th>
+                  <th className="px-6 py-4">Documento</th> 
+                  <th className="px-6 py-4">Teléfono</th>  
+                  <th className="px-6 py-4">Rol asignado</th> {/* ⬅️ Restaurado */}
+                  <th className="px-6 py-4">Estado</th>      {/* ⬅️ Restaurado */}
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -302,10 +256,19 @@ export default function IndexUsers() {
                 className="divide-y divide-gray-100"
                 variants={tableVariants}
               >
-                {pageItems.length === 0 ? (
+                {/* Ahora el colSpan es 7 (6 columnas de datos + 1 de acciones) */}
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4"> 
+                      <div className="flex items-center justify-center">
+                        <span className="text-sm text-gray-600">Cargando usuarios...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-8 text-center text-gray-400"
                     >
                       No se encontraron usuarios.
@@ -325,7 +288,14 @@ export default function IndexUsers() {
                         {user.Correo}
                       </td>
                       <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {user.Rol}
+                        {user.Documento} 
+                      </td>
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {user.Telefono}
+                      </td>
+                      {/* ⬅️ Celdas de Rol y Estado restauradas */}
+                      <td className="px-6 py-4 align-top text-sm text-gray-600">
+                        {user.Rol} 
                       </td>
                       <td className="px-6 py-4 align-top">
                         {user.Estado === "Activo" ? (
@@ -338,9 +308,7 @@ export default function IndexUsers() {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 align-top text-sm text-gray-600">
-                        {user.FechaCreacion}
-                      </td>
+                      {/* ⬅️ Fin de celdas restauradas */}
                       <td className="px-6 py-4 align-top text-right">
                         <div className="inline-flex items-center gap-2">
                           <ViewButton

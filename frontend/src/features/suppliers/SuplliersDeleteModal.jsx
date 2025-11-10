@@ -3,7 +3,12 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
-export default function SuppliersDeleteModal({ isOpen, onClose, onConfirm, supplier }) {
+export default function SuppliersDeleteModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  supplier,
+}) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -52,8 +57,7 @@ export default function SuppliersDeleteModal({ isOpen, onClose, onConfirm, suppl
               </button>
               <button
                 onClick={() => {
-                  onConfirm(supplier);
-                  onClose();
+                  if (supplier) onConfirm(supplier);
                 }}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
               >

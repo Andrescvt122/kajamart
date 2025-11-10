@@ -120,7 +120,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       return matchesSearch && matchesStatus;
     }).toList();
 
-    // 🔹 Ordenar 
+    // 🔹 Ordenar
     if (sortOption == "precio") {
       filteredProducts.sort((a, b) {
         final aPrice = double.parse(a["price"].toString());
@@ -155,7 +155,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       ),
       body: Column(
         children: [
-          // 🔹 Barra de filtros 
+          // 🔹 Barra de filtros
           TweenAnimationBuilder(
             duration: Duration(milliseconds: 500),
             curve: Curves.easeOut,
@@ -187,7 +187,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
 
-          // 🔹 Lista de productos 
+          // 🔹 Lista de productos
           Expanded(
             child: AnimatedSwitcher(
               duration: Duration(milliseconds: 400),
@@ -347,7 +347,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         });
       },
       backgroundColor: Colors.grey.shade200,
-      selectedColor: Colors.green.shade100,
+      selectedColor: const Color.fromARGB(255, 255, 255, 255),
       checkmarkColor: Colors.green,
       labelStyle: TextStyle(fontWeight: FontWeight.w500),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

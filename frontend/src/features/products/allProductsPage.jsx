@@ -11,24 +11,49 @@ import SearchBar from "../../shared/components/searchBars/searchbar";
 import ondas from "../../assets/ondasHorizontal.png";
 import DetailProductModal from "./DetailProductModal";
 import ProductDeleteModal from "./productDeleteModal";
-import { showLoadingAlert } from "../../shared/components/alerts";
-import { ExportExcelButton,ExportPDFButton } from "../../shared/components/buttons";
-import { exportProductsToExcel} from "./helpers/exportToXlsProducts"
-import { exportProductsToPDF} from "./helpers/exportToPdfProducts"
+import {
+  showLoadingAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from "../../shared/components/alerts";
+import {
+  ExportExcelButton,
+  ExportPDFButton,
+} from "../../shared/components/buttons";
+import { exportProductsToExcel } from "./helpers/exportToXlsProducts";
+import { exportProductsToPDF } from "./helpers/exportToPdfProducts";
 
-
+// 🔹 hooks de productos y detalle_productos
+import { useProduct } from "../../shared/components/hooks/products/products.hooks";
+import {
+  useDetailProductsByProduct,
+  useDeleteDetailProduct,
+} from "../../shared/components/hooks/productDetails/productDetails.hooks";
 
 export default function AllProductsPage() {
   const { state } = useLocation();
   const params = useParams();
-  const passedProduct = state?.product || null;
-  const productId = params.id || null;
 
-  const product = passedProduct ?? {
-    nombre: "Producto desconocido",
-    stockActual: 0,
-    lotes: [],
-  };
+  const passedProduct = state?.product || null;
+
+  // id_producto desde:
+  // - params.id (ruta)
+  // - o desde el product pasado por state
+  const productId =
+    (params.id && Number(params.id)) ||
+    passedProduct?.id_producto ||
+    passedProduct?.id ||
+    null;
+
+  // 🔹 Traer info del producto si no viene por state
+  const { data: fetchedProduct } = useProduct(productId);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+
+  const product = passedProduct ??
+    fetchedProduct ?? {
+      nombre: "Producto desconocido",
+      precio_venta: 0,
+    };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,18 +66,28 @@ export default function AllProductsPage() {
 
   const perPage = 5;
 
-  // Productos (lotes del producto)
-  const [allProducts, setAllProducts] = useState(
-    product.lotes.map((l) => ({
-      id: l.id,
+  // 🔹 Traer detalles reales desde backend (detalle_productos)
+  const {
+    data: backendDetails = [],
+    isLoading,
+    error,
+  } = useDetailProductsByProduct(productId);
+
+  // 🔹 Formatear detalles para la tabla (mismo shape que usabas antes)
+  const allProducts = useMemo(() => {
+    if (!Array.isArray(backendDetails)) return [];
+    return backendDetails.map((d) => ({
+      id: d.id_detalle_producto,
       nombre: product.nombre,
-      barcode: l.barcode,
-      vencimiento: l.vencimiento,
-      cantidad: l.stock,
-      consumido: l.stockMax ? l.stockMax - l.stock : 0,
-      precio: product.precio,
-    }))
-  );
+      barcode: d.codigo_barras_producto_compra,
+      vencimiento: d.fecha_vencimiento
+        ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
+        : "Sin fecha",
+      cantidad: d.stock_producto,
+      consumido: 0, // no lo tienes en la tabla detalle_productos, así que lo dejamos en 0 o lo calculas luego
+      precio: product.precio_venta ?? 0,
+    }));
+  }, [backendDetails, product]);
 
   // Filtro
   const filtered = useMemo(() => {
@@ -74,15 +109,30 @@ export default function AllProductsPage() {
     setCurrentPage(p);
   };
 
+  // 🔴 mutation para eliminar detalle en backend
+  const deleteDetailMutation = useDeleteDetailProduct();
+
   // 👉 funciones delete
   const handleDeleteClick = (p) => {
     setSelectedProductToDelete(p);
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = (p) => {
-    setAllProducts((prev) => prev.filter((prod) => prod.id !== p.id));
-    showLoadingAlert(`Detalle ${p.id} eliminado`);
+  const handleDeleteConfirm = async (p) => {
+    try {
+      showLoadingAlert("Eliminando detalle...");
+      await deleteDetailMutation.mutateAsync({
+        id_detalle_producto: p.id,
+        id_producto: productId,
+      });
+      showSuccessAlert("Detalle eliminado correctamente");
+      setIsDeleteModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showErrorAlert(
+        err?.response?.data?.message || "Error al eliminar el detalle"
+      );
+    }
   };
 
   // Animaciones
@@ -93,7 +143,7 @@ export default function AllProductsPage() {
   const rowVariants = {
     hidden: { opacity: 0, y: 12 },
     visible: { opacity: 1, y: 0 },
-    exit: { opacity: 0, x: -50, transition: { duration: 0.2 } }, // 👈 animación al eliminar
+    exit: { opacity: 0, x: -50, transition: { duration: 0.2 } },
   };
 
   return (
@@ -173,7 +223,25 @@ export default function AllProductsPage() {
                 variants={tableVariants}
               >
                 <AnimatePresence>
-                  {pageItems.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
+                        Cargando detalles...
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-red-500"
+                      >
+                        Error al cargar detalles
+                      </td>
+                    </tr>
+                  ) : pageItems.length === 0 ? (
                     <tr>
                       <td
                         colSpan={7}
@@ -183,7 +251,7 @@ export default function AllProductsPage() {
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((p, i) => (
+                    pageItems.map((p) => (
                       <motion.tr
                         key={p.id}
                         className="hover:bg-gray-50"
@@ -214,7 +282,7 @@ export default function AllProductsPage() {
                           <div className="inline-flex items-center gap-2">
                             <ViewDetailsButton
                               event={() => {
-                                setSelectedProduct(p);
+                                setSelectedDetail(p); // p es el detalle del lote (id, barcode, fecha, stock...)
                                 setIsModalOpen(true);
                               }}
                             />
@@ -253,7 +321,8 @@ export default function AllProductsPage() {
       <DetailProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        product={selectedProduct}
+        detail={selectedDetail}
+        product={product} // este es el producto padre que ya tienes arriba en la página
       />
     </div>
   );
