@@ -233,7 +233,7 @@ export default function IndexClients() {
 
           <div className="flex gap-2 flex-shrink-0">
             {/* Exportar a Excel */}
-            <ExportExcelButton
+            {/* <ExportExcelButton
               onClick={() => exportToXls(clients.map(c => ({
                 ...c,
                 correo: c.correo?.trim() || "N/A",
@@ -241,10 +241,10 @@ export default function IndexClients() {
               })))}
             >
               Excel
-            </ExportExcelButton>
+            </ExportExcelButton> */}
 
             {/* Exportar a PDF */}
-            <ExportPDFButton
+            {/* <ExportPDFButton
               onClick={() => exportToPdf(clients.map(c => ({
                 ...c,
                 correo: c.correo?.trim() || "N/A",
@@ -252,7 +252,7 @@ export default function IndexClients() {
               })))}
             >
               PDF
-            </ExportPDFButton>
+            </ExportPDFButton> */}
 
             <button
               onClick={() => {
