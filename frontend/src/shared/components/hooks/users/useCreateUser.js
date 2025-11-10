@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-const API_URL = "http://localhost:3000/users";
+const API_URL = "http://localhost:3000/kajamart/api/users";
 
 export const useCreateUsuario = () => {
   const [loading, setLoading] = useState(false);
