@@ -1,20 +1,23 @@
-// helpers/exportToPdf.js
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const exportToPdf = (clients = []) => {
+  console.log("🔹 exportToPdf llamado con", clients.length, "clientes");
+
+  if (!Array.isArray(clients) || clients.length === 0) {
+    alert("No hay clientes para exportar");
+    return;
+  }
+
   const doc = new jsPDF();
 
-  // Título
   doc.setFontSize(16);
   doc.text("Listado de clientes", 14, 18);
 
-  // Cabeceras de tabla
   const head = [
     ["ID", "Nombre", "Documento", "Correo", "Teléfono", "Estado"],
   ];
 
-  // Filas
   const body = clients.map((c) => [
     c.id === 0 ? "C000" : c.id,
     c.nombre || "",
@@ -24,17 +27,12 @@ export const exportToPdf = (clients = []) => {
     c.activo ? "Activo" : "Inactivo",
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 24,
     head,
     body,
-    styles: {
-      fontSize: 8,
-    },
-    headStyles: {
-      // verde suave tipo tu app
-      fillColor: [22, 163, 74],
-    },
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [22, 163, 74], textColor: 255 },
   });
 
   doc.save("clientes.pdf");
