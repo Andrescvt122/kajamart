@@ -8,8 +8,8 @@ export default function ProductEditModal({
   setIsModalOpen,
   form,             // estado controlado desde el padre
   setForm,          // setter del padre
-  handleImages,     // para manejar nuevas imágenes
-  removeImageAt,    // para quitar imágenes por índice
+  handleImages,     // para manejar NUEVA imagen (usaremos solo la primera)
+  removeImageAt,    // para quitar la única imagen (índice 0)
   handleSubmit,     // 👉 el padre recibe el form ya validado (NO el evento)
   estadoOpen,
   setEstadoOpen,
@@ -25,7 +25,7 @@ export default function ProductEditModal({
   const [errors, setErrors] = useState({});
   const [previews, setPreviews] = useState([]);
 
-  // Si las categorías traen estado, filtramos solo activas; si no, usamos todas (el padre puede ya filtrar)
+  // Solo activas si traen estado; si no, usamos todas
   const activeCategories = Array.isArray(categories)
     ? categories.filter((c) => {
         if (!c) return false;
@@ -80,33 +80,44 @@ export default function ProductEditModal({
     let ok = true;
     fields.forEach((f) => {
       const err = validateField(f, form[f]);
-      if (err) ok = false, errs[f] = err;
+      if (err) { ok = false; errs[f] = err; }
     });
     setErrors(errs);
     if (!ok) return;
     handleSubmit(form); // <<<<<< pasa el form (no el evento)
   };
 
-  // Previews (URL o File)
+  // Previews (URL o File) — SOLO 1
   useEffect(() => {
     const toRevoke = [];
-    const list = (form?.imagenes || [])
-      .filter(Boolean)
-      .map((item) => {
-        if (typeof item === "string") return { src: item, revoke: false };
-        if (item && typeof item === "object" && "preview" in item && typeof item.preview === "string")
-          return { src: item.preview, revoke: false };
-        if (item instanceof File || item instanceof Blob) {
-          const u = URL.createObjectURL(item);
-          toRevoke.push(u);
-          return { src: u, revoke: true };
-        }
-        return null;
-      })
-      .filter(Boolean);
-    setPreviews(list);
+    const first = (form?.imagenes || []).filter(Boolean)[0];
+
+    const p =
+      typeof first === "string"
+        ? { src: first, revoke: false }
+        : first && typeof first === "object" && "preview" in first && typeof first.preview === "string"
+        ? { src: first.preview, revoke: false }
+        : (first instanceof File || first instanceof Blob)
+        ? (() => {
+            const u = URL.createObjectURL(first);
+            toRevoke.push(u);
+            return { src: u, revoke: true };
+          })()
+        : null;
+
+    setPreviews(p ? [p] : []);
     return () => toRevoke.forEach((u) => URL.revokeObjectURL(u));
   }, [form?.imagenes]);
+
+  // Handler para SOLO 1 imagen (reemplaza la existente)
+  const onPickSingleImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Creamos un "fake event" con un único archivo para mantener compatibilidad con tu handleImages
+    handleImages({ target: { files: [file] } });
+    // Limpia el input para permitir volver a seleccionar la misma imagen si se desea
+    e.target.value = "";
+  };
 
   if (!isModalOpen) return null;
 
@@ -159,33 +170,37 @@ export default function ProductEditModal({
                 />
               </div>
 
-              {/* Imágenes */}
+              {/* Imagen única */}
               <div>
-                <label className="block text-sm font-semibold text-gray-800">Imágenes</label>
+                <label className="block text-sm font-semibold text-gray-800">Imagen</label>
                 <label className="mt-2 block w-full rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-green-300 cursor-pointer p-4 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <Upload size={20} className="text-gray-600" />
-                    <span className="text-sm text-gray-700">Selecciona o arrastra imágenes aquí (máx. 6)</span>
+                    <span className="text-sm text-gray-700">
+                      Selecciona o arrastra una imagen aquí (máx. 1)
+                    </span>
                   </div>
-                  <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" />
+                  {/* 👇 sin multiple */}
+                  <input type="file" accept="image/*" onChange={onPickSingleImage} className="hidden" />
                 </label>
 
                 {previews.length > 0 && (
-                  <div className="mt-3 grid grid-cols-5 gap-2">
-                    {previews.map((p, i) => (
-                      <div key={i} className="relative w-full h-20 rounded-md overflow-hidden border">
-                        <img src={p.src} alt={`img-${i}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeImageAt(i)}
-                          className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow"
-                          aria-label={`Quitar imagen ${i + 1}`}
-                          title="Quitar"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="relative w-20 h-20 rounded-md overflow-hidden border">
+                      <img src={previews[0].src} alt="img-0" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImageAt(0)}
+                        className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow"
+                        aria-label="Quitar imagen"
+                        title="Quitar"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Se admite solo una imagen.
+                    </div>
                   </div>
                 )}
               </div>
