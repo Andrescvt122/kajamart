@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
+// ❌ YA NO usamos el hook aquí
+// import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 
 const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
-  const { postDetailProduct, loading, error, success } = usePostDetailProduct();
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: "",
-    expiryDate: "", // formato 'YYYY-MM-DD' para facilidad
+    expiryDate: "", // formato 'YYYY-MM-DD'
   });
 
   const [errors, setErrors] = useState({});
@@ -43,26 +43,27 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     return errs;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const registered = {
+    // 🔹 Detalle local, NO se envía a BD aquí
+    const registeredDetail = {
       ...product,
+      productKey: product?.id, // para vincularlo al producto en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
       registeredExpiry: formData.expiryDate || null,
     };
 
-    // 🧾 Enviar al backend
-    const response = await postDetailProduct(registered);
-
-    if (response) {
-      alert("✅ Detalle de producto registrado correctamente");
-      handleClose();
+    // devolvemos al padre
+    if (onConfirm) {
+      onConfirm(registeredDetail);
     }
+
+    handleClose();
   };
 
   const handleClose = () => {
@@ -82,9 +83,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       minimumFractionDigits: 0,
     }).format(price);
 
-  // --- Helpers para el input number (evitar 'e', pegar no-numéricos, wheel)
+  // Helpers para el input number
   const handleQuantityKeyDown = (e) => {
-    // bloquear e, E, +, -, . y cualquier tecla no numérica razonable
     const blocked = ["e", "E", "+", "-", ".", ","];
     if (blocked.includes(e.key)) {
       e.preventDefault();
@@ -99,7 +99,6 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   };
 
   const handleQuantityWheel = (e) => {
-    // evitar que la rueda cambie el valor
     e.target.blur();
     setTimeout(() => e.target.focus(), 0);
   };
@@ -125,7 +124,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
           >
             <motion.div
               className="bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()} // bloquear clicks externos (no cerramos)
+              onClick={(e) => e.stopPropagation()}
               initial={{ y: 30 }}
               animate={{ y: 0 }}
               transition={{ delay: 0.05, duration: 0.25 }}
@@ -167,7 +166,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       Nombre
                     </label>
                     <div className="mt-1 text-gray-800 font-medium">
-                      {product?.productos.nombre || "—"}
+                      {product?.productos?.nombre || "—"}
                     </div>
                   </div>
 
@@ -232,7 +231,6 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       Fecha de vencimiento
                     </label>
 
-                    {/* PrimeReact Calendar */}
                     <div className="mt-1">
                       <Calendar
                         value={
@@ -267,20 +265,9 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className={`px-4 py-2 rounded-md flex items-center gap-2 transition ${
-                      loading
-                        ? "bg-green-400 cursor-not-allowed"
-                        : "bg-green-600 hover:bg-green-700 text-white"
-                    }`}
+                    className="px-4 py-2 rounded-md flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white transition"
                   >
-                    {loading ? (
-                      "Registrando..."
-                    ) : (
-                      <>
-                        <CheckCircle size={16} /> Registrar
-                      </>
-                    )}
+                    <CheckCircle size={16} /> Registrar
                   </button>
                 </div>
               </form>

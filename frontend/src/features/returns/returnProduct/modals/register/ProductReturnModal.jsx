@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -7,128 +7,217 @@ import {
   Minus,
   Plus,
   CheckCircle,
-  AlertCircle,
-  Search
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
-import ProductSearch from "../../../../../shared/components/searchBars/productSearch"
+import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
-
+import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [returnReason, setReturnReason] = useState("");
-  const [actionType, setActionType] = useState("");
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
-  const [currentProductIndex, setCurrentProductIndex] = useState(0);
-  const { postReturnProducts, loading, error, success } = usePostReturnProducts();
+  const [openConfigProductId, setOpenConfigProductId] = useState(null); // dropdown por producto
+
+  // 🔹 Detalles de producto registrados TEMPORALMENTE
+  const [pendingDetails, setPendingDetails] = useState([]);
+
+  const { postReturnProducts, loading } = usePostReturnProducts();
   const { refetch } = useFetchReturnProducts();
+  const { postDetailProduct } = usePostDetailProduct();
 
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
-    { value: "vencido", label: "Vencido" }
+    { value: "vencido", label: "Vencido" },
   ];
 
   const actionTypes = [
     { value: "descuento", label: "Descuento" },
-    { value: "registrar", label: "Registrar" }
+    { value: "registrar", label: "Registrar" },
   ];
 
+  // Helper: encontrar detalle para un producto
+  const getPendingDetailForProduct = (productId) =>
+    pendingDetails.find((d) => d.productKey === productId);
+
+  // Adaptar producto del buscador
   const handleAddProduct = (product) => {
-    const existingIndex = selectedProducts.findIndex(p => p.id === product.id);
+    const existingIndex = selectedProducts.findIndex((p) => p.id === product.id);
     const safeQuantity = product.returnQuantity ?? 1;
 
     if (existingIndex > -1) {
       const updated = [...selectedProducts];
-      updated[existingIndex] = { ...updated[existingIndex], returnQuantity: safeQuantity };
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        returnQuantity: safeQuantity,
+      };
       setSelectedProducts(updated);
     } else {
-      setSelectedProducts([...selectedProducts, { ...product, returnQuantity: safeQuantity }]);
+      setSelectedProducts((prev) => [
+        ...prev,
+        {
+          ...product,
+          returnQuantity: safeQuantity,
+          returnReason: "",
+          actionType: "",
+        },
+      ]);
     }
   };
 
-
   const handleRemoveProduct = (productId) => {
-    setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+    setSelectedProducts((prev) => prev.filter((p) => p.id !== productId));
+    setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
+    if (openConfigProductId === productId) setOpenConfigProductId(null);
   };
 
   const handleUpdateQuantity = (productId, delta) => {
-    setSelectedProducts(selectedProducts.map(p => {
-      if (p.id === productId) {
-        const current = (typeof p.returnQuantity === "number" && !isNaN(p.returnQuantity)) ? p.returnQuantity : 1;
-        const newQuantity = Math.max(1, Math.min(p.quantity, current + delta));
-        return { ...p, returnQuantity: newQuantity };
-      }
-      return p;
-    }));
+    setSelectedProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const current =
+            typeof p.returnQuantity === "number" && !isNaN(p.returnQuantity)
+              ? p.returnQuantity
+              : 1;
+          const newQuantity = Math.max(1, Math.min(p.quantity, current + delta));
+          return { ...p, returnQuantity: newQuantity };
+        }
+        return p;
+      })
+    );
   };
 
+  // Cambiar razón por producto
+  const handleProductReasonChange = (productId, reasonValue) => {
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, returnReason: reasonValue } : p
+      )
+    );
+  };
 
-  const handleOpenRegistration = (index = 0) => {
-    if (selectedProducts.length > index) {
-      setProductToRegister(selectedProducts[index]);
-      setCurrentProductIndex(index);
+  // Cambiar acción por producto
+  const handleProductActionChange = (productId, actionValue) => {
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, actionType: actionValue } : p
+      )
+    );
+
+    // ❗ YA NO abrimos el modal aquí.
+    // El modal se abre al marcar el checkbox "Registrar código de barras".
+  };
+
+  const toggleConfigDropdown = (productId) => {
+    setOpenConfigProductId((prev) => (prev === productId ? null : productId));
+  };
+
+  // Checkbox "Registrar código de barras"
+  const handleToggleRegisterCheckbox = (product, checked) => {
+    const existing = getPendingDetailForProduct(product.id);
+
+    if (checked) {
+      // Abrir modal para completar detalle
+      setProductToRegister(product);
       setIsRegistrationModalOpen(true);
+    } else {
+      // Eliminar detalle temporal y permitir de nuevo las acciones
+      if (existing) {
+        handleDeleteDetail(product.id);
+      }
     }
   };
 
-  const handleConfirmRegistration = (registeredProduct) => {
-    console.log("Producto registrado:", registeredProduct);
+  // Cuando el modal de registro confirma el detalle (NO se guarda aún en BD)
+  const handleConfirmRegistration = (registeredDetail) => {
+    if (!registeredDetail || !registeredDetail.productKey) return;
 
-    // Verificar si hay más productos por registrar
-    const nextIndex = currentProductIndex + 1;
-    if (nextIndex < selectedProducts.length) {
-      setCurrentProductIndex(nextIndex);
-      setProductToRegister(selectedProducts[nextIndex]);
-    } else {
-      setIsRegistrationModalOpen(false);
-      setProductToRegister(null);
-      setCurrentProductIndex(0);
+    setPendingDetails((prev) => {
+      const filtered = prev.filter(
+        (d) => d.productKey !== registeredDetail.productKey
+      );
+      return [...filtered, registeredDetail];
+    });
 
-      // Procesar toda la devolución
-      console.log("Todos los productos registrados. Procesando devolución completa...");
-      alert("Devolución procesada exitosamente");
-      handleCloseModal();
-    }
+    setIsRegistrationModalOpen(false);
+    setProductToRegister(null);
+  };
+
+  const handleDeleteDetail = (productId) => {
+    setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
+
+    // Desmarcar acción "registrar" para dejar el producto libre de nuevo
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, actionType: "" } : p
+      )
+    );
   };
 
   const handleCloseModal = () => {
     setSelectedProducts([]);
-    setReturnReason("");
-    setActionType("");
     setIsRegistrationModalOpen(false);
     setProductToRegister(null);
-    setCurrentProductIndex(0);
+    setOpenConfigProductId(null);
+    setPendingDetails([]);
     onClose();
   };
-const handleConfirmReturn = async () => {
-  if (selectedProducts.length === 0) {
-    alert("Debe seleccionar al menos un producto para devolver");
-    return;
-  }
-  if (!returnReason) {
-    alert("Debe seleccionar una razón para la devolución");
-    return;
-  }
-  if (!actionType) {
-    alert("Debe seleccionar una acción a realizar");
-    return;
-  }
 
-  const id_responsable = 1; // ⚠️ reemplazar con el ID real del usuario logueado
-  const isDiscount = actionType === "descuento";
+  const handleConfirmReturn = async () => {
+    if (selectedProducts.length === 0) {
+      alert("Debe seleccionar al menos un producto para devolver");
+      return;
+    }
 
-  const result = await postReturnProducts(id_responsable, selectedProducts, returnReason, isDiscount);
-  console.log("result");
-  if (result) {
-    refetch();
-    alert("✅ Devolución registrada exitosamente");
-    handleCloseModal();
-  }
-};
+    // Validar que todos tengan razón y acción
+    if (selectedProducts.some((p) => !p.returnReason)) {
+      alert("Todos los productos deben tener una razón de devolución seleccionada.");
+      return;
+    }
 
+    if (selectedProducts.some((p) => !p.actionType)) {
+      alert("Todos los productos deben tener una acción seleccionada.");
+      return;
+    }
+
+    // Si un producto tiene acción "registrar", debe tener detalle cargado
+    const missingDetail = selectedProducts.find(
+      (p) =>
+        p.actionType === "registrar" &&
+        !getPendingDetailForProduct(p.id)
+    );
+
+    if (missingDetail) {
+      alert(
+        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
+      );
+      return;
+    }
+
+    const id_responsable = 1; // TODO: reemplazar con el usuario logueado
+
+    // 1️⃣ Guardar detalles de productos en BD usando el hook correspondiente
+    try {
+      for (const detail of pendingDetails) {
+        await postDetailProduct(detail); // el hook arma el payload
+      }
+    } catch (e) {
+      alert("Ocurrió un error al guardar los detalles de productos.");
+      return;
+    }
+
+    // 2️⃣ Guardar la devolución como ya lo hacías
+    const result = await postReturnProducts(id_responsable, selectedProducts);
+
+    if (result) {
+      refetch();
+      alert("✅ Devolución registrada exitosamente");
+      handleCloseModal();
+    }
+  };
 
   const formatPrice = (price) =>
     new Intl.NumberFormat("es-CO", {
@@ -138,10 +227,11 @@ const handleConfirmReturn = async () => {
     }).format(price);
 
   useEffect(() => {
-    // Si ya no hay productos seleccionados, reiniciamos razón y acción
     if (selectedProducts.length === 0) {
-      setReturnReason("");
-      setActionType("");
+      setIsRegistrationModalOpen(false);
+      setProductToRegister(null);
+      setOpenConfigProductId(null);
+      setPendingDetails([]);
     }
   }, [selectedProducts.length]);
 
@@ -207,12 +297,24 @@ const handleConfirmReturn = async () => {
 
                 {/* Contenido */}
                 <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
-                  <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.5 }}>
+                  <motion.div
+                    className="space-y-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                  >
                     {/* Búsqueda y listado de productos */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4 }}>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Buscar y agregar productos</h3>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4, duration: 0.4 }}
+                    >
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                        Buscar y agregar productos
+                      </h3>
                       <ProductSearch onAddProduct={handleAddProduct} />
                     </motion.div>
+
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
                       {selectedProducts.length > 0 && (
@@ -223,203 +325,410 @@ const handleConfirmReturn = async () => {
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.3, ease: "easeOut" }}
                         >
-                          <h4 className="font-semibold text-gray-800 mb-3">Productos a devolver</h4>
-                          <motion.div className="space-y-3 max-h-60 overflow-y-auto" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
-                            {selectedProducts.map((product) => (
-                              <motion.div
-                                key={product.id}
-                                className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
-                                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                                whileHover={{ scale: 1.0, backgroundColor: "#f0f9ff", transition: { duration: 0.2 } }}
-                              >
-                                <motion.div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center" whileHover={{ scale: 1.1, backgroundColor: "#dcfce7" }}>
-                                  <Package className="w-4 h-4 text-green-700" />
+                          <h4 className="font-semibold text-gray-800 mb-3">
+                            Productos a devolver
+                          </h4>
+                          <motion.div
+                            className="space-y-3 max-h-60 overflow-y-auto"
+                            initial="hidden"
+                            animate="visible"
+                            variants={{
+                              visible: {
+                                transition: { staggerChildren: 0.1 },
+                              },
+                            }}
+                          >
+                            {selectedProducts.map((product) => {
+                              const detail = getPendingDetailForProduct(
+                                product.id
+                              );
+                              return (
+                                <motion.div
+                                  key={product.id}
+                                  className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg"
+                                  variants={{
+                                    hidden: { opacity: 0, y: 20 },
+                                    visible: { opacity: 1, y: 0 },
+                                  }}
+                                  whileHover={{
+                                    scale: 1.0,
+                                    backgroundColor: "#f0f9ff",
+                                    transition: { duration: 0.2 },
+                                  }}
+                                >
+                                  {/* fila principal */}
+                                  <div className="flex items-center gap-4">
+                                    <motion.div
+                                      className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center"
+                                      whileHover={{
+                                        scale: 1.1,
+                                        backgroundColor: "#dcfce7",
+                                      }}
+                                    >
+                                      <Package className="w-4 h-4 text-green-700" />
+                                    </motion.div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm text-gray-800">
+                                        {product.productos.nombre}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {formatPrice(
+                                          product.productos.precio_venta
+                                        )}{" "}
+                                        c/u
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <motion.button
+                                        onClick={() =>
+                                          handleUpdateQuantity(product.id, -1)
+                                        }
+                                        disabled={product.returnQuantity <= 1}
+                                        className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
+                                        whileHover={{
+                                          scale: 1.1,
+                                          backgroundColor: "#a7f3d0",
+                                        }}
+                                        whileTap={{ scale: 0.9 }}
+                                      >
+                                        <Minus size={14} />
+                                      </motion.button>
+                                      <motion.span
+                                        className="font-bold text-sm text-gray-800 min-w-[20px] text-center"
+                                        key={product.returnQuantity}
+                                        initial={{
+                                          scale: 1.2,
+                                          color: "#16a34a",
+                                        }}
+                                        animate={{
+                                          scale: 1,
+                                          color: "#1f2937",
+                                        }}
+                                        transition={{ duration: 0.2 }}
+                                      >
+                                        {product.returnQuantity}
+                                      </motion.span>
+                                      <motion.button
+                                        onClick={() =>
+                                          handleUpdateQuantity(product.id, 1)
+                                        }
+                                        disabled={
+                                          product.returnQuantity >=
+                                          product.quantity
+                                        }
+                                        className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
+                                        whileHover={{
+                                          scale: 1.1,
+                                          backgroundColor: "#a7f3d0",
+                                        }}
+                                        whileTap={{ scale: 0.9 }}
+                                      >
+                                        <Plus size={14} />
+                                      </motion.button>
+                                    </div>
+
+                                    {/* botón dropdown */}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        toggleConfigDropdown(product.id)
+                                      }
+                                      className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
+                                    >
+                                      Opciones
+                                      {openConfigProductId === product.id ? (
+                                        <ChevronUp size={14} />
+                                      ) : (
+                                        <ChevronDown size={14} />
+                                      )}
+                                    </button>
+
+                                    <motion.button
+                                      onClick={() =>
+                                        handleRemoveProduct(product.id)
+                                      }
+                                      className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full"
+                                      whileHover={{
+                                        scale: 1.2,
+                                        backgroundColor: "#fee2e2",
+                                        color: "#dc2626",
+                                      }}
+                                      whileTap={{ scale: 0.9 }}
+                                    >
+                                      <Trash2 size={16} />
+                                    </motion.button>
+                                  </div>
+
+                                  {/* Dropdown por producto */}
+                                  <AnimatePresence>
+                                    {openConfigProductId === product.id && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="mt-2 border-t pt-3 space-y-3"
+                                      >
+                                        {/* Razón */}
+                                        <div>
+                                          <p className="text-xs font-semibold text-gray-700 mb-2">
+                                            Razón de la devolución
+                                          </p>
+                                          <div className="space-y-2">
+                                            {returnReasons.map((reason) => {
+                                              const isSelected =
+                                                product.returnReason ===
+                                                reason.value;
+                                              return (
+                                                <label
+                                                  key={reason.value}
+                                                  className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
+                                                    isSelected
+                                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                                                      : "border-gray-200 hover:bg-gray-50"
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`returnReason-${product.id}`}
+                                                    value={reason.value}
+                                                    checked={isSelected}
+                                                    onChange={() =>
+                                                      handleProductReasonChange(
+                                                        product.id,
+                                                        reason.value
+                                                      )
+                                                    }
+                                                    className="hidden"
+                                                  />
+                                                  <div
+                                                    className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
+                                                      isSelected
+                                                        ? "bg-emerald-600 border-emerald-600"
+                                                        : "bg-white border-gray-300"
+                                                    }`}
+                                                  >
+                                                    {isSelected && (
+                                                      <svg
+                                                        className="w-3 h-3 text-white"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="3"
+                                                        viewBox="0 0 24 24"
+                                                      >
+                                                        <path
+                                                          strokeLinecap="round"
+                                                          strokeLinejoin="round"
+                                                          d="M5 13l4 4L19 7"
+                                                        />
+                                                      </svg>
+                                                    )}
+                                                  </div>
+                                                  <span
+                                                    className={`text-xs font-medium transition ${
+                                                      isSelected
+                                                        ? "text-emerald-700"
+                                                        : "text-gray-700"
+                                                    }`}
+                                                  >
+                                                    {reason.label}
+                                                  </span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Acción */}
+                                        <div>
+                                          <p className="text-xs font-semibold text-gray-700 mb-2">
+                                            Acción a realizar
+                                          </p>
+                                          <div className="space-y-2">
+                                            {actionTypes.map((action) => {
+                                              const isSelected =
+                                                product.actionType ===
+                                                action.value;
+                                              const hasDetail = !!detail;
+                                              const isDiscountDisabled =
+                                                hasDetail &&
+                                                action.value === "descuento";
+
+                                              return (
+                                                <label
+                                                  key={action.value}
+                                                  className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
+                                                    isSelected
+                                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                                                      : "border-gray-200 hover:bg-gray-50"
+                                                  } ${
+                                                    isDiscountDisabled
+                                                      ? "opacity-50 cursor-not-allowed"
+                                                      : ""
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`actionType-${product.id}`}
+                                                    value={action.value}
+                                                    checked={isSelected}
+                                                    disabled={isDiscountDisabled}
+                                                    onChange={() =>
+                                                      handleProductActionChange(
+                                                        product.id,
+                                                        action.value
+                                                      )
+                                                    }
+                                                    className="hidden"
+                                                  />
+                                                  <div
+                                                    className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
+                                                      isSelected
+                                                        ? "bg-emerald-600 border-emerald-600"
+                                                        : "bg-white border-gray-300"
+                                                    }`}
+                                                  >
+                                                    {isSelected && (
+                                                      <svg
+                                                        className="w-3 h-3 text-white"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="3"
+                                                        viewBox="0 0 24 24"
+                                                      >
+                                                        <path
+                                                          strokeLinecap="round"
+                                                          strokeLinejoin="round"
+                                                          d="M5 13l4 4L19 7"
+                                                        />
+                                                      </svg>
+                                                    )}
+                                                  </div>
+                                                  <span
+                                                    className={`text-xs font-medium transition ${
+                                                      isSelected
+                                                        ? "text-emerald-700"
+                                                        : "text-gray-700"
+                                                    }`}
+                                                  >
+                                                    {action.label}
+                                                    {isDiscountDisabled &&
+                                                      " (inhabilitado por detalle registrado)"}
+                                                  </span>
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Checkbox Registrar código de barras + detalle temporal */}
+                                        <div className="mt-3 space-y-2">
+                                          <label className="flex items-center gap-2 text-xs text-gray-700">
+                                            <input
+                                              type="checkbox"
+                                              className="rounded border-gray-300"
+                                              checked={!!detail}
+                                              disabled={
+                                                product.actionType !== "registrar"
+                                              }
+                                              onChange={(e) =>
+                                                handleToggleRegisterCheckbox(
+                                                  product,
+                                                  e.target.checked
+                                                )
+                                              }
+                                            />
+                                            Registrar código de barras
+                                          </label>
+
+                                          {/* Detalle temporal debajo del checkbox */}
+                                          {detail && (
+                                            <div className="mt-1 text-xs bg-emerald-50 border border-emerald-200 rounded-md p-2 flex items-start justify-between gap-2">
+                                              <div className="space-y-1">
+                                                <p className="font-semibold text-emerald-800">
+                                                  Detalle registrado temporalmente
+                                                </p>
+                                                <p className="text-gray-700">
+                                                  <span className="font-medium">
+                                                    Código de barras:
+                                                  </span>{" "}
+                                                  {detail.registeredBarcode}
+                                                </p>
+                                                <p className="text-gray-700">
+                                                  <span className="font-medium">
+                                                    Cantidad:
+                                                  </span>{" "}
+                                                  {detail.registeredQuantity}
+                                                </p>
+                                                {detail.registeredExpiry && (
+                                                  <p className="text-gray-700">
+                                                    <span className="font-medium">
+                                                      Vencimiento:
+                                                    </span>{" "}
+                                                    {detail.registeredExpiry}
+                                                  </p>
+                                                )}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  handleDeleteDetail(product.id)
+                                                }
+                                                className="text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
+                                              >
+                                                Eliminar
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </motion.div>
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm text-gray-800">{product.productos.nombre}</p>
-                                  <p className="text-xs text-gray-500">{formatPrice(product.productos.precio_venta)} c/u</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <motion.button
-                                    onClick={() => handleUpdateQuantity(product.id, -1)}
-                                    disabled={product.returnQuantity <= 1}
-                                    className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
-                                    whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
-                                    whileTap={{ scale: 0.9 }}
-                                  >
-                                    <Minus size={14} />
-                                  </motion.button>
-                                  <motion.span className="font-bold text-sm text-gray-800 min-w-[20px] text-center" key={product.returnQuantity} initial={{ scale: 1.2, color: "#16a34a" }} animate={{ scale: 1, color: "#1f2937" }} transition={{ duration: 0.2 }}>
-                                    {product.returnQuantity}
-                                  </motion.span>
-                                  <motion.button
-                                    onClick={() => handleUpdateQuantity(product.id, 1)}
-                                    disabled={product.returnQuantity >= product.quantity}
-                                    className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
-                                    whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
-                                    whileTap={{ scale: 0.9 }}
-                                  >
-                                    <Plus size={14} />
-                                  </motion.button>
-                                </div>
-                                <motion.button onClick={() => handleRemoveProduct(product.id)} className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full" whileHover={{ scale: 1.2, backgroundColor: "#fee2e2", color: "#dc2626" }} whileTap={{ scale: 0.9 }}>
-                                  <Trash2 size={16} />
-                                </motion.button>
-                              </motion.div>
-                            ))}
+                              );
+                            })}
                           </motion.div>
                         </motion.div>
                       )}
                     </AnimatePresence>
-
-                    {/* Razón de la devolución */}
-                    {selectedProducts.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6, duration: 0.4 }}
-                      >
-                        <h4 className="font-semibold text-gray-800 mb-3">Razón de la devolución</h4>
-                        <div className="space-y-3">
-                          {returnReasons.map((reason) => {
-                            const isSelected = returnReason === reason.value;
-                            return (
-                              <label
-                                key={reason.value}
-                                className={`flex items-center gap-3 cursor-pointer rounded-lg border p-3 transition-all select-none ${isSelected
-                                  ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                  : "border-gray-200 hover:bg-gray-50"
-                                  }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="returnReason"
-                                  value={reason.value}
-                                  checked={isSelected}
-                                  onChange={(e) => setReturnReason(e.target.value)}
-                                  className="hidden"
-                                />
-                                <div
-                                  className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${isSelected
-                                    ? "bg-emerald-600 border-emerald-600"
-                                    : "bg-white border-gray-300"
-                                    }`}
-                                >
-                                  {isSelected && (
-                                    <svg
-                                      className="w-3 h-3 text-white"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="3"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span
-                                  className={`text-sm font-medium transition ${isSelected ? "text-emerald-700" : "text-gray-700"
-                                    }`}
-                                >
-                                  {reason.label}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Acción a realizar */}
-                    {selectedProducts.length > 0 && (
-                      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.4 }}>
-                        <h4 className="font-semibold text-gray-800 mb-3">Acción a realizar</h4>
-                        <div className="space-y-3">
-                          {actionTypes.map((action) => {
-                            const isSelected = actionType === action.value;
-                            const isDisabled = !returnReason; // <-- deshabilitado si no hay razón
-                            return (
-                              <label
-                                key={action.value}
-                                className={`flex items-center gap-3 rounded-lg border p-3 transition-all select-none ${isDisabled
-                                  ? "border-gray-200 bg-white opacity-60 cursor-not-allowed"
-                                  : isSelected
-                                    ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                    : "border-gray-200 hover:bg-gray-50"
-                                  }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="actionType"
-                                  value={action.value}
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    if (isDisabled) return;
-                                    const value = e.target.value;
-                                    setActionType(value);
-
-                                    if (value === "registrar") {
-                                      if (selectedProducts.length === 0) {
-                                        alert("Debe seleccionar al menos un producto antes de registrar.");
-                                        setActionType("");
-                                        return;
-                                      }
-                                      handleOpenRegistration(0);
-                                    } else {
-                                      // cerrar modal de registro si estaba abierto
-                                      setIsRegistrationModalOpen(false);
-                                      setProductToRegister(null);
-                                      setCurrentProductIndex(0);
-                                    }
-                                  }}
-                                  className="hidden"
-                                  disabled={isDisabled}
-                                />
-                                <div
-                                  className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${isDisabled
-                                    ? "bg-gray-100 border-gray-200"
-                                    : isSelected
-                                      ? "bg-emerald-600 border-emerald-600"
-                                      : "bg-white border-gray-300"
-                                    }`}
-                                >
-                                  {/* Solo mostramos el check si está seleccionado y no está deshabilitado */}
-                                  {isSelected && !isDisabled && (
-                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span className={`text-sm font-medium transition ${isDisabled ? "text-gray-400" : isSelected ? "text-emerald-700" : "text-gray-700"}`}>
-                                  {action.label}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-
-                        {/* Mensaje de ayuda cuando aún no se ha seleccionado una razón */}
-                        {!returnReason && (
-                          <p className="mt-2 text-sm text-gray-500">Selecciona una razón de devolución para habilitar las acciones.</p>
-                        )}
-                      </motion.div>
-                    )}
                   </motion.div>
                 </div>
 
                 {/* Footer */}
-                <motion.div className="bg-white px-6 py-4 flex gap-4 border-t border-gray-200 rounded-b-2xl" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.4 }}>
-                  <motion.button onClick={handleCloseModal} className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 transition-colors" whileHover={{ scale: 1.00, backgroundColor: "#d1d5db" }} whileTap={{ scale: 0.98 }}>
+                <motion.div
+                  className="bg-white px-6 py-4 flex gap-4 border-t border-gray-200 rounded-b-2xl"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.4 }}
+                >
+                  <motion.button
+                    onClick={handleCloseModal}
+                    className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 transition-colors"
+                    whileHover={{
+                      scale: 1.0,
+                      backgroundColor: "#d1d5db",
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
                     Cancelar
                   </motion.button>
-                  <motion.button onClick={handleConfirmReturn} disabled={selectedProducts.length === 0 || !returnReason || !actionType} className="flex-1 px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" whileHover={{ scale: 1.00, backgroundColor: "#15803d", boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)" }} whileTap={{ scale: 0.98 }}>
-                    <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                      <CheckCircle size={20} />
-                    </motion.div>
+                  <motion.button
+                    onClick={handleConfirmReturn}
+                    disabled={
+                      selectedProducts.length === 0 ||
+                      selectedProducts.some((p) => !p.returnReason) ||
+                      selectedProducts.some((p) => !p.actionType) ||
+                      loading
+                    }
+                    className="flex-1 px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    whileHover={{
+                      scale: 1.0,
+                      backgroundColor: "#15803d",
+                      boxShadow:
+                        "0 10px 25px rgba(22, 163, 74, 0.3)",
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <CheckCircle size={20} />
                     Confirmar Devolución
                   </motion.button>
                 </motion.div>
