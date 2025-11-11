@@ -156,10 +156,10 @@ export const generateProductLowsPDF = async (lows = []) => {
       const row = [
         `#${p.idLow}`,
         p.dateLow,
-        (p.productName || "").substring(0, 20),
+        p.productName?.toString().substring(0, 20) ?? "",
         `${p.lowQuantity}`,
-        (p.reason || "").substring(0, 30),
-        (p.responsible || "").substring(0, 20),
+        p.reason?.toString().substring(0, 30) ?? "",
+        p.responsible?.toString().substring(0, 15) ?? "",
       ];
 
       x = 20;
