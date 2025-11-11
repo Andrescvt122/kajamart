@@ -1,4 +1,4 @@
-// features/products/indexProducts.jsx
+// frontend/src/features/products/indexProducts.jsx
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,7 +17,6 @@ import { exportProductsToPDF } from "./helpers/exportToPdf";
 
 import {
   showInfoAlert,
-  showInputAlert,
   showLoadingAlert,
   showErrorAlert,
   showSuccessAlert,
@@ -27,11 +26,12 @@ import ProductRegisterModal from "./productRegisterModal.jsx";
 import ProductEditModal from "./productEditModal.jsx";
 import ProductDeleteModal from "./productDeleteModal.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+import Loading from "../../features/onboarding/loading.jsx";
 
-// 🔹 Hooks reales
 import {
   useProducts,
   useDeleteProduct,
+  useUpdateProduct, // ⬅️ IMPORTANTE
 } from "../../shared/components/hooks/products/products.hooks.js";
 
 if (typeof document !== "undefined") {
@@ -44,7 +44,7 @@ if (typeof document !== "undefined") {
 export default function IndexProducts() {
   const navigate = useNavigate();
 
-  // === CARGA DESDE BACKEND ===
+  // Carga productos
   const {
     data: productsRaw = [],
     isLoading,
@@ -52,31 +52,32 @@ export default function IndexProducts() {
     error,
   } = useProducts();
 
-  const {
-    categories: categoriesRaw = [],
-    isLoading: isCatLoading,
-    isError: isCatError,
-  } = useCategories?.() || { categories: [], isLoading: false, isError: false };
+  // Carga categorías
+  const catHook = (typeof useCategories === "function" ? useCategories() : null) || {};
+  const categoriesRaw = Array.isArray(catHook.categories) ? catHook.categories : [];
+  const isCatLoading = (catHook.isLoading ?? catHook.loading) ?? false;
+  const isCatError = (catHook.isError ?? !!catHook.error) ?? false;
 
   const deleteMutation = useDeleteProduct();
+  const updateMutation = useUpdateProduct(); // ⬅️
 
-  // 🔹 Normalizamos categorías para pasarlas al modal (siguen siendo nombres, pero vienen de BD)
+  // Normalizar categorías para el modal
   const categories = useMemo(
     () =>
-      (Array.isArray(categoriesRaw) ? categoriesRaw : [])
+      categoriesRaw
         .map((c) => ({
           id: c.id_categoria ?? c.id ?? "",
           nombre: c.nombre_categoria || c.nombre || "",
+          estado: c.estado,
         }))
         .filter((c) => c.id && c.nombre),
     [categoriesRaw]
   );
 
-  // 🔹 Normalizamos productos de la BD → forma usada por la tabla
+  // Normalizar productos para la tabla
   const products = useMemo(() => {
     if (!Array.isArray(productsRaw)) return [];
     return productsRaw.map((p) => ({
-      // backend
       id: p.id_producto,
       nombre: p.nombre,
       descripcion: p.descripcion,
@@ -91,12 +92,11 @@ export default function IndexProducts() {
       precio: p.precio_venta ?? 0,
       estado: p.estado ? "Activo" : "Inactivo",
       imagen: p.url_imagen || null,
-      // por si necesitas más adelante:
       raw: p,
     }));
   }, [productsRaw]);
 
-  // === DELETE MODAL ===
+  // ==== Delete ====
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProductToDelete, setSelectedProductToDelete] = useState(null);
 
@@ -111,9 +111,7 @@ export default function IndexProducts() {
       showErrorAlert && showErrorAlert("No se encontró id del producto.");
       return;
     }
-
     showLoadingAlert("Eliminando producto...");
-
     deleteMutation.mutate(id, {
       onSuccess: () => {
         showSuccessAlert && showSuccessAlert("Producto eliminado correctamente.");
@@ -121,18 +119,16 @@ export default function IndexProducts() {
         setSelectedProductToDelete(null);
       },
       onError: (err) => {
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          "Error al eliminar el producto.";
+        const msg = err?.response?.data?.message || err?.message || "Error al eliminar el producto.";
         showErrorAlert && showErrorAlert(msg);
       },
     });
   };
 
-  // === EDIT MODAL (sigue siendo local hasta que conectes el modal al backend) ===
+  // ==== Edit ====
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState({
+    id: null,
     nombre: "",
     descripcion: "",
     precioCompra: "",
@@ -143,26 +139,30 @@ export default function IndexProducts() {
     categoria: "",
     imagenes: [],
   });
+  const [selectedProductRaw, setSelectedProductRaw] = useState(null);
 
   const listVariants = {
     hidden: { opacity: 0, y: -10 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
   };
-
-  const itemVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-  };
+  const itemVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
   const handleEditClick = (product) => {
     const p = product?.raw || product;
+    setSelectedProductRaw(p);
     setSelectedProduct({
+      id: p.id_producto,
       nombre: p.nombre || "",
       descripcion: p.descripcion || "",
-      precioCompra: p.costo_unitario ?? "",
-      precioVenta: p.precio_venta ?? "",
-      iva: p.iva ?? "",
-      stock: p.stock_actual ?? "",
+      precioCompra: p.costo_unitario != null ? String(p.costo_unitario) : "",
+      precioVenta: p.precio_venta != null ? String(p.precio_venta) : "",
+      iva:
+        p.iva_detalle?.valor_impuesto != null
+          ? `${p.iva_detalle.valor_impuesto}%`
+          : p.iva != null && p.iva !== 0
+          ? `${p.iva}%`
+          : "",
+      stock: p.stock_actual != null ? String(p.stock_actual) : "",
       estado: p.estado ? "Activo" : "Inactivo",
       categoria:
         p.categoria ||
@@ -174,14 +174,82 @@ export default function IndexProducts() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    // Aquí idealmente usarías useUpdateProduct()
-    console.log("Producto editado (pendiente conectar backend):", selectedProduct);
-    setIsEditModalOpen(false);
+  // ⚙️ Aquí está el flujo que pediste (igual al registrar):
+  // - Si hay imagen nueva → FormData (campo "imagen") → Cloudinary → link
+  // - Si no hay imagen nueva → JSON plano
+  const handleEditSubmit = async (editedForm) => {
+    const id = selectedProductRaw?.id_producto;
+    if (!id) {
+      showErrorAlert && showErrorAlert("No se encontró el producto a editar.");
+      return;
+    }
+
+    try {
+      showLoadingAlert && showLoadingAlert("Guardando cambios...");
+
+      // Resolver id_categoria por nombre (o mantener la original)
+      const cat = categories.find((c) => c.nombre === editedForm.categoria);
+      const id_categoria =
+        cat?.id ??
+        selectedProductRaw?.id_categoria ??
+        selectedProductRaw?.categorias?.id_categoria ??
+        null;
+
+      // IVA: "19%" → "19" (el backend resuelve a id de impuesto o null si 0)
+      const ivaVal =
+        editedForm.iva && editedForm.iva.trim() !== ""
+          ? editedForm.iva.replace("%", "")
+          : "0";
+
+      // ¿El usuario seleccionó una nueva imagen (File/Blob)?
+      const newFile = (editedForm.imagenes || []).find(
+        (it) => it instanceof File || it instanceof Blob
+      );
+
+      if (newFile) {
+        // === Igual que registrar: FormData + imagen ===
+        const fd = new FormData();
+        fd.append("nombre", editedForm.nombre.trim());
+        fd.append("descripcion", editedForm.descripcion?.trim() || "");
+        fd.append("stock_actual", String(Number(editedForm.stock) || 0));
+        fd.append("estado", editedForm.estado === "Activo" ? "true" : "false");
+        if (id_categoria) fd.append("id_categoria", String(id_categoria));
+        fd.append("iva", String(ivaVal || "0"));
+        fd.append("costo_unitario", String(Number(editedForm.precioCompra) || 0));
+        fd.append("precio_venta", String(Number(editedForm.precioVenta) || 0));
+        // si manejas subidaVenta/stockMin/stockMax, puedes agregarlos igual que en registrar
+        fd.append("imagen", newFile); // <<<<< clave para Cloudinary
+
+        await updateMutation.mutateAsync({ id, data: fd });
+      } else {
+        // === JSON plano (no toca imagen) ===
+        const payload = {
+          nombre: editedForm.nombre.trim(),
+          descripcion: editedForm.descripcion?.trim() || "",
+          stock_actual: String(Number(editedForm.stock) || 0),
+          estado: editedForm.estado === "Activo" ? "true" : "false",
+          iva: String(ivaVal || "0"),
+          costo_unitario: String(Number(editedForm.precioCompra) || 0),
+          precio_venta: String(Number(editedForm.precioVenta) || 0),
+        };
+        if (id_categoria) payload.id_categoria = String(id_categoria);
+
+        await updateMutation.mutateAsync({ id, ...payload });
+      }
+
+      showSuccessAlert && showSuccessAlert("Producto actualizado");
+      setIsEditModalOpen(false);
+      setSelectedProductRaw(null);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo actualizar el producto.";
+      showErrorAlert && showErrorAlert(msg);
+    }
   };
 
-  // === REGISTRO MODAL (sigue local hasta que lo conectes al backend) ===
+  // ==== Registro (sin cambios funcionales) ====
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
@@ -211,23 +279,16 @@ export default function IndexProducts() {
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (estadoRef.current && !estadoRef.current.contains(e.target)) {
-        setEstadoOpen(false);
-      }
-      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) {
-        setCategoriaOpen(false);
-      }
+      if (estadoRef.current && !estadoRef.current.contains(e.target)) setEstadoOpen(false);
+      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) setCategoriaOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
+    if (isModalOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "auto";
   }, [isModalOpen]);
 
   const handleOpenModal = () => {
@@ -237,10 +298,7 @@ export default function IndexProducts() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleImages = (e) => {
@@ -250,35 +308,16 @@ export default function IndexProducts() {
   };
 
   const removeImageAt = (idx) => {
-    setForm((prev) => ({
-      ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== idx),
-    }));
+    setForm((prev) => ({ ...prev, imagenes: prev.imagenes.filter((_, i) => i !== idx) }));
   };
 
-  // ⚠️ De momento sigue creando solo en el front (no en BD).
-  // Cuando quieras, aquí puedes usar useCreateProduct y mandar el payload al backend.
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (
-      !form.nombre.trim() ||
-      !form.precioCompra ||
-      !form.precioVenta ||
-      !form.stock ||
-      !form.estado ||
-      !form.categoria
-    ) {
-      showInfoAlert(
-        "Por favor complete los campos obligatorios marcados con *"
-      );
+    if (!form.nombre.trim() || !form.precioCompra || !form.precioVenta || !form.stock || !form.estado || !form.categoria) {
+      showInfoAlert && showInfoAlert("Por favor complete los campos obligatorios marcados con *");
       return;
     }
-
-    showInfoAlert(
-      "Este formulario aún no está conectado al backend. Solo se creó en memoria."
-    );
-
+    showInfoAlert && showInfoAlert("Este formulario aún no está conectado al backend. Solo se creó en memoria.");
     setForm({
       nombre: "",
       descripcion: "",
@@ -295,26 +334,14 @@ export default function IndexProducts() {
     setCategoriaOpen(false);
   };
 
-  // === FILTRO + PAGINACIÓN SOBRE DATOS REALES ===
+  // Filtro + paginación
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return products;
-
-    if (/^activos?$/.test(s)) {
-      return products.filter(
-        (p) => p.estado.toLowerCase() === "activo"
-      );
-    }
-    if (/^inactivos?$/.test(s)) {
-      return products.filter(
-        (p) => p.estado.toLowerCase() === "inactivo"
-      );
-    }
-
+    if (/^activos?$/.test(s)) return products.filter((p) => p.estado.toLowerCase() === "activo");
+    if (/^inactivos?$/.test(s)) return products.filter((p) => p.estado.toLowerCase() === "inactivo");
     return products.filter((p) =>
-      `${p.id} ${p.nombre} ${p.descripcion || ""} ${p.categoria} ${p.estado}`
-        .toLowerCase()
-        .includes(s)
+      `${p.id} ${p.nombre} ${p.descripcion || ""} ${p.categoria} ${p.estado}`.toLowerCase().includes(s)
     );
   }, [products, searchTerm]);
 
@@ -322,37 +349,13 @@ export default function IndexProducts() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
+  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
-  // ANIMACIONES
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
-  };
-  const rowVariants = {
-    hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0 },
-  };
-
-  // === LOADING / ERROR ===
-  if (isLoading || isCatLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Cargando productos...</p>
-      </div>
-    );
-  }
-
+  // Errores globales
   if (isError || isCatError) {
-    const msg =
-      error?.response?.data?.message ||
-      error?.message ||
-      "Error al cargar productos.";
+    const msg = error?.response?.data?.message || error?.message || "Error al cargar productos.";
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-red-600">{msg}</p>
@@ -376,15 +379,12 @@ export default function IndexProducts() {
         }}
       />
 
-      {/* Contenido principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Productos</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de Inventario
-              </p>
+              <p className="text-sm text-gray-500 mt-1">Administrador de Inventario</p>
             </div>
           </div>
 
@@ -402,28 +402,16 @@ export default function IndexProducts() {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
-                Excel
-              </ExportExcelButton>
-              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
-                PDF
-              </ExportPDFButton>
-              <button
-                onClick={handleOpenModal}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
+              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>Excel</ExportExcelButton>
+              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>PDF</ExportPDFButton>
+              <button onClick={handleOpenModal} className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700">
                 Registrar Nuevo Producto
               </button>
             </div>
           </div>
 
-          {/* Tabla productos */}
-          <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-          >
+          {/* Tabla */}
+          <motion.div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" initial="hidden" animate="visible">
             <table key={currentPage} className="min-w-full">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
@@ -438,67 +426,41 @@ export default function IndexProducts() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
-                {pageItems.length === 0 ? (
+              <tbody className="divide-y divide-gray-100">
+                {(isLoading || isCatLoading) ? (
                   <tr>
-                    <td
-                      colSpan={9}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                    <td colSpan={9} className="px-6 py-12">
+                      <Loading inline heightClass="h-28" />
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron productos.
                     </td>
                   </tr>
                 ) : (
                   pageItems.map((p, i) => (
-                    <motion.tr
-                      key={p.id + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
+                    <tr key={p.id + "-" + i} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-600">
                         <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
                           {p.imagen ? (
-                            <img
-                              src={p.imagen}
-                              alt={p.nombre}
-                              className="object-cover w-full h-full"
-                            />
+                            <img src={p.imagen} alt={p.nombre} className="object-cover w-full h-full" />
                           ) : (
-                            <span className="text-xs text-gray-400">
-                              No img
-                            </span>
+                            <span className="text-xs text-gray-400">No img</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {p.nombre}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.categoria}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockActual}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockMin}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockMax}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        ${p.precio.toLocaleString()}
-                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{p.nombre}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{p.categoria}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{p.stockActual}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{p.stockMin}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{p.stockMax}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">${p.precio.toLocaleString()}</td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                            p.estado === "Activo"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-100 text-red-600"
-                          }`}
-                        >
+                        <span className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          p.estado === "Activo" ? "bg-green-50 text-green-700" : "bg-red-100 text-red-600"
+                        }`}>
                           {p.estado}
                         </span>
                       </td>
@@ -511,15 +473,14 @@ export default function IndexProducts() {
                               })
                             }
                           />
-
                           <EditButton event={() => handleEditClick(p)} />
                           <DeleteButton event={() => handleDeleteClick(p)} />
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))
                 )}
-              </motion.tbody>
+              </tbody>
             </table>
           </motion.div>
 
@@ -542,7 +503,7 @@ export default function IndexProducts() {
         product={selectedProductToDelete}
       />
 
-      {/* Edit Modal (de momento solo cambia estado local, no BD) */}
+      {/* Edit Modal */}
       <ProductEditModal
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
@@ -561,7 +522,7 @@ export default function IndexProducts() {
             imagenes: prev.imagenes.filter((_, i) => i !== index),
           }));
         }}
-        handleSubmit={handleEditSubmit}
+        handleSubmit={handleEditSubmit} // <<<<<< recibe el form validado
         estadoOpen={estadoOpen}
         setEstadoOpen={setEstadoOpen}
         categoriaOpen={categoriaOpen}
@@ -574,11 +535,8 @@ export default function IndexProducts() {
         itemVariants={itemVariants}
       />
 
-            {/* Modal de registro (conectado al backend) */}
-            <ProductRegisterModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {/* Modal de registro */}
+      <ProductRegisterModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
-};
+}

@@ -1,4 +1,3 @@
-// pages/categories/IndexCategories.jsx
 import React, { useMemo, useState } from "react";
 import {
   EditButton,
@@ -16,8 +15,9 @@ import CategoryRegisterModal from "./CategoryRegisterModal";
 import { motion } from "framer-motion";
 import { exportCategoriesToPDF } from "../../features/categories/helpers/exportToPdf";
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
+import Loading from "../../features/onboarding/loading.jsx";
 
-// ✅ Hook unificado de categorías (el que acabas de crear)
+// ✅ Hook unificado de categorías
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
 export default function IndexCategories() {
@@ -53,10 +53,10 @@ export default function IndexCategories() {
     if (!s) return categories;
 
     if (/^activos?$/.test(s)) {
-      return categories.filter((c) => c.estado.toLowerCase() === "activo");
+      return categories.filter((c) => String(c.estado).toLowerCase() === "activo");
     }
     if (/^inactivos?$/.test(s)) {
-      return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
+      return categories.filter((c) => String(c.estado).toLowerCase() === "inactivo");
     }
 
     return categories.filter((c) =>
@@ -78,11 +78,10 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🔹 REGISTRAR (usa createCategory del hook)
+  // 🔹 REGISTRAR
   const handleRegisterCategory = async (form) => {
     try {
       setCreating(true);
-      // form: { nombre, descripcion, estado }
       await createCategory(form);
       setIsModalOpen(false);
       setCurrentPage(1);
@@ -91,12 +90,11 @@ export default function IndexCategories() {
     }
   };
 
-  // 🔹 ELIMINAR (usa deleteCategory del hook)
+  // 🔹 ELIMINAR
   const handleDeleteConfirm = async (category) => {
     try {
       setDeleting(true);
 
-      // calculamos cómo quedaría la paginación después de eliminar
       const afectaListadoActual = filtered.some(
         (c) => c.id_categoria === category.id_categoria
       );
@@ -107,7 +105,6 @@ export default function IndexCategories() {
       const targetPage =
         currentPage > newTotalPages ? newTotalPages : currentPage;
 
-      // el hook espera el id_categoria
       await deleteCategory(category.id_categoria);
 
       setIsDeleteOpen(false);
@@ -119,11 +116,10 @@ export default function IndexCategories() {
     }
   };
 
-  // 🔹 EDITAR (usa updateCategory del hook)
+  // 🔹 EDITAR
   const handleSaveEdit = async (updatedPayload) => {
     try {
       setUpdating(true);
-      // updatedPayload: { id_categoria, nombre, descripcion, estado }
       await updateCategory(updatedPayload);
       setIsEditModalOpen(false);
       setSelectedCategory(null);
@@ -142,15 +138,7 @@ export default function IndexCategories() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // ─────────── LOADING / ERROR GLOBALES ───────────
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Cargando categorías...</p>
-      </div>
-    );
-  }
-
+  // ─────────── ERROR GLOBAL ───────────
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -183,9 +171,7 @@ export default function IndexCategories() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Categorías</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de Tienda
-              </p>
+              <p className="text-sm text-gray-500 mt-1">Administrador de Tienda</p>
             </div>
           </div>
 
@@ -239,16 +225,17 @@ export default function IndexCategories() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
-                {pageItems.length === 0 ? (
+              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                {loading ? (
+                  // Loader SOLO en la tabla
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                    <td colSpan={5} className="px-6 py-12">
+                      <Loading inline heightClass="h-28" />
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron categorías.
                     </td>
                   </tr>
@@ -260,7 +247,7 @@ export default function IndexCategories() {
                       variants={rowVariants}
                     >
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        {c.id}
+                        {c.id_categoria}
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {c.nombre}
