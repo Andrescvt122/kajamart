@@ -13,42 +13,25 @@ import CategoryEditModal from "./CategoryEditModal";
 import CategoryDeleteModal from "./CategoryDeleteModal";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import CategoryRegisterModal from "./CategoryRegisterModal";
-import { motion } from "framer-motion"; // 👈 igual que en productos (sin AnimatePresence)
-import Swal from "sweetalert2";
+import { motion } from "framer-motion";
 import { exportCategoriesToPDF } from "../../features/categories/helpers/exportToPdf";
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 
-// Hooks personalizados
-import { useCategories } from "../../shared/components/hooks/categories/useCategories";
-import { useCreateCategory } from "../../shared/components/hooks/categories/useCreateCategories";
-import { useDeleteCategory } from "../../shared/components/hooks/categories/useDeleteCategories";
-import { useUpdateCategory } from "../../shared/components/hooks/categories/useUpdateCategories";
+// ✅ Hook unificado de categorías (el que acabas de crear)
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
 export default function IndexCategories() {
-  // Hooks de datos
+  // 🔹 Datos desde el backend
   const {
     categories,
     loading,
     error,
-    refresh,
-    addLocal,
-    updateLocal,
-    removeLocal,
+    createCategory,
+    updateCategory,
+    deleteCategory,
   } = useCategories();
 
-  const { createCategory, creating } = useCreateCategory({
-    onCreated: addLocal,
-  });
-
-  const { deleteCategory, deleting } = useDeleteCategory({
-    onDeleted: removeLocal,
-  });
-
-  const { updateCategory, updating } = useUpdateCategory({
-    onUpdated: updateLocal,
-  });
-
-  // Estado UI
+  // 🔹 Estado UI
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
@@ -59,47 +42,61 @@ export default function IndexCategories() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // FILTRO
+  // Loading internos para botones
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  // 🔹 FILTRO
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return categories;
+
     if (/^activos?$/.test(s)) {
       return categories.filter((c) => c.estado.toLowerCase() === "activo");
     }
     if (/^inactivos?$/.test(s)) {
       return categories.filter((c) => c.estado.toLowerCase() === "inactivo");
     }
+
     return categories.filter((c) =>
-      Object.values(c).some((value) => String(value).toLowerCase().includes(s))
+      Object.values(c).some((value) =>
+        String(value ?? "").toLowerCase().includes(s)
+      )
     );
   }, [categories, searchTerm]);
 
-  // PAGINACIÓN
+  // 🔹 PAGINACIÓN
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
   };
 
-  // REGISTRAR
+  // 🔹 REGISTRAR (usa createCategory del hook)
   const handleRegisterCategory = async (form) => {
     try {
+      setCreating(true);
+      // form: { nombre, descripcion, estado }
       await createCategory(form);
       setIsModalOpen(false);
       setCurrentPage(1);
-    } catch {
-      /* errores ya gestionados */
+    } finally {
+      setCreating(false);
     }
   };
 
-  // ELIMINAR (con corrección de paginación; animación idéntica a productos: sin exit)
+  // 🔹 ELIMINAR (usa deleteCategory del hook)
   const handleDeleteConfirm = async (category) => {
     try {
+      setDeleting(true);
+
+      // calculamos cómo quedaría la paginación después de eliminar
       const afectaListadoActual = filtered.some(
         (c) => c.id_categoria === category.id_categoria
       );
@@ -110,29 +107,32 @@ export default function IndexCategories() {
       const targetPage =
         currentPage > newTotalPages ? newTotalPages : currentPage;
 
-      await deleteCategory(category);
+      // el hook espera el id_categoria
+      await deleteCategory(category.id_categoria);
 
       setIsDeleteOpen(false);
       setSelectedCategory(null);
 
       if (currentPage !== targetPage) setCurrentPage(targetPage);
-    } catch {
-      /* errores ya gestionados */
+    } finally {
+      setDeleting(false);
     }
   };
 
-  // EDITAR
+  // 🔹 EDITAR (usa updateCategory del hook)
   const handleSaveEdit = async (updatedPayload) => {
     try {
+      setUpdating(true);
+      // updatedPayload: { id_categoria, nombre, descripcion, estado }
       await updateCategory(updatedPayload);
       setIsEditModalOpen(false);
       setSelectedCategory(null);
-    } catch {
-      /* errores ya gestionados */
+    } finally {
+      setUpdating(false);
     }
   };
 
-  // ─────────── ANIMACIONES (copiadas de indexProducts.jsx) ───────────
+  // ─────────── ANIMACIONES ───────────
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -142,9 +142,28 @@ export default function IndexCategories() {
     visible: { opacity: 1, y: 0 },
   };
 
+  // ─────────── LOADING / ERROR GLOBALES ───────────
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-gray-600">Cargando categorías...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-red-600">
+          {typeof error === "string" ? error : "Error al cargar categorías."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
-      {/* Fondo decorativo (igual que en productos) */}
+      {/* Fondo decorativo */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
@@ -164,7 +183,9 @@ export default function IndexCategories() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Categorías</h2>
-              <p className="text-sm text-gray-500 mt-1">Administrador de Tienda</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Administrador de Tienda
+              </p>
             </div>
           </div>
 
@@ -201,7 +222,7 @@ export default function IndexCategories() {
             </div>
           </div>
 
-          {/* Tabla categorías (misma animación que productos) */}
+          {/* Tabla categorías */}
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
             variants={tableVariants}
@@ -238,7 +259,9 @@ export default function IndexCategories() {
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {c.id}
+                      </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {c.nombre}
                       </td>

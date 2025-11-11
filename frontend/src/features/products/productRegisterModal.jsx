@@ -1,128 +1,297 @@
-import React, { useState } from "react";
+// frontend/src/features/products/productRegisterModal.jsx
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Upload } from "lucide-react";
+import { ChevronDown, Upload, X } from "lucide-react";
+import Swal from "sweetalert2";
 
-export default function ProductRegisterModal({
-  isModalOpen,
-  setIsModalOpen,
-  form,
-  setForm,
-  handleImages,
-  removeImageAt,
-  handleSubmit,
-  estadoOpen,
-  setEstadoOpen,
-  categoriaOpen,
-  setCategoriaOpen,
-  estadoRef,
-  categoriaRef,
-  estadoOptions,
-  categories,
-  listVariants,
-  itemVariants,
-}) {
+// Hooks reales
+import { useCreateProduct } from "../../shared/components/hooks/products/products.hooks.js";
+import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+
+// Alerts
+import {
+  showLoadingAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from "../../shared/components/alerts.jsx";
+
+const inputClass =
+  "mt-1 w-full px-3 py-2 border rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2";
+
+const listVariants = {
+  hidden: { opacity: 0, y: -10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.18 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
+
+export default function ProductRegisterModal({ isOpen, onClose }) {
+  // === CATEGORÍAS (hook propio) ===
+  const {
+    categories: catList = [],
+    loading: catLoading,
+    error: catError,
+  } = useCategories();
+
+  // Solo categorías activas
+  const activeCategories = catList.filter(
+    (c) => c.estado === "Activo" || c.estado === "activo"
+  );
+
+  // === PROVEEDORES (React Query) ===
+  const { data: suppliersRaw = [], isLoading: supLoading } =
+    useSuppliersQuery();
+
+  const suppliers = Array.isArray(suppliersRaw)
+    ? suppliersRaw
+        .map((s) => ({
+          id: s.id_proveedor ?? null,
+          nombre: s.nombre ?? "",
+          estado: s.estado === true || s.estado === "Activo",
+        }))
+        .filter((s) => s.id && s.nombre)
+    : [];
+
+  // === FORM STATE ===
+  const [form, setForm] = useState({
+    nombre: "",
+    descripcion: "",
+    precioCompra: "",
+    precioVenta: "",
+    subidaVenta: "",
+    iva: "",
+    stock: "",
+    stockMin: "",
+    stockMax: "",
+    estado: "",
+    categoriaId: "",
+    proveedorId: "",
+  });
+
+  // 🔹 archivo de imagen (solo 1)
+  const [imagenFile, setImagenFile] = useState(null);
+
   const [errors, setErrors] = useState({});
 
-  // Clase unificada para inputs (misma altura/padding)
-  const inputClass =
-    "mt-1 w-full px-3 py-2 border rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2";
+  // Dropdowns
+  const [estadoOpen, setEstadoOpen] = useState(false);
+  const [categoriaOpen, setCategoriaOpen] = useState(false);
+  const [proveedorOpen, setProveedorOpen] = useState(false);
+  const estadoRef = useRef(null);
+  const categoriaRef = useRef(null);
+  const proveedorRef = useRef(null);
 
-  // 🚨 Validaciones en tiempo real
+  const estadoOptions = [
+    { value: "Activo", label: "Activo" },
+    { value: "Inactivo", label: "Inactivo" },
+  ];
+
+  // Cerrar dropdowns al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (estadoRef.current && !estadoRef.current.contains(e.target)) {
+        setEstadoOpen(false);
+      }
+      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) {
+        setCategoriaOpen(false);
+      }
+      if (proveedorRef.current && !proveedorRef.current.contains(e.target)) {
+        setProveedorOpen(false);
+      }
+    }
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  // Reset al abrir
+  useEffect(() => {
+    if (!isOpen) return;
+    setForm({
+      nombre: "",
+      descripcion: "",
+      precioCompra: "",
+      precioVenta: "",
+      subidaVenta: "",
+      iva: "",
+      stock: "",
+      stockMin: "",
+      stockMax: "",
+      estado: "",
+      categoriaId: "",
+      proveedorId: "",
+    });
+    setImagenFile(null);
+    setErrors({});
+    setEstadoOpen(false);
+    setCategoriaOpen(false);
+    setProveedorOpen(false);
+  }, [isOpen]);
+
+  // === VALIDACIONES ===
   const validateField = (name, value) => {
     let error = "";
-
     switch (name) {
       case "nombre":
         if (!value || !value.trim()) error = "El nombre es obligatorio.";
         break;
       case "precioCompra":
       case "precioVenta":
-      case "stock":
       case "subidaVenta":
-        if (value === "" || value === null || Number(value) < 0)
-          error = "Debe ser un número válido.";
-        break;
-      case "iva":
-        if (value && !/^\d{1,2}%?$/.test(value)) {
-          error = "Solo números o con % (ej: 19%).";
-        }
-        break;
-      case "icu":
-        if (!value || !value.trim()) {
-          error = "El ICU es obligatorio.";
-        } else if (!/^[A-Za-z0-9\-_]+$/.test(value)) {
-          error = "ICU solo letras, números, '-' o '_'.";
+      case "stock":
+      case "stockMin":
+      case "stockMax":
+        if (value === "" || value === null || Number(value) < 0) {
+          error = "Debe ser un número válido (>= 0).";
         }
         break;
       case "estado":
         if (!value) error = "Selecciona un estado.";
         break;
-      case "categoria":
+      case "categoriaId":
         if (!value) error = "Selecciona una categoría.";
+        break;
+      case "proveedorId":
+        if (!value) error = "Selecciona un proveedor.";
         break;
       default:
         break;
     }
-
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  // Manejo del cambio con validación inmediata (genérico)
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    // prevenir letras como "e", "+", "-" en inputs numéricos
     if (type === "number" && /[eE+\-]/.test(value)) return;
-
     setForm((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
   };
 
-  // Validación al enviar
-  const onSubmit = (e) => {
+  // 🔹 Manejar cambio de imagen (solo 1)
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setImagenFile(null);
+      return;
+    }
+    setImagenFile(file);
+  };
+
+  const createMutation = useCreateProduct();
+
+  const onSubmit = async (e) => {
     e.preventDefault();
 
-    const fieldsToValidate = [
+    const required = [
       "nombre",
       "precioCompra",
       "precioVenta",
       "subidaVenta",
       "stock",
-      "icu",
-      "iva",
       "estado",
-      "categoria",
+      "categoriaId",
+      "proveedorId",
     ];
-
     let valid = true;
-    fieldsToValidate.forEach((f) => {
+    required.forEach((f) => {
       validateField(f, form[f]);
-      // chequeo adicional por si errors tiene mensaje
-      if (!form[f] || (errors[f] && errors[f].length > 0)) valid = false;
+      if (!form[f] || errors[f]) valid = false;
     });
 
-    if (valid) {
-      handleSubmit(e);
+    if (!imagenFile) {
+      valid = false;
+      showErrorAlert && showErrorAlert("Debes subir una imagen.");
+    }
+
+    if (!valid) {
+      if (!imagenFile) return;
+      showErrorAlert &&
+        showErrorAlert("Por favor corrige los campos resaltados.");
+      return;
+    }
+
+    // 🔹 Payload como FormData (incluye imagen)
+    const fd = new FormData();
+    fd.append("nombre", form.nombre.trim());
+    fd.append("descripcion", form.descripcion?.trim() || "");
+    fd.append("stock_actual", String(Number(form.stock) || 0));
+    fd.append(
+      "stock_minimo",
+      String(form.stockMin !== "" ? Number(form.stockMin) : 0)
+    );
+    fd.append(
+      "stock_maximo",
+      String(
+        form.stockMax !== ""
+          ? Number(form.stockMax)
+          : (Number(form.stock) || 0) * 5
+      )
+    );
+    fd.append("estado", form.estado === "Activo" ? "true" : "false");
+    fd.append("id_categoria", String(form.categoriaId));
+    fd.append("iva", "0");
+    fd.append("icu", "0");
+    fd.append(
+      "porcentaje_incremento",
+      String(Number(form.subidaVenta) || 0)
+    );
+    fd.append("costo_unitario", String(Number(form.precioCompra)));
+    fd.append("precio_venta", String(Number(form.precioVenta)));
+    fd.append("id_proveedor", String(form.proveedorId));
+
+    // 🔹 imagen (campo "imagen" debe coincidir con multer.single("imagen"))
+    fd.append("imagen", imagenFile);
+
+    try {
+      showLoadingAlert && showLoadingAlert("Registrando producto...");
+      await createMutation.mutateAsync(fd);
+      try {
+        Swal.close();
+      } catch (_) {}
+      showSuccessAlert && showSuccessAlert("Producto registrado");
+      onClose?.();
+    } catch (err) {
+      try {
+        Swal.close();
+      } catch (_) {}
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Error al crear el producto";
+      showErrorAlert && showErrorAlert(msg);
     }
   };
 
+  // === RENDER ===
   return (
     <AnimatePresence>
-      {isModalOpen && (
+      {isOpen && (
         <motion.div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50"
+          className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={() => setIsModalOpen(false)}
+          onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -20 }}
+            initial={{ opacity: 0, scale: 0.96, y: -18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -20 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
+            exit={{ opacity: 0, scale: 0.96, y: -18 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
             className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl relative text-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 rounded-full p-2 hover:bg-gray-100"
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
             <h2 className="text-2xl font-bold mb-6 text-gray-900">
               Registrar Producto
             </h2>
@@ -160,105 +329,71 @@ export default function ProductRegisterModal({
                   onChange={handleChange}
                   placeholder="Descripción corta"
                   rows="3"
-                  className={`mt-1 w-full px-3 py-2 border rounded-lg bg-white border-gray-300`}
+                  className="mt-1 w-full px-3 py-2 border rounded-lg bg-white border-gray-300"
                 />
               </div>
 
-              {/* Imágenes */}
+              {/* Imagen (archivo único) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-800">
-                  Imágenes
+                  Imagen del producto*
                 </label>
+
                 <label className="mt-2 block w-full rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-green-300 cursor-pointer p-4 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <Upload size={20} className="text-gray-600" />
                     <span className="text-sm text-gray-700">
-                      Selecciona o arrastra imágenes aquí (máx. 6)
+                      Selecciona una imagen desde tu dispositivo
                     </span>
                   </div>
                   <input
                     type="file"
                     accept="image/*"
-                    multiple
-                    onChange={handleImages}
+                    onChange={handleImageChange}
                     className="hidden"
                   />
                 </label>
-                {form.imagenes && form.imagenes.length > 0 && (
-                  <div className="mt-3 grid grid-cols-5 gap-2">
-                    {form.imagenes.map((f, i) => (
-                      <div
-                        key={i}
-                        className="relative w-full h-20 rounded-md overflow-hidden border"
+
+                {imagenFile && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-md overflow-hidden border bg-gray-100 flex items-center justify-center">
+                      <img
+                        src={URL.createObjectURL(imagenFile)}
+                        alt={imagenFile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col text-sm">
+                      <span className="font-medium text-gray-800">
+                        {imagenFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImagenFile(null)}
+                        className="text-xs text-red-500 hover:underline mt-1 text-left"
                       >
-                        <img
-                          src={URL.createObjectURL(f)}
-                          alt={f.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImageAt(i)}
-                          className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                        Quitar imagen
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Precios, ICU y stock (grid unificado) */}
-              <div className="grid grid-cols-5 gap-3 items-start">
-                {/* ICU */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800">
-                    ICU*
-                  </label>
-                  <input
-                    type="text"
-                    name="icu"
-                    value={form.icu}
-                    placeholder="Código único (ICU)"
-                    // evitar caracteres inválidos al escribir/pegar
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      const sanitized = raw.replace(/[^A-Za-z0-9\-_]/g, "");
-                      setForm((prev) => ({ ...prev, icu: sanitized }));
-                      validateField("icu", sanitized);
-                    }}
-                    // prevenir teclas que causan problemas (espacio, e, E, +, -)
-                    onKeyDown={(e) => {
-                      const forbidden = ["e", "E", "+", "-", " "];
-                      if (forbidden.includes(e.key)) e.preventDefault();
-                    }}
-                    onBlur={(e) => validateField("icu", e.target.value)}
-                    className={`${inputClass} ${
-                      errors.icu ? "border-red-500" : "border-gray-300"
-                    }`}
-                    required
-                  />
-                  {errors.icu && (
-                    <p className="text-red-500 text-xs mt-1">{errors.icu}</p>
-                  )}
-                </div>
-
-                {/* Precio Compra */}
+              {/* Precios, subida y stock */}
+              <div className="grid grid-cols-5 gap-3">
                 <div>
                   <label className="block text-sm font-semibold">
                     Precio Compra*
                   </label>
                   <input
                     name="precioCompra"
+                    type="number"
+                    min="0"
                     value={form.precioCompra}
                     onChange={handleChange}
                     onBlur={(e) =>
                       validateField("precioCompra", e.target.value)
                     }
-                    type="number"
-                    min="0"
-                    placeholder="0"
                     className={`${inputClass} ${
                       errors.precioCompra ? "border-red-500" : "border-gray-300"
                     }`}
@@ -274,19 +409,17 @@ export default function ProductRegisterModal({
                   )}
                 </div>
 
-                {/* Precio Venta */}
                 <div>
                   <label className="block text-sm font-semibold">
                     Precio Venta*
                   </label>
                   <input
                     name="precioVenta"
+                    type="number"
+                    min="0"
                     value={form.precioVenta}
                     onChange={handleChange}
                     onBlur={(e) => validateField("precioVenta", e.target.value)}
-                    type="number"
-                    min="0"
-                    placeholder="0"
                     className={`${inputClass} ${
                       errors.precioVenta ? "border-red-500" : "border-gray-300"
                     }`}
@@ -302,18 +435,19 @@ export default function ProductRegisterModal({
                   )}
                 </div>
 
-                {/* Subida de Venta */}
                 <div>
                   <label className="block text-sm font-semibold">
-                    Subida Venta*
+                    Subida Venta* (%)
                   </label>
                   <input
                     name="subidaVenta"
-                    value={form.subidaVenta}
-                    onChange={handleChange}
-                    onBlur={(e) => validateField("subidaVenta", e.target.value)}
                     type="number"
                     min="0"
+                    value={form.subidaVenta}
+                    onChange={handleChange}
+                    onBlur={(e) =>
+                      validateField("subidaVenta", e.target.value)
+                    }
                     placeholder="Ej: 10"
                     className={`${inputClass} ${
                       errors.subidaVenta ? "border-red-500" : "border-gray-300"
@@ -330,40 +464,34 @@ export default function ProductRegisterModal({
                   )}
                 </div>
 
-                {/* IVA */}
                 <div>
-                  <label className="block text-sm font-semibold">IVA</label>
+                  <label className="block text-sm font-semibold">
+                    IVA (opcional)
+                  </label>
                   <input
-                    type="text"
                     name="iva"
                     value={form.iva}
                     onChange={(e) => {
-                      let val = e.target.value.replace(/[^0-9%]/g, ""); // 🔒 sólo números y %
-                      setForm({ ...form, iva: val });
-                      validateField("iva", val);
+                      const val = e.target.value.replace(/[^0-9%]/g, "");
+                      setForm((prev) => ({ ...prev, iva: val }));
                     }}
-                    placeholder="%"
-                    className={`${inputClass} ${errors.iva ? "border-red-500" : "border-gray-300"}`}
+                    placeholder="Ej: 19%"
+                    className={`${inputClass} border-gray-300`}
                   />
-                  {errors.iva && (
-                    <p className="text-red-500 text-xs mt-1">{errors.iva}</p>
-                  )}
                 </div>
-              </div>
 
-              {/* Stock, Estado, Categoría */}
-              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-semibold">Stock*</label>
                   <input
                     name="stock"
+                    type="number"
+                    min="0"
                     value={form.stock}
                     onChange={handleChange}
                     onBlur={(e) => validateField("stock", e.target.value)}
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    className={`${inputClass} ${errors.stock ? "border-red-500" : "border-gray-300"}`}
+                    className={`${inputClass} ${
+                      errors.stock ? "border-red-500" : "border-gray-300"
+                    }`}
                     required
                     onKeyDown={(e) =>
                       ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
@@ -373,21 +501,68 @@ export default function ProductRegisterModal({
                     <p className="text-red-500 text-xs mt-1">{errors.stock}</p>
                   )}
                 </div>
+              </div>
 
+              {/* Stock min/max */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold">
+                    Stock Mínimo
+                  </label>
+                  <input
+                    name="stockMin"
+                    type="number"
+                    min="0"
+                    value={form.stockMin}
+                    onChange={handleChange}
+                    onBlur={(e) => validateField("stockMin", e.target.value)}
+                    placeholder="0"
+                    className={`${inputClass} ${
+                      errors.stockMin ? "border-red-500" : "border-gray-300"
+                    }`}
+                    onKeyDown={(e) =>
+                      ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold">
+                    Stock Máximo
+                  </label>
+                  <input
+                    name="stockMax"
+                    type="number"
+                    min="0"
+                    value={form.stockMax}
+                    onChange={handleChange}
+                    onBlur={(e) => validateField("stockMax", e.target.value)}
+                    placeholder="(auto) stock * 5"
+                    className={`${inputClass} ${
+                      errors.stockMax ? "border-red-500" : "border-gray-300"
+                    }`}
+                    onKeyDown={(e) =>
+                      ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Estado, categoría, proveedor */}
+              <div className="grid grid-cols-3 gap-3">
                 {/* Estado */}
                 <div className="relative" ref={estadoRef}>
                   <label className="block text-sm font-semibold">Estado*</label>
                   <div
                     className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border 
-      ${
-        form.estado === "Activo"
-          ? "border-green-500 bg-green-50"
-          : form.estado === "Inactivo"
-          ? "border-red-500 bg-red-50"
-          : errors.estado
-          ? "border-red-500 bg-white"
-          : "border-gray-300 bg-white"
-      }`}
+                      ${
+                        form.estado === "Activo"
+                          ? "border-green-500 bg-green-50"
+                          : form.estado === "Inactivo"
+                          ? "border-red-500 bg-red-50"
+                          : errors.estado
+                          ? "border-red-500 bg-white"
+                          : "border-gray-300 bg-white"
+                      }`}
                   >
                     <button
                       type="button"
@@ -457,29 +632,44 @@ export default function ProductRegisterModal({
                   </AnimatePresence>
                 </div>
 
-                {/* Categoría */}
+                {/* Categoría (solo activas) */}
                 <div className="relative" ref={categoriaRef}>
                   <label className="block text-sm font-semibold">
                     Categoría*
                   </label>
                   <div
                     className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${
-                      errors.categoria ? "border-red-500" : "border-gray-300"
-                    }`}
+                      errors.categoriaId ? "border-red-500" : "border-gray-300"
+                    } bg-white`}
                   >
                     <button
                       type="button"
-                      onClick={() => setCategoriaOpen((s) => !s)}
-                      className="flex w-full items-center justify-between text-sm"
+                      onClick={() => {
+                        if (!catLoading && activeCategories.length > 0) {
+                          setCategoriaOpen((s) => !s);
+                        }
+                      }}
+                      className="flex w-full items-center justify-between text-sm disabled:opacity-60"
+                      disabled={catLoading || activeCategories.length === 0}
                     >
                       <span
                         className={
-                          form.categoria
+                          form.categoriaId
                             ? "text-gray-900 font-medium"
                             : "text-gray-500"
                         }
                       >
-                        {form.categoria || "Seleccionar categoría"}
+                        {catLoading
+                          ? "Cargando categorías…"
+                          : activeCategories.length === 0
+                          ? "No hay categorías activas"
+                          : form.categoriaId
+                          ? activeCategories.find(
+                              (c) =>
+                                String(c.id_categoria ?? c.id) ===
+                                String(form.categoriaId)
+                            )?.nombre || "Seleccionar categoría"
+                          : "Seleccionar categoría"}
                       </span>
                       <motion.span
                         animate={{ rotate: categoriaOpen ? 180 : 0 }}
@@ -489,35 +679,124 @@ export default function ProductRegisterModal({
                       </motion.span>
                     </button>
                   </div>
-                  {errors.categoria && (
+                  {errors.categoriaId && (
                     <p className="text-red-500 text-xs mt-1">
-                      {errors.categoria}
+                      {errors.categoriaId}
                     </p>
                   )}
                   <AnimatePresence>
                     {categoriaOpen && (
                       <motion.ul
-                        className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-[144px] overflow-y-auto"
+                        className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-[180px] overflow-y-auto"
                         initial="hidden"
                         animate="visible"
                         exit="hidden"
                         variants={listVariants}
                       >
-                        {categories.map((c) => (
+                        {activeCategories.map((c) => {
+                          const catId = c.id_categoria ?? c.id;
+                          return (
+                            <motion.li
+                              key={catId}
+                              variants={itemVariants}
+                              onClick={() => {
+                                setForm((prev) => ({
+                                  ...prev,
+                                  categoriaId: catId,
+                                }));
+                                validateField("categoriaId", catId);
+                                setCategoriaOpen(false);
+                              }}
+                              className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${
+                                String(form.categoriaId) === String(catId)
+                                  ? "bg-green-100 font-medium"
+                                  : ""
+                              }`}
+                            >
+                              {c.nombre}
+                            </motion.li>
+                          );
+                        })}
+                      </motion.ul>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Proveedor */}
+                <div className="relative" ref={proveedorRef}>
+                  <label className="block text-sm font-semibold">
+                    Proveedor*
+                  </label>
+                  <div
+                    className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${
+                      errors.proveedorId ? "border-red-500" : "border-gray-300"
+                    } bg-white`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setProveedorOpen((s) => !s)}
+                      className="flex w-full items-center justify-between text-sm disabled:opacity-60"
+                      disabled={supLoading || suppliers.length === 0}
+                    >
+                      <span
+                        className={
+                          form.proveedorId
+                            ? "text-gray-900 font-medium"
+                            : "text-gray-500"
+                        }
+                      >
+                        {supLoading
+                          ? "Cargando proveedores…"
+                          : suppliers.length === 0
+                          ? "No hay proveedores"
+                          : form.proveedorId
+                          ? suppliers.find(
+                              (s) =>
+                                String(s.id) === String(form.proveedorId)
+                            )?.nombre || "Seleccionar proveedor"
+                          : "Seleccionar proveedor"}
+                      </span>
+                      <motion.span
+                        animate={{ rotate: proveedorOpen ? 180 : 0 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        <ChevronDown size={18} />
+                      </motion.span>
+                    </button>
+                  </div>
+                  {errors.proveedorId && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.proveedorId}
+                    </p>
+                  )}
+                  <AnimatePresence>
+                    {proveedorOpen && (
+                      <motion.ul
+                        className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-[180px] overflow-y-auto"
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        variants={listVariants}
+                      >
+                        {suppliers.map((s) => (
                           <motion.li
-                            key={c.id}
+                            key={s.id}
                             variants={itemVariants}
                             onClick={() => {
                               setForm((prev) => ({
                                 ...prev,
-                                categoria: c.nombre,
+                                proveedorId: s.id,
                               }));
-                              validateField("categoria", c.nombre);
-                              setCategoriaOpen(false);
+                              validateField("proveedorId", s.id);
+                              setProveedorOpen(false);
                             }}
-                            className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
+                            className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${
+                              String(form.proveedorId) === String(s.id)
+                                ? "bg-green-100 font-medium"
+                                : ""
+                            }`}
                           >
-                            {c.nombre}
+                            {s.nombre}
                           </motion.li>
                         ))}
                       </motion.ul>
@@ -528,6 +807,13 @@ export default function ProductRegisterModal({
 
               {/* Botones */}
               <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
