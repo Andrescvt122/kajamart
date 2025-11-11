@@ -11,7 +11,7 @@ export const exportToPdf = (clients = []) => {
 
   // Cabeceras de tabla
   const head = [
-    ["ID", "Nombre", "Documento", "Correo", "Teléfono", "Estado", "Fecha"],
+    ["ID", "Nombre", "Documento", "Correo", "Teléfono", "Estado"],
   ];
 
   // Filas
@@ -22,7 +22,6 @@ export const exportToPdf = (clients = []) => {
     c.correo?.trim() || "N/A",
     c.telefono?.trim() || "N/A",
     c.activo ? "Activo" : "Inactivo",
-    c.fecha || "",
   ]);
 
   doc.autoTable({

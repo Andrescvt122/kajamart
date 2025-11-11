@@ -11,7 +11,6 @@ export const exportToXls = (clients = []) => {
     Correo: c.correo?.trim() || "N/A",
     Teléfono: c.telefono?.trim() || "N/A",
     Estado: c.activo ? "Activo" : "Inactivo",
-    Fecha: c.fecha || "",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
