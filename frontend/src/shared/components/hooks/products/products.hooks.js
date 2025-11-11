@@ -32,13 +32,10 @@ export const useCreateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      // Si es FormData (viene con imagen), NO tocamos headers
       if (payload instanceof FormData) {
         const { data } = await axios.post(API_URL, payload);
         return data;
       }
-
-      // JSON normal
       const { data } = await axios.post(API_URL, payload);
       return data;
     },
@@ -46,13 +43,20 @@ export const useCreateProduct = () => {
   });
 };
 
-// 🔹 Actualizar producto
+// 🔹 Actualizar producto (acepta JSON o FormData)
 export const useUpdateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...rest }) => {
-      const { data } = await axios.put(`${API_URL}/${id}`, rest);
-      return data;
+    mutationFn: async (payload) => {
+      const { id, data, ...rest } = payload;
+      const body = data ?? rest;
+
+      if (body instanceof FormData) {
+        const { data: resp } = await axios.put(`${API_URL}/${id}`, body);
+        return resp;
+      }
+      const { data: resp } = await axios.put(`${API_URL}/${id}`, body);
+      return resp;
     },
     onSuccess: () => qc.invalidateQueries(["products"]),
   });
