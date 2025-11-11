@@ -302,14 +302,15 @@ export default function IndexProducts() {
   };
 
   const handleImages = (e) => {
-    const files = Array.from(e.target.files || []);
-    const next = [...form.imagenes, ...files].slice(0, 6);
-    setForm((prev) => ({ ...prev, imagenes: next }));
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedProduct(prev => ({ ...prev, imagenes: [file] })); // ← SOLO una
   };
-
-  const removeImageAt = (idx) => {
-    setForm((prev) => ({ ...prev, imagenes: prev.imagenes.filter((_, i) => i !== idx) }));
+  
+  const removeImageAt = () => {
+    setSelectedProduct(prev => ({ ...prev, imagenes: [] }));
   };
+  
 
   const handleSubmit = (e) => {
     e.preventDefault();
