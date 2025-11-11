@@ -6,7 +6,7 @@ const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
 const API_URL = `${API_BASE}/products`;
 
-// 🔹 Obtener todos los productos
+// Obtener todos los productos
 export const useProducts = () =>
   useQuery({
     queryKey: ["products"],
@@ -16,7 +16,7 @@ export const useProducts = () =>
     },
   });
 
-// 🔹 Obtener producto por ID
+//  Obtener producto por ID
 export const useProduct = (id) =>
   useQuery({
     queryKey: ["product", id],
@@ -27,7 +27,7 @@ export const useProduct = (id) =>
     enabled: !!id,
   });
 
-// 🔹 Crear producto (acepta JSON o FormData)
+//  Crear producto (acepta JSON o FormData)
 export const useCreateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -46,7 +46,7 @@ export const useCreateProduct = () => {
   });
 };
 
-// 🔹 Actualizar producto
+//  Actualizar producto
 export const useUpdateProduct = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -58,7 +58,7 @@ export const useUpdateProduct = () => {
   });
 };
 
-// 🔹 Eliminar producto
+//  Eliminar producto
 export const useDeleteProduct = () => {
   const qc = useQueryClient();
   return useMutation({

@@ -27,6 +27,7 @@ import ProductRegisterModal from "./productRegisterModal.jsx";
 import ProductEditModal from "./productEditModal.jsx";
 import ProductDeleteModal from "./productDeleteModal.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+import Loading from "../../features/onboarding/loading.jsx";
 
 // 🔹 Hooks reales
 import {
@@ -52,18 +53,18 @@ export default function IndexProducts() {
     error,
   } = useProducts();
 
-  const {
-    categories: categoriesRaw = [],
-    isLoading: isCatLoading,
-    isError: isCatError,
-  } = useCategories?.() || { categories: [], isLoading: false, isError: false };
+  // Normalizamos el shape del hook de categorías
+  const catHook = (typeof useCategories === "function" ? useCategories() : null) || {};
+  const categoriesRaw = Array.isArray(catHook.categories) ? catHook.categories : [];
+  const isCatLoading = (catHook.isLoading ?? catHook.loading) ?? false;
+  const isCatError = (catHook.isError ?? !!catHook.error) ?? false;
 
   const deleteMutation = useDeleteProduct();
 
-  // 🔹 Normalizamos categorías para pasarlas al modal (siguen siendo nombres, pero vienen de BD)
+  // 🔹 Normalizamos categorías para pasarlas al modal
   const categories = useMemo(
     () =>
-      (Array.isArray(categoriesRaw) ? categoriesRaw : [])
+      categoriesRaw
         .map((c) => ({
           id: c.id_categoria ?? c.id ?? "",
           nombre: c.nombre_categoria || c.nombre || "",
@@ -76,7 +77,6 @@ export default function IndexProducts() {
   const products = useMemo(() => {
     if (!Array.isArray(productsRaw)) return [];
     return productsRaw.map((p) => ({
-      // backend
       id: p.id_producto,
       nombre: p.nombre,
       descripcion: p.descripcion,
@@ -91,7 +91,6 @@ export default function IndexProducts() {
       precio: p.precio_venta ?? 0,
       estado: p.estado ? "Activo" : "Inactivo",
       imagen: p.url_imagen || null,
-      // por si necesitas más adelante:
       raw: p,
     }));
   }, [productsRaw]);
@@ -130,7 +129,7 @@ export default function IndexProducts() {
     });
   };
 
-  // === EDIT MODAL (sigue siendo local hasta que conectes el modal al backend) ===
+  // === EDIT MODAL (de momento local) ===
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState({
     nombre: "",
@@ -181,7 +180,7 @@ export default function IndexProducts() {
     setIsEditModalOpen(false);
   };
 
-  // === REGISTRO MODAL (sigue local hasta que lo conectes al backend) ===
+  // === REGISTRO MODAL (de momento local) ===
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
@@ -257,7 +256,6 @@ export default function IndexProducts() {
   };
 
   // ⚠️ De momento sigue creando solo en el front (no en BD).
-  // Cuando quieras, aquí puedes usar useCreateProduct y mandar el payload al backend.
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -269,9 +267,7 @@ export default function IndexProducts() {
       !form.estado ||
       !form.categoria
     ) {
-      showInfoAlert(
-        "Por favor complete los campos obligatorios marcados con *"
-      );
+      showInfoAlert("Por favor complete los campos obligatorios marcados con *");
       return;
     }
 
@@ -301,14 +297,10 @@ export default function IndexProducts() {
     if (!s) return products;
 
     if (/^activos?$/.test(s)) {
-      return products.filter(
-        (p) => p.estado.toLowerCase() === "activo"
-      );
+      return products.filter((p) => p.estado.toLowerCase() === "activo");
     }
     if (/^inactivos?$/.test(s)) {
-      return products.filter(
-        (p) => p.estado.toLowerCase() === "inactivo"
-      );
+      return products.filter((p) => p.estado.toLowerCase() === "inactivo");
     }
 
     return products.filter((p) =>
@@ -322,7 +314,7 @@ export default function IndexProducts() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -339,15 +331,7 @@ export default function IndexProducts() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // === LOADING / ERROR ===
-  if (isLoading || isCatLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Cargando productos...</p>
-      </div>
-    );
-  }
-
+  // === ERRORES GLOBALES ===
   if (isError || isCatError) {
     const msg =
       error?.response?.data?.message ||
@@ -438,16 +422,18 @@ export default function IndexProducts() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
-                {pageItems.length === 0 ? (
+
+              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                {/* Loader SOLO en la tabla */}
+                {(isLoading || isCatLoading) ? (
                   <tr>
-                    <td
-                      colSpan={9}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                    <td colSpan={9} className="px-6 py-12">
+                      <Loading inline heightClass="h-28" />
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron productos.
                     </td>
                   </tr>
@@ -467,9 +453,7 @@ export default function IndexProducts() {
                               className="object-cover w-full h-full"
                             />
                           ) : (
-                            <span className="text-xs text-gray-400">
-                              No img
-                            </span>
+                            <span className="text-xs text-gray-400">No img</span>
                           )}
                         </div>
                       </td>
@@ -511,7 +495,6 @@ export default function IndexProducts() {
                               })
                             }
                           />
-
                           <EditButton event={() => handleEditClick(p)} />
                           <DeleteButton event={() => handleDeleteClick(p)} />
                         </div>
@@ -542,7 +525,7 @@ export default function IndexProducts() {
         product={selectedProductToDelete}
       />
 
-      {/* Edit Modal (de momento solo cambia estado local, no BD) */}
+      {/* Edit Modal (local) */}
       <ProductEditModal
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
@@ -574,8 +557,8 @@ export default function IndexProducts() {
         itemVariants={itemVariants}
       />
 
-            {/* Modal de registro (conectado al backend) */}
-            <ProductRegisterModal
+      {/* Modal de registro */}
+      <ProductRegisterModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
