@@ -36,7 +36,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }) {
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Detalles del Cliente</h2>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-gray-100">✕</button>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-gray-100 text-black">✕</button>
         </div>
 
         <div className="space-y-3 text-sm">

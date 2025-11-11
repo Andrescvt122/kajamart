@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
+// Componente visual para el estado (Activo/Inactivo)
 const EstadoToggleView = ({ enabled }) => (
   <div
     className={`relative inline-flex items-center h-6 rounded-full w-11 ${
@@ -13,7 +14,7 @@ const EstadoToggleView = ({ enabled }) => (
     <span
       className={`inline-block w-4 h-4 transform bg-white rounded-full ${
         enabled ? "translate-x-6" : "translate-x-1"
-      }`}
+      } transition-transform duration-200`}
     />
   </div>
 );
@@ -22,33 +23,44 @@ export default function DetailsUsers({ isOpen, onClose, user }) {
   const [form, setForm] = useState({
     Nombre: "",
     Correo: "",
+    Documento: "",   
+    Telefono: "",    
     Rol: "",
     Estado: true,
-    FechaCreacion: "",
+    // ❌ FechaCreacion eliminada
   });
 
   useEffect(() => {
     if (!user) {
+      // Limpiar el formulario si no hay usuario
       setForm({
         Nombre: "",
         Correo: "",
+        Documento: "",
+        Telefono: "",
         Rol: "",
         Estado: true,
-        FechaCreacion: "",
+        // ❌ FechaCreacion eliminada
       });
       return;
     }
+    
+    // Mapear los datos del usuario a la estructura del formulario
     setForm({
-      Nombre: user.Nombre || user.nombre || "",
-      Correo: user.Correo || user.correo || "",
-      Rol: user.Rol || user.rol || "",
+      Nombre: user.Nombre || "",
+      Correo: user.Correo || "",
+      Documento: user.Documento || "", 
+      Telefono: user.Telefono || "", 
+      Rol: user.Rol || "",
+      // Convertimos el estado de cadena ("Activo"/"Inactivo") a booleano (true/false)
       Estado:
-        (user.Estado || user.estado || "").toString().toLowerCase() === "activo"
+        (user.Estado || "").toString().toLowerCase() === "activo"
           ? true
-          : Boolean(user.estado) || false,
-      FechaCreacion: user.FechaCreacion || user.fechaCreacion || "",
+          : false,
     });
   }, [user]);
+
+  // ❌ La función formatDate ya no es necesaria, pero la dejo si la necesitas en otro lado.
 
   return (
     <AnimatePresence>
@@ -88,63 +100,92 @@ export default function DetailsUsers({ isOpen, onClose, user }) {
                 Información del usuario (solo lectura).
               </p>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Nombre</label>
-                  <input
-                    type="text"
-                    value={form.Nombre}
-                    readOnly
-                    className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Columna 1 */}
+                <div className="space-y-4">
+                    {/* Nombre */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Nombre Completo</label>
+                      <input
+                        type="text"
+                        value={form.Nombre}
+                        readOnly
+                        className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
+                      />
+                    </div>
+                    
+                    {/* Documento */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Documento</label>
+                      <input
+                        type="text"
+                        value={form.Documento}
+                        readOnly
+                        className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
+                      />
+                    </div>
+                    
+                    {/* Teléfono */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Teléfono</label>
+                      <input
+                        type="text"
+                        value={form.Telefono}
+                        readOnly
+                        className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
+                      />
+                    </div>
+
+                    {/* Espacio extra para mantener columnas alineadas si es necesario */}
+                    <div className="h-4"></div> 
                 </div>
 
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Correo Electrónico</label>
-                  <input
-                    type="text"
-                    value={form.Correo}
-                    readOnly
-                    className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
-                  />
-                </div>
+                {/* Columna 2 */}
+                <div className="space-y-4">
+                    {/* Correo Electrónico */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Correo Electrónico</label>
+                      <input
+                        type="text"
+                        value={form.Correo}
+                        readOnly
+                        className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Rol Asignado</label>
-                  <input
-                    type="text"
-                    value={form.Rol}
-                    readOnly
-                    className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Fecha creación</label>
-                  <input
-                    type="text"
-                    value={form.FechaCreacion}
-                    readOnly
-                    className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-700 mb-1">Estado del Usuario</label>
-                  <div className="flex items-center gap-3 mt-1">
-                    <EstadoToggleView enabled={form.Estado} />
-                    <span className="text-sm text-gray-600">
-                      {form.Estado ? "Activo" : "Inactivo"}
-                    </span>
-                  </div>
+                    {/* Rol Asignado */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Rol Asignado</label>
+                      <input
+                        type="text"
+                        value={form.Rol}
+                        readOnly
+                        className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-black"
+                      />
+                    </div>
+                    
+                    {/* Estado del Usuario */}
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Estado del Usuario</label>
+                      <div className="flex items-center gap-3 mt-3">
+                        <EstadoToggleView enabled={form.Estado} />
+                        <span className={`text-sm font-medium ${form.Estado ? "text-green-600" : "text-red-600"}`}>
+                          {form.Estado ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Espacio extra para mantener columnas alineadas */}
+                    <div className="h-4"></div> 
                 </div>
               </div>
+
 
               {/* Botón: ahora verde como el botón de guardar en EditUsers */}
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700"
+                  className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 transition"
                 >
                   Volver a la lista de usuarios
                 </button>

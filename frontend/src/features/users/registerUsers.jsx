@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { showErrorAlert, showSuccessAlert } from "../../shared/components/alerts.jsx";
-
+import {useRolesList} from "../../shared/components/hooks/roles/useRolesList.js";
+import {useCreateUsuario} from "../../shared/components/hooks/users/useCreateUser.js";
 // Componente para el switch de estado (movido aquí porque solo lo usa este modal)
 const EstadoToggle = ({ enabled, onChange }) => (
   <button
@@ -21,6 +22,9 @@ const EstadoToggle = ({ enabled, onChange }) => (
 );
 
 export default function RegisterUsers({ isOpen, onClose, onRegister }) {
+  const { roles } = useRolesList();
+  const { createUsuario } = useCreateUsuario();
+  console.log(roles);
   const [form, setForm] = useState({
     usuario: "",
     correo: "",
@@ -36,7 +40,7 @@ export default function RegisterUsers({ isOpen, onClose, onRegister }) {
 
   const [rolOpen, setRolOpen] = useState(false);
   const rolRef = useRef(null);
-  const rolesOptions = ["Administrador", "Vendedor", "Cliente"];
+  const rolesOptions = roles;
 
   // Resetear el formulario cuando el modal se cierra para que esté limpio la próxima vez que se abra
   useEffect(() => {
@@ -109,13 +113,11 @@ export default function RegisterUsers({ isOpen, onClose, onRegister }) {
     if (!form.apellido.trim()) missing.push("Apellido");
     if (!form.documento.trim()) missing.push("Documento");
     if (!form.rol) missing.push("Rol asignado");
-
     if (missing.length > 0) {
       showErrorAlert(`Campos inválidos: ${missing.join(", ")}`);
       return;
     }
-
-    onRegister(form); // Envía los datos del formulario al componente padre
+    createUsuario(form);
     showSuccessAlert("Usuario registrado exitosamente");
     onClose(); // Cierra el modal
   };
@@ -189,8 +191,8 @@ export default function RegisterUsers({ isOpen, onClose, onRegister }) {
                         {rolOpen && (
                           <motion.ul className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg overflow-hidden z-50" initial="hidden" animate="visible" exit="hidden" variants={listVariants}>
                             {rolesOptions.map((opt) => (
-                              <motion.li key={opt} variants={itemVariants} onClick={() => { setForm(p => ({ ...p, rol: opt })); setRolOpen(false); }} className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50">
-                                {opt}
+                              <motion.li key={opt.rol_id} variants={itemVariants} onClick={() => { setForm(p => ({ ...p, rol: opt.rol_nombre })); setRolOpen(false); }} className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50">
+                                {opt.rol_nombre}
                               </motion.li>
                             ))}
                           </motion.ul>
