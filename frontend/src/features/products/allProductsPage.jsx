@@ -245,7 +245,7 @@ export default function AllProductsPage() {
                         colSpan={7}
                         className="px-6 py-8 text-center text-red-500"
                       >
-                        Error al cargar detalles
+                        No hay Registros  
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
