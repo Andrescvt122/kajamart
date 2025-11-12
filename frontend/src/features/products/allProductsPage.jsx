@@ -74,8 +74,8 @@ export default function AllProductsPage() {
   const { data: fetchedProduct } = useProduct(productId);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
-  const product =
-    passedProduct ?? fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
+  const product = passedProduct ??
+    fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -194,7 +194,10 @@ export default function AllProductsPage() {
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
-            <h2 className={"text-2xl sm:text-3xl font-semibold " + ONE_LINE_SAFE} title={product.nombre}>
+            <h2
+              className={"text-2xl sm:text-3xl font-semibold " + ONE_LINE_SAFE}
+              title={product.nombre}
+            >
               Detalles — {product.nombre}
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
@@ -202,26 +205,37 @@ export default function AllProductsPage() {
             </p>
           </div>
 
-          {/* Toolbar */}
-          <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="w-full min-w-0">
-              <SearchBar
-                placeholder="Buscar detalles..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
+          {/* Toolbar (alineada) */}
+          <div className="mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-3">
+              {/* Buscar (se estira) */}
+              <div className="min-w-0">
+                <SearchBar
+                  placeholder="Buscar detalles..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-10"
+                />
+              </div>
 
-            <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
-              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
-                Excel
-              </ExportExcelButton>
-              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
-                PDF
-              </ExportPDFButton>
+              {/* Exportar Excel */}
+              <div className="flex justify-end">
+                <ExportExcelButton
+                  event={() => exportProductsToExcel(filtered)}
+                >
+                  Excel
+                </ExportExcelButton>
+              </div>
+
+              {/* Exportar PDF */}
+              <div className="flex justify-end">
+                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                  PDF
+                </ExportPDFButton>
+              </div>
             </div>
           </div>
 
@@ -273,7 +287,10 @@ export default function AllProductsPage() {
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">
                             <p
-                              className={"text-base font-semibold text-gray-900 " + ONE_LINE_SAFE}
+                              className={
+                                "text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
                               title={p.barcode}
                             >
                               {p.barcode}
@@ -293,26 +310,43 @@ export default function AllProductsPage() {
                             initial={{ height: 0, opacity: 0, y: -4 }}
                             animate={{ height: "auto", opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                            transition={{
+                              duration: 0.32,
+                              ease: [0.22, 1, 0.36, 1],
+                            }}
                             className="overflow-hidden border-t border-gray-100"
                             aria-live="polite"
                           >
                             <div className="px-4 py-4 grid grid-cols-2 gap-3">
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">ID Detalle</p>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  ID Detalle
+                                </p>
                                 <p className="text-sm text-gray-800">{p.id}</p>
                               </div>
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Cantidad</p>
-                                <p className="text-sm text-gray-800">{p.cantidad}</p>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Cantidad
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  {p.cantidad}
+                                </p>
                               </div>
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Consumido</p>
-                                <p className="text-sm text-gray-800">{p.consumido}</p>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Consumido
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  {p.consumido}
+                                </p>
                               </div>
                               <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Precio</p>
-                                <p className="text-sm text-gray-800">${Number(p.precio || 0).toLocaleString()}</p>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Precio
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  ${Number(p.precio || 0).toLocaleString()}
+                                </p>
                               </div>
 
                               <div className="col-span-2 pt-1 flex items-center gap-2">
@@ -322,7 +356,9 @@ export default function AllProductsPage() {
                                     setIsModalOpen(true);
                                   }}
                                 />
-                                <DeleteButton event={() => handleDeleteClick(p)} />
+                                <DeleteButton
+                                  event={() => handleDeleteClick(p)}
+                                />
                               </div>
                             </div>
                           </motion.div>
@@ -347,12 +383,20 @@ export default function AllProductsPage() {
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-4 lg:px-6 py-3 lg:py-4">ID Detalle</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Código de barras</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Fecha de vencimiento</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Código de barras
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Fecha de vencimiento
+                    </th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Stock consumido</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Stock consumido
+                    </th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
 
@@ -371,13 +415,19 @@ export default function AllProductsPage() {
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-red-500"
+                      >
                         No hay Registros
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
                         No se encontraron detalles.
                       </td>
                     </tr>
@@ -388,7 +438,9 @@ export default function AllProductsPage() {
                         className="hover:bg-gray-50 align-top"
                         variants={rowVariants}
                       >
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{p.id}</td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {p.id}
+                        </td>
 
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">
                           <div className="min-w-0 max-w-[30ch] lg:max-w-[40ch]">
@@ -398,9 +450,15 @@ export default function AllProductsPage() {
                           </div>
                         </td>
 
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{p.vencimiento}</td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{p.cantidad}</td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{p.consumido}</td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {p.vencimiento}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {p.cantidad}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {p.consumido}
+                        </td>
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                           ${Number(p.precio || 0).toLocaleString()}
                         </td>
