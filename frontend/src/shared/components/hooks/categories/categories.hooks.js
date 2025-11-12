@@ -1,13 +1,11 @@
-// frontend/src/shared/components/hooks/categories/categories.hooks.js
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart";
 const API = `${API_BASE}/api/categories`;
 
-// Mapea la categoría que viene del backend a la forma que usas en el front
+// Mapper desde API → UI
 const mapFromApi = (cat) => ({
   id_categoria: cat.id_categoria,
   id: `CAT${String(cat.id_categoria).padStart(3, "0")}`,
@@ -16,13 +14,28 @@ const mapFromApi = (cat) => ({
   estado: cat.estado ? "Activo" : "Inactivo",
 });
 
+// Normaliza cualquier forma de "estado" a boolean
+const toBoolEstado = (v, fallback = true) => {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1;
+  if (typeof v === "string") {
+    const s = v.toLowerCase();
+    if (s === "true" || s === "1" || s === "activo") return true;
+    if (s === "false" || s === "0" || s === "inactivo") return false;
+  }
+  return fallback;
+};
+
+// Limita descripción a 80 chars (según schema: VarChar(80))
+const clampDesc = (s = "", max = 80) => String(s ?? "").slice(0, max);
+
 export function useCategories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
 
-  // 🔹 Obtener todas las categorías
+  // GET todas
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
@@ -31,17 +44,12 @@ export function useCategories() {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
-      const { data } = await axios.get(API, {
-        signal: abortRef.current.signal,
-      });
-
+      const { data } = await axios.get(API, { signal: abortRef.current.signal });
       setCategories(Array.isArray(data) ? data.map(mapFromApi) : []);
     } catch (err) {
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
       console.error("❌ useCategories - fetchCategories:", err);
-      setError(
-        err.response?.data?.error || "Error al obtener las categorías."
-      );
+      setError(err.response?.data?.error || "Error al obtener las categorías.");
     } finally {
       setLoading(false);
     }
@@ -52,16 +60,19 @@ export function useCategories() {
     return () => abortRef.current?.abort();
   }, [fetchCategories]);
 
-  // 🔹 Crear categoría (POST /api/categories)
+  // CREATE
   const createCategory = useCallback(async (form) => {
     try {
-      const payload = {
-        nombre_categoria: form.nombre,
-        descripcion_categoria: form.descripcion,
-        estado: form.estado === "Activo",
+      const body = {
+        nombre_categoria: form.nombre?.trim(),
+        descripcion_categoria: clampDesc(form.descripcion),
+        // 👇 acepta boolean o string; default true
+        estado: toBoolEstado(form.estado, true),
       };
 
-      const { data } = await axios.post(API, payload);
+      const { data } = await axios.post(API, body, {
+        headers: { "Content-Type": "application/json" },
+      });
 
       Swal.fire({
         icon: "success",
@@ -73,9 +84,7 @@ export function useCategories() {
         color: "#1b5e20",
       });
 
-      // Agregar al estado local
       setCategories((prev) => [mapFromApi(data.category), ...prev]);
-
       return data.category;
     } catch (err) {
       console.error("❌ useCategories - createCategory:", err);
@@ -88,18 +97,20 @@ export function useCategories() {
     }
   }, []);
 
-  // 🔹 Actualizar categoría (PUT /api/categories/:id)
+  // UPDATE
   const updateCategory = useCallback(async (payload) => {
     try {
       const { id_categoria, nombre, descripcion, estado } = payload;
 
       const body = {
-        nombre_categoria: nombre,
-        descripcion_categoria: descripcion,
-        estado: estado === "Activo",
+        nombre_categoria: nombre?.trim(),
+        descripcion_categoria: clampDesc(descripcion),
+        estado: toBoolEstado(estado, true),
       };
 
-      const { data } = await axios.put(`${API}/${id_categoria}`, body);
+      const { data } = await axios.put(`${API}/${id_categoria}`, body, {
+        headers: { "Content-Type": "application/json" },
+      });
 
       Swal.fire({
         icon: "success",
@@ -112,12 +123,8 @@ export function useCategories() {
       });
 
       const mapped = mapFromApi(data.category);
-
-      // Actualizar en el estado local
       setCategories((prev) =>
-        prev.map((c) =>
-          c.id_categoria === id_categoria ? mapped : c
-        )
+        prev.map((c) => (c.id_categoria === id_categoria ? mapped : c))
       );
 
       return data.category;
@@ -132,11 +139,10 @@ export function useCategories() {
     }
   }, []);
 
-  // 🔹 Eliminar categoría (DELETE /api/categories/:id)
+  // DELETE
   const deleteCategory = useCallback(async (id_categoria) => {
     try {
       const { data } = await axios.delete(`${API}/${id_categoria}`);
-
       Swal.fire({
         icon: "success",
         title: "✅ Categoría eliminada",
@@ -146,11 +152,7 @@ export function useCategories() {
         background: "#e8f5e9",
         color: "#1b5e20",
       });
-
-      // Quitar del estado local
-      setCategories((prev) =>
-        prev.filter((c) => c.id_categoria !== id_categoria)
-      );
+      setCategories((prev) => prev.filter((c) => c.id_categoria !== id_categoria));
     } catch (err) {
       console.error("❌ useCategories - deleteCategory:", err);
       Swal.fire(
@@ -162,7 +164,7 @@ export function useCategories() {
     }
   }, []);
 
-  // 🔹 Helpers opcionales para manipular localmente desde el Index
+  // Helpers locales
   const addLocal = useCallback((cat) => {
     setCategories((prev) => [mapFromApi(cat), ...prev]);
   }, []);
@@ -170,31 +172,22 @@ export function useCategories() {
   const updateLocal = useCallback((cat) => {
     const mapped = mapFromApi(cat);
     setCategories((prev) =>
-      prev.map((c) =>
-        c.id_categoria === mapped.id_categoria ? mapped : c
-      )
+      prev.map((c) => (c.id_categoria === mapped.id_categoria ? mapped : c))
     );
   }, []);
 
   const removeLocal = useCallback((id_categoria) => {
-    setCategories((prev) =>
-      prev.filter((c) => c.id_categoria !== id_categoria)
-    );
+    setCategories((prev) => prev.filter((c) => c.id_categoria !== id_categoria));
   }, []);
 
   return {
     categories,
     loading,
     error,
-    // recargar desde el backend
     refresh: fetchCategories,
-
-    // CRUD contra API
     createCategory,
     updateCategory,
     deleteCategory,
-
-    // helpers locales (por si ya los usabas en el Index)
     addLocal,
     updateLocal,
     removeLocal,

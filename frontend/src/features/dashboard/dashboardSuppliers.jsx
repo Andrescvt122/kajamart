@@ -1,3 +1,4 @@
+// DashboardSuppliers.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Bar, Pie } from "react-chartjs-2";
 import {
@@ -13,6 +14,7 @@ import {
 } from "chart.js";
 import { Calendar } from "primereact/calendar";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSuppliers } from "../../shared/components/hooks/dashboard/dashboardSuppliers.hook";
 
 ChartJS.register(
   CategoryScale,
@@ -42,7 +44,7 @@ function useCountUp(value, duration = 900) {
     const step = (t) => {
       if (!start) start = t;
       const prog = Math.min((t - start) / duration, 1);
-      setDisplay(Math.round(value * prog));
+      setDisplay(Math.round((Number(value) || 0) * prog));
       if (prog < 1) rafId = requestAnimationFrame(step);
     };
     rafId = requestAnimationFrame(step);
@@ -96,87 +98,25 @@ const hoverPower = {
 
 /* ---------- Component main ---------- */
 export default function DashboardSuppliers() {
-  /* ---------- Mock data ---------- */
-  const rawSuppliers = [
-    {
-      nit: "200",
-      name: "Alimentos La Abundancia",
-      contact: "María Rodríguez",
-      phone: "3104567890",
-      correo: "contacto@abundancia.com",
-      category: "Abarrotes",
-      type: "Nacional",
-      estado: "Activo",
-      lastDelivery: "2025-09-25",
-      reliability: 0.94,
-      totalPurchases: 15200,
-    },
-    {
-      nit: "201",
-      name: "Distribuidora El Campesino",
-      contact: "Carlos Pérez",
-      phone: "3119876543",
-      correo: "ventas@elcampesino.com",
-      category: "Verduras",
-      type: "Local",
-      estado: "Inactivo",
-      lastDelivery: "2025-09-10",
-      reliability: 0.68,
-      totalPurchases: 7200,
-    },
-    {
-      nit: "202",
-      name: "Refrescos Tropical",
-      contact: "Laura Martínez",
-      phone: "3201122334",
-      correo: "info@refrescostropical.com",
-      category: "Bebidas",
-      type: "Nacional",
-      estado: "Activo",
-      lastDelivery: "2025-09-27",
-      reliability: 0.88,
-      totalPurchases: 8900,
-    },
-    {
-      nit: "203",
-      name: "La Gran Cosecha",
-      contact: "Andrés Gómez",
-      phone: "3129988776",
-      correo: "lagrancosecha@correo.com",
-      category: "Carnes",
-      type: "Local",
-      estado: "Activo",
-      lastDelivery: "2025-09-19",
-      reliability: 0.79,
-      totalPurchases: 12400,
-    },
-    {
-      nit: "204",
-      name: "Panificadora San Jorge",
-      contact: "Elena Suárez",
-      phone: "3134455667",
-      correo: "ventas@sanjorge.com",
-      category: "Panadería",
-      type: "Nacional",
-      estado: "Activo",
-      lastDelivery: "2025-09-23",
-      reliability: 0.98,
-      totalPurchases: 5400,
-    },
-  ];
+  // 🔹 Proveedores normalizados desde el hook (ya con lastDelivery y totalPurchases)
+  const {
+    data: suppliers = [],
+    isLoading,
+    isError,
+  } = useSuppliers();
 
   /* ---------- Métricas ---------- */
   const metricas = useMemo(() => {
     return {
-      total: rawSuppliers.length,
-      activos: rawSuppliers.filter((s) => s.estado === "Activo").length,
-      retrasos: rawSuppliers.filter((s) => s.reliability < 0.75).length,
-      comprasTotales: rawSuppliers.reduce(
-        (acc, s) => acc + (s.totalPurchases || 0),
+      total: suppliers.length,
+      activos: suppliers.filter((s) => s.estado === "Activo").length,
+      retrasos: suppliers.filter((s) => (s.reliability ?? 1) < 0.75).length,
+      comprasTotales: suppliers.reduce(
+        (acc, s) => acc + (Number(s.totalPurchases) || 0),
         0
       ),
     };
-  }, [rawSuppliers]);
+  }, [suppliers]);
 
   /* ---------- Filtros ---------- */
   const [search, setSearch] = useState("");
@@ -199,29 +139,31 @@ export default function DashboardSuppliers() {
   };
 
   const filterByDate = (itemDate) => {
-    if (!dateRange || dateRange.length !== 2) return true;
+    if (!itemDate) return true;
+    if (!dateRange || !Array.isArray(dateRange) || !dateRange[0] || !dateRange[1]) {
+      return true;
+    }
     const [s, e] = dateRange;
-    if (!s || !e) return true;
-    const d = new Date(itemDate);
+    const d = itemDate instanceof Date ? itemDate : new Date(itemDate);
+
     const sd = new Date(s);
     sd.setHours(0, 0, 0, 0);
     const ed = new Date(e);
     ed.setHours(23, 59, 59, 999);
+
     return d >= sd && d <= ed;
   };
 
   const filteredSuppliers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rawSuppliers
+    return suppliers
       .filter((s) =>
         q ? `${s.name} ${s.contact} ${s.nit}`.toLowerCase().includes(q) : true
       )
-      .filter((s) => (tipo ? s.type.toLowerCase() === tipo.toLowerCase() : true))
-      .filter((s) =>
-        estado ? s.estado.toLowerCase() === estado.toLowerCase() : true
-      )
+      .filter((s) => (tipo ? (s.type ?? "").toLowerCase() === tipo.toLowerCase() : true))
+      .filter((s) => (estado ? s.estado.toLowerCase() === estado.toLowerCase() : true))
       .filter((s) => filterByDate(s.lastDelivery));
-  }, [rawSuppliers, search, tipo, estado, dateRange]);
+  }, [suppliers, search, tipo, estado, dateRange]);
 
   /* ---------- Charts ---------- */
   const topSuppliersChart = useMemo(
@@ -230,7 +172,7 @@ export default function DashboardSuppliers() {
       datasets: [
         {
           label: "Compras",
-          data: filteredSuppliers.map((s) => s.totalPurchases),
+          data: filteredSuppliers.map((s) => Number(s.totalPurchases) || 0),
           backgroundColor: BAR_GREEN,
           borderColor: BORDER_SUBTLE,
           borderRadius: 12,
@@ -242,7 +184,7 @@ export default function DashboardSuppliers() {
   );
 
   const categoryDistribChart = useMemo(() => {
-    const cats = Array.from(new Set(rawSuppliers.map((s) => s.category)));
+    const cats = Array.from(new Set(suppliers.map((s) => s.category)));
     const data = cats.map(
       (c) => filteredSuppliers.filter((s) => s.category === c).length
     );
@@ -257,7 +199,7 @@ export default function DashboardSuppliers() {
         },
       ],
     };
-  }, [rawSuppliers, filteredSuppliers]);
+  }, [suppliers, filteredSuppliers]);
 
   const commonOptions = useMemo(
     () => ({
@@ -287,22 +229,34 @@ export default function DashboardSuppliers() {
   const retrasosCount = useCountUp(metricas.retrasos);
   const comprasCount = useCountUp(metricas.comprasTotales);
 
-  /* ---------- Scroll to top button state & handlers ---------- */
+  /* ---------- Scroll to top button ---------- */
   const [showScroll, setShowScroll] = useState(false);
-
   useEffect(() => {
-    const onScroll = () => {
-      setShowScroll(window.pageYOffset > 300);
-    };
+    const onScroll = () => setShowScroll(window.pageYOffset > 300);
     window.addEventListener("scroll", onScroll, { passive: true });
-    // check on mount
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  /* ---------- Loading / Error ---------- */
+  if (isLoading) {
+    return (
+      <div className="p-8 min-h-screen flex items-center justify-center bg-white">
+        <p style={{ color: LINE_DARK }}>Cargando proveedores...</p>
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="p-8 min-h-screen flex items-center justify-center bg-white">
+        <p style={{ color: "red" }}>
+          Ocurrió un error al cargar los proveedores. Revisa la API de /suppliers.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -330,10 +284,7 @@ export default function DashboardSuppliers() {
           <motion.section
             variants={childFadeUp}
             className="p-6 rounded-xl"
-            style={{
-              background: "#fff",
-              boxShadow: "0 12px 40px rgba(15,92,46,0.06)",
-            }}
+            style={{ background: "#fff", boxShadow: "0 12px 40px rgba(15,92,46,0.06)" }}
           >
             <div className="flex flex-col lg:flex-row gap-4 lg:items-end">
               <div className="flex-1">
@@ -343,9 +294,7 @@ export default function DashboardSuppliers() {
                 <motion.div
                   whileHover={hoverPower}
                   className="flex items-center gap-2 p-2 rounded-xl"
-                  style={{
-                    boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)",
-                  }}
+                  style={{ boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)" }}
                 >
                   <input
                     value={search}
@@ -359,11 +308,7 @@ export default function DashboardSuppliers() {
                       onClick={() => setSearch("")}
                       whileTap={{ scale: 0.92 }}
                       aria-label="clear"
-                      style={{
-                        padding: 6,
-                        borderRadius: 10,
-                        background: "transparent",
-                      }}
+                      style={{ padding: 6, borderRadius: 10, background: "transparent" }}
                     >
                       ✕
                     </motion.button>
@@ -378,9 +323,7 @@ export default function DashboardSuppliers() {
                 <motion.div
                   whileHover={hoverPower}
                   className="p-2 rounded-xl"
-                  style={{
-                    boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)",
-                  }}
+                  style={{ boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)" }}
                 >
                   <select
                     value={tipo}
@@ -388,18 +331,9 @@ export default function DashboardSuppliers() {
                     className="w-full bg-transparent p-1"
                     style={{ color: "#000" }}
                   >
-                    <option value="" style={{ color: "#000" }}>
-                      Todos
-                    </option>
-                    <option value="Nacional" style={{ color: "#000" }}>
-                      Nacional
-                    </option>
-                    <option value="Local" style={{ color: "#000" }}>
-                      Local
-                    </option>
-                    <option value="Internacional" style={{ color: "#000" }}>
-                      Internacional
-                    </option>
+                    <option value="" style={{ color: "#000" }}>Todos</option>
+                    <option value="Natural" style={{ color: "#000" }}>Natural</option>
+                    <option value="Jurídica" style={{ color: "#000" }}>Jurídica</option>
                   </select>
                 </motion.div>
               </div>
@@ -411,9 +345,7 @@ export default function DashboardSuppliers() {
                 <motion.div
                   whileHover={hoverPower}
                   className="p-2 rounded-xl"
-                  style={{
-                    boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)",
-                  }}
+                  style={{ boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)" }}
                 >
                   <select
                     value={estado}
@@ -421,15 +353,9 @@ export default function DashboardSuppliers() {
                     className="w-full bg-transparent p-1"
                     style={{ color: "#000" }}
                   >
-                    <option value="" style={{ color: "#000" }}>
-                      Todos
-                    </option>
-                    <option value="Activo" style={{ color: "#000" }}>
-                      Activo
-                    </option>
-                    <option value="Inactivo" style={{ color: "#000" }}>
-                      Inactivo
-                    </option>
+                    <option value="" style={{ color: "#000" }}>Todos</option>
+                    <option value="Activo" style={{ color: "#000" }}>Activo</option>
+                    <option value="Inactivo" style={{ color: "#000" }}>Inactivo</option>
                   </select>
                 </motion.div>
               </div>
@@ -441,9 +367,7 @@ export default function DashboardSuppliers() {
                 <motion.div
                   whileHover={hoverPower}
                   className="rounded-xl overflow-hidden p-1"
-                  style={{
-                    boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)",
-                  }}
+                  style={{ boxShadow: "inset 0 8px 30px rgba(15,92,46,0.02)" }}
                 >
                   <Calendar
                     value={dateRange}
@@ -464,11 +388,7 @@ export default function DashboardSuppliers() {
                 whileTap={{ scale: 0.96 }}
                 whileHover={{ scale: 1.03 }}
                 className="px-5 py-2 rounded-full font-semibold"
-                style={{
-                  background: BAR_GREEN,
-                  color: "#000",
-                  boxShadow: "0 12px 40px rgba(15,92,46,0.06)",
-                }}
+                style={{ background: BAR_GREEN, color: "#000", boxShadow: "0 12px 40px rgba(15,92,46,0.06)" }}
               >
                 Limpiar
               </motion.button>
@@ -485,11 +405,7 @@ export default function DashboardSuppliers() {
 
               <div className="ml-auto flex items-center gap-2">
                 <motion.div
-                  animate={
-                    applied
-                      ? { scale: [1, 1.06, 1], rotate: [0, -2, 0] }
-                      : { scale: 1 }
-                  }
+                  animate={applied ? { scale: [1, 1.06, 1], rotate: [0, -2, 0] } : { scale: 1 }}
                   transition={{ duration: 0.8 }}
                   className="text-sm"
                   style={{ color: LINE_DARK }}
@@ -501,155 +417,86 @@ export default function DashboardSuppliers() {
           </motion.section>
 
           {/* METRICAS */}
-          <motion.div
-            variants={childFadeUp}
-            className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-          >
+          <motion.div variants={childFadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <AnimatedCard title="Total Proveedores" value={totalCount} />
             <AnimatedCard title="Activos" value={activosCount} />
             <AnimatedCard title="Con retrasos" value={retrasosCount} />
-            <AnimatedCard
-              title="Compras Totales"
-              value={`$${comprasCount.toLocaleString()}`}
-              small
-            />
+            <AnimatedCard title="Compras Totales" value={`$${comprasCount.toLocaleString()}`} small />
           </motion.div>
 
           {/* GRAFICAS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.section
-              variants={childFadeUp}
-              className="p-6 rounded-xl"
-              style={{
-                background: "#fff",
-                boxShadow: "0 12px 40px rgba(15,92,46,0.06)",
-              }}
-            >
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>
-                Top proveedores por compras
-              </h3>
+            <motion.section variants={childFadeUp} className="p-6 rounded-xl" style={{ background: "#fff", boxShadow: "0 12px 40px rgba(15,92,46,0.06)" }}>
+              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Top proveedores por compras</h3>
               <div style={{ height: 240 }}>
                 <Bar
                   data={topSuppliersChart}
-                  options={{
-                    ...commonOptions,
-                    indexAxis: "y",
-                    animation: { duration: 700 },
-                  }}
+                  options={{ ...commonOptions, indexAxis: "y", animation: { duration: 700 } }}
                 />
               </div>
             </motion.section>
 
-            <motion.section
-              variants={childFadeUp}
-              className="p-6 rounded-xl"
-              style={{
-                background: "#fff",
-                boxShadow: "0 12px 40px rgba(15,92,46,0.06)",
-              }}
-            >
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>
-                Distribución por categoría
-              </h3>
+            <motion.section variants={childFadeUp} className="p-6 rounded-xl" style={{ background: "#fff", boxShadow: "0 12px 40px rgba(15,92,46,0.06)" }}>
+              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Distribución por categoría</h3>
               <div style={{ height: 240 }}>
-                <Pie
-                  data={categoryDistribChart}
-                  options={{ maintainAspectRatio: false }}
-                />
+                <Pie data={categoryDistribChart} options={{ maintainAspectRatio: false }} />
               </div>
             </motion.section>
           </div>
 
           {/* TABLA */}
-          <motion.section
-            variants={childFadeUp}
-            className="p-6 rounded-xl"
-            style={{
-              background: "#fff",
-              boxShadow: "0 12px 40px rgba(15,92,46,0.06)",
-            }}
-          >
-            <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>
-              Proveedores
-            </h3>
+          <motion.section variants={childFadeUp} className="p-6 rounded-xl" style={{ background: "#fff", boxShadow: "0 12px 40px rgba(15,92,46,0.06)" }}>
+            <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Proveedores</h3>
 
             <div className="overflow-x-auto">
-              <table
-                className="w-full text-left table-auto"
-                style={{ borderCollapse: "separate" }}
-              >
+              <table className="w-full text-left table-auto" style={{ borderCollapse: "separate" }}>
                 <thead>
                   <tr>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Proveedor
-                    </th>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Contacto
-                    </th>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Teléfono
-                    </th>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Correo
-                    </th>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Última Entrega
-                    </th>
-                    <th className="p-3 text-sm" style={{ color: "#000" }}>
-                      Confiabilidad
-                    </th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Proveedor</th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Contacto</th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Teléfono</th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Correo</th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Última Entrega</th>
+                    <th className="p-3 text-sm" style={{ color: "#000" }}>Confiabilidad</th>
                   </tr>
                 </thead>
                 <tbody>
                   <AnimatePresence>
                     {filteredSuppliers.map((s, i) => {
-                      const lowReliability = s.reliability < 0.75;
+                      const lowReliability = (s.reliability ?? 1) < 0.75;
                       return (
                         <motion.tr
-                          key={s.nit}
+                          key={s.id ?? s.nit}
                           custom={i}
                           variants={rowVariants}
                           initial="initial"
                           animate="animate"
                           exit="exit"
-                          whileHover={{
-                            scale: 1.01,
-                            boxShadow: "0 12px 40px rgba(15,92,46,0.04)",
-                          }}
+                          whileHover={{ scale: 1.01, boxShadow: "0 12px 40px rgba(15,92,46,0.04)" }}
                           layout
                         >
-                          <td
-                            className="p-3"
-                            style={{ color: "#000", fontWeight: 700 }}
-                          >
-                            {s.name}
-                          </td>
-                          <td className="p-3" style={{ color: "#000" }}>
-                            {s.contact}
-                          </td>
-                          <td className="p-3" style={{ color: "#000" }}>
-                            {s.phone}
-                          </td>
+                          <td className="p-3" style={{ color: "#000", fontWeight: 700 }}>{s.name}</td>
+                          <td className="p-3" style={{ color: "#000" }}>{s.contact}</td>
+                          <td className="p-3" style={{ color: "#000" }}>{s.phone}</td>
                           <td className="p-3">
-                            <a
-                              href={`mailto:${s.correo}`}
-                              className="underline text-green-700 hover:text-green-900"
-                            >
-                              {s.correo}
-                            </a>
+                            {s.correo ? (
+                              <a href={`mailto:${s.correo}`} className="underline text-green-700 hover:text-green-900">
+                                {s.correo}
+                              </a>
+                            ) : (
+                              <span style={{ color: "#555" }}>—</span>
+                            )}
                           </td>
                           <td className="p-3" style={{ color: "#000" }}>
-                            {s.lastDelivery}
+                            {s.lastDelivery ? String(s.lastDelivery).slice(0, 10) : "—"}
                           </td>
                           <td className="p-3">
                             <span
                               className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                lowReliability
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-green-100 text-green-700"
+                                lowReliability ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                               }`}
                             >
-                              {Math.round(s.reliability * 100)}%
+                              {Math.round((s.reliability ?? 1) * 100)}%
                             </span>
                           </td>
                         </motion.tr>
@@ -659,11 +506,7 @@ export default function DashboardSuppliers() {
 
                   {filteredSuppliers.length === 0 && (
                     <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                      <td
-                        colSpan={6}
-                        className="p-6 text-center"
-                        style={{ color: LINE_DARK }}
-                      >
+                      <td colSpan={6} className="p-6 text-center" style={{ color: LINE_DARK }}>
                         No hay proveedores para los filtros seleccionados.
                       </td>
                     </motion.tr>
@@ -704,18 +547,10 @@ function AnimatedCard({ title, value, small = false }) {
       className={`p-4 rounded-xl flex flex-col justify-center ${
         small ? "min-h-[64px]" : "min-h-[88px]"
       }`}
-      style={{
-        background: "#fff",
-        boxShadow: "0 12px 40px rgba(15,92,46,0.04)",
-      }}
+      style={{ background: "#fff", boxShadow: "0 12px 40px rgba(15,92,46,0.04)" }}
     >
-      <p className="text-sm" style={{ color: LINE_DARK }}>
-        {title}
-      </p>
-      <h2
-        className={`font-bold ${small ? "text-lg" : "text-2xl"}`}
-        style={{ color: "#000" }}
-      >
+      <p className="text-sm" style={{ color: LINE_DARK }}>{title}</p>
+      <h2 className={`font-bold ${small ? "text-lg" : "text-2xl"}`} style={{ color: "#000" }}>
         {value}
       </h2>
     </motion.div>

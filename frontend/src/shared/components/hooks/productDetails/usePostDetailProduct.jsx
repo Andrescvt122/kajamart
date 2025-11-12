@@ -7,6 +7,7 @@ export const usePostDetailProduct = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [data, setData] = useState(null);
 
   const postDetailProduct = async (productData) => {
     setLoading(true);
@@ -30,6 +31,7 @@ export const usePostDetailProduct = () => {
 
       console.log("✅ Registro de detalle creado:", res.data);
       setSuccess(true);
+      setData(res.data);
       return res.data;
     } catch (err) {
       console.error("❌ Error al registrar detalle:", err.response?.data || err.message);
@@ -40,5 +42,5 @@ export const usePostDetailProduct = () => {
     }
   };
 
-  return { postDetailProduct, loading, error, success };
+  return { postDetailProduct, loading, error, success,data };
 };

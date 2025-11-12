@@ -18,7 +18,7 @@ export default function SuplliersRegisterModal({
   isOpen,
   onClose,
   onSubmit,
-  categoriasOptions = [], // se respeta si viene, pero se prefiere el hook (porque trae IDs)
+  categoriasOptions = [],
 }) {
   const [form, setForm] = useState({
     nombre: "",
@@ -27,26 +27,20 @@ export default function SuplliersRegisterModal({
     contacto: "",
     telefono: "",
     correo: "",
-    estado: "Activo",
-    categorias: [], // ← IDs numéricos
+    categorias: [],              // ← IDs numéricos
     direccion: "",
+    max_porcentaje_de_devolucion: "",
   });
 
   const createMutation = useCreateSupplier();
 
-  // categorías desde BD
+  // categorías desde BD (solo activas)
   const {
     categories,
     loading: loadingCats,
     error: catsError,
   } = useCategories();
 
-  /**
-   * Normalizamos opciones de categorías para que SIEMPRE sean { id, label },
-   * priorizando las del hook (porque traen id_categoria real).
-   * - El hook useCategories retorna: { id_categoria, nombre, estado, ... }
-   * - Solo usamos las Activas
-   */
   const hookOptions = useMemo(() => {
     if (!Array.isArray(categories)) return [];
     return categories
@@ -59,11 +53,6 @@ export default function SuplliersRegisterModal({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [categories]);
 
-  /**
-   * Si por alguna razón no hay categorías en el hook,
-   * intentamos usar las que vengan por props (si traen nombre, tratamos de mapear a id con el hook).
-   * Si no podemos mapear (no hay hook), se ignoran para evitar enviar categorías sin IDs válidos.
-   */
   const propOptionsMapped = useMemo(() => {
     if (
       !Array.isArray(categoriasOptions) ||
@@ -75,7 +64,6 @@ export default function SuplliersRegisterModal({
     const nameToId = new Map(
       hookOptions.map((o) => [o.label.toLowerCase(), o.id])
     );
-    // categoriasOptions (strings) -> intentar mapear a id usando los nombres del hook
     return categoriasOptions
       .map((name) => {
         const id = nameToId.get(String(name).trim().toLowerCase());
@@ -87,18 +75,16 @@ export default function SuplliersRegisterModal({
   const mergedCategoriasOptions =
     hookOptions.length > 0 ? hookOptions : propOptionsMapped;
 
-  // Mapa id->label para resolver textos de chips
-  const optionsMap = useMemo(() => {
-    return new Map(mergedCategoriasOptions.map((o) => [o.id, o.label]));
-  }, [mergedCategoriasOptions]);
+  const optionsMap = useMemo(
+    () => new Map(mergedCategoriasOptions.map((o) => [o.id, o.label])),
+    [mergedCategoriasOptions]
+  );
 
   const [errors, setErrors] = useState({});
   const [personaOpen, setPersonaOpen] = useState(false);
-  const [estadoOpen, setEstadoOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
 
   const personaRef = useRef();
-  const estadoRef = useRef();
   const categoriasRef = useRef();
 
   // Cierra dropdowns si haces click afuera
@@ -106,8 +92,6 @@ export default function SuplliersRegisterModal({
     const handleClickOutside = (event) => {
       if (personaRef.current && !personaRef.current.contains(event.target))
         setPersonaOpen(false);
-      if (estadoRef.current && !estadoRef.current.contains(event.target))
-        setEstadoOpen(false);
       if (
         categoriasRef.current &&
         !categoriasRef.current.contains(event.target)
@@ -177,6 +161,7 @@ export default function SuplliersRegisterModal({
     Object.entries(form).forEach(([key, value]) => {
       if (
         key !== "direccion" &&
+        key !== "max_porcentaje_de_devolucion" &&
         (value === null ||
           value === undefined ||
           value?.toString().trim() === "")
@@ -184,20 +169,17 @@ export default function SuplliersRegisterModal({
         newErrors[key] = "Este campo es obligatorio";
       } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (value && !emailRegex.test(value))
-          newErrors[key] = "Correo inválido";
+        if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
       } else if (key === "telefono" || key === "nit") {
-        if (value && !/^\d+$/.test(value))
-          newErrors[key] = "Solo se permiten números";
-      }
-      else if (key === "max_porcentaje_de_devolucion") {
+        if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
+      } else if (key === "max_porcentaje_de_devolucion") {
         if (
           value &&
           (isNaN(value) || Number(value) < 0 || Number(value) > 100)
         ) {
           newErrors[key] = "Debe ser un número entre 0 y 100";
         }
-      }      
+      }
     });
     if (!Array.isArray(form.categorias) || form.categorias.length === 0)
       newErrors.categorias = "Seleccione al menos una categoría";
@@ -209,7 +191,7 @@ export default function SuplliersRegisterModal({
     e.preventDefault();
     if (!validateAll()) return;
 
-    // payload al backend (categorias son IDs)
+    // payload al backend (estado SIEMPRE activo)
     const payload = {
       nombre: form.nombre.trim(),
       nit: Number(form.nit),
@@ -218,13 +200,12 @@ export default function SuplliersRegisterModal({
       telefono: form.telefono.trim(),
       correo: form.correo.trim(),
       direccion: form.direccion.trim(),
-      estado: form.estado === "Activo",
+      estado: true, // 👈 siempre activo
       categorias: form.categorias,
       max_porcentaje_de_devolucion: form.max_porcentaje_de_devolucion
         ? parseFloat(form.max_porcentaje_de_devolucion)
         : null,
     };
-    
 
     showLoadingAlert("Registrando proveedor...");
     createMutation.mutate(payload, {
@@ -237,6 +218,7 @@ export default function SuplliersRegisterModal({
         if (typeof onSubmit === "function") onSubmit(payload);
         onClose && onClose();
 
+        // Reset
         setForm({
           nombre: "",
           nit: "",
@@ -244,9 +226,9 @@ export default function SuplliersRegisterModal({
           contacto: "",
           telefono: "",
           correo: "",
-          estado: "Activo",
           categorias: [],
           direccion: "",
+          max_porcentaje_de_devolucion: "",
         });
         setErrors({});
       },
@@ -302,9 +284,7 @@ export default function SuplliersRegisterModal({
             <div className="grid grid-cols-2 gap-4">
               {/* Nombre */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Nombre
-                </label>
+                <label className="block text-sm text-gray-700 mb-1">Nombre</label>
                 <input
                   name="nombre"
                   value={form.nombre}
@@ -340,9 +320,7 @@ export default function SuplliersRegisterModal({
 
               {/* Tipo de persona */}
               <div ref={personaRef}>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Tipo de persona
-                </label>
+                <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
                 <div className="relative mt-1 w-full">
                   <div className="w-full border border-gray-300 bg-white rounded-lg">
                     <button
@@ -395,17 +373,13 @@ export default function SuplliersRegisterModal({
                   </AnimatePresence>
                 </div>
                 {errors.personaType && (
-                  <span className="text-red-500 text-xs">
-                    {errors.personaType}
-                  </span>
+                  <span className="text-red-500 text-xs">{errors.personaType}</span>
                 )}
               </div>
 
               {/* Contacto */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Persona de contacto
-                </label>
+                <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
                 <input
                   name="contacto"
                   value={form.contacto}
@@ -416,17 +390,13 @@ export default function SuplliersRegisterModal({
                   required
                 />
                 {errors.contacto && (
-                  <span className="text-red-500 text-xs">
-                    {errors.contacto}
-                  </span>
+                  <span className="text-red-500 text-xs">{errors.contacto}</span>
                 )}
               </div>
 
               {/* Teléfono */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Teléfono de contacto
-                </label>
+                <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
                 <input
                   name="telefono"
                   value={form.telefono}
@@ -439,17 +409,13 @@ export default function SuplliersRegisterModal({
                   required
                 />
                 {errors.telefono && (
-                  <span className="text-red-500 text-xs">
-                    {errors.telefono}
-                  </span>
+                  <span className="text-red-500 text-xs">{errors.telefono}</span>
                 )}
               </div>
 
               {/* Correo */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Correo
-                </label>
+                <label className="block text-sm text-gray-700 mb-1">Correo</label>
                 <input
                   name="correo"
                   type="email"
@@ -464,94 +430,8 @@ export default function SuplliersRegisterModal({
                   <span className="text-red-500 text-xs">{errors.correo}</span>
                 )}
               </div>
-
-              {/* Estado */}
-              <div ref={estadoRef}>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Estado
-                </label>
-                <div
-                  className={`relative mt-1 w-full rounded-lg border transition ${
-                    form.estado === "Activo"
-                      ? "border-green-500 bg-green-50"
-                      : form.estado === "Inactivo"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-300 bg-white"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setEstadoOpen((s) => !s)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-transparent rounded-lg text-sm focus:outline-none"
-                  >
-                    <span
-                      className={`${
-                        form.estado === "Activo"
-                          ? "text-green-700 font-medium"
-                          : form.estado === "Inactivo"
-                          ? "text-red-700 font-medium"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {form.estado || "Seleccionar estado"}
-                    </span>
-                    <motion.span
-                      animate={{ rotate: estadoOpen ? 180 : 0 }}
-                      transition={{ duration: 0.18 }}
-                    >
-                      <ChevronDown
-                        size={18}
-                        className={`${
-                          form.estado === "Activo"
-                            ? "text-green-700"
-                            : form.estado === "Inactivo"
-                            ? "text-red-700"
-                            : "text-gray-500"
-                        }`}
-                      />
-                    </motion.span>
-                  </button>
-                  <AnimatePresence>
-                    {estadoOpen && (
-                      <motion.ul
-                        className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50"
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        variants={listVariants}
-                      >
-                        {["Activo", "Inactivo"].map((opt) => (
-                          <motion.li
-                            key={opt}
-                            variants={itemVariants}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, estado: opt }));
-                              setEstadoOpen(false);
-                            }}
-                            className={`px-4 py-3 cursor-pointer text-sm ${
-                              opt === "Activo"
-                                ? "hover:bg-green-50 text-green-700"
-                                : "hover:bg-red-50 text-red-700"
-                            } ${
-                              form.estado === opt
-                                ? opt === "Activo"
-                                  ? "bg-green-100 font-medium"
-                                  : "bg-red-100 font-medium"
-                                : ""
-                            }`}
-                          >
-                            {opt}
-                          </motion.li>
-                        ))}
-                      </motion.ul>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {errors.estado && (
-                  <span className="text-red-500 text-xs">{errors.estado}</span>
-                )}
-              </div>
             </div>
+
             {/* Máximo porcentaje de devolución */}
             <div>
               <label className="block text-sm text-gray-700 mb-1">
@@ -562,7 +442,6 @@ export default function SuplliersRegisterModal({
                 value={form.max_porcentaje_de_devolucion}
                 onChange={(e) => {
                   const value = e.target.value;
-                  // Solo números y un punto decimal
                   if (/^\d*\.?\d*$/.test(value)) {
                     setForm((prev) => ({
                       ...prev,
@@ -573,10 +452,7 @@ export default function SuplliersRegisterModal({
                 onBlur={(e) => {
                   const value = e.target.value.trim();
                   let error = "";
-                  if (
-                    value &&
-                    (isNaN(value) || Number(value) < 0 || Number(value) > 100)
-                  ) {
+                  if (value && (isNaN(value) || Number(value) < 0 || Number(value) > 100)) {
                     error = "Debe ser un número entre 0 y 100";
                   }
                   setErrors((prev) => ({
@@ -597,11 +473,8 @@ export default function SuplliersRegisterModal({
 
             {/* Categorías (IDs) */}
             <div ref={categoriasRef} className="mt-2">
-              <label className="block text-sm text-gray-700 mb-1">
-                Categorías
-              </label>
+              <label className="block text-sm text-gray-700 mb-1">Categorías</label>
 
-              {/* Error de categorías */}
               {catsError && mergedCategoriasOptions.length === 0 && (
                 <p className="text-xs text-red-600 mb-1">
                   Error al cargar categorías: {String(catsError)}
@@ -613,14 +486,11 @@ export default function SuplliersRegisterModal({
                   <button
                     type="button"
                     onClick={() => {
-                      if (loadingCats && mergedCategoriasOptions.length === 0)
-                        return;
+                      if (loadingCats && mergedCategoriasOptions.length === 0) return;
                       setCategoriasOpen((s) => !s);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
-                    disabled={
-                      loadingCats && mergedCategoriasOptions.length === 0
-                    }
+                    disabled={loadingCats && mergedCategoriasOptions.length === 0}
                     title={
                       loadingCats && mergedCategoriasOptions.length === 0
                         ? "Cargando categorías..."
@@ -629,13 +499,9 @@ export default function SuplliersRegisterModal({
                   >
                     <div className="flex items-center">
                       {loadingCats && mergedCategoriasOptions.length === 0 ? (
-                        <span className="text-sm text-gray-400">
-                          Cargando categorías...
-                        </span>
+                        <span className="text-sm text-gray-400">Cargando categorías...</span>
                       ) : form.categorias.length === 0 ? (
-                        <span className="text-sm text-gray-400">
-                          Seleccionar categorías
-                        </span>
+                        <span className="text-sm text-gray-400">Seleccionar categorías</span>
                       ) : (
                         <span className="text-sm text-gray-800">
                           {form.categorias.length} seleccionada(s)
@@ -705,17 +571,13 @@ export default function SuplliersRegisterModal({
                 ))}
               </div>
               {errors.categorias && (
-                <span className="text-red-500 text-xs">
-                  {errors.categorias}
-                </span>
+                <span className="text-red-500 text-xs">{errors.categorias}</span>
               )}
             </div>
 
             {/* Dirección */}
             <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Dirección
-              </label>
+              <label className="block text-sm text-gray-700 mb-1">Dirección</label>
               <input
                 name="direccion"
                 value={form.direccion}

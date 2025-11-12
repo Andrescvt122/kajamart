@@ -27,28 +27,31 @@ const itemVariants = {
   visible: { opacity: 1 },
 };
 
+// 🔹 Helper para considerar activo: boolean true o string "Activo"/"activo"
+const isActive = (v) => v === true || v === "Activo" || v === "activo";
+
 export default function ProductRegisterModal({ isOpen, onClose }) {
   const {
     categories: catList = [],
     loading: catLoading,
   } = useCategories();
 
-  const activeCategories = catList.filter(
-    (c) => c.estado === "Activo" || c.estado === "activo"
+  // 🔹 Solo categorías activas
+  const activeCategories = (Array.isArray(catList) ? catList : []).filter((c) =>
+    isActive(c?.estado)
   );
 
   const { data: suppliersRaw = [], isLoading: supLoading } =
     useSuppliersQuery();
 
-  const suppliers = Array.isArray(suppliersRaw)
-    ? suppliersRaw
-        .map((s) => ({
-          id: s.id_proveedor ?? null,
-          nombre: s.nombre ?? "",
-          estado: s.estado === true || s.estado === "Activo",
-        }))
-        .filter((s) => s.id && s.nombre)
-    : [];
+  // 🔹 Solo proveedores activos
+  const suppliers = (Array.isArray(suppliersRaw) ? suppliersRaw : [])
+    .filter((s) => isActive(s?.estado))
+    .map((s) => ({
+      id: s.id_proveedor ?? s.id ?? null,
+      nombre: s.nombre ?? "",
+    }))
+    .filter((s) => s.id && s.nombre);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -60,7 +63,6 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     stock: "",
     stockMin: "",
     stockMax: "",
-    estado: "",
     categoriaId: "",
     proveedorId: "",
   });
@@ -70,24 +72,18 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
 
   const [errors, setErrors] = useState({});
 
-  const [estadoOpen, setEstadoOpen] = useState(false);
   const [categoriaOpen, setCategoriaOpen] = useState(false);
   const [proveedorOpen, setProveedorOpen] = useState(false);
-  const estadoRef = useRef(null);
   const categoriaRef = useRef(null);
   const proveedorRef = useRef(null);
-
-  const estadoOptions = [
-    { value: "Activo", label: "Activo" },
-    { value: "Inactivo", label: "Inactivo" },
-  ];
 
   // Cerrar dropdowns al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e) {
-      if (estadoRef.current && !estadoRef.current.contains(e.target)) setEstadoOpen(false);
-      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) setCategoriaOpen(false);
-      if (proveedorRef.current && !proveedorRef.current.contains(e.target)) setProveedorOpen(false);
+      if (categoriaRef.current && !categoriaRef.current.contains(e.target))
+        setCategoriaOpen(false);
+      if (proveedorRef.current && !proveedorRef.current.contains(e.target))
+        setProveedorOpen(false);
     }
     if (isOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -106,14 +102,12 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       stock: "",
       stockMin: "",
       stockMax: "",
-      estado: "",
       categoriaId: "",
       proveedorId: "",
     });
     setImagenFile(null);
     setPreviewURL(null);
     setErrors({});
-    setEstadoOpen(false);
     setCategoriaOpen(false);
     setProveedorOpen(false);
   }, [isOpen]);
@@ -149,9 +143,6 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
           error = "Debe ser un número válido (>= 0).";
         }
         break;
-      case "estado":
-        if (!value) error = "Selecciona un estado.";
-        break;
       case "categoriaId":
         if (!value) error = "Selecciona una categoría.";
         break;
@@ -181,13 +172,18 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
   const onSubmit = async (e) => {
     e.preventDefault();
 
+    // Extra: asegurar que la selección sigue siendo activa al enviar
+    const catOk = activeCategories.some(
+      (c) => String(c.id_categoria ?? c.id) === String(form.categoriaId)
+    );
+    const provOk = suppliers.some((s) => String(s.id) === String(form.proveedorId));
+
     const required = [
       "nombre",
       "precioCompra",
       "precioVenta",
       "subidaVenta",
       "stock",
-      "estado",
       "categoriaId",
       "proveedorId",
     ];
@@ -196,6 +192,15 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       validateField(f, form[f]);
       if (!form[f] || errors[f]) valid = false;
     });
+
+    if (!catOk) {
+      valid = false;
+      setErrors((p) => ({ ...p, categoriaId: "La categoría no es válida o está inactiva." }));
+    }
+    if (!provOk) {
+      valid = false;
+      setErrors((p) => ({ ...p, proveedorId: "El proveedor no es válido o está inactivo." }));
+    }
 
     if (!imagenFile) {
       valid = false;
@@ -225,7 +230,8 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
           : (Number(form.stock) || 0) * 5
       )
     );
-    fd.append("estado", form.estado === "Activo" ? "true" : "false");
+    // 🔹 siempre activo
+    fd.append("estado", "true");
     fd.append("id_categoria", String(form.categoriaId));
     fd.append("iva", "0");
     fd.append("icu", "0");
@@ -238,11 +244,15 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     try {
       showLoadingAlert && showLoadingAlert("Registrando producto...");
       await createMutation.mutateAsync(fd);
-      try { Swal.close(); } catch (_) {}
+      try {
+        Swal.close();
+      } catch (_) {}
       showSuccessAlert && showSuccessAlert("Producto registrado");
       onClose?.();
     } catch (err) {
-      try { Swal.close(); } catch (_) {}
+      try {
+        Swal.close();
+      } catch (_) {}
       const msg =
         err?.response?.data?.message ||
         err?.message ||
@@ -284,7 +294,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
               </button>
             </div>
 
-            {/* FORM (mantenemos tu onSubmit) */}
+            {/* FORM */}
             <form onSubmit={onSubmit} className="px-6">
               {/* Contenido scrollable */}
               <div className="pt-4 pb-24 max-h-[75vh] overflow-y-auto space-y-6">
@@ -558,95 +568,8 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Estado, categoría, proveedor */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Estado */}
-                  <div className="relative" ref={estadoRef}>
-                    <label className="block text-sm font-semibold">
-                      Estado*
-                    </label>
-                    <div
-                      className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border 
-                        ${
-                          form.estado === "Activo"
-                            ? "border-green-500 bg-green-50"
-                            : form.estado === "Inactivo"
-                            ? "border-red-500 bg-red-50"
-                            : errors.estado
-                            ? "border-red-500 bg-white"
-                            : "border-gray-300 bg-white"
-                        }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setEstadoOpen((s) => !s)}
-                        className="flex w-full items-center justify-between text-sm"
-                      >
-                        <span
-                          className={`${
-                            form.estado === "Activo"
-                              ? "text-green-700 font-medium"
-                              : form.estado === "Inactivo"
-                              ? "text-red-700 font-medium"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          {form.estado || "Seleccionar estado"}
-                        </span>
-                        <motion.span
-                          animate={{ rotate: estadoOpen ? 180 : 0 }}
-                          transition={{ duration: 0.18 }}
-                        >
-                          <ChevronDown size={18} />
-                        </motion.span>
-                      </button>
-                    </div>
-                    {errors.estado && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.estado}
-                      </p>
-                    )}
-                    <AnimatePresence>
-                      {estadoOpen && (
-                        <motion.ul
-                          className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-56 overflow-y-auto"
-                          initial="hidden"
-                          animate="visible"
-                          exit="hidden"
-                          variants={listVariants}
-                        >
-                          {estadoOptions.map((opt) => (
-                            <motion.li
-                              key={opt.value}
-                              variants={itemVariants}
-                              onClick={() => {
-                                setForm((prev) => ({
-                                  ...prev,
-                                  estado: opt.value,
-                                }));
-                                validateField("estado", opt.value);
-                                setEstadoOpen(false);
-                              }}
-                              className={`px-4 py-3 cursor-pointer text-sm ${
-                                opt.value === "Activo"
-                                  ? "hover:bg-green-50 text-green-700"
-                                  : "hover:bg-red-50 text-red-700"
-                              } ${
-                                form.estado === opt.value
-                                  ? opt.value === "Activo"
-                                    ? "bg-green-100 font-medium"
-                                    : "bg-red-100 font-medium"
-                                  : ""
-                              }`}
-                            >
-                              {opt.label}
-                            </motion.li>
-                          ))}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
+                {/* Categoría, proveedor */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                   {/* Categoría */}
                   <div className="relative" ref={categoriaRef}>
                     <label className="block text-sm font-semibold">
@@ -767,7 +690,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                           {supLoading
                             ? "Cargando proveedores…"
                             : suppliers.length === 0
-                            ? "No hay proveedores"
+                            ? "No hay proveedores activos"
                             : form.proveedorId
                             ? suppliers.find(
                                 (s) =>
@@ -825,7 +748,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              {/* Footer sticky (dentro del form) */}
+              {/* Footer sticky */}
               <div className="sticky bottom-0 z-10 flex justify-end gap-3 -mx-6 px-6 py-4 border-t bg-white/90 backdrop-blur">
                 <button
                   type="button"
