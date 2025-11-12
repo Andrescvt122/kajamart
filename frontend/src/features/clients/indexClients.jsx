@@ -262,34 +262,34 @@ export default function IndexClients() {
           <div className="flex gap-2 flex-shrink-0">
             {/* Exportar a Excel */}
            {/* Exportar a Excel */}
-          <ExportExcelButton
-            event={() =>
-              exportToXls(
-                allClients.map((c) => ({
-                  ...c,
-                  correo: c.correo?.trim() || "N/A",
-                  telefono: c.telefono?.trim() || "N/A",
-                }))
-              )
-            }
-          >
-            Excel
-          </ExportExcelButton>
+      <ExportExcelButton
+        event={() =>
+          exportToXls(
+            allClients.map((c) => ({
+              ...c,
+              correo: c.correo?.trim() || "N/A",
+              telefono: c.telefono?.trim() || "N/A",
+            }))
+          )
+        }
+      >
+        Excel
+      </ExportExcelButton>
 
-          {/* Exportar a PDF */}
-          <ExportPDFButton
-            event={() =>
-              exportToPdf(
-                allClients.map((c) => ({
-                  ...c,
-                  correo: c.correo?.trim() || "N/A",
-                  telefono: c.telefono?.trim() || "N/A",
-                }))
-              )
-            }
-          >
-            PDF
-          </ExportPDFButton>
+      {/* Exportar a PDF */}
+      <ExportPDFButton
+        event={() =>
+          exportToPdf(
+            allClients.map((c) => ({
+              ...c,
+              correo: c.correo?.trim() || "N/A",
+              telefono: c.telefono?.trim() || "N/A",
+            }))
+          )
+        }
+      >
+        PDF
+      </ExportPDFButton>
 
 
             <button
