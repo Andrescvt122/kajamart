@@ -14,7 +14,7 @@ import ProductRegistrationModal from "./ProductRegistrationModal";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
-import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
+import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -45,7 +45,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
-    const existingIndex = selectedProducts.findIndex((p) => p.id === product.id);
+    const existingIndex = selectedProducts.findIndex((p) => p.id_producto === product.id_producto);
     const safeQuantity = product.returnQuantity ?? 1;
 
     if (existingIndex > -1) {
@@ -94,46 +94,51 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleProductReasonChange = (productId, reasonValue) => {
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id === productId ? { ...p, returnReason: reasonValue } : p
+        p.id_producto === productId ? { ...p, returnReason: reasonValue } : p
       )
     );
   };
 
-  // Cambiar acción por producto
-  const handleProductActionChange = (productId, actionValue) => {
+  /**
+   * Cambiar acción por producto
+   * - Si se selecciona "registrar" => abre el modal de ProductRegistrationModal.
+   * - Si ya hay detalle registrado y se intenta seleccionar "descuento" => muestra aviso y no cambia.
+   */
+  const handleProductActionChange = (product, actionValue) => {
+    const hasDetail = !!getPendingDetailForProduct(product.id_producto);
+
+    // Si ya hay detalle y se intenta seleccionar "descuento", bloqueamos y avisamos
+    if (actionValue === "descuento" && hasDetail) {
+      alert(
+        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto."
+      );
+      return;
+    }
+
+    // Actualizamos la acción
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id === productId ? { ...p, actionType: actionValue } : p
+        p.id_producto === product.id_producto ? { ...p, actionType: actionValue } : p
       )
     );
 
-    // ❗ YA NO abrimos el modal aquí.
-    // El modal se abre al marcar el checkbox "Registrar código de barras".
+    // Si la acción es "registrar", abrimos el modal de registro
+    if (actionValue === "registrar") {
+      setProductToRegister(product);
+      setIsRegistrationModalOpen(true);
+    }
   };
 
   const toggleConfigDropdown = (productId) => {
     setOpenConfigProductId((prev) => (prev === productId ? null : productId));
   };
 
-  // Checkbox "Registrar código de barras"
-  const handleToggleRegisterCheckbox = (product, checked) => {
-    const existing = getPendingDetailForProduct(product.id);
-
-    if (checked) {
-      // Abrir modal para completar detalle
-      setProductToRegister(product);
-      setIsRegistrationModalOpen(true);
-    } else {
-      // Eliminar detalle temporal y permitir de nuevo las acciones
-      if (existing) {
-        handleDeleteDetail(product.id);
-      }
-    }
-  };
-
   // Cuando el modal de registro confirma el detalle (NO se guarda aún en BD)
   const handleConfirmRegistration = (registeredDetail) => {
-    if (!registeredDetail || !registeredDetail.productKey) return;
+    if (!registeredDetail || !registeredDetail.productKey) {
+      console.log("No se envio detalle", registeredDetail);
+      return;
+    }
 
     setPendingDetails((prev) => {
       const filtered = prev.filter(
@@ -141,18 +146,24 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       );
       return [...filtered, registeredDetail];
     });
-
+    console.log("registeredDetail", registeredDetail);
+    console.log("pendingDetails", pendingDetails); 
     setIsRegistrationModalOpen(false);
     setProductToRegister(null);
   };
 
+  /**
+   * Borrar un detalle registrado:
+   * - Lo quitamos de pendingDetails
+   * - Limpiamos la acción del producto (se desmarca "Registrar")
+   */
   const handleDeleteDetail = (productId) => {
     setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
 
     // Desmarcar acción "registrar" para dejar el producto libre de nuevo
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id === productId ? { ...p, actionType: "" } : p
+        p.id_producto === productId ? { ...p, actionType: "" } : p
       )
     );
   };
@@ -167,7 +178,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   };
 
   const handleConfirmReturn = async () => {
-    if (selectedProducts.length === 0) {
+    if (selectedProducts.length == 0) {
+      console.log("selectedProducts in handle length", selectedProducts.length==0);
       alert("Debe seleccionar al menos un producto para devolver");
       return;
     }
@@ -187,9 +199,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const missingDetail = selectedProducts.find(
       (p) =>
         p.actionType === "registrar" &&
-        !getPendingDetailForProduct(p.id)
+        !getPendingDetailForProduct(p.id_producto)
     );
-
     if (missingDetail) {
       alert(
         `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
@@ -208,7 +219,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       alert("Ocurrió un error al guardar los detalles de productos.");
       return;
     }
-
+    console.log("selectedProducts", selectedProducts);
     // 2️⃣ Guardar la devolución como ya lo hacías
     const result = await postReturnProducts(id_responsable, selectedProducts);
 
@@ -340,11 +351,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                           >
                             {selectedProducts.map((product) => {
                               const detail = getPendingDetailForProduct(
-                                product.id
+                                product.id_producto
                               );
                               return (
                                 <motion.div
-                                  key={product.id}
+                                  key={product.id_producto}
                                   className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg"
                                   variants={{
                                     hidden: { opacity: 0, y: 20 },
@@ -381,7 +392,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     <div className="flex items-center gap-2">
                                       <motion.button
                                         onClick={() =>
-                                          handleUpdateQuantity(product.id, -1)
+                                          handleUpdateQuantity(product.id_producto, -1)
                                         }
                                         disabled={product.returnQuantity <= 1}
                                         className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
@@ -410,7 +421,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       </motion.span>
                                       <motion.button
                                         onClick={() =>
-                                          handleUpdateQuantity(product.id, 1)
+                                          handleUpdateQuantity(product.id_producto, 1)
                                         }
                                         disabled={
                                           product.returnQuantity >=
@@ -431,12 +442,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        toggleConfigDropdown(product.id)
+                                        toggleConfigDropdown(product.id_producto)
                                       }
                                       className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
                                     >
                                       Opciones
-                                      {openConfigProductId === product.id ? (
+                                      {openConfigProductId === product.id_producto ? (
                                         <ChevronUp size={14} />
                                       ) : (
                                         <ChevronDown size={14} />
@@ -445,7 +456,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
                                     <motion.button
                                       onClick={() =>
-                                        handleRemoveProduct(product.id)
+                                        handleRemoveProduct(product.id_producto)
                                       }
                                       className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full"
                                       whileHover={{
@@ -461,7 +472,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
                                   {/* Dropdown por producto */}
                                   <AnimatePresence>
-                                    {openConfigProductId === product.id && (
+                                    {openConfigProductId === product.id_producto && (
                                       <motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: "auto" }}
@@ -489,12 +500,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                 >
                                                   <input
                                                     type="radio"
-                                                    name={`returnReason-${product.id}`}
+                                                    name={`returnReason-${product.id_producto}`}
                                                     value={reason.value}
                                                     checked={isSelected}
                                                     onChange={() =>
                                                       handleProductReasonChange(
-                                                        product.id,
+                                                        product.id_producto,
                                                         reason.value
                                                       )
                                                     }
@@ -538,7 +549,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                           </div>
                                         </div>
 
-                                        {/* Acción */}
+                                        {/* Acción + detalle */}
                                         <div>
                                           <p className="text-xs font-semibold text-gray-700 mb-2">
                                             Acción a realizar
@@ -554,131 +565,116 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                 action.value === "descuento";
 
                                               return (
-                                                <label
-                                                  key={action.value}
-                                                  className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
-                                                    isSelected
-                                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                                      : "border-gray-200 hover:bg-gray-50"
-                                                  } ${
-                                                    isDiscountDisabled
-                                                      ? "opacity-50 cursor-not-allowed"
-                                                      : ""
-                                                  }`}
-                                                >
-                                                  <input
-                                                    type="radio"
-                                                    name={`actionType-${product.id}`}
-                                                    value={action.value}
-                                                    checked={isSelected}
-                                                    disabled={isDiscountDisabled}
-                                                    onChange={() =>
+                                                <div key={action.value}>
+                                                  <label
+                                                    className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
+                                                      isSelected
+                                                        ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                                                        : "border-gray-200 hover:bg-gray-50"
+                                                    } ${
+                                                      isDiscountDisabled
+                                                        ? "opacity-50 cursor-not-allowed"
+                                                        : ""
+                                                    }`}
+                                                    onClick={() =>
                                                       handleProductActionChange(
-                                                        product.id,
+                                                        product,
                                                         action.value
                                                       )
                                                     }
-                                                    className="hidden"
-                                                  />
-                                                  <div
-                                                    className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
-                                                      isSelected
-                                                        ? "bg-emerald-600 border-emerald-600"
-                                                        : "bg-white border-gray-300"
-                                                    }`}
                                                   >
-                                                    {isSelected && (
-                                                      <svg
-                                                        className="w-3 h-3 text-white"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="3"
-                                                        viewBox="0 0 24 24"
-                                                      >
-                                                        <path
-                                                          strokeLinecap="round"
-                                                          strokeLinejoin="round"
-                                                          d="M5 13l4 4L19 7"
-                                                        />
-                                                      </svg>
+                                                    <input
+                                                      type="radio"
+                                                      name={`actionType-${product.id_producto}`}
+                                                      value={action.value}
+                                                      checked={isSelected}
+                                                      readOnly
+                                                      className="hidden"
+                                                    />
+                                                    <div
+                                                      className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
+                                                        isSelected
+                                                          ? "bg-emerald-600 border-emerald-600"
+                                                          : "bg-white border-gray-300"
+                                                      }`}
+                                                    >
+                                                      {isSelected && (
+                                                        <svg
+                                                          className="w-3 h-3 text-white"
+                                                          fill="none"
+                                                          stroke="currentColor"
+                                                          strokeWidth="3"
+                                                          viewBox="0 0 24 24"
+                                                        >
+                                                          <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M5 13l4 4L19 7"
+                                                          />
+                                                        </svg>
+                                                      )}
+                                                    </div>
+                                                    <span
+                                                      className={`text-xs font-medium transition ${
+                                                        isSelected
+                                                          ? "text-emerald-700"
+                                                          : "text-gray-700"
+                                                      }`}
+                                                    >
+                                                      {action.label}
+                                                      {isDiscountDisabled &&
+                                                        " (inhabilitado por detalle registrado)"}
+                                                    </span>
+                                                  </label>
+
+                                                  {/* Código de barras debajo del checkbox "Registrar" */}
+                                                  {console.log("details",detail)}
+                                                  {action.value === "registrar" &&
+                                                    detail && (
+                                                      <div className="ml-7 mt-1 text-xs bg-emerald-50 border border-emerald-200 rounded-md p-2 flex items-center justify-between gap-2">
+                                                        <div className="space-y-1">
+                                                          <p className="font-semibold text-emerald-800">
+                                                            Detalle registrado temporalmente
+                                                          </p>
+                                                          <p className="text-gray-700">
+                                                            <span className="font-medium">
+                                                              Código de barras:
+                                                            </span>{" "}
+                                                            {detail.registeredBarcode}
+                                                          </p>
+                                                          <p className="text-gray-700">
+                                                            <span className="font-medium">
+                                                              Cantidad:
+                                                            </span>{" "}
+                                                            {detail.registeredQuantity}
+                                                          </p>
+                                                          {detail.fecha_vencimiento && (
+                                                            <p className="text-gray-700">
+                                                              <span className="font-medium">
+                                                                Vencimiento:
+                                                              </span>{" "}
+                                                              {new Date(detail.registeredExpiry).toLocaleDateString("es-ES")}
+                                                            </p>
+                                                          )}
+                                                        </div>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            handleDeleteDetail(
+                                                              product.id_producto
+                                                            )
+                                                          }
+                                                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
+                                                        >
+                                                          <Trash2 size={14} />
+                                                          <span>Eliminar</span>
+                                                        </button>
+                                                      </div>
                                                     )}
-                                                  </div>
-                                                  <span
-                                                    className={`text-xs font-medium transition ${
-                                                      isSelected
-                                                        ? "text-emerald-700"
-                                                        : "text-gray-700"
-                                                    }`}
-                                                  >
-                                                    {action.label}
-                                                    {isDiscountDisabled &&
-                                                      " (inhabilitado por detalle registrado)"}
-                                                  </span>
-                                                </label>
+                                                </div>
                                               );
                                             })}
                                           </div>
-                                        </div>
-
-                                        {/* Checkbox Registrar código de barras + detalle temporal */}
-                                        <div className="mt-3 space-y-2">
-                                          <label className="flex items-center gap-2 text-xs text-gray-700">
-                                            <input
-                                              type="checkbox"
-                                              className="rounded border-gray-300"
-                                              checked={!!detail}
-                                              disabled={
-                                                product.actionType !== "registrar"
-                                              }
-                                              onChange={(e) =>
-                                                handleToggleRegisterCheckbox(
-                                                  product,
-                                                  e.target.checked
-                                                )
-                                              }
-                                            />
-                                            Registrar código de barras
-                                          </label>
-
-                                          {/* Detalle temporal debajo del checkbox */}
-                                          {detail && (
-                                            <div className="mt-1 text-xs bg-emerald-50 border border-emerald-200 rounded-md p-2 flex items-start justify-between gap-2">
-                                              <div className="space-y-1">
-                                                <p className="font-semibold text-emerald-800">
-                                                  Detalle registrado temporalmente
-                                                </p>
-                                                <p className="text-gray-700">
-                                                  <span className="font-medium">
-                                                    Código de barras:
-                                                  </span>{" "}
-                                                  {detail.registeredBarcode}
-                                                </p>
-                                                <p className="text-gray-700">
-                                                  <span className="font-medium">
-                                                    Cantidad:
-                                                  </span>{" "}
-                                                  {detail.registeredQuantity}
-                                                </p>
-                                                {detail.registeredExpiry && (
-                                                  <p className="text-gray-700">
-                                                    <span className="font-medium">
-                                                      Vencimiento:
-                                                    </span>{" "}
-                                                    {detail.registeredExpiry}
-                                                  </p>
-                                                )}
-                                              </div>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  handleDeleteDetail(product.id)
-                                                }
-                                                className="text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
-                                              >
-                                                Eliminar
-                                              </button>
-                                            </div>
-                                          )}
                                         </div>
                                       </motion.div>
                                     )}
