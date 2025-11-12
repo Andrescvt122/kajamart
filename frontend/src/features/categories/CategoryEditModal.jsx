@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
+const DESC_MAX = 80; // mismo límite que en el formulario de registro
+
 export default function CategoryEditModal({ isOpen, onClose, category, onSave }) {
   const [form, setForm] = useState({
     nombre: "",
@@ -29,7 +31,8 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
       setForm({
         nombre: category.nombre || "",
         estado: category.estado || "",
-        descripcion: category.descripcion || "",
+        // asegurar que no exceda el límite al abrir
+        descripcion: (category.descripcion || "").slice(0, DESC_MAX),
       });
       setErrors({ nombre: "", estado: "", descripcion: "" });
     }
@@ -53,7 +56,12 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    // recorte seguro en descripcion
+    const nextValue =
+      name === "descripcion" ? value.slice(0, DESC_MAX) : value;
+
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
@@ -68,9 +76,12 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     if (!form.estado) newErrors.estado = "Selecciona un estado.";
     if (!form.descripcion.trim())
       newErrors.descripcion = "La descripción es obligatoria.";
+    // el tope ya se aplica con slice y maxLength, pero dejamos el mensaje por claridad
+    if (form.descripcion.length > DESC_MAX)
+      newErrors.descripcion = `Máximo ${DESC_MAX} caracteres.`;
 
     setErrors(newErrors);
-    return !Object.values(newErrors).some((msg) => msg);
+    return !Object.values(newErrors).some(Boolean);
   };
 
   const handleSubmit = (e) => {
@@ -82,11 +93,11 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
     const payload = {
       id_categoria: category.id_categoria,
       nombre: form.nombre.trim(),
-      descripcion: form.descripcion.trim(),
+      descripcion: form.descripcion.trim().slice(0, DESC_MAX),
       estado: form.estado,
     };
 
-    onSave?.(payload); // IndexCategories lo manda al hook updateCategory
+    onSave?.(payload); // IndexCategories -> hook updateCategory
   };
 
   const listVariants = {
@@ -245,7 +256,7 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                 </AnimatePresence>
               </div>
 
-              {/* Descripción */}
+              {/* Descripción (máx DESC_MAX) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-800 mb-1">
                   Descripción*
@@ -254,18 +265,25 @@ export default function CategoryEditModal({ isOpen, onClose, category, onSave })
                   name="descripcion"
                   value={form.descripcion}
                   onChange={handleChange}
-                  placeholder="Descripción de la categoría"
+                  placeholder={`Descripción de la categoría (máx ${DESC_MAX} caracteres)`}
                   rows="4"
+                  maxLength={DESC_MAX}
                   className={`w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 focus:ring-green-200 text-black placeholder-gray-400 transition ${
                     errors.descripcion ? "border-red-500" : "border-gray-300"
                   }`}
                   required
                 />
-                {errors.descripcion && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.descripcion}
-                  </p>
-                )}
+                <div className="flex justify-between">
+                  {errors.descripcion ? (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.descripcion}
+                    </p>
+                  ) : (
+                    <span className="text-xs text-gray-500 mt-1">
+                      {form.descripcion.length}/{DESC_MAX}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Botones */}
