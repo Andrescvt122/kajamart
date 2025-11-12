@@ -247,7 +247,7 @@ export default function IndexUsers() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
+            <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
               <ExportPDFButton event={handleExportPdf}>PDF</ExportPDFButton>
               <button

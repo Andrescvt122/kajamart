@@ -18,16 +18,19 @@ import {
   ArrowLeftToLine,
   Home,
   ShieldUser,
+  X, // 👈 NUEVO icono para cerrar en mobile
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// 1. IMPORTAR useNavigate
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
-import ondasHorizontal from "../../assets/ondasHorizontal.png"; // fondo borroso inferior
+import ondasHorizontal from "../../assets/ondasHorizontal.png";
 import { showConfirmAlert } from "./alerts";
 
-export default function Sidebar() {
+export default function Sidebar({
+  isMobileOpen = false,
+  onMobileClose,
+}) {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
@@ -36,7 +39,10 @@ export default function Sidebar() {
   const handleLogout = () => {
     showConfirmAlert("¿Estás seguro de que quieres cerrar la sesión?").then(
       (confirmed) => {
-        if (confirmed) navigate("/");
+        if (confirmed) {
+          navigate("/");
+          if (onMobileClose) onMobileClose();
+        }
       }
     );
   };
@@ -78,7 +84,6 @@ export default function Sidebar() {
         { name: "Roles", icon: <ShieldUser size={20} />, path: "/app/settings/roles" },
       ],
     },
-    // El path se elimina ya que no usaremos Link, pero se deja para mantener la estructura
     { name: "Salir", icon: <ArrowLeftToLine size={20} />, action: handleLogout },
   ];
 
@@ -92,19 +97,30 @@ export default function Sidebar() {
     visible: { opacity: 1, x: 0 },
   };
 
+  const handleItemClick = () => {
+    if (onMobileClose) onMobileClose();
+  };
+
   return (
     <motion.aside
       animate={{ width: isCollapsed ? "80px" : "260px" }}
-      className="flex flex-col relative shadow-md z-20 min-h-[100vh]"
+      className={`
+        flex flex-col shadow-md min-h-[100vh]
+        bg-[#b4debf]
+        z-30
+        transform transition-transform duration-300
+        fixed inset-y-0 left-0
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+        md:translate-x-0 md:static
+      `}
       style={{
-        backgroundColor: "#b4debf",
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
       }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
     >
       {/* Fondo inferior borroso */}
       <div
-        className=" absolute bottom-0 left-0"
+        className="absolute bottom-0 left-0"
         style={{
           width: isCollapsed ? "80px" : "260px",
           height: "50%",
@@ -118,10 +134,10 @@ export default function Sidebar() {
         }}
       />
 
-      {/* Botón colapsar/expandir sobresaliente */}
+      {/* Botón colapsar/expandir (solo desktop) */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-5 rounded-full shadow-lg p-2 flex items-center justify-center z-30 transition-all hover:scale-110 hover:shadow-xl"
+        className="hidden md:flex absolute top-5 rounded-full shadow-lg p-2 items-center justify-center z-30 transition-all hover:scale-110 hover:shadow-xl"
         style={{
           background: "linear-gradient(135deg, #047857, #065f46)",
           color: "#fff",
@@ -129,6 +145,14 @@ export default function Sidebar() {
         }}
       >
         {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      </button>
+
+      {/* Botón cerrar en mobile */}
+      <button
+        onClick={onMobileClose}
+        className="md:hidden absolute top-4 right-4 rounded-full p-2 bg-emerald-800 text-white z-40 shadow-lg"
+      >
+        <X size={18} />
       </button>
 
       {/* Logo */}
@@ -183,7 +207,7 @@ export default function Sidebar() {
 
       {/* Menú */}
       <motion.nav
-        className="flex-1 flex flex-col gap-2 overflow-auto px-2 min-h-0"
+        className="flex-1 flex flex-col gap-2 overflow-auto px-2 min-h-0 relative z-20"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -197,7 +221,9 @@ export default function Sidebar() {
             <motion.div key={i} variants={itemVariants} className="relative">
               {item.submenu ? (
                 <button
-                  onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
+                  onClick={() =>
+                    setOpenDropdown(openDropdown === i ? null : i)
+                  }
                   className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200
                     ${
                       isActive
@@ -217,16 +243,16 @@ export default function Sidebar() {
                     ))}
                 </button>
               ) : item.action ? (
-                // 4. RENDERIZADO CONDICIONAL PARA EL BOTÓN DE SALIR
                 <button
                   onClick={item.action}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200 text-gray-700 hover:text-white hover:bg-emerald-600/40`}
+                  className="flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200 text-gray-700 hover:text-white hover:bg-emerald-600/40"
                 >
                   {item.icon} {!isCollapsed && <span>{item.name}</span>}
                 </button>
               ) : (
                 <Link
                   to={item.path}
+                  onClick={handleItemClick}
                   className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium relative z-10 transition-colors duration-200
                     ${
                       isActive
@@ -270,6 +296,7 @@ export default function Sidebar() {
                         <li key={j}>
                           <Link
                             to={subItem.path}
+                            onClick={handleItemClick}
                             className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-colors duration-200
                               ${
                                 subActive
