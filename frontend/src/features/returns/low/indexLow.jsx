@@ -81,9 +81,9 @@ export default function IndexLow() {
         }}
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-3xl font-semibold">Productos de baja</h2>
             <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
@@ -91,8 +91,8 @@ export default function IndexLow() {
         </div>
 
         {/* Buscador y botones */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search size={20} className="text-gray-400" />
             </div>
@@ -107,7 +107,7 @@ export default function IndexLow() {
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex flex-wrap gap-2 w-full sm:flex-nowrap sm:justify-end">
             <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
               Excel
             </ExportExcelButton>
@@ -116,7 +116,7 @@ export default function IndexLow() {
             </ExportPDFButton>
             <button
               onClick={() => setIsOpen(true)}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
             >
               Registrar nueva baja
             </button>
@@ -138,7 +138,8 @@ export default function IndexLow() {
               Error al cargar las bajas
             </div>
           ) : (
-            <table key={currentPage} className="min-w-full">
+            <div className="overflow-x-auto">
+              <table key={currentPage} className="min-w-full lg:min-w-[720px]">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-6 py-4">Baja</th>
@@ -150,69 +151,72 @@ export default function IndexLow() {
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-            <motion.tbody className="divide-y divide-gray-100">
-              {pageItems.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No se encontraron productos dados de baja.
-                  </td>
-                </tr>
-              ) : (
-                pageItems.map((item, i) => (
-                  <motion.tr
-                    key={`${item.idLow}-${item.currentProduct.id}-${i}`}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {item.idLow}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-green-700">
-                      {item.dateLow}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.currentProduct.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.currentProduct.lowQuantity}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.currentProduct.reason}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
-                        {item.responsible}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <ViewDetailsButton
-                          event={() => {
-                            setSelectedLow(item);
-                            setIsOpen(true);
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </motion.tbody>
-          </table>
+                <motion.tbody className="divide-y divide-gray-100">
+                  {pageItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
+                        No se encontraron productos dados de baja.
+                      </td>
+                    </tr>
+                  ) : (
+                    pageItems.map((item, i) => (
+                      <motion.tr
+                        key={`${item.idLow}-${item.currentProduct.id}-${i}`}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {item.idLow}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-green-700">
+                          {item.dateLow}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {item.currentProduct.name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {item.currentProduct.lowQuantity}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {item.currentProduct.reason}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                            {item.responsible}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <ViewDetailsButton
+                              event={() => {
+                                setSelectedLow(item);
+                                setIsOpen(true);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))
+                  )}
+                </motion.tbody>
+              </table>
+            </div>
           )}
         </motion.div>
-        
+
 
         {/* Paginador */}
-        <Paginator
-          currentPage={currentPage}
-          perPage={perPage}
-          totalPages={totalPages}
-          filteredLength={filtered.length}
-          goToPage={goToPage}
-        />
+        <div className="pb-4">
+          <Paginator
+            currentPage={currentPage}
+            perPage={perPage}
+            totalPages={totalPages}
+            filteredLength={filtered.length}
+            goToPage={goToPage}
+          />
+        </div>
       </div>
 
       {/* Modal de registro */}
