@@ -10,14 +10,15 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: "",
-    expiryDate: "", // formato 'YYYY-MM-DD'
+    expiryDate: "",
+    isReturn: true,
   });
 
   const [errors, setErrors] = useState({});
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 4);
+  minDate.setDate(minDate.getDate());
 
   // Resetear campos cuando se abre un producto nuevo
   React.useEffect(() => {
@@ -26,6 +27,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
         barcode: "",
         quantity: "",
         expiryDate: "",
+        isReturn: true,
       });
       setErrors({});
     }
@@ -48,19 +50,20 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-
+    console.log("product",product);
     // 🔹 Detalle local, NO se envía a BD aquí
     const registeredDetail = {
       ...product,
-      productKey: product?.id, // para vincularlo al producto en ProductReturnModal
+      productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
       registeredExpiry: formData.expiryDate || null,
+      isReturn: true,
     };
-
+    
     // devolvemos al padre
     if (onConfirm) {
-      onConfirm(registeredDetail);
+      onConfirm(registeredDetail); 
     }
 
     handleClose();
@@ -71,6 +74,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       barcode: "",
       quantity: "",
       expiryDate: "",
+      isReturn: true,
     });
     setErrors({});
     onClose();

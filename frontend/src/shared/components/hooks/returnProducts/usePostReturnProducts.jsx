@@ -9,22 +9,24 @@ export const usePostReturnProducts = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  const postReturnProducts = async (id_responsable, selectedProducts, reason, isDiscount) => {
+  const postReturnProducts = async (id_responsable, selectedProducts) => {
     setLoading(true);
     setError(null);
-    setSuccess(false);
-
+    setSuccess(false)
     try {
       // 🧾 Adaptar los datos al formato del backend
       console.log(selectedProducts);
+      console.log(selectedProducts[0].returnReason);
+      console.log(selectedProducts[0].es_devolucion);
       const payload = {
         id_responsable,
         products: selectedProducts.map((p) => ({
           id_detalle_producto: p.id_detalle_producto,
           cantidad: p.returnQuantity || 1,
-          motivo: reason,
           nombre_producto: p.productos.nombre,
-          es_descuento: isDiscount, // booleano según acción seleccionada
+          es_descuento: p.es_devolucion, // booleano según acción seleccionada
+          motivo: selectedProducts[0].returnReason,
+          es_devolucion: selectedProducts[0].es_devolucion,
         })),
       };
 
