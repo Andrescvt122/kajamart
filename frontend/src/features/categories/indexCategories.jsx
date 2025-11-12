@@ -12,16 +12,20 @@ import CategoryEditModal from "./CategoryEditModal";
 import CategoryDeleteModal from "./CategoryDeleteModal";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import CategoryRegisterModal from "./CategoryRegisterModal";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { exportCategoriesToPDF } from "../../features/categories/helpers/exportToPdf";
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 import Loading from "../../features/onboarding/loading.jsx";
-
-// ✅ Hook unificado de categorías
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
+// Ancho fijo de la columna descripción (en caracteres)
+const DESC_COL_CHARS = 30;
+
+// Transiciones suaves
+const EXPAND_EASE = [0.22, 1, 0.36, 1]; // easeOut-quintish
+const EXPAND_DURATION = 0.38;
+
 export default function IndexCategories() {
-  // 🔹 Datos desde el backend
   const {
     categories,
     loading,
@@ -31,7 +35,6 @@ export default function IndexCategories() {
     deleteCategory,
   } = useCategories();
 
-  // 🔹 Estado UI
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
@@ -42,12 +45,21 @@ export default function IndexCategories() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Loading internos para botones
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // 🔹 FILTRO
+  // Control de expansión por id (solo descripción)
+  const [expanded, setExpanded] = useState(new Set());
+  const toggleExpand = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // FILTRO
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return categories;
@@ -66,7 +78,7 @@ export default function IndexCategories() {
     );
   }, [categories, searchTerm]);
 
-  // 🔹 PAGINACIÓN
+  // PAGINACIÓN
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -78,7 +90,7 @@ export default function IndexCategories() {
     setCurrentPage(p);
   };
 
-  // 🔹 REGISTRAR
+  // CRUD
   const handleRegisterCategory = async (form) => {
     try {
       setCreating(true);
@@ -90,7 +102,6 @@ export default function IndexCategories() {
     }
   };
 
-  // 🔹 ELIMINAR
   const handleDeleteConfirm = async (category) => {
     try {
       setDeleting(true);
@@ -98,12 +109,9 @@ export default function IndexCategories() {
       const afectaListadoActual = filtered.some(
         (c) => c.id_categoria === category.id_categoria
       );
-      const newFilteredLength = afectaListadoActual
-        ? filtered.length - 1
-        : filtered.length;
+      const newFilteredLength = afectaListadoActual ? filtered.length - 1 : filtered.length;
       const newTotalPages = Math.max(1, Math.ceil(newFilteredLength / perPage));
-      const targetPage =
-        currentPage > newTotalPages ? newTotalPages : currentPage;
+      const targetPage = currentPage > newTotalPages ? newTotalPages : currentPage;
 
       await deleteCategory(category.id_categoria);
 
@@ -116,7 +124,6 @@ export default function IndexCategories() {
     }
   };
 
-  // 🔹 EDITAR
   const handleSaveEdit = async (updatedPayload) => {
     try {
       setUpdating(true);
@@ -128,17 +135,20 @@ export default function IndexCategories() {
     }
   };
 
-  // ─────────── ANIMACIONES ───────────
+  // Animaciones suaves para la aparición de filas
   const tableVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
   };
   const rowVariants = {
-    hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0 },
+    hidden: { opacity: 0, y: 6 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.24, ease: EXPAND_EASE },
+    },
   };
 
-  // ─────────── ERROR GLOBAL ───────────
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -215,7 +225,16 @@ export default function IndexCategories() {
             initial="hidden"
             animate="visible"
           >
-            <table key={currentPage} className="min-w-full">
+            <table className="min-w-full table-fixed">
+              {/* Col widths */}
+              <colgroup>
+                <col style={{ width: 120 }} />
+                <col style={{ width: 240 }} />
+                <col style={{ width: `${DESC_COL_CHARS}ch` }} />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 160 }} />
+              </colgroup>
+
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">ID Categoría</th>
@@ -225,9 +244,9 @@ export default function IndexCategories() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
+
               <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                 {loading ? (
-                  // Loader SOLO en la tabla
                   <tr>
                     <td colSpan={5} className="px-6 py-12">
                       <Loading inline heightClass="h-28" />
@@ -240,52 +259,108 @@ export default function IndexCategories() {
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((c, i) => (
-                    <motion.tr
-                      key={c.id_categoria + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {c.id_categoria}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {c.nombre}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {c.descripcion}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                            c.estado === "Activo"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-100 text-red-600"
-                          }`}
-                        >
-                          {c.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <EditButton
-                            event={() => {
-                              setSelectedCategory(c);
-                              setIsEditModalOpen(true);
-                            }}
-                            disabled={updating}
-                          />
-                          <DeleteButton
-                            event={() => {
-                              setSelectedCategory(c);
-                              setIsDeleteOpen(true);
-                            }}
-                            disabled={deleting}
-                          />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
+                  pageItems.map((c, i) => {
+                    const desc = c.descripcion || "";
+                    const isLong = desc.length > DESC_COL_CHARS;
+                    const isExpanded = expanded.has(c.id_categoria);
+
+                    return (
+                      <motion.tr
+                        key={c.id_categoria + "-" + i}
+                        className="hover:bg-gray-50 align-top"
+                        variants={rowVariants}
+                      >
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {c.id_categoria}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                          {c.nombre}
+                        </td>
+
+                        {/* Descripción: 30ch fijo; truncado por defecto; expandido suave sin bordes */}
+                        <td className="px-6 py-4 text-sm text-gray-700 align-top">
+                          <div style={{ width: `${DESC_COL_CHARS}ch` }}>
+                            {/* Truncado (una línea, elipsis) */}
+                            {!isExpanded && (
+                              <div
+                                className="overflow-hidden text-ellipsis whitespace-nowrap"
+                                title={desc}
+                              >
+                                {desc || "—"}
+                              </div>
+                            )}
+
+                            {/* Expandido con animación suave en la MISMA celda */}
+                            <AnimatePresence initial={false}>
+                              {isExpanded && (
+                                <motion.div
+                                  key="expanded"
+                                  initial={{ height: 0, opacity: 0, y: -4 }}
+                                  animate={{ height: "auto", opacity: 1, y: 0 }}
+                                  exit={{ height: 0, opacity: 0, y: -2 }}
+                                  transition={{ duration: EXPAND_DURATION, ease: EXPAND_EASE }}
+                                  className="overflow-hidden"
+                                  aria-live="polite"
+                                >
+                                  <div
+                                    id={`desc-${c.id_categoria}`}
+                                    className="mt-1 text-gray-800 leading-relaxed whitespace-pre-wrap break-words"
+                                  >
+                                    {desc}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Toggle */}
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(c.id_categoria)}
+                                className="mt-1 block text-xs text-green-700 hover:underline"
+                                aria-expanded={isExpanded}
+                                aria-controls={`desc-${c.id_categoria}`}
+                              >
+                                {isExpanded ? "Ocultar" : "Ver detalles"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                              c.estado === "Activo"
+                                ? "bg-green-50 text-green-700"
+                                : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {c.estado}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <EditButton
+                              event={() => {
+                                setSelectedCategory(c);
+                                setIsEditModalOpen(true);
+                              }}
+                              disabled={updating}
+                            />
+                            <DeleteButton
+                              event={() => {
+                                setSelectedCategory(c);
+                                setIsDeleteOpen(true);
+                              }}
+                              disabled={deleting}
+                            />
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
                 )}
               </motion.tbody>
             </table>
@@ -302,7 +377,7 @@ export default function IndexCategories() {
         </div>
       </div>
 
-      {/* Modales */}
+      {/* Modales existentes */}
       <CategoryDetailModal
         isOpen={isDetailOpen}
         onClose={() => {
