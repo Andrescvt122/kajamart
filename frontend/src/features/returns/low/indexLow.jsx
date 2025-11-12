@@ -33,7 +33,11 @@ const tableVariants = {
 };
 const rowVariants = {
   hidden: { opacity: 0, y: 6 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: EXPAND_EASE } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.24, ease: EXPAND_EASE },
+  },
 };
 
 function ChevronIcon({ open }) {
@@ -70,7 +74,11 @@ export default function IndexLow() {
 
   // Normalización de texto
   const normalizeText = (text) =>
-    text?.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    text
+      ?.toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
   // Filtrado + expansión por producto (cada producto = fila)
   const filtered = useMemo(() => {
@@ -81,7 +89,9 @@ export default function IndexLow() {
       (low.products || []).map((product) => ({
         ...low,
         currentProduct: product,
-        _rowId: `${low.idLow}-${product.id ?? product.idProducto ?? product.name}`,
+        _rowId: `${low.idLow}-${
+          product.id ?? product.idProducto ?? product.name
+        }`,
       }))
     );
 
@@ -142,8 +152,12 @@ export default function IndexLow() {
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-semibold">Productos de baja</h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">Administrador de tienda</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold">
+              Productos de baja
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Administrador de tienda
+            </p>
           </div>
 
           {/* Toolbar responsive */}
@@ -163,19 +177,21 @@ export default function IndexLow() {
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
+            <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
                 Excel
               </ExportExcelButton>
+
               <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
                 PDF
               </ExportPDFButton>
+
               <button
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: "auto" });
                   setIsOpen(true);
                 }}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                className="px-4 py-2.5 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
               >
                 Registrar nueva baja
               </button>
@@ -185,7 +201,12 @@ export default function IndexLow() {
           {/* ===== LISTADO RESPONSIVE ===== */}
 
           {/* Móvil: tarjetas / acordeón */}
-          <motion.div className="md:hidden" variants={tableVariants} initial="hidden" animate="visible">
+          <motion.div
+            className="md:hidden"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loader2 size={24} className="animate-spin" />
@@ -233,7 +254,10 @@ export default function IndexLow() {
                               </span>
                             </div>
                             <p
-                              className={"mt-1 text-base font-semibold text-gray-900 " + ONE_LINE_SAFE}
+                              className={
+                                "mt-1 text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
                               title={item.currentProduct?.name}
                             >
                               {item.currentProduct?.name}
@@ -250,19 +274,30 @@ export default function IndexLow() {
                             initial={{ height: 0, opacity: 0, y: -4 }}
                             animate={{ height: "auto", opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{ duration: EXPAND_DURATION, ease: EXPAND_EASE }}
+                            transition={{
+                              duration: EXPAND_DURATION,
+                              ease: EXPAND_EASE,
+                            }}
                             className="overflow-hidden border-t border-gray-100"
                             aria-live="polite"
                           >
                             <div className="px-4 py-4 text-sm text-gray-800">
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Cantidad</p>
-                                  <p className="mt-1">{item.currentProduct?.lowQuantity ?? "—"}</p>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Cantidad
+                                  </p>
+                                  <p className="mt-1">
+                                    {item.currentProduct?.lowQuantity ?? "—"}
+                                  </p>
                                 </div>
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Razón</p>
-                                  <p className={LONG_TEXT_CLS + " mt-1"}>{reason}</p>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Razón
+                                  </p>
+                                  <p className={LONG_TEXT_CLS + " mt-1"}>
+                                    {reason}
+                                  </p>
                                 </div>
                               </div>
 
@@ -294,7 +329,6 @@ export default function IndexLow() {
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
-                
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Baja</th>
@@ -303,10 +337,15 @@ export default function IndexLow() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Razón</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Responsable</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <motion.tbody
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                >
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12">
@@ -317,19 +356,27 @@ export default function IndexLow() {
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-red-500">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-12 text-center text-red-500"
+                      >
                         Error al cargar las bajas
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
                         No se encontraron productos dados de baja.
                       </td>
                     </tr>
                   ) : (
                     pageItems.map((item, i) => {
-                      const id = item._rowId || `${item.idLow}-${item.currentProduct?.id ?? i}`;
+                      const id =
+                        item._rowId ||
+                        `${item.idLow}-${item.currentProduct?.id ?? i}`;
                       const isExpanded = expanded.has(id);
                       const reason = item.currentProduct?.reason ?? "—";
                       const isLong = String(reason).length > REASON_COL_CHARS;
@@ -348,7 +395,10 @@ export default function IndexLow() {
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
                             <div className="min-w-0 max-w-[34ch] xl:max-w-[42ch]">
-                              <div className={ONE_LINE_SAFE} title={item.currentProduct?.name}>
+                              <div
+                                className={ONE_LINE_SAFE}
+                                title={item.currentProduct?.name}
+                              >
                                 {item.currentProduct?.name}
                               </div>
                             </div>
@@ -357,9 +407,7 @@ export default function IndexLow() {
                             {item.currentProduct?.lowQuantity}
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 align-top">
-                            <div
-                              className="min-w-0 max-w-[36ch] xl:max-w-[46ch]"
-                            >
+                            <div className="min-w-0 max-w-[36ch] xl:max-w-[46ch]">
                               {!isExpanded && (
                                 <div
                                   className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full"
@@ -375,15 +423,25 @@ export default function IndexLow() {
                                   <motion.div
                                     key="expanded-reason"
                                     initial={{ height: 0, opacity: 0, y: -4 }}
-                                    animate={{ height: "auto", opacity: 1, y: 0 }}
+                                    animate={{
+                                      height: "auto",
+                                      opacity: 1,
+                                      y: 0,
+                                    }}
                                     exit={{ height: 0, opacity: 0, y: -2 }}
-                                    transition={{ duration: EXPAND_DURATION, ease: EXPAND_EASE }}
+                                    transition={{
+                                      duration: EXPAND_DURATION,
+                                      ease: EXPAND_EASE,
+                                    }}
                                     className="overflow-hidden"
                                     aria-live="polite"
                                   >
                                     <div
                                       id={`reason-${id}`}
-                                      className={LONG_TEXT_CLS + " mt-1 text-gray-800 leading-relaxed"}
+                                      className={
+                                        LONG_TEXT_CLS +
+                                        " mt-1 text-gray-800 leading-relaxed"
+                                      }
                                     >
                                       {reason}
                                     </div>

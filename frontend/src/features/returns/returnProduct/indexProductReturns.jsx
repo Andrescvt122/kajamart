@@ -186,7 +186,7 @@ export default function IndexProductReturns() {
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
+            <div className="flex gap-2 flex-shrink-0">
               <ExportExcelButton event={() => generateProductReturnsXLS(filtered)}>
                 Excel
               </ExportExcelButton>
