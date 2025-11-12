@@ -266,19 +266,20 @@ export default function IndexPurchases() {
           </div>
 
           {/* 🧾 Tabla */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
-                  <th className="px-6 py-4">Fecha</th>
-                  <th className="px-6 py-4">N° Factura</th>
-                  <th className="px-6 py-4">Proveedor</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="table-scroll">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">N° Factura</th>
+                    <th className="px-6 py-4">Proveedor</th>
+                    <th className="px-6 py-4">Total</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
                 <AnimatePresence>
                   {pageItems.length === 0 ? (
                     <motion.tr>
@@ -322,8 +323,9 @@ export default function IndexPurchases() {
                     ))
                   )}
                 </AnimatePresence>
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* 📄 Paginación */}

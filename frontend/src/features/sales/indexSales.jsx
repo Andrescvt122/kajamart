@@ -199,30 +199,31 @@ const PrintSaleButton = ({ sale }) => (
 
         {/* Tabla de ventas */}
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-sm border border-gray-100"
           variants={tableVariants}
           initial="hidden"
           animate="visible"
         >
-          <table key={currentPage} className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">ID Venta</th>
-                <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Cliente</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Medio de Pago</th>
-                <th className="px-6 py-4">IVA</th>
-                <th className="px-6 py-4">ICU</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
+          <div className="table-scroll">
+            <table key={currentPage} className="min-w-full">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 uppercase">
+                  <th className="px-6 py-4">ID Venta</th>
+                  <th className="px-6 py-4">Fecha</th>
+                  <th className="px-6 py-4">Cliente</th>
+                  <th className="px-6 py-4">Total</th>
+                  <th className="px-6 py-4">Medio de Pago</th>
+                  <th className="px-6 py-4">IVA</th>
+                  <th className="px-6 py-4">ICU</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
 
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
               {pageItems.length === 0 ? (
                 <tr>
                   <td
@@ -278,8 +279,9 @@ const PrintSaleButton = ({ sale }) => (
                   </motion.tr>
                 ))
               )}
-            </motion.tbody>
-          </table>
+              </motion.tbody>
+            </table>
+          </div>
         </motion.div>
 
         {/* Paginación */}

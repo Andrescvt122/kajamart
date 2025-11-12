@@ -125,7 +125,7 @@ export default function IndexLow() {
 
         {/* Tabla */}
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-sm border border-gray-100"
           initial="hidden"
           animate="visible"
         >
@@ -138,7 +138,8 @@ export default function IndexLow() {
               Error al cargar las bajas
             </div>
           ) : (
-            <table key={currentPage} className="min-w-full">
+            <div className="table-scroll">
+              <table key={currentPage} className="min-w-full">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-6 py-4">Baja</th>
@@ -150,25 +151,25 @@ export default function IndexLow() {
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-            <motion.tbody className="divide-y divide-gray-100">
-              {pageItems.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No se encontraron productos dados de baja.
-                  </td>
-                </tr>
-              ) : (
-                pageItems.map((item, i) => (
-                  <motion.tr
-                    key={`${item.idLow}-${item.currentProduct.id}-${i}`}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {item.idLow}
-                    </td>
+                <motion.tbody className="divide-y divide-gray-100">
+                  {pageItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
+                        No se encontraron productos dados de baja.
+                      </td>
+                    </tr>
+                  ) : (
+                    pageItems.map((item, i) => (
+                      <motion.tr
+                        key={`${item.idLow}-${item.currentProduct.id}-${i}`}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {item.idLow}
+                        </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {item.dateLow}
                     </td>
@@ -186,21 +187,22 @@ export default function IndexLow() {
                         {item.responsible}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <ViewDetailsButton
-                          event={() => {
-                            setSelectedLow(item);
-                            setIsOpen(true);
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </motion.tbody>
-          </table>
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <ViewDetailsButton
+                              event={() => {
+                                setSelectedLow(item);
+                                setIsOpen(true);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))
+                  )}
+                </motion.tbody>
+              </table>
+            </div>
           )}
         </motion.div>
         

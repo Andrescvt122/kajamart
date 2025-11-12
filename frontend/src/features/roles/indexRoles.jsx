@@ -173,19 +173,20 @@ export default function IndexRoles() {
           variants={tableVariants}
           initial="hidden"
           animate="visible"
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-sm border border-gray-100"
         >
-          <table className="min-w-full">
-            <thead className="bg-white">
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">Nombre del rol</th>
-                <th className="px-6 py-4">Descripción</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
+          <div className="table-scroll">
+            <table className="min-w-full">
+              <thead className="bg-white">
+                <tr className="text-left text-xs text-gray-500 uppercase">
+                  <th className="px-6 py-4">Nombre del rol</th>
+                  <th className="px-6 py-4">Descripción</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
 
-            <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100">
               <AnimatePresence>
                 {loading ? (
                   <tr>
@@ -261,8 +262,9 @@ export default function IndexRoles() {
                   ))
                 )}
               </AnimatePresence>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </motion.div>
 
         <div className="mt-4">

@@ -234,14 +234,15 @@ export default function IndexUsers() {
 
           {/* Tabla */}
           <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            className="bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
             initial="hidden"
             animate="visible"
             key={currentPage}
           >
-            <table className="min-w-full">
-              <thead>
+            <div className="table-scroll">
+              <table className="min-w-full">
+                <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">Nombre</th>
                   <th className="px-6 py-4">Correo</th>
@@ -252,10 +253,10 @@ export default function IndexUsers() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
+                <motion.tbody
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                >
                 {/* Ahora el colSpan es 7 (6 columnas de datos + 1 de acciones) */}
                 {loading ? (
                   <tr>
@@ -339,8 +340,9 @@ export default function IndexUsers() {
                     </motion.tr>
                   ))
                 )}
-              </motion.tbody>
-            </table>
+                </motion.tbody>
+              </table>
+            </div>
           </motion.div>
 
           {/* Paginador */}

@@ -253,29 +253,30 @@ export default function IndexClientReturns() {
 
         {/* Tabla con animación */}
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="bg-white rounded-xl shadow-sm border border-gray-100"
           variants={tableVariants}
           initial="hidden"
           animate="visible"
         >
-          <table key={currentPage} className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">Devolución</th>
-                <th className="px-6 py-4">Venta</th>
-                <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Cliente</th>
-                <th className="px-6 py-4">Razón</th>
-                <th className="px-6 py-4">Tipo</th>
-                <th className="px-6 py-4">Proveedor</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+          <div className="table-scroll">
+            <table key={currentPage} className="min-w-full">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 uppercase">
+                  <th className="px-6 py-4">Devolución</th>
+                  <th className="px-6 py-4">Venta</th>
+                  <th className="px-6 py-4">Fecha</th>
+                  <th className="px-6 py-4">Cliente</th>
+                  <th className="px-6 py-4">Razón</th>
+                  <th className="px-6 py-4">Tipo</th>
+                  <th className="px-6 py-4">Proveedor</th>
+                  <th className="px-6 py-4">Total</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
               {pageItems.length === 0 ? (
                 <tr>
                   <td
@@ -397,8 +398,9 @@ export default function IndexClientReturns() {
                   </motion.tr>
                 ))
               )}
-            </motion.tbody>
-          </table>
+              </motion.tbody>
+            </table>
+          </div>
         </motion.div>
         {/* Paginador */}
         <Paginator

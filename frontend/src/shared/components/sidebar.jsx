@@ -27,11 +27,17 @@ import logo from "../../assets/logo.png";
 import ondasHorizontal from "../../assets/ondasHorizontal.png"; // fondo borroso inferior
 import { showConfirmAlert } from "./alerts";
 
-export default function Sidebar() {
+export default function Sidebar({ isMobile = false, onClose }) {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (isMobile) {
+      setIsCollapsed(false);
+    }
+  }, [isMobile]);
 
   const handleLogout = () => {
     showConfirmAlert("¿Estás seguro de que quieres cerrar la sesión?").then(
@@ -92,10 +98,18 @@ export default function Sidebar() {
     visible: { opacity: 1, x: 0 },
   };
 
+  const handleNavigation = () => {
+    if (isMobile && typeof onClose === "function") {
+      onClose();
+    }
+  };
+
   return (
     <motion.aside
-      animate={{ width: isCollapsed ? "80px" : "260px" }}
-      className="flex flex-col relative shadow-md z-20 min-h-[100vh]"
+      animate={{ width: isMobile ? "100%" : isCollapsed ? "80px" : "260px" }}
+      className={`flex flex-col relative shadow-md z-20 ${
+        isMobile ? "min-h-full max-h-full overflow-y-auto" : "min-h-[100vh]"
+      }`}
       style={{
         backgroundColor: "#b4debf",
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
@@ -106,7 +120,7 @@ export default function Sidebar() {
       <div
         className=" absolute bottom-0 left-0"
         style={{
-          width: isCollapsed ? "80px" : "260px",
+          width: isMobile ? "100%" : isCollapsed ? "80px" : "260px",
           height: "50%",
           backgroundImage: `url(${ondasHorizontal})`,
           backgroundRepeat: "no-repeat",
@@ -118,18 +132,19 @@ export default function Sidebar() {
         }}
       />
 
-      {/* Botón colapsar/expandir sobresaliente */}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-5 rounded-full shadow-lg p-2 flex items-center justify-center z-30 transition-all hover:scale-110 hover:shadow-xl"
-        style={{
-          background: "linear-gradient(135deg, #047857, #065f46)",
-          color: "#fff",
-          right: "-16px",
-        }}
-      >
-        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-      </button>
+      {!isMobile && (
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute top-5 rounded-full shadow-lg p-2 flex items-center justify-center z-30 transition-all hover:scale-110 hover:shadow-xl"
+          style={{
+            background: "linear-gradient(135deg, #047857, #065f46)",
+            color: "#fff",
+            right: "-16px",
+          }}
+        >
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+      )}
 
       {/* Logo */}
       <motion.img
@@ -219,7 +234,10 @@ export default function Sidebar() {
               ) : item.action ? (
                 // 4. RENDERIZADO CONDICIONAL PARA EL BOTÓN DE SALIR
                 <button
-                  onClick={item.action}
+                  onClick={() => {
+                    item.action();
+                    handleNavigation();
+                  }}
                   className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200 text-gray-700 hover:text-white hover:bg-emerald-600/40`}
                 >
                   {item.icon} {!isCollapsed && <span>{item.name}</span>}
@@ -227,6 +245,7 @@ export default function Sidebar() {
               ) : (
                 <Link
                   to={item.path}
+                  onClick={handleNavigation}
                   className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium relative z-10 transition-colors duration-200
                     ${
                       isActive
@@ -270,6 +289,7 @@ export default function Sidebar() {
                         <li key={j}>
                           <Link
                             to={subItem.path}
+                            onClick={handleNavigation}
                             className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-md transition-colors duration-200
                               ${
                                 subActive

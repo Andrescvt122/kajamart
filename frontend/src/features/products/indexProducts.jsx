@@ -412,22 +412,23 @@ export default function IndexProducts() {
           </div>
 
           {/* Tabla */}
-          <motion.div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" initial="hidden" animate="visible">
-            <table key={currentPage} className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">Imagen</th>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Categoría</th>
-                  <th className="px-6 py-4">Stock Actual</th>
-                  <th className="px-6 py-4">Stock Mínimo</th>
-                  <th className="px-6 py-4">Stock Máximo</th>
-                  <th className="px-6 py-4">Precio</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+          <motion.div className="bg-white rounded-xl shadow-sm border border-gray-100" initial="hidden" animate="visible">
+            <div className="table-scroll">
+              <table key={currentPage} className="min-w-full">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase">
+                    <th className="px-6 py-4">Imagen</th>
+                    <th className="px-6 py-4">Nombre</th>
+                    <th className="px-6 py-4">Categoría</th>
+                    <th className="px-6 py-4">Stock Actual</th>
+                    <th className="px-6 py-4">Stock Mínimo</th>
+                    <th className="px-6 py-4">Stock Máximo</th>
+                    <th className="px-6 py-4">Precio</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
                 {(isLoading || isCatLoading) ? (
                   <tr>
                     <td colSpan={9} className="px-6 py-12">
@@ -481,8 +482,9 @@ export default function IndexProducts() {
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </motion.div>
 
           {/* Paginador */}

@@ -314,14 +314,15 @@ export default function IndexClients() {
 
         {/* Tabla */}
         <motion.div
-          className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden max-w-6xl mx-auto"
+          className="bg-white rounded-lg shadow-sm border border-gray-100 max-w-6xl mx-auto"
           variants={tableVariants}
           initial="hidden"
           animate="visible"
           style={{ fontSize: "0.9rem" }}
         >
-          <table key={currentPage} className="min-w-full">
-            <thead>
+          <div className="table-scroll">
+            <table key={currentPage} className="min-w-full">
+              <thead>
               <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
                 <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Nombre</th>
@@ -334,10 +335,10 @@ export default function IndexClients() {
               </tr>
             </thead>
 
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+              <motion.tbody
+                className="divide-y divide-gray-100"
+                variants={tableVariants}
+              >
               {pageItems.length === 0 ? (
                 <tr>
                   <td
@@ -393,8 +394,9 @@ export default function IndexClients() {
                   </motion.tr>
                 ))
               )}
-            </motion.tbody>
-          </table>
+              </motion.tbody>
+            </table>
+          </div>
         </motion.div>
 
         {/* Paginación */}

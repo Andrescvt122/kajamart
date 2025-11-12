@@ -210,22 +210,23 @@ export default function IndexCategories() {
 
           {/* Tabla categorías */}
           <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            className="bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
             initial="hidden"
             animate="visible"
           >
-            <table key={currentPage} className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">ID Categoría</th>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Descripción</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+            <div className="table-scroll">
+              <table key={currentPage} className="min-w-full">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase">
+                    <th className="px-6 py-4">ID Categoría</th>
+                    <th className="px-6 py-4">Nombre</th>
+                    <th className="px-6 py-4">Descripción</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                 {loading ? (
                   // Loader SOLO en la tabla
                   <tr>
@@ -287,8 +288,9 @@ export default function IndexCategories() {
                     </motion.tr>
                   ))
                 )}
-              </motion.tbody>
-            </table>
+                </motion.tbody>
+              </table>
+            </div>
           </motion.div>
 
           {/* Paginador */}
