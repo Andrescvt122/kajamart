@@ -21,6 +21,7 @@ import {
 import { exportSuppliersToExcel } from "./helpers/exportToXls";
 import { exportSuppliersToPDF } from "./helpers/exportToPdf";
 import SearchBar from "../../shared/components/searchBars/searchbar";
+import Loading from "../../features/onboarding/loading.jsx"; // ⬅️ loader inline
 
 // Hooks de proveedores (backend real)
 import {
@@ -37,7 +38,7 @@ export default function IndexSuppliers() {
     error,
   } = useSuppliersQuery();
 
-  // Mapeo para UI (estado a "Activo/Inactivo"; asegurar arrays)
+  // Mapeo para UI
   const suppliers = useMemo(() => {
     if (!Array.isArray(suppliersRaw)) return [];
     return suppliersRaw.map((s) => ({
@@ -69,9 +70,7 @@ export default function IndexSuppliers() {
     showLoadingAlert("Eliminando proveedor...");
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        try {
-          Swal.close();
-        } catch (_) {}
+        try { Swal.close(); } catch (_) {}
         Swal.fire({
           icon: "success",
           title: "Proveedor eliminado",
@@ -86,9 +85,7 @@ export default function IndexSuppliers() {
         setSelectedSupplierToDelete(null);
       },
       onError: (err) => {
-        try {
-          Swal.close();
-        } catch (_) {}
+        try { Swal.close(); } catch (_) {}
         const msg =
           err?.response?.data?.message ||
           err?.message ||
@@ -106,14 +103,8 @@ export default function IndexSuppliers() {
   // Bloquear scroll cuando el modal de detalles está abierto
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
-    if (isDetailOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = originalOverflow || "auto";
-    }
-    return () => {
-      document.body.style.overflow = originalOverflow || "auto";
-    };
+    document.body.style.overflow = isDetailOpen ? "hidden" : (originalOverflow || "auto");
+    return () => { document.body.style.overflow = originalOverflow || "auto"; };
   }, [isDetailOpen]);
 
   // Buscador + paginación
@@ -121,52 +112,38 @@ export default function IndexSuppliers() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  // Modal de registro (el modal maneja su propio form y post)
+  // Modal de registro
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Normalizador (quita tildes / minúsculas)
+  // Normalizador
   const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+    text.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   // Helper: nombres de categorías del proveedor
   const getSupplierCategoryNames = (s) => {
     if (!s || !Array.isArray(s.categorias)) return [];
-    return s.categorias
-      .map((c) => c?.nombre_categoria)
-      .filter(Boolean);
+    return s.categorias.map((c) => c?.nombre_categoria).filter(Boolean);
   };
-  
 
-  // Filtro (incluye categorías y activo/inactivo)
+  // Filtro
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     if (!s) return suppliers;
 
     if (/^activos?$/.test(s)) {
-      return suppliers.filter(
-        (p) => normalizeText(String(p.estado)) === "activo"
-      );
+      return suppliers.filter((p) => normalizeText(String(p.estado)) === "activo");
     }
     if (/^inactivos?$/.test(s)) {
-      return suppliers.filter(
-        (p) => normalizeText(String(p.estado)) === "inactivo"
-      );
+      return suppliers.filter((p) => normalizeText(String(p.estado)) === "inactivo");
     }
 
     return suppliers.filter((p) => {
-      // Campos simples (evitar contar categorias directamente, para no tener "[object Object]")
       const inSupplier = Object.entries(p).some(([key, value]) => {
         if (key === "categorias") return false;
         return normalizeText(String(value ?? "")).includes(s);
       });
-
       if (inSupplier) return true;
 
-      // Búsqueda por categorías (nombres)
       const catNames = getSupplierCategoryNames(p).map((n) => normalizeText(n));
       return catNames.some((name) => name.includes(s));
     });
@@ -177,14 +154,14 @@ export default function IndexSuppliers() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]); // ⬅️ incluye perPage
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
   };
 
-  // Animaciones (estilo similar al de productos)
+  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -194,14 +171,7 @@ export default function IndexSuppliers() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // === Loading / Error desde React Query ===
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Cargando proveedores...</p>
-      </div>
-    );
-  }
+  // === Error global (loader irá inline en la tabla) ===
   if (isError) {
     const msg =
       error?.response?.data?.message ||
@@ -235,9 +205,7 @@ export default function IndexSuppliers() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-semibold">Proveedores</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de tienda
-              </p>
+              <p className="text-sm text-gray-500 mt-1">Administrador de tienda</p>
             </div>
           </div>
 
@@ -291,16 +259,17 @@ export default function IndexSuppliers() {
                 </tr>
               </thead>
 
-              <motion.tbody
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-              >
-                {pageItems.length === 0 ? (
+              <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                {isLoading ? (
+                  // Loader SOLO dentro de la tabla
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
+                    <td colSpan={6} className="px-6 py-12">
+                      <Loading inline heightClass="h-28" />
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
                       No se encontraron proveedores.
                     </td>
                   </tr>
@@ -312,9 +281,7 @@ export default function IndexSuppliers() {
                         ? "—"
                         : catNames.length <= 2
                         ? catNames.join(", ")
-                        : `${catNames.slice(0, 2).join(", ")} +${
-                            catNames.length - 2
-                          }`;
+                        : `${catNames.slice(0, 2).join(", ")} +${catNames.length - 2}`;
 
                     return (
                       <motion.tr
@@ -332,7 +299,7 @@ export default function IndexSuppliers() {
                           {s.telefono ?? "—"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-700">
-                          {getSupplierCategoryNames(s).join(", ") || "—"}
+                          {displayCats}
                         </td>
                         <td className="px-6 py-4 align-top">
                           {s.estado === "Activo" ? (
@@ -416,12 +383,9 @@ export default function IndexSuppliers() {
             onClose={() => setIsEditOpen(false)}
             supplierData={selectedSupplier}
             onSubmit={(updated) => {
-              // Aquí puedes disparar tu hook de update si el modal no lo hace internamente
-              // useUpdateSupplier().mutate({ id: selectedSupplier.id_proveedor, ...updated })
+              // ejemplo: useUpdateSupplier().mutate({ id: selectedSupplier.id_proveedor, ...updated })
               setIsEditOpen(false);
             }}
-            // Puedes pasar opciones de categorías si tu modal las necesita;
-            // si tu modal ya hace fetch con useCategories, puedes omitir esta prop.
             categoriasOptions={Array.from(
               new Set(
                 suppliers.flatMap((s) =>
@@ -435,12 +399,10 @@ export default function IndexSuppliers() {
         )}
       </AnimatePresence>
 
-      {/* Modal Registrar (el modal maneja el POST internamente) */}
+      {/* Modal Registrar */}
       <SuplliersRegisterModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        // ⚠️ Si pasas categoriasOptions aquí, el modal usará esas en vez de las de BD.
-        // Mejor déjalo sin esta prop para que use useCategories() internamente y tenga IDs disponibles.
       />
     </div>
   );

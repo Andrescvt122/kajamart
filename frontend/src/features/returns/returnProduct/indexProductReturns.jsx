@@ -220,13 +220,14 @@ export default function IndexProductReturns() {
                       ) : (
                         <XCircle size={20} className="text-red-500" />
                       )}
+                    </td>                    
+                    <td className="px-6 py-4 text-sm text-green-700">
+                      {products.reason}
                     </td>
                     <td className="px-6 py-4 text-sm text-green-700">
                       {products.responsable}
                     </td>
-                    <td className="px-6 py-4 text-sm text-green-700">
-                      {products.reason}
-                    </td>
+
                     <td className="px-6 py-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <ViewDetailsButton

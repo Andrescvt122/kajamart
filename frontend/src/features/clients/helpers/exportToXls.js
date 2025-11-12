@@ -1,41 +1,26 @@
-// src/pages/clients/helpers/exportToXls.js
 import * as XLSX from "xlsx";
 
-export const exportToXls = (data, fileName = "Clientes.xlsx") => {
-  // Siempre genera un archivo, incluso si no hay datos
-  const formatted = data.length
-    ? data.map((c) => ({
-        ID: c.id || "N/A",
-        Nombre: c.nombre || "N/A",
-        "Tipo Documento": c.tipoDocumento || "N/A",
-        "Número Documento": c.numeroDocumento || "N/A",
-        Correo: c.correo?.toString().trim() || "N/A",
-        Teléfono: c.telefono?.toString().trim() || "N/A",
-        Estado: c.estado || "N/A",
-        Fecha: c.fecha || "N/A",
-      }))
-    : [
-        {
-          ID: "N/A",
-          Nombre: "N/A",
-          "Tipo Documento": "N/A",
-          "Número Documento": "N/A",
-          Correo: "N/A",
-          Teléfono: "N/A",
-          Estado: "N/A",
-          Fecha: "N/A",
-        },
-      ];
+export const exportToXls = (clients = []) => {
+  console.log("🔹 exportToXls llamado con", clients.length, "clientes");
 
-  const ws = XLSX.utils.json_to_sheet(formatted);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+  if (!Array.isArray(clients) || clients.length === 0) {
+    alert("No hay clientes para exportar");
+    return;
+  }
 
-  // Ajustar ancho de columnas (opcional)
-  const colWidths = Object.keys(formatted[0]).map((key) => ({
-    wch: Math.max(10, key.length + 2),
+  const rows = clients.map((c, index) => ({
+    "#": index + 1,
+    ID: c.id === 0 ? "C000" : c.id,
+    Nombre: c.nombre || "",
+    Documento: `${c.tipoDocumento || ""} ${c.numeroDocumento || ""}`.trim(),
+    Correo: c.correo?.trim() || "N/A",
+    Teléfono: c.telefono?.trim() || "N/A",
+    Estado: c.activo ? "Activo" : "Inactivo",
   }));
-  ws["!cols"] = colWidths;
 
-  XLSX.writeFile(wb, fileName);
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+  XLSX.writeFile(workbook, "clientes.xlsx");
 };

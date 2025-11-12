@@ -1,4 +1,3 @@
-// pages/products/AllProducts.jsx
 import React, { useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +21,7 @@ import {
 } from "../../shared/components/buttons";
 import { exportProductsToExcel } from "./helpers/exportToXlsProducts";
 import { exportProductsToPDF } from "./helpers/exportToPdfProducts";
+import Loading from "../../features/onboarding/loading.jsx"; // ⬅️ loader inline
 
 // 🔹 hooks de productos y detalle_productos
 import { useProduct } from "../../shared/components/hooks/products/products.hooks";
@@ -36,9 +36,6 @@ export default function AllProductsPage() {
 
   const passedProduct = state?.product || null;
 
-  // id_producto desde:
-  // - params.id (ruta)
-  // - o desde el product pasado por state
   const productId =
     (params.id && Number(params.id)) ||
     passedProduct?.id_producto ||
@@ -49,7 +46,8 @@ export default function AllProductsPage() {
   const { data: fetchedProduct } = useProduct(productId);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
-  const product = passedProduct ??
+  const product =
+    passedProduct ??
     fetchedProduct ?? {
       nombre: "Producto desconocido",
       precio_venta: 0,
@@ -59,7 +57,6 @@ export default function AllProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // 👇 estados modal detalle y delete
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProductToDelete, setSelectedProductToDelete] = useState(null);
@@ -73,7 +70,7 @@ export default function AllProductsPage() {
     error,
   } = useDetailProductsByProduct(productId);
 
-  // 🔹 Formatear detalles para la tabla (mismo shape que usabas antes)
+  // 🔹 Formatear detalles para la tabla
   const allProducts = useMemo(() => {
     if (!Array.isArray(backendDetails)) return [];
     return backendDetails.map((d) => ({
@@ -84,7 +81,7 @@ export default function AllProductsPage() {
         ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
         : "Sin fecha",
       cantidad: d.stock_producto,
-      consumido: 0, // no lo tienes en la tabla detalle_productos, así que lo dejamos en 0 o lo calculas luego
+      consumido: 0,
       precio: product.precio_venta ?? 0,
     }));
   }, [backendDetails, product]);
@@ -102,7 +99,7 @@ export default function AllProductsPage() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]); // ⬅️ incluye perPage
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -135,10 +132,17 @@ export default function AllProductsPage() {
     }
   };
 
-  // Animaciones
-  const tableVariants = {
+  // Animaciones (stagger en tbody + cascada en filas)
+  const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
+    visible: { opacity: 1 },
+  };
+  const tbodyVariants = {
+    hidden: { opacity: 1 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.12 },
+    },
   };
   const rowVariants = {
     hidden: { opacity: 0, y: 12 },
@@ -202,11 +206,14 @@ export default function AllProductsPage() {
           {/* Tabla */}
           <motion.div
             className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-            variants={tableVariants}
+            variants={containerVariants}
             initial="hidden"
             animate="visible"
           >
-            <table key={currentPage} className="min-w-full">
+            <table
+              key={`${currentPage}-${filtered.length}-${searchTerm}`} // fuerza re-animación por página/filtro
+              className="min-w-full"
+            >
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
                   <th className="px-6 py-4">ID Detalle</th>
@@ -218,18 +225,18 @@ export default function AllProductsPage() {
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
+
               <motion.tbody
                 className="divide-y divide-gray-100"
-                variants={tableVariants}
+                variants={tbodyVariants}
+                initial="hidden"
+                animate="visible"
               >
                 <AnimatePresence>
                   {isLoading ? (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
-                        Cargando detalles...
+                      <td colSpan={7} className="px-6 py-12">
+                        <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
@@ -282,11 +289,10 @@ export default function AllProductsPage() {
                           <div className="inline-flex items-center gap-2">
                             <ViewDetailsButton
                               event={() => {
-                                setSelectedDetail(p); // p es el detalle del lote (id, barcode, fecha, stock...)
+                                setSelectedDetail(p);
                                 setIsModalOpen(true);
                               }}
                             />
-
                             <DeleteButton event={() => handleDeleteClick(p)} />
                           </div>
                         </td>
@@ -322,7 +328,7 @@ export default function AllProductsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         detail={selectedDetail}
-        product={product} // este es el producto padre que ya tienes arriba en la página
+        product={product}
       />
     </div>
   );
