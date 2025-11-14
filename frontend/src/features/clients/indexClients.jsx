@@ -1,6 +1,6 @@
 // IndexClients.jsx
 import React, { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
 import Swal from "sweetalert2";
@@ -21,6 +21,30 @@ import { useClientDelete } from "../../shared/components/hooks/clients/useDelete
 
 // ID reservado en la BD para el Cliente de Caja
 const CAJA_ID = 1;
+
+// Icono chevron para acordeón móvil
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
+  );
+}
 
 export default function IndexClients() {
   // Estados
@@ -51,6 +75,16 @@ export default function IndexClients() {
   // Hooks para obtener y eliminar clientes
   const { data, loading, error, refetch } = useGetClients();
   const { deleteClient: deleteClientHook } = useClientDelete();
+
+  // Control de expansión (para móvil y para descripción larga si quisieras luego)
+  const [expanded, setExpanded] = useState(new Set());
+  const toggleExpand = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   // 👉 Helper para saber si un cliente es el Cliente de Caja
   const isClienteCaja = (client) => {
@@ -219,194 +253,324 @@ export default function IndexClients() {
 
   return (
     <>
-      {/* Fondo ondas */}
-      <div
-        className="absolute bottom-0 left-0 w-full pointer-events-none"
-        style={{
-          height: "50%",
-          backgroundImage: `url(${ondas})`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center bottom",
-          backgroundSize: "cover",
-          transform: "scaleX(1.15)",
-          zIndex: 0,
-        }}
-      />
-
-      <div className="relative z-10 min-h-screen flex flex-col p-6 max-w-7xl mx-auto">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-semibold">Clientes</h2>
-            <p className="text-sm text-gray-500 mt-1">Listado de clientes</p>
-          </div>
-        </div>
-
-        {/* Barra búsqueda + botones */}
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar clientes..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-            />
-          </div>
-
-          <div className="flex gap-2 flex-shrink-0">
-            {/* Exportar a Excel */}
-           {/* Exportar a Excel */}
-      <ExportExcelButton
-        event={() =>
-          exportToXls(
-            allClients.map((c) => ({
-              ...c,
-              correo: c.correo?.trim() || "N/A",
-              telefono: c.telefono?.trim() || "N/A",
-            }))
-          )
-        }
-      >
-        Excel
-      </ExportExcelButton>
-
-      {/* Exportar a PDF */}
-      <ExportPDFButton
-        event={() =>
-          exportToPdf(
-            allClients.map((c) => ({
-              ...c,
-              correo: c.correo?.trim() || "N/A",
-              telefono: c.telefono?.trim() || "N/A",
-            }))
-          )
-        }
-      >
-        PDF
-      </ExportPDFButton>
-
-
-            <button
-              onClick={() => {
-                setForm({
-                  nombre: "",
-                  tipoDocumento: "",
-                  numeroDocumento: "",
-                  correo: "",
-                  telefono: "",
-                  activo: true,
-                });
-                setEditingClientId(null);
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-            >
-              Registrar Cliente
-            </button>
-          </div>
-        </div>
-
-        {/* Tabla */}
-        <motion.div
-          className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden max-w-6xl mx-auto"
-          variants={tableVariants}
-          initial="hidden"
-          animate="visible"
-          style={{ fontSize: "0.9rem" }}
+      {/* Contenedor global para controlar overflow horizontal */}
+      <div className="flex min-h-screen w-full overflow-x-hidden">
+        {/* Fondo ondas, sin afectar el ancho */}
+        <div
+          className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
+          style={{
+            height: "50%",
+            backgroundImage: `url(${ondas})`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center bottom",
+            backgroundSize: "cover",
+            transform: "scaleX(1.15)",
+            zIndex: 0,
+          }}
         >
-          <table key={currentPage} className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Nombre</th>
-                <th className="px-4 py-3">Documento</th>
-                <th className="px-4 py-3">Correo</th>
-                <th className="px-4 py-3">Teléfono</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
+          <div className="h-full w-full" />
+        </div>
 
-            <motion.tbody
-              className="divide-y divide-gray-100"
+        {/* Contenido principal */}
+        <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
+          <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+            {/* Header */}
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-2xl sm:text-3xl font-semibold">Clientes</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                Listado de clientes
+              </p>
+            </div>
+
+            {/* Barra de búsqueda + botones (responsive) */}
+            <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
+              <div className="relative w-full min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={18} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar clientes..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-2.5 sm:py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-sm"
+                />
+              </div>
+
+              <div className="flex gap-2 flex-shrink-0">
+                {/* Exportar a Excel */}
+                <ExportExcelButton
+                  event={() =>
+                    exportToXls(
+                      allClients.map((c) => ({
+                        ...c,
+                        correo: c.correo?.trim() || "N/A",
+                        telefono: c.telefono?.trim() || "N/A",
+                      }))
+                    )
+                  }
+                >
+                  Excel
+                </ExportExcelButton>
+
+                {/* Exportar a PDF */}
+                <ExportPDFButton
+                  event={() =>
+                    exportToPdf(
+                      allClients.map((c) => ({
+                        ...c,
+                        correo: c.correo?.trim() || "N/A",
+                        telefono: c.telefono?.trim() || "N/A",
+                      }))
+                    )
+                  }
+                >
+                  PDF
+                </ExportPDFButton>
+
+                <button
+                  onClick={() => {
+                    setForm({
+                      nombre: "",
+                      tipoDocumento: "",
+                      numeroDocumento: "",
+                      correo: "",
+                      telefono: "",
+                      activo: true,
+                    });
+                    setEditingClientId(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 sm:py-2 rounded-full bg-green-600 text-white hover:bg-green-700 text-sm w-full sm:w-auto"
+                >
+                  Registrar Cliente
+                </button>
+              </div>
+            </div>
+
+            {/* ====== LISTADO RESPONSIVE ====== */}
+
+            {/* Móvil: tarjetas / acordeón */}
+            <motion.div
+              className="md:hidden"
               variants={tableVariants}
+              initial="hidden"
+              animate="visible"
             >
               {pageItems.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No se encontraron clientes.
-                  </td>
-                </tr>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+                  No se encontraron clientes.
+                </div>
               ) : (
-                pageItems.map((c, i) => (
-                  <motion.tr
-                    key={c.id + "-" + i}
-                    className="hover:bg-gray-50"
-                    variants={rowVariants}
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.id}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                      {c.nombre}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.tipoDocumento} {c.numeroDocumento}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.correo?.trim() ? c.correo : "N/A"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.telefono?.trim() ? c.telefono : "N/A"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                          c.activo
-                            ? "bg-green-50 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
+                <motion.ul className="space-y-3" variants={tableVariants}>
+                  {pageItems.map((c, i) => {
+                    const isExpanded = expanded.has(c.id);
+
+                    return (
+                      <motion.li
+                        key={c.id + "-mobile-" + i}
+                        variants={rowVariants}
+                        className="bg-white rounded-xl shadow-sm border border-gray-100"
                       >
-                        {c.activo ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.fecha}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <ViewButton event={() => handleView(c)} />
-                        <EditButton event={() => editClient(c)} />
-                        <DeleteButton event={() => deleteClient(c)} />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(c.id)}
+                          aria-expanded={isExpanded}
+                          className="w-full p-4 text-left"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  ID {c.id}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
+                                    c.activo
+                                      ? "bg-green-50 text-green-700"
+                                      : "bg-red-100 text-red-600"
+                                  }`}
+                                >
+                                  {c.activo ? "Activo" : "Inactivo"}
+                                </span>
+                              </div>
+                              <p
+                                className="mt-1 text-base font-semibold text-gray-900 truncate"
+                                title={c.nombre}
+                              >
+                                {c.nombre}
+                              </p>
+                            </div>
+                            <ChevronIcon open={isExpanded} />
+                          </div>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0, y: -4 }}
+                              animate={{ height: "auto", opacity: 1, y: 0 }}
+                              exit={{ height: 0, opacity: 0, y: -2 }}
+                              transition={{ duration: 0.3 }}
+                              className="overflow-hidden border-t border-gray-100"
+                            >
+                              <div className="px-4 py-4 space-y-2 text-sm">
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Documento
+                                  </p>
+                                  <p className="text-gray-800 break-words">
+                                    {c.tipoDocumento} {c.numeroDocumento}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Correo
+                                  </p>
+                                  <p className="text-gray-800 break-words">
+                                    {c.correo?.trim() ? c.correo : "N/A"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Teléfono
+                                  </p>
+                                  <p className="text-gray-800 break-words">
+                                    {c.telefono?.trim() ? c.telefono : "N/A"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                    Fecha
+                                  </p>
+                                  <p className="text-gray-800 break-words">
+                                    {c.fecha}
+                                  </p>
+                                </div>
+
+                                <div className="pt-2 flex items-center gap-2">
+                                  <ViewButton event={() => handleView(c)} />
+                                  <EditButton event={() => editClient(c)} />
+                                  <DeleteButton event={() => deleteClient(c)} />
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.li>
+                    );
+                  })}
+                </motion.ul>
               )}
-            </motion.tbody>
-          </table>
-        </motion.div>
+            </motion.div>
 
-        {/* Paginación */}
-        <Paginator
-          currentPage={currentPage}
-          perPage={perPage}
-          totalPages={totalPages}
-          filteredLength={filtered.length}
-          goToPage={goToPage}
-        />
+            {/* Desktop: tabla (la misma que ya tenías, pero scrollable y sin romper layout) */}
+            <motion.div
+              className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
+              variants={tableVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <div className="overflow-x-auto max-w-full">
+                <table
+                  key={currentPage}
+                  className="min-w-[800px] w-full"
+                  style={{ fontSize: "0.9rem" }}
+                >
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Nombre</th>
+                      <th className="px-4 py-3">Documento</th>
+                      <th className="px-4 py-3">Correo</th>
+                      <th className="px-4 py-3">Teléfono</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Fecha</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
 
-        {/* Modal de registro / edición */}
+                  <motion.tbody
+                    className="divide-y divide-gray-100"
+                    variants={tableVariants}
+                  >
+                    {pageItems.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          No se encontraron clientes.
+                        </td>
+                      </tr>
+                    ) : (
+                      pageItems.map((c, i) => (
+                        <motion.tr
+                          key={c.id + "-" + i}
+                          className="hover:bg-gray-50"
+                          variants={rowVariants}
+                        >
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {c.id}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                            {c.nombre}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {c.tipoDocumento} {c.numeroDocumento}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {c.correo?.trim() ? c.correo : "N/A"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {c.telefono?.trim() ? c.telefono : "N/A"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                                c.activo
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {c.activo ? "Activo" : "Inactivo"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {c.fecha}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              <ViewButton event={() => handleView(c)} />
+                              <EditButton event={() => editClient(c)} />
+                              <DeleteButton event={() => deleteClient(c)} />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </motion.tbody>
+                </table>
+              </div>
+            </motion.div>
+
+            {/* Paginación */}
+            <div className="mt-4 sm:mt-6">
+              <Paginator
+                currentPage={currentPage}
+                perPage={perPage}
+                totalPages={totalPages}
+                filteredLength={filtered.length}
+                goToPage={goToPage}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Modales */}
         <RegisterClientModal
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
@@ -423,7 +587,6 @@ export default function IndexClients() {
           }}
         />
 
-        {/* Modal de detalles */}
         <ClientDetailModal
           isOpen={isViewModalOpen}
           onClose={() => setIsViewModalOpen(false)}
