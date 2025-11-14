@@ -9,6 +9,7 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
@@ -21,10 +22,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
   const [openConfigProductId, setOpenConfigProductId] = useState(null); // dropdown por producto
-
+  const [showConfirmAlert, setShowConfirmAlert] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   // 🔹 Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
-
   const { postReturnProducts, loading } = usePostReturnProducts();
   const { refetch } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
@@ -45,8 +46,14 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
-    const existingIndex = selectedProducts.findIndex((p) => p.id_producto === product.id_producto);
-    const safeQuantity = product.returnQuantity ?? 1;
+    const existingIndex = selectedProducts.findIndex(
+      (p) => p.id_producto === product.id_producto
+    );
+
+    // aseguramos número
+    const initialQty = Number(product.returnQuantity);
+    const safeQuantity =
+      Number.isFinite(initialQty) && initialQty > 0 ? initialQty : 1;
 
     if (existingIndex > -1) {
       const updated = [...selectedProducts];
@@ -69,7 +76,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   };
 
   const handleRemoveProduct = (productId) => {
-    setSelectedProducts((prev) => prev.filter((p) => p.id !== productId));
+    setSelectedProducts((prev) =>
+      prev.filter((p) => p.id_producto !== productId)
+    );
     setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
     if (openConfigProductId === productId) setOpenConfigProductId(null);
   };
@@ -77,15 +86,33 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleUpdateQuantity = (productId, delta) => {
     setSelectedProducts((prev) =>
       prev.map((p) => {
-        if (p.id === productId) {
-          const current =
-            typeof p.returnQuantity === "number" && !isNaN(p.returnQuantity)
-              ? p.returnQuantity
-              : 1;
-          const newQuantity = Math.max(1, Math.min(p.quantity, current + delta));
-          return { ...p, returnQuantity: newQuantity };
+        if (p.id_producto !== productId) return p;
+
+        // valor actual seguro (si viene string "1", lo convertimos a número)
+        const current = Number.isFinite(p.returnQuantity)
+          ? p.returnQuantity
+          : Number(p.returnQuantity) || 1;
+
+        const candidate = current + delta;
+
+        // máximo disponible: primero quantity, luego stock_producto
+        const maxAvailable = Number.isFinite(p.quantity)
+          ? p.quantity
+          : Number.isFinite(p.stock_producto)
+          ? p.stock_producto
+          : null;
+
+        let newQuantity = candidate;
+
+        // solo aplicamos límite superior si tenemos un máximo válido
+        if (maxAvailable !== null) {
+          newQuantity = Math.min(maxAvailable, newQuantity);
         }
-        return p;
+
+        // nunca bajamos de 1
+        newQuantity = Math.max(1, newQuantity);
+
+        return { ...p, returnQuantity: newQuantity };
       })
     );
   };
@@ -118,7 +145,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Actualizamos la acción
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id_producto === product.id_producto ? { ...p, actionType: actionValue } : p
+        p.id_producto === product.id_producto
+          ? { ...p, actionType: actionValue }
+          : p
       )
     );
 
@@ -147,7 +176,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       return [...filtered, registeredDetail];
     });
     console.log("registeredDetail", registeredDetail);
-    console.log("pendingDetails", pendingDetails); 
+    console.log("pendingDetails", pendingDetails);
     setIsRegistrationModalOpen(false);
     setProductToRegister(null);
   };
@@ -178,15 +207,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   };
 
   const handleConfirmReturn = async () => {
-    if (selectedProducts.length == 0) {
-      console.log("selectedProducts in handle length", selectedProducts.length==0);
-      alert("Debe seleccionar al menos un producto para devolver");
+    if (selectedProducts.length === 0) {
+      alert("Selecciona al menos un producto.");
       return;
     }
 
-    // Validar que todos tengan razón y acción
     if (selectedProducts.some((p) => !p.returnReason)) {
-      alert("Todos los productos deben tener una razón de devolución seleccionada.");
+      alert(
+        "Todos los productos deben tener una razón de devolución seleccionada."
+      );
       return;
     }
 
@@ -195,12 +224,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    // Si un producto tiene acción "registrar", debe tener detalle cargado
     const missingDetail = selectedProducts.find(
       (p) =>
         p.actionType === "registrar" &&
         !getPendingDetailForProduct(p.id_producto)
     );
+
     if (missingDetail) {
       alert(
         `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
@@ -208,25 +237,60 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    // Si todo está bien -> mostramos alerta de confirmación
+    setShowConfirmAlert(true);
+  };
+  const handleCancelAlert = () => setShowConfirmAlert(false);
+
+  const handleAcceptAlert = async () => {
+    setShowConfirmAlert(false);
     const id_responsable = 1; // TODO: reemplazar con el usuario logueado
 
-    // 1️⃣ Guardar detalles de productos en BD usando el hook correspondiente
     try {
-      for (const detail of pendingDetails) {
-        await postDetailProduct(detail); // el hook arma el payload
-      }
-    } catch (e) {
-      alert("Ocurrió un error al guardar los detalles de productos.");
-      return;
-    }
-    console.log("selectedProducts", selectedProducts);
-    // 2️⃣ Guardar la devolución como ya lo hacías
-    const result = await postReturnProducts(id_responsable, selectedProducts);
+      const productsPayload = selectedProducts.map((p) => {
+        const detail = getPendingDetailForProduct(p.id_producto);
 
-    if (result) {
-      refetch();
-      alert("✅ Devolución registrada exitosamente");
-      handleCloseModal();
+        // Para 'registrar' debe existir un detalle recién creado
+        const id_detalle =
+          p.actionType === "registrar"
+            ? detail?.id_detalle_producto
+            : p.id_detalle_producto; // para descuento viene del producto
+
+        if (!id_detalle) {
+          throw new Error(
+            `El producto "${
+              p.productos?.nombre ?? p.nombre_producto
+            }" no tiene id_detalle_producto.`
+          );
+        }
+
+        return {
+          id_detalle_producto: id_detalle,
+          cantidad: p.returnQuantity || 1,
+          motivo: p.returnReason,
+          nombre_producto: p.productos?.nombre ?? p.nombre_producto,
+          es_descuento: p.actionType === "descuento",
+        };
+      });
+
+      const payload = {
+        id_responsable,
+        products: productsPayload,
+      };
+
+      const result = await postReturnProducts(payload);
+
+      if (result) {
+        refetch();
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          handleCloseModal();
+        }, 2500);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "No fue posible registrar la devolución.");
     }
   };
 
@@ -245,6 +309,23 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       setPendingDetails([]);
     }
   }, [selectedProducts.length]);
+  const handleRegistrationModalClose = () => {
+    setIsRegistrationModalOpen(false);
+    setProductToRegister(null);
+  };
+
+  const handleRegistrationModalCancel = () => {
+    // si había un producto en registro, limpiamos su acción
+    if (productToRegister) {
+      setSelectedProducts((prev) =>
+        prev.map((p) =>
+          p.id_producto === productToRegister.id_producto
+            ? { ...p, actionType: "" }
+            : p
+        )
+      );
+    }
+  };
 
   return (
     <>
@@ -275,7 +356,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               >
                 {/* Header */}
                 <motion.div
-                  className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50"
+                  className="p-6 border-b rounded-2xl border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.4 }}
@@ -392,7 +473,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     <div className="flex items-center gap-2">
                                       <motion.button
                                         onClick={() =>
-                                          handleUpdateQuantity(product.id_producto, -1)
+                                          handleUpdateQuantity(
+                                            product.id_producto,
+                                            -1
+                                          )
                                         }
                                         disabled={product.returnQuantity <= 1}
                                         className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
@@ -421,7 +505,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       </motion.span>
                                       <motion.button
                                         onClick={() =>
-                                          handleUpdateQuantity(product.id_producto, 1)
+                                          handleUpdateQuantity(
+                                            product.id_producto,
+                                            1
+                                          )
                                         }
                                         disabled={
                                           product.returnQuantity >=
@@ -442,12 +529,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        toggleConfigDropdown(product.id_producto)
+                                        toggleConfigDropdown(
+                                          product.id_producto
+                                        )
                                       }
                                       className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
                                     >
                                       Opciones
-                                      {openConfigProductId === product.id_producto ? (
+                                      {openConfigProductId ===
+                                      product.id_producto ? (
                                         <ChevronUp size={14} />
                                       ) : (
                                         <ChevronDown size={14} />
@@ -472,7 +562,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
                                   {/* Dropdown por producto */}
                                   <AnimatePresence>
-                                    {openConfigProductId === product.id_producto && (
+                                    {openConfigProductId ===
+                                      product.id_producto && (
                                       <motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: "auto" }}
@@ -628,32 +719,45 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                   </label>
 
                                                   {/* Código de barras debajo del checkbox "Registrar" */}
-                                                  {console.log("details",detail)}
-                                                  {action.value === "registrar" &&
+                                                  {console.log(
+                                                    "details",
+                                                    detail
+                                                  )}
+                                                  {action.value ===
+                                                    "registrar" &&
                                                     detail && (
                                                       <div className="ml-7 mt-1 text-xs bg-emerald-50 border border-emerald-200 rounded-md p-2 flex items-center justify-between gap-2">
                                                         <div className="space-y-1">
                                                           <p className="font-semibold text-emerald-800">
-                                                            Detalle registrado temporalmente
+                                                            Detalle registrado
+                                                            temporalmente
                                                           </p>
                                                           <p className="text-gray-700">
                                                             <span className="font-medium">
                                                               Código de barras:
                                                             </span>{" "}
-                                                            {detail.registeredBarcode}
+                                                            {
+                                                              detail.registeredBarcode
+                                                            }
                                                           </p>
                                                           <p className="text-gray-700">
                                                             <span className="font-medium">
                                                               Cantidad:
                                                             </span>{" "}
-                                                            {detail.registeredQuantity}
+                                                            {
+                                                              detail.registeredQuantity
+                                                            }
                                                           </p>
                                                           {detail.fecha_vencimiento && (
                                                             <p className="text-gray-700">
                                                               <span className="font-medium">
                                                                 Vencimiento:
                                                               </span>{" "}
-                                                              {new Date(detail.registeredExpiry).toLocaleDateString("es-ES")}
+                                                              {new Date(
+                                                                detail.registeredExpiry
+                                                              ).toLocaleDateString(
+                                                                "es-ES"
+                                                              )}
                                                             </p>
                                                           )}
                                                         </div>
@@ -709,18 +813,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                   </motion.button>
                   <motion.button
                     onClick={handleConfirmReturn}
-                    disabled={
-                      selectedProducts.length === 0 ||
-                      selectedProducts.some((p) => !p.returnReason) ||
-                      selectedProducts.some((p) => !p.actionType) ||
-                      loading
-                    }
+                    disabled={loading}
                     className="flex-1 px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     whileHover={{
                       scale: 1.0,
                       backgroundColor: "#15803d",
-                      boxShadow:
-                        "0 10px 25px rgba(22, 163, 74, 0.3)",
+                      boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)",
                     }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -728,6 +826,77 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     Confirmar Devolución
                   </motion.button>
                 </motion.div>
+                {/* 🔸 Alerta de confirmación */}
+                <AnimatePresence>
+                  {showConfirmAlert && (
+                    <motion.div
+                      className="absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center text-center p-6"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                    >
+                      <AlertTriangle className="text-yellow-500 w-14 h-14 mb-3" />
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                        ¿Estás seguro de registrar la devolución de los
+                        productos?
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Se actualizarán los{" "}
+                        <span className="font-semibold text-emerald-600">
+                          stocks de los productos seleccionados
+                        </span>
+                        .
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleCancelAlert}
+                          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
+                        >
+                          Cancelar
+                        </button>
+                        <motion.button
+                          onClick={handleAcceptAlert}
+                          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <CheckCircle size={18} />
+                          Confirmar
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* 🔹 Animación de éxito */}
+                <AnimatePresence>
+                  {showSuccessMessage && (
+                    <motion.div
+                      className="absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                    >
+                      <motion.div
+                        className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 20,
+                        }}
+                      >
+                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      </motion.div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">
+                        ¡Devolución registrada!
+                      </h3>
+                      <p className="text-gray-600">
+                        Los productos fueron devueltos exitosamente.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </motion.div>
           </>
@@ -737,9 +906,16 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       {/* Modal de registro de producto */}
       <ProductRegistrationModal
         isOpen={isRegistrationModalOpen}
-        onClose={() => setIsRegistrationModalOpen(false)}
+        onClose={handleRegistrationModalClose}
+        onCancelRegistration={handleRegistrationModalCancel}
         product={productToRegister}
         onConfirm={handleConfirmRegistration}
+        existingBarcodes={pendingDetails
+          .map(
+            (d) =>
+              d.registeredBarcode || d.codigo_barras_producto_compra || null
+          )
+          .filter(Boolean)} // 👈 SOLO códigos válidos
       />
     </>
   );

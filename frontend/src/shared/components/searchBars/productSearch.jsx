@@ -276,7 +276,7 @@ const ProductSearch = ({ onAddProduct }) => {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Package className="w-5 h-5 text-gray-500" />
+                      <img src={item.productos?.url_imagen} alt=""  />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">

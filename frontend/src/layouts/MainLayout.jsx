@@ -29,7 +29,7 @@ export default function MainLayout() {
       {/* Overlay oscuro cuando la sidebar está abierta en mobile */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-20 md:hidden"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
