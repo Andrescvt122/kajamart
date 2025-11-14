@@ -5,8 +5,22 @@ import { X, Package, CheckCircle } from "lucide-react";
 import { Calendar } from "primereact/calendar";
 import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
 
-const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm, existingBarcodes,onCancelRegistration  }) => {
-  const { details, loading: loadingDetails, error, refetch } = useFetchAllDetails();
+const ProductRegistrationModal = ({
+  isOpen,
+  onClose,
+  product,
+  onConfirm,
+  existingBarcodes,
+  onCancelRegistration,
+  initialDetail,
+  ignoreBarcode,
+}) => {
+  const {
+    details,
+    loading: loadingDetails,
+    error,
+    refetch,
+  } = useFetchAllDetails();
 
   const [formData, setFormData] = useState({
     barcode: "",
@@ -26,16 +40,36 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm, existin
   // Resetear campos cuando se abre un producto nuevo
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        barcode: "",
-        quantity: "",
-        expiryDate: "",
-        isReturn: true,
-      });
+      if (initialDetail) {
+        setFormData({
+          barcode:
+            initialDetail.registeredBarcode ||
+            initialDetail.codigo_barras_producto_compra ||
+            "",
+          quantity: String(
+            initialDetail.registeredQuantity ??
+              initialDetail.stock_producto ??
+              ""
+          ),
+          expiryDate:
+            initialDetail.registeredExpiry?.slice(0, 10) ||
+            initialDetail.fecha_vencimiento?.slice(0, 10) ||
+            "",
+          isReturn: true,
+        });
+      } else {
+        setFormData({
+          barcode: "",
+          quantity: "",
+          expiryDate: "",
+          isReturn: true,
+        });
+      }
+
       // refrescamos detalles para validar códigos únicos
       refetch && refetch();
     }
-  }, [isOpen, product, refetch]);
+  }, [isOpen, product, initialDetail, refetch]);
 
   // --- handlers de cambio ---
 
@@ -90,30 +124,40 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm, existin
   // 1) Código de barras
   const barcode = formData.barcode;
   const isBarcodeFilled = barcode.length > 0;
-  const isBarcode13Digits = /^\d{13}$/.test(barcode); // 13 dígitos numéricos exactos
+  const isBarcode13Digits = /^\d{13}$/.test(barcode);
 
-  const barcodeExists =
+  // Filtramos el código actual de los detalles de BD
+  const filteredDetails = Array.isArray(details)
+    ? details.filter((d) => d.codigo_barras_producto_compra !== ignoreBarcode)
+    : [];
+
+  // Ya existentes en BD (excepto el actual si estamos editando)
+  const barcodeExistsDB =
     !!barcode &&
-    Array.isArray(details) &&
-    details.some(
-      (d) => d.codigo_barras_producto_compra === barcode
-    );
+    filteredDetails.some((d) => d.codigo_barras_producto_compra === barcode);
+
+  // Ya existentes temporalmente (excepto el actual)
+  const effectiveTempBarcodes = Array.isArray(existingBarcodes)
+    ? existingBarcodes.filter((code) => code !== ignoreBarcode)
+    : [];
 
   const barcodeExistsTemp =
-    !!barcode &&
-    Array.isArray(existingBarcodes) &&
-    existingBarcodes.includes(barcode);
+    !!barcode && effectiveTempBarcodes.includes(barcode);
 
   let barcodeError = "";
   if (!isBarcodeFilled) {
     barcodeError = "Código de barras requerido";
   } else if (!isBarcode13Digits) {
     barcodeError = "El código de barras debe de ser de 13 dígitos";
-  } else if (barcodeExists || barcodeExistsTemp) {
+  } else if (barcodeExistsDB || barcodeExistsTemp) {
     barcodeError = "El código de barras ya existe";
   }
 
-  const isBarcodeValid = isBarcodeFilled && isBarcode13Digits && !barcodeExists && !barcodeExistsTemp;
+  const isBarcodeValid =
+    isBarcodeFilled &&
+    isBarcode13Digits &&
+    !barcodeExistsDB &&
+    !barcodeExistsTemp;
 
   // 2) Cantidad
   const quantityStr = formData.quantity;
@@ -125,7 +169,11 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm, existin
   let quantityError = "";
   if (!quantityStr) {
     quantityError = "Cantidad requerida";
-  } else if (!isQuantityNumeric || !Number.isFinite(quantityNum) || quantityNum < 1) {
+  } else if (
+    !isQuantityNumeric ||
+    !Number.isFinite(quantityNum) ||
+    quantityNum < 1
+  ) {
     quantityError = "Cantidad inválida";
   }
 

@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Pencil,
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
@@ -24,6 +25,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [openConfigProductId, setOpenConfigProductId] = useState(null); // dropdown por producto
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [registrationMode, setRegistrationMode] = useState("create"); // 'create' | 'edit'
+  const [detailToEdit, setDetailToEdit] = useState(null);
+
   // 🔹 Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
@@ -154,6 +158,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Si la acción es "registrar", abrimos el modal de registro
     if (actionValue === "registrar") {
       setProductToRegister(product);
+      setDetailToEdit(null); // no hay detalle aún
+      setRegistrationMode("create"); // estamos creando
       setIsRegistrationModalOpen(true);
     }
   };
@@ -312,11 +318,13 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleRegistrationModalClose = () => {
     setIsRegistrationModalOpen(false);
     setProductToRegister(null);
+    setDetailToEdit(null);
+    setRegistrationMode("create");
   };
 
   const handleRegistrationModalCancel = () => {
-    // si había un producto en registro, limpiamos su acción
-    if (productToRegister) {
+    // si estaba en modo CREAR registro, limpiamos acción
+    if (registrationMode === "create" && productToRegister) {
       setSelectedProducts((prev) =>
         prev.map((p) =>
           p.id_producto === productToRegister.id_producto
@@ -325,6 +333,21 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         )
       );
     }
+
+    setIsRegistrationModalOpen(false);
+    setProductToRegister(null);
+    setDetailToEdit(null);
+    setRegistrationMode("create");
+  };
+  const handleEditDetail = (productId) => {
+    const detail = getPendingDetailForProduct(productId);
+    const product = selectedProducts.find((p) => p.id_producto === productId);
+    if (!detail || !product) return;
+
+    setProductToRegister(product);
+    setDetailToEdit(detail);
+    setRegistrationMode("edit");
+    setIsRegistrationModalOpen(true);
   };
 
   return (
@@ -333,7 +356,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         {isOpen && (
           <>
             <motion.div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[50]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -761,18 +784,37 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                             </p>
                                                           )}
                                                         </div>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() =>
-                                                            handleDeleteDetail(
-                                                              product.id_producto
-                                                            )
-                                                          }
-                                                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
-                                                        >
-                                                          <Trash2 size={14} />
-                                                          <span>Eliminar</span>
-                                                        </button>
+
+                                                        {/* Botones Eliminar + Editar */}
+                                                        <div className="flex flex-col gap-2">
+                                                          <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                              handleDeleteDetail(
+                                                                product.id_producto
+                                                              )
+                                                            }
+                                                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
+                                                          >
+                                                            <Trash2 size={14} />
+                                                            <span>
+                                                              Eliminar
+                                                            </span>
+                                                          </button>
+
+                                                          <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                              handleEditDetail(
+                                                                product.id_producto
+                                                              )
+                                                            }
+                                                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
+                                                          >
+                                                            <Pencil size={14} />
+                                                            <span>Editar</span>
+                                                          </button>
+                                                        </div>
                                                       </div>
                                                     )}
                                                 </div>
@@ -915,7 +957,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             (d) =>
               d.registeredBarcode || d.codigo_barras_producto_compra || null
           )
-          .filter(Boolean)} // 👈 SOLO códigos válidos
+          .filter(Boolean)}
+        initialDetail={detailToEdit}
+        ignoreBarcode={
+          detailToEdit
+            ? detailToEdit.registeredBarcode ||
+              detailToEdit.codigo_barras_producto_compra ||
+              null
+            : null
+        }
       />
     </>
   );

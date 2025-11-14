@@ -111,7 +111,7 @@ export default function Sidebar({
         transform transition-transform duration-300
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
         md:translate-x-0 md:static
-        z-[60]  /* 👈 MÁS ALTO QUE LA NAVBAR Y SU PANEL MÓVIL */
+        z-[50]  /* Sidebar > navbar (z-10) pero < modales (z-50) */
       `}
       style={{
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",

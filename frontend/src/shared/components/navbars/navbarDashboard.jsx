@@ -34,7 +34,7 @@ const devolucionesItem = {
   submenu: [
     { name: "Devoluciones de clientes", path: "/app/dashboard/return/clients" },
     { name: "Bajas de productos", path: "/app/dashboard/return/low" },
-    { name: "Devolución de productos", path: "/app/dashboard/return/products" }
+    { name: "Devolución de productos", path: "/app/dashboard/return/products" },
   ],
 };
 
@@ -141,7 +141,8 @@ export default function NavBarDashboard() {
     "inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-colors border focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200";
 
   return (
-    <header className="relative w-full z-10" role="banner">
+    // z-[10] -> SIEMPRE por debajo de la sidebar (z-[60])
+    <header className="relative w-full z-[10]" role="banner">
       {/* Barra superior con gradiente */}
       <div
         className="w-full backdrop-blur-md"
@@ -151,9 +152,8 @@ export default function NavBarDashboard() {
         }}
       >
         <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-3 space-y-3">
-          {/* ===== FILA MOBILE (solo cuando la pantalla está chica) ===== */}
+          {/* ===== FILA MOBILE ===== */}
           <div className="flex items-center justify-between gap-3 md:hidden">
-            {/* Título */}
             <div className="flex-1 min-w-0 text-center">
               <p className="text-[11px] font-semibold tracking-[0.14em] text-emerald-900 uppercase">
                 Panel de administración
@@ -163,9 +163,7 @@ export default function NavBarDashboard() {
               </p>
             </div>
 
-            {/* Campana + menú mobile dashboards */}
             <div className="flex items-center gap-2">
-
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -177,9 +175,8 @@ export default function NavBarDashboard() {
             </div>
           </div>
 
-          {/* ===== FILA DESKTOP (solo pantalla normal / grande) ===== */}
+          {/* ===== FILA DESKTOP ===== */}
           <div className="hidden md:flex items-center justify-between gap-4">
-            {/* Nav principal desktop (lo de la PRIMER imagen) */}
             <nav className="flex items-center gap-1">
               {items.slice(0, items.length - 1).map((item) => {
                 const active = isActive(item.path, item.base);
@@ -223,7 +220,7 @@ export default function NavBarDashboard() {
                   {devolucionesOpen && (
                     <motion.div
                       {...dropdownMotion}
-                      className="absolute right-0 mt-2 w-64 rounded-2xl bg-white shadow-lg border border-emerald-100/80 py-2 z-30"
+                      className="absolute right-0 mt-2 w-64 rounded-2xl bg-white shadow-lg border border-emerald-100/80 py-2 z-[15]"
                     >
                       {devolucionesItem.submenu.map((sub) => {
                         const active = isActive(sub.path, devolucionesItem.base);
@@ -255,15 +252,16 @@ export default function NavBarDashboard() {
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Overlay (va por encima del contenido pero solo en mobile) */}
+            {/* Overlay del panel móvil: por debajo de la sidebar */}
             <motion.div
-              className="fixed inset-0 bg-black/35 md:hidden z-30"
+              className="fixed inset-0 bg-black/35 md:hidden z-[15]"
               {...overlayMotion}
               onClick={() => setMobileOpen(false)}
             />
 
+            {/* Panel móvil (dashboards) -> también por debajo de la sidebar */}
             <motion.aside
-              className="fixed inset-y-0 right-0 w-72 max-w-[80%] bg-emerald-950 text-emerald-50 shadow-2xl md:hidden z-40 flex flex-col"
+              className="fixed inset-y-0 right-0 w-72 max-w-[80%] bg-emerald-950 text-emerald-50 shadow-2xl md:hidden z-[25] flex flex-col"
               {...panelMotion}
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-800">
