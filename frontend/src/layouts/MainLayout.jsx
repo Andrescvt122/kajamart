@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from '../shared/components/sidebar.jsx';
 import { Menu } from 'lucide-react';
 import logo from '../assets/logo.png';
+import NavBarDashboard from '../shared/components/navbars/navbarDashboard.jsx';
 export default function MainLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
@@ -29,7 +30,7 @@ export default function MainLayout() {
       {/* Overlay oscuro cuando la sidebar está abierta en mobile */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          className="fixed inset-0 bg-black/40 z-10 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
@@ -52,7 +53,7 @@ export default function MainLayout() {
             Panel de administración
           </div>
         </header>
-
+        
         <main className="flex-1 p-4 md:p-8 relative">
           <Outlet />
         </main>
