@@ -18,22 +18,34 @@ import { exportCategoriesToExcel } from "../../features/categories/helpers/expor
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
-// Ancho de referencia para descripción en desktop
+// Config columnas
 const DESC_COL_CHARS = 30;
 
-// Transiciones
+// Easing / tiempos
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
 const EXPAND_DURATION = 0.38;
 
-// Clases para textos largos que no deben romper el layout
+// Textos seguros
 const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
-
-// Clases para textos de una línea con elipsis y seguridad de ancho
 const ONE_LINE_SAFE =
   "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
 
-// Icono chevron para acordeón móvil
+// Animaciones (mismas de Proveedores)
+const tableVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { when: "beforeChildren", staggerChildren: 0.12 },
+  },
+};
+const rowVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
+  exit: { opacity: 0, y: -6, transition: { duration: 0.18 } },
+};
+
+// Chevron móvil
 function ChevronIcon({ open }) {
   return (
     <motion.svg
@@ -81,7 +93,7 @@ export default function IndexCategories() {
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // Control de expansión por id (móvil/desktop)
+  // Acordeón (móvil/desktop)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -91,36 +103,38 @@ export default function IndexCategories() {
     });
   };
 
-  // FILTRO
+  // Filtro
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return categories;
 
     if (/^activos?$/.test(s)) {
-      return categories.filter((c) => String(c.estado).toLowerCase() === "activo");
+      return categories.filter(
+        (c) => String(c.estado).toLowerCase() === "activo"
+      );
     }
     if (/^inactivos?$/.test(s)) {
-      return categories.filter((c) => String(c.estado).toLowerCase() === "inactivo");
+      return categories.filter(
+        (c) => String(c.estado).toLowerCase() === "inactivo"
+      );
     }
 
     return categories.filter((c) =>
       Object.values(c).some((value) =>
-        String(value ?? "").toLowerCase().includes(s)
+        String(value ?? "")
+          .toLowerCase()
+          .includes(s)
       )
     );
   }, [categories, searchTerm]);
 
-  // PAGINACIÓN
+  // Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
-
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
+  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // CRUD
   const handleRegisterCategory = async (form) => {
@@ -137,13 +151,16 @@ export default function IndexCategories() {
   const handleDeleteConfirm = async (category) => {
     try {
       setDeleting(true);
-
+      // Ajustar página si se queda sin elementos
       const afectaListadoActual = filtered.some(
         (c) => c.id_categoria === category.id_categoria
       );
-      const newFilteredLength = afectaListadoActual ? filtered.length - 1 : filtered.length;
+      const newFilteredLength = afectaListadoActual
+        ? filtered.length - 1
+        : filtered.length;
       const newTotalPages = Math.max(1, Math.ceil(newFilteredLength / perPage));
-      const targetPage = currentPage > newTotalPages ? newTotalPages : currentPage;
+      const targetPage =
+        currentPage > newTotalPages ? newTotalPages : currentPage;
 
       await deleteCategory(category.id_categoria);
 
@@ -167,20 +184,6 @@ export default function IndexCategories() {
     }
   };
 
-  // Animaciones
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-  };
-  const rowVariants = {
-    hidden: { opacity: 0, y: 6 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.24, ease: EXPAND_EASE },
-    },
-  };
-
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -192,9 +195,8 @@ export default function IndexCategories() {
   }
 
   return (
-    // ⬇️ Bloquea cualquier overflow horizontal global
     <div className="flex min-h-screen w-full overflow-x-hidden">
-      {/* Fondo decorativo: nunca ensancha el layout */}
+      {/* Fondo decorativo */}
       <div
         className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
         style={{
@@ -209,52 +211,68 @@ export default function IndexCategories() {
         <div className="h-full w-full" />
       </div>
 
-      {/* Contenido principal */}
+      {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        {/* Contenedor central con límites de ancho y sin mínimos que rompan */}
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
-          {/* Título */}
+          {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">Categorías</h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">Administrador de Tienda</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Administrador de Tienda
+            </p>
           </div>
 
-          {/* Toolbar: nunca empuja el ancho */}
-          <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="w-full min-w-0">
-              <SearchBar
-                placeholder="Buscar categorías..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
+          {/* Toolbar (alineada en una fila; responsive) */}
+          <div className="mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+              {/* Buscar: ocupa todo el espacio disponible */}
+              <div className="min-w-0">
+                <SearchBar
+                  placeholder="Buscar categorías..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-10"
+                />
+              </div>
 
-            <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
-              <ExportExcelButton event={() => exportCategoriesToExcel(filtered)}>
-                Excel
-              </ExportExcelButton>
-              <ExportPDFButton event={() => exportCategoriesToPDF(filtered)}>
-                PDF
-              </ExportPDFButton>
-              <button
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: "auto" });
-                  setIsModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 w-full sm:w-auto"
-                disabled={creating}
-              >
-                {creating ? "Creando..." : "Registrar Nueva Categoría"}
-              </button>
+              {/* Exportar Excel */}
+              <div className="flex justify-end">
+                <ExportExcelButton
+                  event={() => exportCategoriesToExcel(filtered)}
+                >
+                  Excel
+                </ExportExcelButton>
+              </div>
+
+              {/* Exportar PDF */}
+              <div className="flex justify-end">
+                <ExportPDFButton event={() => exportCategoriesToPDF(filtered)}>
+                  PDF
+                </ExportPDFButton>
+              </div>
+
+              {/* Registrar */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: "auto" });
+                    setIsModalOpen(true);
+                  }}
+                  className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 w-full sm:w-auto"
+                  disabled={creating}
+                >
+                  {creating ? "Creando..." : "Registrar Nueva Categoría"}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* ====== LISTADO RESPONSIVE ====== */}
+          {/* ====== LISTADO ====== */}
 
-          {/* Móvil: tarjetas / acordeón */}
+          {/* MÓVIL: lista/accordion con cascada */}
           <motion.div
             className="md:hidden"
             variants={tableVariants}
@@ -270,7 +288,13 @@ export default function IndexCategories() {
                 No se encontraron categorías.
               </div>
             ) : (
-              <motion.ul className="space-y-3" variants={tableVariants}>
+              <motion.ul
+                className="space-y-3"
+                variants={tableVariants}
+                key={`m-${currentPage}-${filtered.length}-${searchTerm}`}
+                initial="hidden"
+                animate="visible"
+              >
                 {pageItems.map((c, i) => {
                   const isExpanded = expanded.has(c.id_categoria);
                   const panelId = `panel-${c.id_categoria}`;
@@ -305,8 +329,13 @@ export default function IndexCategories() {
                                 {c.estado}
                               </span>
                             </div>
-                            {/* Nombre seguro en una línea */}
-                            <p className={"mt-1 text-base font-semibold text-gray-900 " + ONE_LINE_SAFE} title={c.nombre}>
+                            <p
+                              className={
+                                "mt-1 text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
+                              title={c.nombre}
+                            >
                               {c.nombre}
                             </p>
                           </div>
@@ -321,7 +350,10 @@ export default function IndexCategories() {
                             initial={{ height: 0, opacity: 0, y: -4 }}
                             animate={{ height: "auto", opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{ duration: EXPAND_DURATION, ease: EXPAND_EASE }}
+                            transition={{
+                              duration: EXPAND_DURATION,
+                              ease: EXPAND_EASE,
+                            }}
                             className="overflow-hidden border-t border-gray-100"
                             aria-live="polite"
                           >
@@ -330,10 +362,14 @@ export default function IndexCategories() {
                                 Descripción
                               </p>
 
-                              {/* Texto largo seguro en móvil */}
                               <p
-                                className={LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"}
-                                style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+                                className={
+                                  LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"
+                                }
+                                style={{
+                                  wordBreak: "break-word",
+                                  overflowWrap: "anywhere",
+                                }}
                               >
                                 {desc || "—"}
                               </p>
@@ -367,18 +403,15 @@ export default function IndexCategories() {
             )}
           </motion.div>
 
-          {/* Desktop: tabla, sin romper el ancho */}
+          {/* DESKTOP: tabla con cascada (tbody → filas) */}
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
             initial="hidden"
             animate="visible"
           >
-            {/* Si el viewport es más pequeño que la tabla, permitimos scroll horizontal SOLO del contenedor */}
             <div className="overflow-x-auto max-w-full">
-              {/* min-w garantiza buenas proporciones; el contenedor recorta si hace falta */}
               <table className="min-w-[720px] lg:min-w-[860px] w-full md:table-fixed">
-                {/* Col widths (solo como guía; el wrapping evita ensanchar de más) */}
                 <colgroup>
                   <col style={{ width: 120 }} />
                   <col style={{ width: 240 }} />
@@ -393,11 +426,19 @@ export default function IndexCategories() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Nombre</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Descripción</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
 
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <motion.tbody
+                  key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
                   {loading ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-12">
@@ -406,7 +447,10 @@ export default function IndexCategories() {
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={5}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
                         No se encontraron categorías.
                       </td>
                     </tr>
@@ -420,14 +464,14 @@ export default function IndexCategories() {
                         <motion.tr
                           key={c.id_categoria + "-" + i}
                           className="hover:bg-gray-50 align-top"
-                          variants={rowVariants}
+                          variants={rowVariants} // <- hereda del tbody
+                          layout
                         >
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                             {c.id_categoria}
                           </td>
 
                           <td className="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900">
-                            {/* wrapper con límites para evitar que nombres gigantes rompan */}
                             <div className="min-w-0 max-w-[28ch] lg:max-w-[34ch] xl:max-w-[42ch]">
                               <div className={ONE_LINE_SAFE} title={c.nombre}>
                                 {c.nombre}
@@ -435,14 +479,12 @@ export default function IndexCategories() {
                             </div>
                           </td>
 
-                          {/* Descripción truncada con opción expandir */}
+                          {/* Descripción truncada con expand/collapse */}
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 align-top">
-                            {/* Ancho de referencia y seguridad de overflow */}
                             <div
                               style={{ width: `${DESC_COL_CHARS}ch` }}
                               className="max-w-full overflow-hidden"
                             >
-                              {/* Vista truncada */}
                               {!isExpanded && (
                                 <div
                                   className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full"
@@ -453,22 +495,34 @@ export default function IndexCategories() {
                                 </div>
                               )}
 
-                              {/* Vista expandida segura */}
                               <AnimatePresence initial={false}>
                                 {isExpanded && (
                                   <motion.div
                                     key="expanded"
                                     initial={{ height: 0, opacity: 0, y: -4 }}
-                                    animate={{ height: "auto", opacity: 1, y: 0 }}
+                                    animate={{
+                                      height: "auto",
+                                      opacity: 1,
+                                      y: 0,
+                                    }}
                                     exit={{ height: 0, opacity: 0, y: -2 }}
-                                    transition={{ duration: EXPAND_DURATION, ease: EXPAND_EASE }}
+                                    transition={{
+                                      duration: EXPAND_DURATION,
+                                      ease: EXPAND_EASE,
+                                    }}
                                     className="overflow-hidden"
                                     aria-live="polite"
                                   >
                                     <div
                                       id={`desc-${c.id_categoria}`}
-                                      className={LONG_TEXT_CLS + " mt-1 text-gray-800 leading-relaxed"}
-                                      style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+                                      className={
+                                        LONG_TEXT_CLS +
+                                        " mt-1 text-gray-800 leading-relaxed"
+                                      }
+                                      style={{
+                                        wordBreak: "break-word",
+                                        overflowWrap: "anywhere",
+                                      }}
                                     >
                                       {desc}
                                     </div>
