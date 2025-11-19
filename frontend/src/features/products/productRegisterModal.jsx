@@ -1,9 +1,8 @@
 // frontend/src/features/products/productRegisterModal.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Upload, X } from "lucide-react";
+import { ChevronDown, Upload, X, Info } from "lucide-react";
 import Swal from "sweetalert2";
-
 import { useCreateProduct } from "../../shared/components/hooks/products/products.hooks.js";
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
@@ -31,11 +30,7 @@ const itemVariants = {
 const isActive = (v) => v === true || v === "Activo" || v === "activo";
 
 export default function ProductRegisterModal({ isOpen, onClose }) {
-  const {
-    categories: catList = [],
-    loading: catLoading,
-  } = useCategories();
-
+  const { categories: catList = [], loading: catLoading } = useCategories();
   // 🔹 Solo categorías activas
   const activeCategories = (Array.isArray(catList) ? catList : []).filter((c) =>
     isActive(c?.estado)
@@ -52,6 +47,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       nombre: s.nombre ?? "",
     }))
     .filter((s) => s.id && s.nombre);
+  const [showSuggestedTooltip, setShowSuggestedTooltip] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -176,7 +172,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     const catOk = activeCategories.some(
       (c) => String(c.id_categoria ?? c.id) === String(form.categoriaId)
     );
-    const provOk = suppliers.some((s) => String(s.id) === String(form.proveedorId));
+    const provOk = suppliers.some(
+      (s) => String(s.id) === String(form.proveedorId)
+    );
 
     const required = [
       "nombre",
@@ -195,11 +193,17 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
 
     if (!catOk) {
       valid = false;
-      setErrors((p) => ({ ...p, categoriaId: "La categoría no es válida o está inactiva." }));
+      setErrors((p) => ({
+        ...p,
+        categoriaId: "La categoría no es válida o está inactiva.",
+      }));
     }
     if (!provOk) {
       valid = false;
-      setErrors((p) => ({ ...p, proveedorId: "El proveedor no es válido o está inactivo." }));
+      setErrors((p) => ({
+        ...p,
+        proveedorId: "El proveedor no es válido o está inactivo.",
+      }));
     }
 
     if (!imagenFile) {
@@ -260,6 +264,42 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       showErrorAlert && showErrorAlert(msg);
     }
   };
+
+  // === PRECIO SUGERIDO ===
+  const compraNum = Number(form.precioCompra);
+  const subidaNum = Number(form.subidaVenta);
+
+  let suggestedPrice = null;
+
+  // solo calculamos si hay valores numéricos válidos
+  if (
+    form.precioCompra !== "" &&
+    form.subidaVenta !== "" &&
+    !Number.isNaN(compraNum) &&
+    !Number.isNaN(subidaNum) &&
+    compraNum >= 0
+  ) {
+    const base = compraNum + compraNum * (subidaNum / 100); // compra + (compra * %)
+    // redondeo al múltiplo de 100 más cercano
+    suggestedPrice = Math.round(base / 100) * 100;
+  }
+
+  // mostrar botón solo si:
+  // - tenemos sugerido
+  // - no hay errores en precioCompra / subidaVenta
+  // - el valor sugerido es distinto al precioVenta actual
+  const shouldShowSuggestedButton =
+    suggestedPrice !== null &&
+    !errors.precioCompra &&
+    !errors.subidaVenta &&
+    String(suggestedPrice) !== String(form.precioVenta || "");
+
+  const formatCOP = (value) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(value);
 
   // === RENDER ===
   return (
@@ -414,38 +454,21 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                       </p>
                     )}
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold">
-                      Precio Venta*
+                      IVA (opcional)
                     </label>
                     <input
-                      name="precioVenta"
-                      type="number"
-                      min="0"
-                      value={form.precioVenta}
-                      onChange={handleChange}
-                      onBlur={(e) =>
-                        validateField("precioVenta", e.target.value)
-                      }
-                      className={`${inputClass} ${
-                        errors.precioVenta
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                      required
-                      onKeyDown={(e) =>
-                        ["e", "E", "+", "-"].includes(e.key) &&
-                        e.preventDefault()
-                      }
+                      name="iva"
+                      value={form.iva}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9%]/g, "");
+                        setForm((prev) => ({ ...prev, iva: val }));
+                      }}
+                      placeholder="Ej: 19%"
+                      className={`${inputClass} border-gray-300`}
                     />
-                    {errors.precioVenta && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.precioVenta}
-                      </p>
-                    )}
                   </div>
-
                   <div>
                     <label className="block text-sm font-semibold">
                       Subida Venta* (%)
@@ -477,21 +500,87 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                       </p>
                     )}
                   </div>
-
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-semibold">
-                      IVA (opcional)
+                      Precio Venta*
                     </label>
                     <input
-                      name="iva"
-                      value={form.iva}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9%]/g, "");
-                        setForm((prev) => ({ ...prev, iva: val }));
-                      }}
-                      placeholder="Ej: 19%"
-                      className={`${inputClass} border-gray-300`}
+                      name="precioVenta"
+                      type="number"
+                      min="0"
+                      value={form.precioVenta}
+                      onChange={handleChange}
+                      onBlur={(e) =>
+                        validateField("precioVenta", e.target.value)
+                      }
+                      className={`${inputClass} ${
+                        errors.precioVenta
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      required
+                      onKeyDown={(e) =>
+                        ["e", "E", "+", "-"].includes(e.key) &&
+                        e.preventDefault()
+                      }
                     />
+                    {errors.precioVenta && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.precioVenta}
+                      </p>
+                    )}
+
+                    {/* Botón de precio sugerido + botón info */}
+                    {shouldShowSuggestedButton && (
+                      <div className="absolute left-0 top-full mt-1 z-30">
+                        <div className="inline-flex items-center gap-2 relative">
+                          {/* Botón principal: usar precio sugerido */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                precioVenta: String(suggestedPrice),
+                              }));
+                              setShowSuggestedTooltip(false);
+                            }}
+                            className="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-md hover:bg-emerald-200 transition"
+                          >
+                            Usar precio sugerido:{" "}
+                            <span className="font-semibold">
+                              {formatCOP(suggestedPrice)}
+                            </span>
+                          </button>
+
+                          {/* Botón info */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowSuggestedTooltip((prev) => !prev)
+                              }
+                              className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 hover:text-gray-900 text-[10px]"
+                            >
+                              <Info size={14} />
+                            </button>
+
+                            {showSuggestedTooltip && (
+                              <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full bg-gray-900 text-white text-[11px] px-3 py-2 rounded-md shadow-lg max-w-xs text-left whitespace-normal">
+                                Calculado como{" "}
+                                <span className="font-semibold">
+                                  {formatCOP(compraNum)}
+                                </span>{" "}
+                                +{" "}
+                                <span className="font-semibold">
+                                  {subidaNum}% de subida
+                                </span>
+                                , redondeado al múltiplo de 100 más cercano.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -693,8 +782,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                             ? "No hay proveedores activos"
                             : form.proveedorId
                             ? suppliers.find(
-                                (s) =>
-                                  String(s.id) === String(form.proveedorId)
+                                (s) => String(s.id) === String(form.proveedorId)
                               )?.nombre || "Seleccionar proveedor"
                             : "Seleccionar proveedor"}
                         </span>
@@ -752,7 +840,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
               <div className="sticky bottom-0 z-10 flex justify-end gap-3 -mx-6 px-6 py-4 border-t bg-white/90 backdrop-blur">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={() => {onClose()}}
                   className="px-4 py-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200"
                 >
                   Cancelar
