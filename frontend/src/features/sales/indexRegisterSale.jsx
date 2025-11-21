@@ -2,8 +2,19 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RegisterClientModal from "../clients/RegisterClientModal";
 
+// Hook de búsqueda en backend
+import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
+
 export default function IndexRegisterSale() {
   const navigate = useNavigate();
+
+  // --- Hook de búsqueda en backend ---
+  const {
+    clients: apiClients,          // 👈 ya vienen normalizados desde el hook
+    loading: loadingClients,
+    error: errorClients,
+    searchClient,
+  } = useSearchClient();
 
   // --- Estados de cliente ---
   const [clienteQuery, setClienteQuery] = useState("");
@@ -20,7 +31,6 @@ export default function IndexRegisterSale() {
     telefono: "",
     activo: true,
   });
-  const [tipoOpen, setTipoOpen] = useState(false);
 
   // --- Productos / venta ---
   const [codigo, setCodigo] = useState("");
@@ -37,7 +47,7 @@ export default function IndexRegisterSale() {
   const sugRef = useRef(null);
   const inputRef = useRef(null);
 
-  // --- Carga inicial de clientes ---
+  // --- Carga inicial de clientes (localStorage + Cliente de Caja) ---
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
     if (!stored.find((c) => c.id === CLIENTE_CAJA_ID)) {
@@ -61,6 +71,23 @@ export default function IndexRegisterSale() {
       if (caja) setClienteSeleccionado(caja);
     }
   }, []);
+
+  // --- Cuando llegan clientes del backend, mezclarlos con Cliente de Caja ---
+  useEffect(() => {
+    if (!apiClients || apiClients.length === 0) return;
+
+    setClientes((prev) => {
+      const caja = prev.find((x) => x.id === CLIENTE_CAJA_ID);
+      const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
+
+      // Evitar duplicados por id
+      const idsApi = new Set(apiClients.map((c) => c.id));
+      const otros = sinCaja.filter((c) => !idsApi.has(c.id));
+
+      const base = caja ? [caja, ...otros] : otros;
+      return [...base, ...apiClients];
+    });
+  }, [apiClients]);
 
   // --- Normalizar texto ---
   const normalize = (t) =>
@@ -94,12 +121,23 @@ export default function IndexRegisterSale() {
     return () => document.removeEventListener("mousedown", handleDocClick);
   }, []);
 
-  // --- Cambios en input ---
+  // --- Cambios en input (busca en back + dropdown) ---
   const handleInputChange = (val) => {
     setClienteQuery(val);
     setClienteSeleccionado(null);
-    if (val.trim()) setShowDropdown(true);
-    else setShowDropdown(false);
+
+    const trimmed = val.trim();
+
+    if (trimmed) {
+      setShowDropdown(true);
+
+      // 🔍 Llamar al backend cuando haya al menos 2 caracteres
+      if (trimmed.length >= 2) {
+        searchClient(trimmed);
+      }
+    } else {
+      setShowDropdown(false);
+    }
   };
 
   // --- Seleccionar sugerencia ---
@@ -155,34 +193,10 @@ export default function IndexRegisterSale() {
       telefono: "",
       activo: true,
     });
-    setTipoOpen(false);
     setShowClientModal(true);
   };
 
-  // --- Callback modal ---
-  const addClientFromModal = (newClient) => {
-    let clientCopy = { ...newClient };
-    if (!clientCopy.id) {
-      const maxNum = clientes.reduce((acc, c) => {
-        const n = parseInt((c.id || "").replace(/\D/g, "")) || 0;
-        return Math.max(acc, n);
-      }, 0);
-      clientCopy.id = "C" + String(maxNum + 1).padStart(3, "0");
-    }
-    clientCopy.estado = clientCopy.activo ? "Activo" : "Inactivo";
-    clientCopy.fecha = clientCopy.fecha || new Date().toISOString().split("T")[0];
-
-    const updated = [clientCopy, ...clientes];
-    setClientes(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    setClienteSeleccionado(clientCopy);
-    setClienteQuery(clientCopy.nombre);
-    setShowClientModal(false);
-    setShowDropdown(false);
-  };
-
-  // --- Productos DB ---
+  // --- Productos DB (dummy) ---
   const productosDB = [
     { codigo: "P001", nombre: "Producto 1", precio: 10 },
     { codigo: "P002", nombre: "Producto 2", precio: 20 },
@@ -335,6 +349,15 @@ export default function IndexRegisterSale() {
         </div>
 
         <div className="mt-2">
+          {loadingClients && (
+            <p className="text-sm text-gray-500">Buscando cliente...</p>
+          )}
+          {errorClients && (
+            <p className="text-sm text-red-600">
+              Error al buscar cliente: {errorClients}
+            </p>
+          )}
+
           {clienteSeleccionado ? (
             <p
               className={`text-sm ${
@@ -357,7 +380,9 @@ export default function IndexRegisterSale() {
 
       {/* Código de producto */}
       <div className="mb-2">
-        <label className="block text-sm text-gray-600 mb-1">Código de barras</label>
+        <label className="block text-sm text-gray-600 mb-1">
+          Código de barras
+        </label>
         <input
           type="text"
           value={codigo}
@@ -445,7 +470,7 @@ export default function IndexRegisterSale() {
       </table>
 
       {/* Métodos de pago + Total */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify_between">
         <div>
           <p className="font-semibold mb-2">Método de Pago</p>
           <div className="flex space-x-2">
@@ -470,7 +495,10 @@ export default function IndexRegisterSale() {
         <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
           <p className="text-sm text-gray-600">Total a pagar</p>
           <p className="text-2xl font-bold text-green-700">
-            ${productos.reduce((acc, p) => acc + p.subtotal, 0).toLocaleString()}
+            $
+            {productos
+              .reduce((acc, p) => acc + p.subtotal, 0)
+              .toLocaleString()}
           </p>
         </div>
       </div>
@@ -494,27 +522,7 @@ export default function IndexRegisterSale() {
       {/* Modal cliente */}
       <RegisterClientModal
         isModalOpen={showClientModal}
-        setIsModalOpen={(open) => {
-          setShowClientModal(open);
-          if (!open) {
-            const updated = JSON.parse(localStorage.getItem("clientes")) || [];
-            setClientes(updated);
-            if (clienteQuery.trim()) {
-              const encontrado = updated.find(
-                (c) =>
-                  c.nombre.toLowerCase().includes(clienteQuery.toLowerCase()) ||
-                  c.numeroDocumento === clienteQuery ||
-                  c.id.toLowerCase() === clienteQuery.toLowerCase()
-              );
-              if (encontrado) {
-                setClienteSeleccionado(encontrado);
-                setClienteQuery(encontrado.nombre);
-                setShowDropdown(false);
-              }
-            }
-          }
-        }}
-        addClient={addClientFromModal}
+        setIsModalOpen={setShowClientModal}
         form={form}
         setForm={setForm}
         tipoOptions={[
@@ -522,8 +530,20 @@ export default function IndexRegisterSale() {
           { value: "T.I", label: "Tarjeta de Identidad" },
           { value: "C.E", label: "Cédula de Extranjería" },
         ]}
-        tipoOpen={tipoOpen}
-        setTipoOpen={setTipoOpen}
+        title="Registrar cliente"
+        onClose={() => setShowClientModal(false)}
+        editingClientId={null}
+        onSuccess={() => {
+          // Después de crear el cliente en el modal,
+          // volvemos a buscarlo por documento o nombre:
+          const q = form.numeroDocumento || form.nombre;
+          if (q) {
+            searchClient(q);
+            setClienteQuery(form.nombre);
+          }
+          setShowClientModal(false);
+          setShowDropdown(false);
+        }}
       />
     </div>
   );
