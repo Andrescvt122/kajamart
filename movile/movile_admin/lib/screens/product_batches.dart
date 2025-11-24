@@ -1,7 +1,10 @@
 // lib/screens/product_batches.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:movile_admin/constants/app_constants.dart';
+import '../models/batch.dart';
 import '../models/product.dart';
+import '../services/product_service.dart';
 
 class ProductBatchesScreen extends StatefulWidget {
   const ProductBatchesScreen({Key? key}) : super(key: key);
@@ -12,30 +15,34 @@ class ProductBatchesScreen extends StatefulWidget {
 
 class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
   String _searchQuery = "";
+  late Product _product;
+  bool _initialized = false;
+  Future<List<Batch>>? _batchesFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+
+    final args = ModalRoute.of(context)!.settings.arguments;
+    if (args == null || args is! Product) {
+      return;
+    }
+
+    _product = args;
+    _batchesFuture = Provider.of<ProductService>(context, listen: false)
+        .fetchProductBatches(_product.id, _product.salePrice);
+    _initialized = true;
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Recibe el producto seleccionado desde la pantalla anterior
-    final args = ModalRoute.of(context)!.settings.arguments;
-    if (args == null || args is! Product) {
+    if (!_initialized) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
-        body: const Center(child: Text('No se recibió un producto válido')),
+        appBar: AppBar(title: const Text('Lotes')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final Product product = args;
-
-    // Filtrado de lotes
-    final filteredBatches = product.batches.where((batch) {
-      return batch.idDetalle.toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ) ||
-          batch.barcode.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          batch.expiryDate
-              .toIso8601String()
-              .split('T')[0]
-              .contains(_searchQuery);
-    }).toList();
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -44,7 +51,7 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
         backgroundColor: AppConstants.secondaryColor, // Verde claro
         elevation: 0,
         title: Text(
-          'Lotes de: ${product.name}',
+          'Lotes de: ${_product.name}',
           style: const TextStyle(
             color: Color(0xff343b45),
             fontWeight: FontWeight.bold,
@@ -87,7 +94,7 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Text(
-              'Producto ID: ${product.id}',
+              'Producto ID: ${_product.id}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Color(0xff343b45),
@@ -97,107 +104,153 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
           const SizedBox(height: 12),
           // Lista estilo Temu
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: filteredBatches.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final b = filteredBatches[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/detail',
-                      arguments: {'product': product, 'batch': b},
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppConstants.secondaryColor.withOpacity(0.6),
+            child: FutureBuilder<List<Batch>>(
+              future: _batchesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Error al cargar lotes: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
                     ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "ID Lote: ${b.idDetalle}",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Color(0xff343b45),
+                  );
+                }
+
+                final batches = snapshot.data ?? _product.batches;
+                final filteredBatches = batches.where((batch) {
+                  final expiry =
+                      batch.expiryDate?.toIso8601String().split('T')[0] ?? '';
+                  return batch.idDetalle
+                          .toString()
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()) ||
+                      batch.barcode
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()) ||
+                      expiry.contains(_searchQuery);
+                }).toList();
+
+                if (filteredBatches.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No hay lotes registrados para este producto',
+                      style: TextStyle(color: Color(0xff343b45)),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filteredBatches.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final b = filteredBatches[index];
+                    final expiryText =
+                        b.expiryDate?.toIso8601String().split('T')[0] ?? '—';
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/detail',
+                          arguments: {'product': _product, 'batch': b},
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppConstants.secondaryColor.withOpacity(0.6),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Código: ${b.barcode}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xff626762),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Vence: ${b.expiryDate.toIso8601String().split('T')[0]}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xff626762),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.inventory,
-                              size: 16,
-                              color: Colors.grey[600],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 5,
+                              offset: const Offset(0, 3),
                             ),
-                            const SizedBox(width: 4),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              "Cantidad: ${b.quantity}",
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                                fontSize: 13,
+                              "ID Lote: ${b.idDetalle}",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Color(0xff343b45),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Icon(
-                              Icons.remove_circle_outline,
-                              size: 16,
-                              color: Colors.redAccent,
-                            ),
-                            const SizedBox(width: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              "Consumido: ${b.consumedStock}",
-                              style: TextStyle(
-                                color: Colors.grey[700],
+                              "Código: ${b.barcode}",
+                              style: const TextStyle(
                                 fontSize: 13,
+                                color: Color(0xff626762),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Vence: $expiryText",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xff626762),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.inventory,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Cantidad: ${b.quantity}",
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.remove_circle_outline,
+                                  size: 16,
+                                  color: Colors.redAccent,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Consumido: ${b.consumedStock}",
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "\$${b.price.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                color: AppConstants.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "\$${b.price.toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            color: AppConstants.primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
