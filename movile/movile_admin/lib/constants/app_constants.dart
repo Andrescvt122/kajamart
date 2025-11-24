@@ -15,23 +15,9 @@ class AppConstants {
   static const String appTitle = 'Admin - Inventario';
 
   // Backend
-  // Nota: localhost en Android emulador necesita 10.0.2.2
-  //      localhost en iOS simulator sigue siendo localhost
-  static String get apiBaseUrl {
-    const String fallback = 'http://localhost:3000/kajamart/api';
-
-    if (kIsWeb) return fallback;
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:3000/kajamart/api';
-      default:
-        return fallback;
-    }
-  }
-
-  static String get productsEndpoint => '$apiBaseUrl/products';
-  static String get productDetailsEndpoint => '$apiBaseUrl/detailsProducts';
+  static const String apiBaseUrl = 'http://localhost:3000/kajamart/api';
+  static const String productsEndpoint = '$apiBaseUrl/products';
+  static const String productDetailsEndpoint = '$apiBaseUrl/detailsProducts';
 
   // Configuración de navegación
   static const int navigationItemCount = 6;
