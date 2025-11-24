@@ -13,6 +13,11 @@ class AppConstants {
   // Configuración del tema
   static const String appTitle = 'Admin - Inventario';
 
+  // Backend
+  static const String apiBaseUrl = 'http://localhost:3000/kajamart/api';
+  static const String productsEndpoint = '$apiBaseUrl/products';
+  static const String productDetailsEndpoint = '$apiBaseUrl/detailsProducts';
+
   // Configuración de navegación
   static const int navigationItemCount = 6;
 
