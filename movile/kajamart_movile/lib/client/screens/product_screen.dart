@@ -35,29 +35,30 @@ class _ProductScreenState extends State<ProductScreen> {
     }
 
     try {
-      final primaryResponse = await http
-          .get(Uri.parse('$_baseUrl/detailsProducts/producto/$productId'));
-
-      final http.Response? response = await _ensureDetailsResponse(
-        primaryResponse,
-        Uri.parse('$_baseUrl/detailsProducts/$productId'),
-      );
-
-      if (response == null) {
-        setState(() {
-          _details = [];
-          _isLoadingDetails = false;
-          _detailsError = null;
-        });
-        return;
-      }
+      final response =
+          await http.get(Uri.parse('$_baseUrl/detailsProducts/producto/$productId'));
 
       if (response.statusCode == 200) {
-        final List<Map<String, dynamic>> parsedDetails =
-            _parseDetailsResponse(response.body);
+        final dynamic decoded = jsonDecode(response.body);
+        final List<dynamic> rawDetails;
+
+        if (decoded is List) {
+          rawDetails = decoded;
+        } else if (decoded is Map<String, dynamic>) {
+          final dynamic data = decoded['data'] ?? decoded['items'] ?? decoded['detalles'];
+          if (data is List) {
+            rawDetails = data;
+          } else if (decoded.containsKey('id_detalle_producto')) {
+            rawDetails = [decoded];
+          } else {
+            rawDetails = const [];
+          }
+        } else {
+          rawDetails = const [];
+        }
 
         setState(() {
-          _details = parsedDetails;
+          _details = rawDetails.whereType<Map<String, dynamic>>().toList();
           _isLoadingDetails = false;
           _detailsError = null;
         });
