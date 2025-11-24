@@ -1,4 +1,5 @@
 // lib/constants/app_constants.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
@@ -12,6 +13,25 @@ class AppConstants {
 
   // Configuración del tema
   static const String appTitle = 'Admin - Inventario';
+
+  // Backend
+  // Nota: localhost en Android emulador necesita 10.0.2.2
+  //      localhost en iOS simulator sigue siendo localhost
+  static String get apiBaseUrl {
+    const String fallback = 'http://localhost:3000/kajamart/api';
+
+    if (kIsWeb) return fallback;
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'http://10.0.2.2:3000/kajamart/api';
+      default:
+        return fallback;
+    }
+  }
+
+  static String get productsEndpoint => '$apiBaseUrl/products';
+  static String get productDetailsEndpoint => '$apiBaseUrl/detailsProducts';
 
   // Configuración de navegación
   static const int navigationItemCount = 6;

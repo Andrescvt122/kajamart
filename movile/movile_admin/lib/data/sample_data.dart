@@ -5,7 +5,7 @@ import '../models/batch.dart';
 class SampleData {
   static List<Product> get sampleProducts => [
     Product(
-      id: 'L001',
+      id: 1,
       name: 'Leche Entera 1L',
       category: 'Lácteos',
       imageUrl: 'https://images.unsplash.com/photo-1585238342022-7a1f2a1f8f7a',
@@ -16,25 +16,29 @@ class SampleData {
       status: 'Activo',
       batches: [
         Batch(
-          idDetalle: 'B-1001',
+          idDetalle: 1001,
           barcode: '987654321001',
           expiryDate: DateTime(2024, 12, 1),
           quantity: 20,
           consumedStock: 4,
           price: 3200.0,
+          isReturn: false,
+          isActive: true,
         ),
         Batch(
-          idDetalle: 'B-1002',
+          idDetalle: 1002,
           barcode: '987654321002',
           expiryDate: DateTime(2025, 2, 15),
           quantity: 56,
           consumedStock: 0,
           price: 3200.0,
+          isReturn: false,
+          isActive: true,
         ),
       ],
     ),
     Product(
-      id: 'C002',
+      id: 2,
       name: 'Cereal Maíz 500g',
       category: 'Cereales',
       imageUrl: 'https://images.unsplash.com/photo-1604908177542-6f3f9b9f9e2b',
@@ -49,12 +53,14 @@ class SampleData {
       ivaPercent: 19.0,
       batches: [
         Batch(
-          idDetalle: 'B-2001',
+          idDetalle: 2001,
           barcode: '123456789012',
           expiryDate: DateTime(2025, 6, 1),
           quantity: 100,
           consumedStock: 10,
           price: 9800.0,
+          isReturn: false,
+          isActive: true,
         ),
       ],
     ),

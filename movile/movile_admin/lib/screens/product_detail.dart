@@ -103,10 +103,15 @@ class ProductDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _row('Producto ID', product.id),
+                    _row('Producto ID', product.id.toString()),
                     _row('Nombre', product.name),
                     _row('Código de barras', batch.barcode),
-                    _row('ICU', '—'),
+                    _row(
+                      'ICU',
+                      product.icuPercent != null
+                          ? '${product.icuPercent}%'
+                          : '—',
+                    ),
                   ],
                 ),
               ),
@@ -168,7 +173,7 @@ class ProductDetailScreen extends StatelessWidget {
                   children: [
                     _row(
                       'Fecha de vencimiento',
-                      batch.expiryDate.toIso8601String().split('T')[0],
+                      batch.expiryDate?.toIso8601String().split('T')[0] ?? '—',
                     ),
                     _row('Max Stock', product.maxStock.toString()),
                     _row('Mini Stock', product.minStock.toString()),

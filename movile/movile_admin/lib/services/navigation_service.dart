@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:movile_admin/constants/app_constants.dart';
 import 'package:movile_admin/models/provider.dart' as model;
 import '../models/product.dart';
-import '../services/product_service.dart';
 import '../services/provider_service.dart';
 import '../screens/product_list.dart';
 import '../screens/product_batches.dart';
@@ -19,7 +18,6 @@ class NavigationService {
     RouteSettings settings,
     BuildContext context,
   ) {
-    final productService = Provider.of<ProductService>(context, listen: false);
     final providerService = Provider.of<ProviderService>(
       context,
       listen: false,
@@ -28,7 +26,7 @@ class NavigationService {
     switch (settings.name) {
       case '/':
         return MaterialPageRoute(
-          builder: (_) => ProductListScreen(products: productService.products),
+          builder: (_) => const ProductListScreen(),
         );
 
       case '/suppliers':
@@ -70,7 +68,7 @@ class NavigationService {
 
     // Fallback (aunque nunca se alcanza debido al default case arriba)
     return MaterialPageRoute(
-      builder: (_) => ProductListScreen(products: productService.products),
+      builder: (_) => const ProductListScreen(),
     );
   }
 
