@@ -2,19 +2,29 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RegisterClientModal from "../clients/RegisterClientModal";
 
-// Hook de búsqueda en backend
+// Hook de búsqueda en backend (clientes)
 import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
+// Hook de búsqueda de producto por nombre
+import { useSearchDetailProduct } from "../../shared/components/hooks/sales/useSearchDetailProduct";
 
 export default function IndexRegisterSale() {
   const navigate = useNavigate();
 
-  // --- Hook de búsqueda en backend ---
+  // --- Hook de búsqueda en backend (clientes) ---
   const {
-    clients: apiClients,          // 👈 ya vienen normalizados desde el hook
+    clients: apiClients,
     loading: loadingClients,
     error: errorClients,
     searchClient,
   } = useSearchClient();
+
+  // --- Hook de producto (solo por nombre) ---
+  const {
+    productDetail,
+    loadingProduct,
+    errorProduct,
+    searchByName,
+  } = useSearchDetailProduct();
 
   // --- Estados de cliente ---
   const [clienteQuery, setClienteQuery] = useState("");
@@ -33,7 +43,8 @@ export default function IndexRegisterSale() {
   });
 
   // --- Productos / venta ---
-  const [codigo, setCodigo] = useState("");
+  // nombreProducto = lo que escribe el usuario en el input de producto
+  const [nombreProducto, setNombreProducto] = useState("");
   const [productos, setProductos] = useState([]);
   const [mensaje, setMensaje] = useState(null);
   const [metodoPago, setMetodoPago] = useState(null);
@@ -80,7 +91,6 @@ export default function IndexRegisterSale() {
       const caja = prev.find((x) => x.id === CLIENTE_CAJA_ID);
       const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
 
-      // Evitar duplicados por id
       const idsApi = new Set(apiClients.map((c) => c.id));
       const otros = sinCaja.filter((c) => !idsApi.has(c.id));
 
@@ -99,9 +109,9 @@ export default function IndexRegisterSale() {
   // --- Calcular sugerencias ---
   const suggestions = clienteQuery.trim()
     ? clientes.filter((c) =>
-        normalize(`${c.id} ${c.nombre} ${c.numeroDocumento} ${c.correo}`).includes(
-          normalize(clienteQuery)
-        )
+        normalize(
+          `${c.id} ${c.nombre} ${c.numeroDocumento} ${c.correo}`
+        ).includes(normalize(clienteQuery))
       )
     : [];
 
@@ -130,8 +140,6 @@ export default function IndexRegisterSale() {
 
     if (trimmed) {
       setShowDropdown(true);
-
-      // 🔍 Llamar al backend cuando haya al menos 2 caracteres
       if (trimmed.length >= 2) {
         searchClient(trimmed);
       }
@@ -147,7 +155,7 @@ export default function IndexRegisterSale() {
     setShowDropdown(false);
   };
 
-  // --- Blur del input ---
+  // --- Blur del input cliente ---
   const handleBlurCliente = () => {
     const q = clienteQuery.trim();
     if (!q) {
@@ -156,7 +164,9 @@ export default function IndexRegisterSale() {
       setShowDropdown(false);
       return;
     }
-    const byId = clientes.find((c) => c.id.toLowerCase() === q.toLowerCase());
+    const byId = clientes.find(
+      (c) => c.id.toLowerCase() === q.toLowerCase()
+    );
     if (byId) {
       setClienteSeleccionado(byId);
       setClienteQuery(byId.nombre);
@@ -196,34 +206,65 @@ export default function IndexRegisterSale() {
     setShowClientModal(true);
   };
 
-  // --- Productos DB (dummy) ---
-  const productosDB = [
-    { codigo: "P001", nombre: "Producto 1", precio: 10 },
-    { codigo: "P002", nombre: "Producto 2", precio: 20 },
-    { codigo: "P003", nombre: "Producto 3", precio: 30 },
-  ];
-
-  // --- Buscar producto ---
+  // --- Buscar producto (SOLO POR NOMBRE) ---
   const handleSearchProduct = () => {
-    if (!codigo.trim()) return;
-    const producto = productosDB.find((p) => p.codigo === codigo.trim());
-    if (!producto) {
-      setMensaje({ tipo: "error", texto: "❌ Producto no encontrado" });
-      setCodigo("");
+    if (!nombreProducto.trim()) return;
+    searchByName(nombreProducto.trim());
+  };
+
+  // --- Cuando llega un productDetail desde el backend, lo agregamos a la tabla ---
+  useEffect(() => {
+    if (!productDetail) return;
+
+    const producto = {
+      codigo:
+        productDetail.codigo_barras_producto_compra ||
+        productDetail.id ||
+        "",
+      nombre: productDetail.productos?.nombre || "Sin nombre",
+      precio: Number(
+        productDetail.precio_venta ??
+          productDetail.precio ??
+          productDetail.productos?.precio_venta ??
+          productDetail.productos?.precio ??
+          0
+      ),
+    };
+
+    if (!producto.nombre) {
+      setMensaje({
+        tipo: "error",
+        texto: "❌ El producto no tiene nombre válido",
+      });
       return;
     }
-    if (productos.some((p) => p.codigo === producto.codigo)) {
-      setMensaje({ tipo: "error", texto: "⚠️ El producto ya está en la lista" });
-      setCodigo("");
+
+    if (
+      productos.some(
+        (p) =>
+          (producto.codigo && p.codigo === producto.codigo) ||
+          p.nombre === producto.nombre
+      )
+    ) {
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ El producto ya está en la lista",
+      });
+      setNombreProducto("");
       return;
     }
-    setProductos([
-      ...productos,
-      { ...producto, cantidad: 1, subtotal: producto.precio },
+
+    setProductos((prev) => [
+      ...prev,
+      {
+        ...producto,
+        cantidad: 1,
+        subtotal: producto.precio,
+      },
     ]);
     setMensaje({ tipo: "ok", texto: "✅ Producto agregado" });
-    setCodigo("");
-  };
+    setNombreProducto("");
+  }, [productDetail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Validación inmediata de cliente inactivo ---
   useEffect(() => {
@@ -240,11 +281,17 @@ export default function IndexRegisterSale() {
   // --- Finalizar venta ---
   const handleFinalizarVenta = () => {
     if (productos.length === 0) {
-      setMensaje({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ Debe agregar al menos un producto",
+      });
       return;
     }
     if (!metodoPago) {
-      setMensaje({ tipo: "error", texto: "⚠️ Seleccione un método de pago" });
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ Seleccione un método de pago",
+      });
       return;
     }
 
@@ -308,30 +355,32 @@ export default function IndexRegisterSale() {
                   handleBlurCliente();
                 }
               }}
-              placeholder="Ingrese el nombre o código del cliente (ej. C000)"
+              placeholder="Ingrese el nombre o código del cliente"
               className="w-full border rounded px-3 py-2 bg-white text-black"
             />
             {/* Dropdown */}
             <div ref={sugRef}>
-              {showDropdown && suggestions.length > 0 && !clienteSeleccionado && (
-                <div className="absolute left-0 right-0 bg-white border rounded-md mt-1 shadow z-30 max-h-56 overflow-auto">
-                  {suggestions.slice(0, 7).map((s) => (
-                    <div
-                      key={s.id}
-                      onMouseDown={(ev) => {
-                        ev.preventDefault();
-                        handleSelectSuggestion(s);
-                      }}
-                      className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
-                    >
-                      <div className="text-sm font-medium">{s.nombre}</div>
-                      <div className="text-xs text-gray-500">
-                        {s.numeroDocumento || "N/A"}
+              {showDropdown &&
+                suggestions.length > 0 &&
+                !clienteSeleccionado && (
+                  <div className="absolute left-0 right-0 bg-white border rounded-md mt-1 shadow z-30 max-h-56 overflow-auto">
+                    {suggestions.slice(0, 7).map((s) => (
+                      <div
+                        key={s.id}
+                        onMouseDown={(ev) => {
+                          ev.preventDefault();
+                          handleSelectSuggestion(s);
+                        }}
+                        className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
+                      >
+                        <div className="text-sm font-medium">{s.nombre}</div>
+                        <div className="text-xs text-gray-500">
+                          {s.numeroDocumento || "N/A"}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
             </div>
           </div>
 
@@ -371,22 +420,22 @@ export default function IndexRegisterSale() {
                 : `❌ Cliente inactivo: ${clienteSeleccionado.nombre}`}
             </p>
           ) : clienteQuery.trim() === "" ? (
-            <p className="text-sm text-gray-600">Se usará el Cliente de Caja</p>
+            <p className="text-sm text-gray-600">
+              Se usará el Cliente de Caja
+            </p>
           ) : (
             <p className="text-sm text-red-600">No se encontró cliente</p>
           )}
         </div>
       </div>
 
-      {/* Código de producto */}
+      {/* Producto (nombre) */}
       <div className="mb-2">
-        <label className="block text-sm text-gray-600 mb-1">
-          Código de barras
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Producto</label>
         <input
           type="text"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
+          value={nombreProducto}
+          onChange={(e) => setNombreProducto(e.target.value)}
           onBlur={handleSearchProduct}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -394,10 +443,18 @@ export default function IndexRegisterSale() {
               handleSearchProduct();
             }
           }}
-          placeholder="Ingrese o escanee el código de barras"
+          placeholder="Ingrese el nombre del producto"
           className="w-full border rounded px-3 py-2 bg-white text-black"
         />
       </div>
+
+      {/* Estado búsqueda de producto */}
+      {loadingProduct && (
+        <p className="text-sm text-gray-500 mb-1">Buscando producto...</p>
+      )}
+      {errorProduct && (
+        <p className="text-sm text-red-600 mb-1">{errorProduct}</p>
+      )}
 
       {/* Mensaje */}
       {mensaje && (
@@ -431,17 +488,21 @@ export default function IndexRegisterSale() {
           ) : (
             productos.map((prod, i) => (
               <tr key={i}>
-                <td className="border px-3 py-2 text-black">{prod.nombre}</td>
+                <td className="border px-3 py-2 text-black">
+                  {prod.nombre}
+                </td>
                 <td className="border px-3 py-2 text-center text-black">
                   <input
                     type="number"
                     min="1"
                     value={prod.cantidad}
                     onChange={(e) => {
-                      const nuevaCantidad = parseInt(e.target.value) || 1;
+                      const nuevaCantidad =
+                        parseInt(e.target.value) || 1;
                       const nuevos = [...productos];
                       nuevos[i].cantidad = nuevaCantidad;
-                      nuevos[i].subtotal = nuevaCantidad * nuevos[i].precio;
+                      nuevos[i].subtotal =
+                        nuevaCantidad * nuevos[i].precio;
                       setProductos(nuevos);
                     }}
                     className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
@@ -456,7 +517,9 @@ export default function IndexRegisterSale() {
                 <td className="border px-3 py-2 text-center">
                   <button
                     onClick={() =>
-                      setProductos(productos.filter((_, idx) => idx !== i))
+                      setProductos(
+                        productos.filter((_, idx) => idx !== i)
+                      )
                     }
                     className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                   >
@@ -485,7 +548,9 @@ export default function IndexRegisterSale() {
             <button
               onClick={() => setMetodoPago("transferencia")}
               className={`px-4 py-2 rounded text-white ${
-                metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
+                metodoPago === "transferencia"
+                  ? "bg-green-600"
+                  : "bg-gray-500"
               }`}
             >
               Transferencia
@@ -534,8 +599,6 @@ export default function IndexRegisterSale() {
         onClose={() => setShowClientModal(false)}
         editingClientId={null}
         onSuccess={() => {
-          // Después de crear el cliente en el modal,
-          // volvemos a buscarlo por documento o nombre:
           const q = form.numeroDocumento || form.nombre;
           if (q) {
             searchClient(q);
