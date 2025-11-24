@@ -83,6 +83,44 @@ class _ProductScreenState extends State<ProductScreen> {
     }
   }
 
+  Future<http.Response?> _ensureDetailsResponse(
+    http.Response primary,
+    Uri fallbackUri,
+  ) async {
+    if (primary.statusCode == 200 || primary.statusCode == 404) {
+      return primary;
+    }
+
+    try {
+      final fallbackResponse = await http.get(fallbackUri);
+      return fallbackResponse;
+    } catch (_) {
+      return primary;
+    }
+  }
+
+  List<Map<String, dynamic>> _parseDetailsResponse(String body) {
+    final dynamic decoded = jsonDecode(body);
+    final List<dynamic> rawDetails;
+
+    if (decoded is List) {
+      rawDetails = decoded;
+    } else if (decoded is Map<String, dynamic>) {
+      final dynamic data = decoded['data'] ?? decoded['items'] ?? decoded['detalles'];
+      if (data is List) {
+        rawDetails = data;
+      } else if (decoded.containsKey('id_detalle_producto')) {
+        rawDetails = [decoded];
+      } else {
+        rawDetails = const [];
+      }
+    } else {
+      rawDetails = const [];
+    }
+
+    return rawDetails.whereType<Map<String, dynamic>>().toList();
+  }
+
   int _stockValue() {
     final dynamic stock =
         widget.product['stock'] ?? widget.product['stock_actual'] ?? 0;
