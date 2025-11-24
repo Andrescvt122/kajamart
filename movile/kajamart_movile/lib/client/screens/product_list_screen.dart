@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
+import 'product_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -218,69 +222,96 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         ),
                       );
                     },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(10),
-                              ),
-                              child: Image.network(
-                                product["image"],
-                                fit: BoxFit.cover,
-                              ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProductScreen(product: product),
                             ),
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          Padding(
-                            padding: EdgeInsets.all(6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product["name"],
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(10),
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "\$${product["price"]}",
-                                  style: TextStyle(
-                                    color: const Color.fromARGB(255, 0, 0, 0),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                  child: Hero(
+                                    tag: 'product-image-${product["id"]}',
+                                    child: _buildProductImage(product["image"]),
                                   ),
                                 ),
-                                SizedBox(height: 2),
-                                Text(
-                                  product["status"],
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: product["status"] == "Activo"
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product["name"],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      "\$${product["price"]}",
+                                      style: TextStyle(
+                                        color: const Color.fromARGB(255, 0, 0, 0),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.circle,
+                                          size: 10,
+                                          color: product["status"] == "Activo"
+                                              ? Colors.green
+                                              : Colors.red,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          product["status"],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: product["status"] ==
+                                                    "Activo"
+                                                ? Colors.green.shade700
+                                                : Colors.red.shade400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   );
@@ -351,6 +382,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
       checkmarkColor: Colors.green,
       labelStyle: TextStyle(fontWeight: FontWeight.w500),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
+  }
+
+  Widget _buildProductImage(String image) {
+    if (image.startsWith('data:image')) {
+      final base64Data = image.split(',').last;
+      return Image.memory(
+        base64Decode(base64Data),
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Image.network(
+      image,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+        );
+      },
     );
   }
 }
