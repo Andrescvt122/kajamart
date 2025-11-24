@@ -39,10 +39,12 @@ class ProductDetailScreen extends StatelessWidget {
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final Product product = args['product'] as Product;
     final Batch batch = args['batch'] as Batch;
+    final expiryText =
+        batch.expiryDate != null ? batch.expiryDate!.toIso8601String().split('T')[0] : 'Sin fecha';
+    final icuText = product.icuPercent != null ? '${product.icuPercent}%' : '—';
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         backgroundColor: AppConstants.secondaryColor, // Verde claro
         elevation: 0,
@@ -106,7 +108,10 @@ class ProductDetailScreen extends StatelessWidget {
                     _row('Producto ID', product.id),
                     _row('Nombre', product.name),
                     _row('Código de barras', batch.barcode),
-                    _row('ICU', '—'),
+                    _row('ICU', icuText),
+                    if (product.description != null &&
+                        product.description!.isNotEmpty)
+                      _row('Descripción', product.description!),
                   ],
                 ),
               ),
@@ -168,11 +173,12 @@ class ProductDetailScreen extends StatelessWidget {
                   children: [
                     _row(
                       'Fecha de vencimiento',
-                      batch.expiryDate.toIso8601String().split('T')[0],
+                      expiryText,
                     ),
                     _row('Max Stock', product.maxStock.toString()),
                     _row('Mini Stock', product.minStock.toString()),
                     _row('Stock total', product.currentStock.toString()),
+                    _row('Devolución', batch.isReturn ? 'Sí' : 'No'),
                   ],
                 ),
               ),
