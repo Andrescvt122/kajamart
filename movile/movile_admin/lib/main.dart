@@ -4,12 +4,14 @@ import 'package:movile_admin/constants/app_constants.dart';
 import 'package:movile_admin/pages/check_email_page.dart';
 import 'package:movile_admin/pages/login_page.dart';
 import 'package:movile_admin/pages/recover_password.dart';
+import 'package:provider/provider.dart';
+
 import 'models/product.dart';
-import 'models/batch.dart';
 import 'screens/product_list.dart';
 import 'screens/product_batches.dart';
 import 'screens/product_detail.dart';
 import 'screens/profile_screen.dart';
+import 'services/product_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,91 +20,37 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // Datos de ejemplo
-  List<Product> get sampleProducts => [
-    Product(
-      id: 'L001',
-      name: 'Leche Entera 1L',
-      category: 'Lácteos',
-      imageUrl: 'https://images.unsplash.com/photo-1585238342022-7a1f2a1f8f7a',
-      currentStock: 76,
-      minStock: 50,
-      maxStock: 500,
-      price: 3200.0,
-      status: 'Activo',
-      batches: [
-        Batch(
-          idDetalle: 'B-1001',
-          barcode: '987654321001',
-          expiryDate: DateTime(2024, 12, 1),
-          quantity: 20,
-          consumedStock: 4,
-          price: 3200.0,
-        ),
-        Batch(
-          idDetalle: 'B-1002',
-          barcode: '987654321002',
-          expiryDate: DateTime(2025, 2, 15),
-          quantity: 56,
-          consumedStock: 0,
-          price: 3200.0,
-        ),
-      ],
-    ),
-    Product(
-      id: 'C002',
-      name: 'Cereal Maíz 500g',
-      category: 'Cereales',
-      imageUrl: 'https://images.unsplash.com/photo-1604908177542-6f3f9b9f9e2b',
-      currentStock: 120,
-      minStock: 20,
-      maxStock: 300,
-      price: 9800.0,
-      status: 'Activo',
-      purchasePrice: 7000.0,
-      salePrice: 9800.0,
-      markupPercent: 40.0,
-      ivaPercent: 19.0,
-      batches: [
-        Batch(
-          idDetalle: 'B-2001',
-          barcode: '123456789012',
-          expiryDate: DateTime(2025, 6, 1),
-          quantity: 100,
-          consumedStock: 10,
-          price: 9800.0,
-        ),
-      ],
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Admin - Inventario',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppConstants.primaryColor,
-          background: AppConstants.backgroundColor,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProductService()),
+      ],
+      child: MaterialApp(
+        title: 'Admin - Inventario',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppConstants.primaryColor,
+            background: AppConstants.backgroundColor,
+          ),
+          scaffoldBackgroundColor: AppConstants.backgroundColor,
+          useMaterial3: true,
         ),
-        scaffoldBackgroundColor: AppConstants.backgroundColor,
-        useMaterial3: true,
+        initialRoute: '/login',
+        routes: {
+          '/login': (context) => const LoginPage(),
+          '/home': (context) => const MainScreen(),
+          '/recover': (context) => const RecoverPasswordPage(),
+          '/check-email': (context) => const CheckEmailPage(),
+        },
       ),
-      initialRoute: '/login',
-      routes: {
-        '/login': (context) => const LoginPage(),
-        '/home': (context) => MainScreen(products: sampleProducts),
-        '/recover': (context) => const RecoverPasswordPage(),
-        '/check-email': (context) => const CheckEmailPage(),
-      },
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  final List<Product> products;
-  const MainScreen({super.key, required this.products});
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -161,7 +109,7 @@ class _MainScreenState extends State<MainScreen> {
               );
             }
             return MaterialPageRoute(
-              builder: (_) => ProductListScreen(products: widget.products),
+              builder: (_) => const ProductListScreen(),
             );
           }
 
