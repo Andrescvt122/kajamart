@@ -13,7 +13,7 @@ class ProductListScreen extends StatefulWidget {
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  String _selectedFilter = "Todos";
+  String _selectedFilter = "Todas";
   String _searchQuery = "";
 
   List<String> get filters => ["Todas", "Activos", "Inactivos", "Stock bajo"];
