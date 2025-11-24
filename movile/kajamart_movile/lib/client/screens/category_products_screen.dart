@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'product_screen.dart';
+
 class CategoryProductsScreen extends StatefulWidget {
   const CategoryProductsScreen({
     super.key,
@@ -20,7 +22,7 @@ class CategoryProductsScreen extends StatefulWidget {
 }
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
-  late Future<List<_Product>> _productsFuture;
+  late Future<List<Product>> _productsFuture;
 
   @override
   void initState() {
@@ -28,7 +30,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
     _productsFuture = _fetchProducts();
   }
 
-  Future<List<_Product>> _fetchProducts() async {
+  Future<List<Product>> _fetchProducts() async {
     try {
       final http.Response response = await http.get(
         Uri.parse(
@@ -56,7 +58,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         }
 
         return productList
-            .map((dynamic item) => _Product.fromJson(item as Map<String, dynamic>))
+            .map((dynamic item) => Product.fromJson(item as Map<String, dynamic>))
             .toList();
       }
 
@@ -95,7 +97,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _reload,
-        child: FutureBuilder<List<_Product>>(
+        child: FutureBuilder<List<Product>>(
           future: _productsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -110,7 +112,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
               );
             }
 
-            final List<_Product> products = snapshot.data ?? <_Product>[];
+            final List<Product> products = snapshot.data ?? <Product>[];
 
             if (products.isEmpty) {
               return _EmptyView(onRetry: _reload);
@@ -126,7 +128,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
               ),
               itemCount: products.length,
               itemBuilder: (context, index) {
-                final _Product product = products[index];
+                final Product product = products[index];
                 return _ProductCard(product: product);
               },
             );
@@ -140,77 +142,90 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
 class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product});
 
-  final _Product product;
+  final Product product;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: product.imageUrl != null && product.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      product.imageUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _ImagePlaceholder(
-                        name: product.name,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          product.imageUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => _ImagePlaceholder(
+                            name: product.name,
+                          ),
+                        )
+                      : _ImagePlaceholder(name: product.name),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
-                    )
-                  : _ImagePlaceholder(name: product.name),
-            ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      product.description,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      product.priceLabel,
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  product.description,
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 12,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  product.price,
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -300,31 +315,3 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-class _Product {
-  const _Product({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.price,
-    this.imageUrl,
-  });
-
-  final int id;
-  final String name;
-  final String description;
-  final String price;
-  final String? imageUrl;
-
-  factory _Product.fromJson(Map<String, dynamic> json) {
-    final dynamic idValue = json['id_producto'];
-    final dynamic priceValue = json['precio_venta'];
-
-    return _Product(
-      id: idValue is int ? idValue : int.tryParse(idValue?.toString() ?? '') ?? 0,
-      name: json['nombre']?.toString() ?? '',
-      description: json['descripcion']?.toString() ?? '',
-      price: priceValue == null ? 'S/D' : '\$${priceValue.toString()}',
-      imageUrl: json['url_imagen']?.toString(),
-    );
-  }
-}
