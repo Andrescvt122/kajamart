@@ -8,21 +8,11 @@ import '../models/batch.dart';
 import '../models/product.dart';
 
 class ProductService extends ChangeNotifier {
-  static String get _baseUrl {
-    final isLocalPlatform = kIsWeb ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows ||
-        defaultTargetPlatform == TargetPlatform.linux;
-
-    // En emulador Android usamos 10.0.2.2 para alcanzar localhost
-    final host = isLocalPlatform ? 'http://localhost:3000' : 'http://10.0.2.2:3000';
-    return '$host/kajamart/api';
-  }
+  static const String _baseUrl = 'http://localhost:3000/kajamart/api';
 
   List<Product> _products = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String? _batchError;
 
   ProductService() {
     fetchProducts();
@@ -31,7 +21,6 @@ class ProductService extends ChangeNotifier {
   List<Product> get products => _products;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get batchError => _batchError;
 
   Future<void> fetchProducts() async {
     _isLoading = true;
@@ -60,9 +49,6 @@ class ProductService extends ChangeNotifier {
 
   Future<List<Batch>> fetchBatchesForProduct(String productId,
       {double? fallbackPrice}) async {
-    _batchError = null;
-    notifyListeners();
-
     try {
       final response = await http
           .get(Uri.parse('$_baseUrl/detailsProducts/producto/$productId'));
@@ -85,16 +71,12 @@ class ProductService extends ChangeNotifier {
         }
 
         return batches;
-      } else {
-        _batchError = 'Error ${response.statusCode} al obtener lotes';
       }
     } catch (e) {
-      _batchError = 'No se pudo cargar los lotes';
       if (kDebugMode) {
         print('❌ Error fetching batches for product $productId: $e');
       }
     }
-    notifyListeners();
     return [];
   }
 

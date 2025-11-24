@@ -19,16 +19,6 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
   Product? _product;
   Future<List<Batch>>? _loadFuture;
 
-  void _reloadBatches() {
-    if (_product == null) return;
-    setState(() {
-      _loadFuture = context.read<ProductService>().fetchBatchesForProduct(
-            _product!.id,
-            fallbackPrice: _product!.salePrice ?? _product!.price,
-          );
-    });
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -85,29 +75,6 @@ class _ProductBatchesScreenState extends State<ProductBatchesScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          }
-
-          if (productService.batchError != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      productService.batchError!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xff343b45)),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _reloadBatches,
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            );
           }
 
           return Column(

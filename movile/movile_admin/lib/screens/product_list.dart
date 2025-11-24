@@ -61,7 +61,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: AppConstants.secondaryColor,
         elevation: 0,
         title: const Text(
-          'Productos',
+          'Productos',-
           style: TextStyle(
             color: Color(0xff343b45),
             fontWeight: FontWeight.bold,
