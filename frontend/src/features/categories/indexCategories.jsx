@@ -18,6 +18,13 @@ import { exportCategoriesToExcel } from "../../features/categories/helpers/expor
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
+// 🔔 Alerts para mostrar mensajes claros
+import {
+  showLoadingAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from "../../shared/components/alerts";
+
 // Config columnas
 const DESC_COL_CHARS = 30;
 
@@ -136,49 +143,94 @@ export default function IndexCategories() {
   }, [filtered, currentPage, perPage]);
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
-  // CRUD
+  // Helpers para sacar mensaje de error del backend
+  const getErrorMessage = (err, fallback) =>
+    err?.response?.data?.message ||
+    err?.message ||
+    fallback ||
+    "Ocurrió un error inesperado.";
+
+  // 👉 Crear categoría
   const handleRegisterCategory = async (form) => {
+    setCreating(true);
     try {
-      setCreating(true);
+      showLoadingAlert && showLoadingAlert("Creando categoría...");
       await createCategory(form);
+      showSuccessAlert &&
+        showSuccessAlert("Categoría creada correctamente.");
       setIsModalOpen(false);
       setCurrentPage(1);
+    } catch (err) {
+      const msg = getErrorMessage(
+        err,
+        "Error al crear la categoría."
+      );
+      showErrorAlert && showErrorAlert(msg);
     } finally {
       setCreating(false);
     }
   };
 
+  // 👉 Eliminar categoría
   const handleDeleteConfirm = async (category) => {
+    if (!category) return;
+
+    setDeleting(true);
     try {
-      setDeleting(true);
-      // Ajustar página si se queda sin elementos
+      showLoadingAlert && showLoadingAlert("Eliminando categoría...");
+
+      // Ajustar página si se queda sin elementos (solo si la eliminación tiene éxito)
       const afectaListadoActual = filtered.some(
         (c) => c.id_categoria === category.id_categoria
       );
       const newFilteredLength = afectaListadoActual
         ? filtered.length - 1
         : filtered.length;
-      const newTotalPages = Math.max(1, Math.ceil(newFilteredLength / perPage));
+      const newTotalPages = Math.max(
+        1,
+        Math.ceil(newFilteredLength / perPage)
+      );
       const targetPage =
         currentPage > newTotalPages ? newTotalPages : currentPage;
 
       await deleteCategory(category.id_categoria);
 
+      showSuccessAlert &&
+        showSuccessAlert("Categoría eliminada correctamente.");
+
       setIsDeleteOpen(false);
       setSelectedCategory(null);
 
       if (currentPage !== targetPage) setCurrentPage(targetPage);
+    } catch (err) {
+      // 👇 Aquí, por ejemplo:
+      // "No se puede eliminar la categoría porque tiene productos asociados..."
+      const msg = getErrorMessage(
+        err,
+        "Error al eliminar la categoría."
+      );
+      showErrorAlert && showErrorAlert(msg);
     } finally {
       setDeleting(false);
     }
   };
 
+  // 👉 Guardar edición
   const handleSaveEdit = async (updatedPayload) => {
+    setUpdating(true);
     try {
-      setUpdating(true);
+      showLoadingAlert && showLoadingAlert("Actualizando categoría...");
       await updateCategory(updatedPayload);
+      showSuccessAlert &&
+        showSuccessAlert("Categoría actualizada correctamente.");
       setIsEditModalOpen(false);
       setSelectedCategory(null);
+    } catch (err) {
+      const msg = getErrorMessage(
+        err,
+        "Error al actualizar la categoría."
+      );
+      showErrorAlert && showErrorAlert(msg);
     } finally {
       setUpdating(false);
     }
@@ -188,7 +240,9 @@ export default function IndexCategories() {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <p className="text-red-600 text-center">
-          {typeof error === "string" ? error : "Error al cargar categorías."}
+          {typeof error === "string"
+            ? error
+            : "Error al cargar categorías."}
         </p>
       </div>
     );
@@ -216,16 +270,18 @@ export default function IndexCategories() {
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-semibold">Categorías</h2>
+            <h2 className="text-2xl sm:text-3xl font-semibold">
+              Categorías
+            </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Administrador de Tienda
             </p>
           </div>
 
-          {/* Toolbar (alineada en una fila; responsive) */}
+          {/* Toolbar */}
           <div className="mb-4 sm:mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
-              {/* Buscar: ocupa todo el espacio disponible */}
+              {/* Buscar */}
               <div className="min-w-0">
                 <SearchBar
                   placeholder="Buscar categorías..."
@@ -249,7 +305,9 @@ export default function IndexCategories() {
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportCategoriesToPDF(filtered)}>
+                <ExportPDFButton
+                  event={() => exportCategoriesToPDF(filtered)}
+                >
                   PDF
                 </ExportPDFButton>
               </div>
@@ -272,7 +330,7 @@ export default function IndexCategories() {
 
           {/* ====== LISTADO ====== */}
 
-          {/* MÓVIL: lista/accordion con cascada */}
+          {/* MÓVIL: lista/accordion */}
           <motion.div
             className="md:hidden"
             variants={tableVariants}
@@ -364,7 +422,8 @@ export default function IndexCategories() {
 
                               <p
                                 className={
-                                  LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"
+                                  LONG_TEXT_CLS +
+                                  " mt-1 text-sm text-gray-800"
                                 }
                                 style={{
                                   wordBreak: "break-word",
@@ -403,7 +462,7 @@ export default function IndexCategories() {
             )}
           </motion.div>
 
-          {/* DESKTOP: tabla con cascada (tbody → filas) */}
+          {/* DESKTOP: tabla con cascada */}
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
@@ -422,7 +481,9 @@ export default function IndexCategories() {
 
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">ID Categoría</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      ID Categoría
+                    </th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Nombre</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Descripción</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
@@ -464,7 +525,7 @@ export default function IndexCategories() {
                         <motion.tr
                           key={c.id_categoria + "-" + i}
                           className="hover:bg-gray-50 align-top"
-                          variants={rowVariants} // <- hereda del tbody
+                          variants={rowVariants}
                           layout
                         >
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
@@ -479,7 +540,7 @@ export default function IndexCategories() {
                             </div>
                           </td>
 
-                          {/* Descripción truncada con expand/collapse */}
+                          {/* Descripción con expand/collapse */}
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 align-top">
                             <div
                               style={{ width: `${DESC_COL_CHARS}ch` }}
@@ -499,13 +560,21 @@ export default function IndexCategories() {
                                 {isExpanded && (
                                   <motion.div
                                     key="expanded"
-                                    initial={{ height: 0, opacity: 0, y: -4 }}
+                                    initial={{
+                                      height: 0,
+                                      opacity: 0,
+                                      y: -4,
+                                    }}
                                     animate={{
                                       height: "auto",
                                       opacity: 1,
                                       y: 0,
                                     }}
-                                    exit={{ height: 0, opacity: 0, y: -2 }}
+                                    exit={{
+                                      height: 0,
+                                      opacity: 0,
+                                      y: -2,
+                                    }}
                                     transition={{
                                       duration: EXPAND_DURATION,
                                       ease: EXPAND_EASE,
@@ -533,7 +602,9 @@ export default function IndexCategories() {
                               {isLong && (
                                 <button
                                   type="button"
-                                  onClick={() => toggleExpand(c.id_categoria)}
+                                  onClick={() =>
+                                    toggleExpand(c.id_categoria)
+                                  }
                                   className="mt-1 block text-xs text-green-700 hover:underline"
                                   aria-expanded={isExpanded}
                                   aria-controls={`desc-${c.id_categoria}`}

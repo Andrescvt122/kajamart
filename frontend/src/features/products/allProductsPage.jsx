@@ -1,9 +1,12 @@
+// frontend/src/features/products/AllProductsPage.jsx
 import React, { useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ViewDetailsButton,
   DeleteButton,
+  ExportExcelButton,
+  ExportPDFButton,
 } from "../../shared/components/buttons";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
@@ -15,10 +18,6 @@ import {
   showErrorAlert,
   showSuccessAlert,
 } from "../../shared/components/alerts";
-import {
-  ExportExcelButton,
-  ExportPDFButton,
-} from "../../shared/components/buttons";
 import { exportProductsToExcel } from "./helpers/exportToXlsProducts";
 import { exportProductsToPDF } from "./helpers/exportToPdfProducts";
 import Loading from "../../features/onboarding/loading.jsx";
@@ -60,6 +59,13 @@ function ChevronIcon({ open }) {
   );
 }
 
+// Helper para extraer mensaje de error del backend
+const getErrorMessage = (err, fallback) =>
+  err?.response?.data?.message ||
+  err?.message ||
+  fallback ||
+  "Ocurrió un error inesperado.";
+
 export default function AllProductsPage() {
   const { state } = useLocation();
   const params = useParams();
@@ -74,8 +80,8 @@ export default function AllProductsPage() {
   const { data: fetchedProduct } = useProduct(productId);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
-  const product = passedProduct ??
-    fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
+  const product =
+    passedProduct ?? fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,6 +99,11 @@ export default function AllProductsPage() {
     isLoading,
     error,
   } = useDetailProductsByProduct(productId);
+
+  // Mensaje de error legible para listar
+  const errorMessage = error
+    ? getErrorMessage(error, "Error al cargar los detalles del producto.")
+    : null;
 
   // map UI
   const allProducts = useMemo(() => {
@@ -125,14 +136,17 @@ export default function AllProductsPage() {
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
 
-  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
+  const goToPage = (n) =>
+    setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // delete
   const deleteDetailMutation = useDeleteDetailProduct();
+
   const handleDeleteClick = (p) => {
     setSelectedProductToDelete(p);
     setIsDeleteModalOpen(true);
   };
+
   const handleDeleteConfirm = async (p) => {
     try {
       showLoadingAlert("Eliminando detalle...");
@@ -205,10 +219,10 @@ export default function AllProductsPage() {
             </p>
           </div>
 
-          {/* Toolbar (alineada) */}
+          {/* Toolbar */}
           <div className="mb-4 sm:mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-3">
-              {/* Buscar (se estira) */}
+              {/* Buscar */}
               <div className="min-w-0">
                 <SearchBar
                   placeholder="Buscar detalles..."
@@ -254,7 +268,7 @@ export default function AllProductsPage() {
               </div>
             ) : error ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                No hay Registros
+                {errorMessage}
               </div>
             ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
@@ -371,7 +385,7 @@ export default function AllProductsPage() {
             )}
           </motion.div>
 
-          {/* Desktop: tabla con cascada (tbody → filas) */}
+          {/* Desktop: tabla con cascada */}
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={listVariants}
@@ -419,7 +433,7 @@ export default function AllProductsPage() {
                         colSpan={7}
                         className="px-6 py-8 text-center text-red-500"
                       >
-                        No hay Registros
+                        {errorMessage}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (

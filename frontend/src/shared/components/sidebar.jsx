@@ -107,7 +107,7 @@ export default function Sidebar({
       className={`
         fixed inset-y-0 left-0
         flex flex-col shadow-md min-h-[100vh]
-        z-[60]
+        z-[50]
         inset-0
         bg-[#b4debf]
         transform transition-transform duration-300

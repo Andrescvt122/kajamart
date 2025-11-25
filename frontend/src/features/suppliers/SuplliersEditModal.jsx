@@ -18,18 +18,17 @@ import {
 export default function SuppliersEditModal({
   isModalOpen,
   onClose,
-  onSubmit,       // opcional: por si el padre quiere reaccionar
-  supplierData,   // objeto proveedor del backend
-  categoriasOptions, // opcional (strings); intentamos mapearlas a IDs si hay hook
+  onSubmit, // opcional
+  supplierData,
+  categoriasOptions,
 }) {
-  // ---- CATEGORÍAS DESDE HOOK (preferidas porque traen id_categoria real) ----
+  // ---- CATEGORÍAS DESDE HOOK ----
   const { categories, loading: loadingCats, error: catsError } = useCategories();
 
-  // Normalizamos opciones del hook => [{id, label}]
   const hookOptions = useMemo(() => {
     if (!Array.isArray(categories)) return [];
     return categories
-      .filter((c) => c.estado === "Activo") // el hook expone estado como "Activo"/"Inactivo"
+      .filter((c) => c.estado === "Activo")
       .map((c) => ({
         id: Number(c.id_categoria),
         label: (c.nombre || "").trim(),
@@ -38,9 +37,12 @@ export default function SuppliersEditModal({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [categories]);
 
-  // Si recibimos categoriasOptions (strings), intentamos mapear a IDs usando el hook
   const propOptionsMapped = useMemo(() => {
-    if (!Array.isArray(categoriasOptions) || categoriasOptions.length === 0 || hookOptions.length === 0) {
+    if (
+      !Array.isArray(categoriasOptions) ||
+      categoriasOptions.length === 0 ||
+      hookOptions.length === 0
+    ) {
       return [];
     }
     const nameToId = new Map(hookOptions.map((o) => [o.label.toLowerCase(), o.id]));
@@ -54,13 +56,12 @@ export default function SuppliersEditModal({
 
   const mergedCategoriasOptions = hookOptions.length > 0 ? hookOptions : propOptionsMapped;
 
-  // Mapa id->label para chips
   const optionsMap = useMemo(
     () => new Map(mergedCategoriasOptions.map((o) => [o.id, o.label])),
     [mergedCategoriasOptions]
   );
 
-  // ---- FORM STATE (alineado al Register) ----
+  // ---- FORM STATE ----
   const [form, setForm] = useState({
     nombre: "",
     nit: "",
@@ -68,31 +69,25 @@ export default function SuppliersEditModal({
     contacto: "",
     telefono: "",
     correo: "",
-    estado: "Activo", // string para UI
-    categorias: [],   // IDs numéricos
+    estado: "Activo",
+    categorias: [], // IDs numéricos
     direccion: "",
-    max_porcentaje_de_devolucion: "", // string para input (Decimal en DB)
   });
 
-  // Precarga desde supplierData cuando abre/cambia o cuando cambian opciones de categorías
+  // Precarga desde supplierData
   useEffect(() => {
     if (!supplierData) return;
 
-    // estado: puede venir boolean o string
     const estadoStr =
       typeof supplierData.estado === "boolean"
-        ? supplierData.estado ? "Activo" : "Inactivo"
-        : (supplierData.estado || "Activo");
+        ? supplierData.estado
+          ? "Activo"
+          : "Inactivo"
+        : supplierData.estado || "Activo";
 
-    // nit/telefono podrían ser numéricos => inputs como string
     const nitStr = supplierData.nit != null ? String(supplierData.nit) : "";
-    const telStr = supplierData.telefono != null ? String(supplierData.telefono) : "";
-
-    // Decimal de Prisma viene como string casi siempre
-    const maxDevStr =
-      supplierData.max_porcentaje_de_devolucion != null
-        ? String(supplierData.max_porcentaje_de_devolucion)
-        : "";
+    const telStr =
+      supplierData.telefono != null ? String(supplierData.telefono) : "";
 
     // categorias del proveedor -> a IDs
     let preselectedIds = [];
@@ -103,12 +98,11 @@ export default function SuppliersEditModal({
       } else if (typeof raw[0] === "number") {
         preselectedIds = raw.map((x) => Number(x)).filter(Boolean);
       } else if (typeof raw[0] === "string") {
-        // Intentar mapear por nombre -> id
         preselectedIds = raw
           .map((name) => {
-            // buscamos por label exacto
             const entry = mergedCategoriasOptions.find(
-              (opt) => opt.label.toLowerCase() === String(name).trim().toLowerCase()
+              (opt) =>
+                opt.label.toLowerCase() === String(name).trim().toLowerCase()
             );
             return entry ? entry.id : null;
           })
@@ -119,14 +113,13 @@ export default function SuppliersEditModal({
     setForm({
       nombre: supplierData.nombre || "",
       nit: nitStr,
-      personaType: supplierData.tipo_persona || "", // ⚠️ viene como tipo_persona del backend
+      personaType: supplierData.tipo_persona || "",
       contacto: supplierData.contacto || "",
       telefono: telStr,
       correo: supplierData.correo || "",
       estado: estadoStr || "Activo",
       categorias: preselectedIds,
       direccion: supplierData.direccion || "",
-      max_porcentaje_de_devolucion: maxDevStr,
     });
   }, [supplierData, mergedCategoriasOptions]);
 
@@ -142,9 +135,12 @@ export default function SuppliersEditModal({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (personaRef.current && !personaRef.current.contains(event.target)) setPersonaOpen(false);
-      if (estadoRef.current && !estadoRef.current.contains(event.target)) setEstadoOpen(false);
-      if (categoriasRef.current && !categoriasRef.current.contains(event.target)) setCategoriasOpen(false);
+      if (personaRef.current && !personaRef.current.contains(event.target))
+        setPersonaOpen(false);
+      if (estadoRef.current && !estadoRef.current.contains(event.target))
+        setEstadoOpen(false);
+      if (categoriasRef.current && !categoriasRef.current.contains(event.target))
+        setCategoriasOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -154,7 +150,7 @@ export default function SuppliersEditModal({
     const { name, value } = e.target;
     let newValue = value;
     if (name === "nit" || name === "telefono") {
-      newValue = value.replace(/[eE]/g, ""); // evitar 'e' en inputs numéricos
+      newValue = value.replace(/[eE]/g, "");
     }
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
@@ -163,23 +159,20 @@ export default function SuppliersEditModal({
     const { name, value } = e.target;
     let error = "";
 
-    if (name !== "direccion" && name !== "max_porcentaje_de_devolucion" && !String(value || "").trim()) {
+    if (name !== "direccion" && !String(value || "").trim()) {
       error = "Este campo es obligatorio";
     } else if (name === "correo") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (value && !emailRegex.test(value)) error = "Correo inválido";
     } else if (name === "telefono" || name === "nit") {
       if (value && !/^\d+$/.test(value)) error = "Solo se permiten números";
-    } else if (name === "max_porcentaje_de_devolucion") {
-      if (value && (isNaN(value) || Number(value) < 0 || Number(value) > 100)) {
-        error = "Debe ser un número entre 0 y 100";
-      }
     }
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleNumericKeyDown = (e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab") e.preventDefault();
+    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab")
+      e.preventDefault();
   };
 
   const toggleCategoria = (categoriaId) => {
@@ -188,7 +181,9 @@ export default function SuppliersEditModal({
       const exists = prev.categorias.includes(id);
       return {
         ...prev,
-        categorias: exists ? prev.categorias.filter((c) => c !== id) : [...prev.categorias, id],
+        categorias: exists
+          ? prev.categorias.filter((c) => c !== id)
+          : [...prev.categorias, id],
       };
     });
     setErrors((prev) => ({ ...prev, categorias: "" }));
@@ -206,8 +201,9 @@ export default function SuppliersEditModal({
     Object.entries(form).forEach(([key, value]) => {
       if (
         key !== "direccion" &&
-        key !== "max_porcentaje_de_devolucion" &&
-        (value === null || value === undefined || String(value).trim() === "")
+        (value === null ||
+          value === undefined ||
+          String(value).trim() === "")
       ) {
         newErrors[key] = "Este campo es obligatorio";
       } else if (key === "correo") {
@@ -215,10 +211,6 @@ export default function SuppliersEditModal({
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
       } else if (key === "telefono" || key === "nit") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
-      } else if (key === "max_porcentaje_de_devolucion") {
-        if (value && (isNaN(value) || Number(value) < 0 || Number(value) > 100)) {
-          newErrors[key] = "Debe ser un número entre 0 y 100";
-        }
       }
     });
     if (!Array.isArray(form.categorias) || form.categorias.length === 0) {
@@ -236,11 +228,11 @@ export default function SuppliersEditModal({
     if (!validateAll()) return;
 
     if (!supplierData?.id_proveedor) {
-      showErrorAlert && showErrorAlert("No se encontró id_proveedor para actualizar.");
+      showErrorAlert &&
+        showErrorAlert("No se encontró id_proveedor para actualizar.");
       return;
     }
 
-    // payload al backend (categorias como IDs; estado boolean; Decimal a número o null)
     const payload = {
       nombre: form.nombre.trim(),
       nit: Number(form.nit),
@@ -250,25 +242,26 @@ export default function SuppliersEditModal({
       correo: form.correo.trim() || null,
       direccion: form.direccion.trim() || null,
       estado: form.estado === "Activo",
-      categorias: form.categorias, // IDs
-      max_porcentaje_de_devolucion: form.max_porcentaje_de_devolucion
-        ? parseFloat(form.max_porcentaje_de_devolucion)
-        : null,
+      categorias: form.categorias,
+      // 👇 max_porcentaje_de_devolucion eliminado
     };
 
     showLoadingAlert("Actualizando proveedor...");
-    // ⚠️ Importante: el hook espera { id, ...rest } (no { id, data })
     updateMutation.mutate(
       { id: supplierData.id_proveedor, ...payload },
       {
         onSuccess: (data) => {
-          try { Swal.close(); } catch (_) {}
+          try {
+            Swal.close();
+          } catch (_) {}
           showSuccessAlert && showSuccessAlert("Proveedor actualizado");
           if (typeof onSubmit === "function") onSubmit(data || payload);
           onClose && onClose();
         },
         onError: (err) => {
-          try { Swal.close(); } catch (_) {}
+          try {
+            Swal.close();
+          } catch (_) {}
           const msg =
             err?.response?.data?.message ||
             err?.message ||
@@ -280,15 +273,19 @@ export default function SuppliersEditModal({
   };
 
   // ---- ANIMACIONES ----
-  const listVariants = { hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } };
+  const listVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+  };
   const itemVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
   if (!isModalOpen) return null;
 
   return (
     <AnimatePresence>
+      {/* ⬆️ Modal más arriba y scrollable, igual que el de registro */}
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-50 flex items-start justify-center pt-6 sm:pt-10 overflow-y-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -304,19 +301,23 @@ export default function SuppliersEditModal({
 
         {/* Modal */}
         <motion.div
-          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50"
+          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50 my-6 max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, scale: 0.95, y: -20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -20 }}
           transition={{ duration: 0.26, ease: "easeOut" }}
         >
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Editar Proveedor</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">
+            Editar Proveedor
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {/* Nombre */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Nombre</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Nombre
+                </label>
                 <input
                   name="nombre"
                   value={form.nombre}
@@ -326,7 +327,11 @@ export default function SuppliersEditModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre}</span>}
+                {errors.nombre && (
+                  <span className="text-red-500 text-xs">
+                    {errors.nombre}
+                  </span>
+                )}
               </div>
 
               {/* NIT */}
@@ -343,12 +348,16 @@ export default function SuppliersEditModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.nit && <span className="text-red-500 text-xs">{errors.nit}</span>}
+                {errors.nit && (
+                  <span className="text-red-500 text-xs">{errors.nit}</span>
+                )}
               </div>
 
               {/* Tipo de persona */}
               <div ref={personaRef}>
-                <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Tipo de persona
+                </label>
                 <div className="relative mt-1 w-full">
                   <div className="w-full border border-gray-300 bg-white rounded-lg">
                     <button
@@ -356,10 +365,17 @@ export default function SuppliersEditModal({
                       onClick={() => setPersonaOpen((s) => !s)}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
                     >
-                      <span className={`text-sm ${form.personaType ? "text-gray-800" : "text-gray-400"}`}>
+                      <span
+                        className={`text-sm ${
+                          form.personaType ? "text-gray-800" : "text-gray-400"
+                        }`}
+                      >
                         {form.personaType || "Seleccionar tipo"}
                       </span>
-                      <motion.span animate={{ rotate: personaOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                      <motion.span
+                        animate={{ rotate: personaOpen ? 180 : 0 }}
+                        transition={{ duration: 0.18 }}
+                      >
                         <ChevronDown size={18} className="text-gray-500" />
                       </motion.span>
                     </button>
@@ -391,12 +407,18 @@ export default function SuppliersEditModal({
                     )}
                   </AnimatePresence>
                 </div>
-                {errors.personaType && <span className="text-red-500 text-xs">{errors.personaType}</span>}
+                {errors.personaType && (
+                  <span className="text-red-500 text-xs">
+                    {errors.personaType}
+                  </span>
+                )}
               </div>
 
               {/* Contacto */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Persona de contacto
+                </label>
                 <input
                   name="contacto"
                   value={form.contacto}
@@ -406,12 +428,18 @@ export default function SuppliersEditModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.contacto && <span className="text-red-500 text-xs">{errors.contacto}</span>}
+                {errors.contacto && (
+                  <span className="text-red-500 text-xs">
+                    {errors.contacto}
+                  </span>
+                )}
               </div>
 
               {/* Teléfono */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Teléfono de contacto
+                </label>
                 <input
                   name="telefono"
                   value={form.telefono}
@@ -423,12 +451,18 @@ export default function SuppliersEditModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.telefono && <span className="text-red-500 text-xs">{errors.telefono}</span>}
+                {errors.telefono && (
+                  <span className="text-red-500 text-xs">
+                    {errors.telefono}
+                  </span>
+                )}
               </div>
 
               {/* Correo */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Correo</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Correo
+                </label>
                 <input
                   name="correo"
                   type="email"
@@ -439,12 +473,18 @@ export default function SuppliersEditModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.correo && <span className="text-red-500 text-xs">{errors.correo}</span>}
+                {errors.correo && (
+                  <span className="text-red-500 text-xs">
+                    {errors.correo}
+                  </span>
+                )}
               </div>
 
               {/* Estado */}
               <div ref={estadoRef}>
-                <label className="block text-sm text-gray-700 mb-1">Estado</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Estado
+                </label>
                 <div
                   className={`relative mt-1 w-full rounded-lg border transition ${
                     form.estado === "Activo"
@@ -470,7 +510,10 @@ export default function SuppliersEditModal({
                     >
                       {form.estado || "Seleccionar estado"}
                     </span>
-                    <motion.span animate={{ rotate: estadoOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                    <motion.span
+                      animate={{ rotate: estadoOpen ? 180 : 0 }}
+                      transition={{ duration: 0.18 }}
+                    >
                       <ChevronDown
                         size={18}
                         className={`${
@@ -505,7 +548,13 @@ export default function SuppliersEditModal({
                               opt === "Activo"
                                 ? "hover:bg-green-50 text-green-700"
                                 : "hover:bg-red-50 text-red-700"
-                            } ${form.estado === opt ? (opt === "Activo" ? "bg-green-100 font-medium" : "bg-red-100 font-medium") : ""}`}
+                            } ${
+                              form.estado === opt
+                                ? opt === "Activo"
+                                  ? "bg-green-100 font-medium"
+                                  : "bg-red-100 font-medium"
+                                : ""
+                            }`}
                           >
                             {opt}
                           </motion.li>
@@ -514,43 +563,19 @@ export default function SuppliersEditModal({
                     )}
                   </AnimatePresence>
                 </div>
-                {errors.estado && <span className="text-red-500 text-xs">{errors.estado}</span>}
+                {errors.estado && (
+                  <span className="text-red-500 text-xs">
+                    {errors.estado}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Máximo porcentaje de devolución (igual que en Register) */}
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Máx. % de devolución
-              </label>
-              <input
-                name="max_porcentaje_de_devolucion"
-                value={form.max_porcentaje_de_devolucion}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Solo números y un punto decimal
-                  if (/^\d*\.?\d*$/.test(value)) {
-                    setForm((prev) => ({
-                      ...prev,
-                      max_porcentaje_de_devolucion: value,
-                    }));
-                  }
-                }}
-                onBlur={handleBlur}
-                inputMode="decimal"
-                placeholder="Ej: 10.5"
-                className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
-              />
-              {errors.max_porcentaje_de_devolucion && (
-                <span className="text-red-500 text-xs">
-                  {errors.max_porcentaje_de_devolucion}
-                </span>
-              )}
-            </div>
-
-            {/* Categorías (IDs) */}
+            {/* Categorías */}
             <div ref={categoriasRef} className="mt-2">
-              <label className="block text-sm text-gray-700 mb-1">Categorías</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Categorías
+              </label>
 
               {catsError && mergedCategoriasOptions.length === 0 && (
                 <p className="text-xs text-red-600 mb-1">
@@ -563,7 +588,8 @@ export default function SuppliersEditModal({
                   <button
                     type="button"
                     onClick={() => {
-                      if (loadingCats && mergedCategoriasOptions.length === 0) return;
+                      if (loadingCats && mergedCategoriasOptions.length === 0)
+                        return;
                       setCategoriasOpen((s) => !s);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
@@ -576,14 +602,19 @@ export default function SuppliersEditModal({
                   >
                     <div className="flex items-center">
                       {form.categorias.length === 0 ? (
-                        <span className="text-sm text-gray-400">Seleccionar categorías</span>
+                        <span className="text-sm text-gray-400">
+                          Seleccionar categorías
+                        </span>
                       ) : (
                         <span className="text-sm text-gray-800">
                           {form.categorias.length} seleccionada(s)
                         </span>
                       )}
                     </div>
-                    <motion.span animate={{ rotate: categoriasOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                    <motion.span
+                      animate={{ rotate: categoriasOpen ? 180 : 0 }}
+                      transition={{ duration: 0.18 }}
+                    >
                       <ChevronDown size={18} className="text-gray-500" />
                     </motion.span>
                   </button>
@@ -599,7 +630,9 @@ export default function SuppliersEditModal({
                       variants={listVariants}
                     >
                       {mergedCategoriasOptions.length === 0 ? (
-                        <li className="px-4 py-2 text-sm text-gray-500">No hay categorías disponibles</li>
+                        <li className="px-4 py-2 text-sm text-gray-500">
+                          No hay categorías disponibles
+                        </li>
                       ) : (
                         mergedCategoriasOptions.map((opt) => (
                           <motion.li
@@ -622,7 +655,6 @@ export default function SuppliersEditModal({
                 </AnimatePresence>
               </div>
 
-              {/* Chips */}
               <div className="mt-2 flex flex-wrap gap-2">
                 {form.categorias.map((id) => (
                   <div
@@ -643,13 +675,17 @@ export default function SuppliersEditModal({
               </div>
 
               {errors.categorias && (
-                <span className="text-red-500 text-xs">{errors.categorias}</span>
+                <span className="text-red-500 text-xs">
+                  {errors.categorias}
+                </span>
               )}
             </div>
 
             {/* Dirección */}
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Dirección</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Dirección
+              </label>
               <input
                 name="direccion"
                 value={form.direccion}
