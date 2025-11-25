@@ -646,3 +646,7 @@ body, #root {
 .custom-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(16, 185, 129, 0.6);
 }
+
+textarea {
+  resize: none;
+}

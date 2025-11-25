@@ -250,13 +250,17 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       await createMutation.mutateAsync(fd);
       try {
         Swal.close();
-      } catch (_) {}
+      } catch (e) {
+        console.log(e);
+      }
       showSuccessAlert && showSuccessAlert("Producto registrado");
       onClose?.();
     } catch (err) {
       try {
         Swal.close();
-      } catch (_) {}
+      } catch (e) {
+        console.log(e);
+      }
       const msg =
         err?.response?.data?.message ||
         err?.message ||
