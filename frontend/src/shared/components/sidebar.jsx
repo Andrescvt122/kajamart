@@ -107,10 +107,12 @@ export default function Sidebar({
       className={`
         fixed inset-y-0 left-0
         flex flex-col shadow-md min-h-[100vh]
+        z-[50]
+        inset-0
         bg-[#b4debf]
         transform transition-transform duration-300
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 md:static
+        md:translate-x-0 md:relative
         z-[50]  /* Sidebar > navbar (z-10) pero < modales (z-50) */
       `}
       style={{
