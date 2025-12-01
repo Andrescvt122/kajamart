@@ -19,7 +19,7 @@ import { exportToPdf } from "./helpers/exportToPdf.js";
 import { useGetClients } from "../../shared/components/hooks/clients/useGetClients";
 import { useClientDelete } from "../../shared/components/hooks/clients/useDeleteClient";
 
-// ID reservado en la BD para el Cliente de Caja
+// ID reservado en la BD para el Cliente de Caja (si aplica)
 const CAJA_ID = 1;
 
 // Icono chevron para acordeón móvil
@@ -76,7 +76,7 @@ export default function IndexClients() {
   const { data, loading, error, refetch } = useGetClients();
   const { deleteClient: deleteClientHook } = useClientDelete();
 
-  // Control de expansión (para móvil y para descripción larga si quisieras luego)
+  // Control de expansión (móvil)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -102,18 +102,33 @@ export default function IndexClients() {
 
     const adaptedBackendClients = backendArray.map((client) => {
       const idApi = client.id_cliente ?? client.id;
+      const nombre = client.nombre_cliente ?? client.nombre ?? "";
+
+      const esCaja =
+        typeof nombre === "string" &&
+        nombre.toLowerCase().trim() === "cliente de caja";
+
+      // 🔥 Lógica de activo, forzando Cliente de Caja a true
+      let activo;
+      if (esCaja) {
+        activo = true;
+      } else if (typeof client.estado_cliente === "boolean") {
+        activo = client.estado_cliente;
+      } else {
+        const rawEstado = client.estado_cliente ?? client.activo ?? "";
+        activo =
+          rawEstado === true ||
+          String(rawEstado).toLowerCase().trim() === "activo";
+      }
 
       return {
         id: idApi,
-        nombre: client.nombre_cliente ?? client.nombre ?? "",
+        nombre,
         tipoDocumento: client.tipo_docume ?? client.tipoDocumento ?? "",
         numeroDocumento: client.numero_doc ?? client.numeroDocumento ?? "",
         correo: client.correo_cliente ?? client.correo ?? "",
         telefono: client.telefono_cliente ?? client.telefono ?? "",
-        activo:
-          typeof client.estado_cliente === "boolean"
-            ? client.estado_cliente
-            : (client.estado_cliente ?? client.activo) === "Activo",
+        activo,
         fecha: client.fecha ?? new Date().toISOString().split("T")[0],
       };
     });
@@ -220,7 +235,7 @@ export default function IndexClients() {
     if (result.isConfirmed) {
       const success = await deleteClientHook(id);
       if (success) {
-        refetch(); // Actualizar lista
+        refetch();
         Swal.fire("Eliminado", "Cliente eliminado correctamente", "success");
       } else {
         Swal.fire("Error", "No se pudo eliminar el cliente", "error");
@@ -255,7 +270,7 @@ export default function IndexClients() {
     <>
       {/* Contenedor global para controlar overflow horizontal */}
       <div className="flex min-h-screen w-full overflow-x-hidden">
-        {/* Fondo ondas, sin afectar el ancho */}
+        {/* Fondo ondas */}
         <div
           className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
           style={{
@@ -282,7 +297,7 @@ export default function IndexClients() {
               </p>
             </div>
 
-            {/* Barra de búsqueda + botones (responsive) */}
+            {/* Barra de búsqueda + botones */}
             <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
               <div className="relative w-full min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -301,7 +316,6 @@ export default function IndexClients() {
               </div>
 
               <div className="flex gap-2 flex-shrink-0">
-                {/* Exportar a Excel */}
                 <ExportExcelButton
                   event={() =>
                     exportToXls(
@@ -316,7 +330,6 @@ export default function IndexClients() {
                   Excel
                 </ExportExcelButton>
 
-                {/* Exportar a PDF */}
                 <ExportPDFButton
                   event={() =>
                     exportToPdf(
@@ -368,6 +381,7 @@ export default function IndexClients() {
                 <motion.ul className="space-y-3" variants={tableVariants}>
                   {pageItems.map((c, i) => {
                     const isExpanded = expanded.has(c.id);
+                    const isActive = isClienteCaja(c) ? true : c.activo;
 
                     return (
                       <motion.li
@@ -389,12 +403,12 @@ export default function IndexClients() {
                                 </span>
                                 <span
                                   className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
-                                    c.activo
+                                    isActive
                                       ? "bg-green-50 text-green-700"
                                       : "bg-red-100 text-red-600"
                                   }`}
                                 >
-                                  {c.activo ? "Activo" : "Inactivo"}
+                                  {isActive ? "Activo" : "Inactivo"}
                                 </span>
                               </div>
                               <p
@@ -467,7 +481,7 @@ export default function IndexClients() {
               )}
             </motion.div>
 
-            {/* Desktop: tabla (la misma que ya tenías, pero scrollable y sin romper layout) */}
+            {/* Desktop: tabla */}
             <motion.div
               className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
               variants={tableVariants}
@@ -507,50 +521,54 @@ export default function IndexClients() {
                         </td>
                       </tr>
                     ) : (
-                      pageItems.map((c, i) => (
-                        <motion.tr
-                          key={c.id + "-" + i}
-                          className="hover:bg-gray-50"
-                          variants={rowVariants}
-                        >
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                            {c.id}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                            {c.nombre}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                            {c.tipoDocumento} {c.numeroDocumento}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {c.correo?.trim() ? c.correo : "N/A"}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {c.telefono?.trim() ? c.telefono : "N/A"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                                c.activo
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
-                            >
-                              {c.activo ? "Activo" : "Inactivo"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                            {c.fecha}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="inline-flex items-center gap-1">
-                              <ViewButton event={() => handleView(c)} />
-                              <EditButton event={() => editClient(c)} />
-                              <DeleteButton event={() => deleteClient(c)} />
-                            </div>
-                          </td>
-                        </motion.tr>
-                      ))
+                      pageItems.map((c, i) => {
+                        const isActive = isClienteCaja(c) ? true : c.activo;
+
+                        return (
+                          <motion.tr
+                            key={c.id + "-" + i}
+                            className="hover:bg-gray-50"
+                            variants={rowVariants}
+                          >
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                              {c.id}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                              {c.nombre}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                              {c.tipoDocumento} {c.numeroDocumento}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {c.correo?.trim() ? c.correo : "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {c.telefono?.trim() ? c.telefono : "N/A"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
+                                  isActive
+                                    ? "bg-green-50 text-green-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {isActive ? "Activo" : "Inactivo"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                              {c.fecha}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                <ViewButton event={() => handleView(c)} />
+                                <EditButton event={() => editClient(c)} />
+                                <DeleteButton event={() => deleteClient(c)} />
+                              </div>
+                            </td>
+                          </motion.tr>
+                        );
+                      })
                     )}
                   </motion.tbody>
                 </table>

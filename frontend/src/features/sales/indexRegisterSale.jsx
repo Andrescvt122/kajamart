@@ -1,16 +1,16 @@
+// IndexRegisterSale.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import RegisterClientModal from "../clients/RegisterClientModal";
 
-// Hook de búsqueda en backend (clientes)
+// Hooks
 import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
-// Hook de búsqueda de producto por nombre
 import { useSearchDetailProduct } from "../../shared/components/hooks/sales/useSearchDetailProduct";
 
 export default function IndexRegisterSale() {
   const navigate = useNavigate();
 
-  // --- Hook de búsqueda en backend (clientes) ---
+  // --- Hooks clientes ---
   const {
     clients: apiClients,
     loading: loadingClients,
@@ -18,21 +18,22 @@ export default function IndexRegisterSale() {
     searchClient,
   } = useSearchClient();
 
-  // --- Hook de producto (solo por nombre) ---
+  // --- Hook producto ---
   const {
-    productDetail,
+    productDetail, // por si lo usas luego
+    productsFound,
     loadingProduct,
     errorProduct,
     searchByName,
   } = useSearchDetailProduct();
 
-  // --- Estados de cliente ---
+  // --- Estados cliente ---
   const [clienteQuery, setClienteQuery] = useState("");
   const [clientes, setClientes] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [showClientModal, setShowClientModal] = useState(false);
 
-  // --- Props para modal de cliente ---
+  // --- Form nuevo cliente ---
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
@@ -42,8 +43,7 @@ export default function IndexRegisterSale() {
     activo: true,
   });
 
-  // --- Productos / venta ---
-  // nombreProducto = lo que escribe el usuario en el input de producto
+  // --- Productos ---
   const [nombreProducto, setNombreProducto] = useState("");
   const [productos, setProductos] = useState([]);
   const [mensaje, setMensaje] = useState(null);
@@ -53,37 +53,62 @@ export default function IndexRegisterSale() {
   const STORAGE_KEY = "clientes";
   const CLIENTE_CAJA_ID = "C000";
 
-  // --- Dropdown UI control ---
+  // Dropdown cliente
   const [showDropdown, setShowDropdown] = useState(false);
   const sugRef = useRef(null);
   const inputRef = useRef(null);
 
-  // --- Carga inicial de clientes (localStorage + Cliente de Caja) ---
+  // Dropdown producto
+  const [showDropdownProducto, setShowDropdownProducto] = useState(false);
+  const prodSugRef = useRef(null);
+  const prodInputRef = useRef(null);
+
+  // --- Normalizador ---
+  const normalize = (t) =>
+    String(t ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  // --- Carga inicial + cliente de caja ---
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    // Cliente de Caja SIEMPRE activo
+    const caja = {
+      id: CLIENTE_CAJA_ID,
+      nombre: "Cliente de Caja",
+      tipoDocumento: "N/A",
+      numeroDocumento: "N/A",
+      correo: "caja@correo.com",
+      telefono: "N/A",
+      activo: true, // 👈 IMPORTANTE
+      estado: "Activo",
+      fecha: new Date().toISOString().split("T")[0],
+    };
+
     if (!stored.find((c) => c.id === CLIENTE_CAJA_ID)) {
-      const caja = {
-        id: CLIENTE_CAJA_ID,
-        nombre: "Cliente de Caja",
-        tipoDocumento: "N/A",
-        numeroDocumento: "N/A",
-        correo: "caja@correo.com",
-        telefono: "N/A",
-        estado: "Activo",
-        fecha: new Date().toISOString().split("T")[0],
-      };
+      // No existía -> lo creamos
       const withCaja = [caja, ...stored];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(withCaja));
       setClientes(withCaja);
       setClienteSeleccionado(caja);
     } else {
-      setClientes(stored);
-      const caja = stored.find((c) => c.id === CLIENTE_CAJA_ID);
-      if (caja) setClienteSeleccionado(caja);
+      // Ya existía -> lo corregimos por si no tenía activo: true
+      const fixed = stored.map((c) =>
+        c.id === CLIENTE_CAJA_ID
+          ? { ...c, activo: true, estado: "Activo" }
+          : c
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fixed));
+      setClientes(fixed);
+      setClienteSeleccionado(
+        fixed.find((c) => c.id === CLIENTE_CAJA_ID) || null
+      );
     }
   }, []);
 
-  // --- Cuando llegan clientes del backend, mezclarlos con Cliente de Caja ---
+  // --- Cuando llegan clientes del backend ---
   useEffect(() => {
     if (!apiClients || apiClients.length === 0) return;
 
@@ -99,25 +124,22 @@ export default function IndexRegisterSale() {
     });
   }, [apiClients]);
 
-  // --- Normalizar texto ---
-  const normalize = (t) =>
-    String(t ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+  // --- Sugerencias cliente ---
+  const safeClienteQuery = (clienteQuery ?? "").trim();
 
-  // --- Calcular sugerencias ---
-  const suggestions = clienteQuery.trim()
+  const suggestions = safeClienteQuery
     ? clientes.filter((c) =>
         normalize(
-          `${c.id} ${c.nombre} ${c.numeroDocumento} ${c.correo}`
-        ).includes(normalize(clienteQuery))
+          `${c.id ?? ""} ${c.nombre ?? ""} ${c.numeroDocumento ?? ""} ${
+            c.correo ?? ""
+          }`
+        ).includes(normalize(safeClienteQuery))
       )
     : [];
 
-  // --- Cerrar dropdown al click fuera ---
+  // --- Cerrar dropdown cliente al hacer click fuera ---
   useEffect(() => {
-    function handleDocClick(e) {
+    function handleClick(e) {
       if (
         sugRef.current &&
         !sugRef.current.contains(e.target) &&
@@ -127,19 +149,37 @@ export default function IndexRegisterSale() {
         setShowDropdown(false);
       }
     }
-    document.addEventListener("mousedown", handleDocClick);
-    return () => document.removeEventListener("mousedown", handleDocClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // --- Cambios en input (busca en back + dropdown) ---
+  // --- Cerrar dropdown producto al hacer click fuera ---
+  useEffect(() => {
+    function handleClick(e) {
+      if (
+        prodSugRef.current &&
+        !prodSugRef.current.contains(e.target) &&
+        prodInputRef.current &&
+        !prodInputRef.current.contains(e.target)
+      ) {
+        setShowDropdownProducto(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // --- Input cliente ---
   const handleInputChange = (val) => {
-    setClienteQuery(val);
+    const value = val ?? "";
+    setClienteQuery(value);
     setClienteSeleccionado(null);
 
-    const trimmed = val.trim();
+    const trimmed = value.trim();
 
     if (trimmed) {
       setShowDropdown(true);
+
       if (trimmed.length >= 2) {
         searchClient(trimmed);
       }
@@ -148,49 +188,34 @@ export default function IndexRegisterSale() {
     }
   };
 
-  // --- Seleccionar sugerencia ---
-  const handleSelectSuggestion = (c) => {
+  // --- Seleccionar sugerencia cliente ---
+  const handleSelect = (c) => {
     setClienteSeleccionado(c);
-    setClienteQuery(c.nombre);
+    setClienteQuery(c.nombre || "");
     setShowDropdown(false);
   };
 
-  // --- Blur del input cliente ---
+  // --- Blur cliente ---
   const handleBlurCliente = () => {
-    const q = clienteQuery.trim();
+    const q = (clienteQuery ?? "").trim();
+
     if (!q) {
       const caja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
       setClienteSeleccionado(caja || null);
-      setShowDropdown(false);
       return;
     }
-    const byId = clientes.find(
-      (c) => c.id.toLowerCase() === q.toLowerCase()
-    );
-    if (byId) {
-      setClienteSeleccionado(byId);
-      setClienteQuery(byId.nombre);
-      setShowDropdown(false);
-      return;
-    }
-    const byDoc = clientes.find((c) => String(c.numeroDocumento) === q);
-    if (byDoc) {
-      setClienteSeleccionado(byDoc);
-      setClienteQuery(byDoc.nombre);
-      setShowDropdown(false);
-      return;
-    }
+
     const byName = clientes.find((c) =>
-      normalize(c.nombre).includes(normalize(q))
+      normalize(c.nombre ?? "").includes(normalize(q))
     );
+
     if (byName) {
       setClienteSeleccionado(byName);
-      setClienteQuery(byName.nombre);
-      setShowDropdown(false);
+      setClienteQuery(byName.nombre || "");
       return;
     }
+
     setClienteSeleccionado(null);
-    setShowDropdown(false);
   };
 
   // --- Abrir modal ---
@@ -206,39 +231,53 @@ export default function IndexRegisterSale() {
     setShowClientModal(true);
   };
 
-  // --- Buscar producto (SOLO POR NOMBRE) ---
-  const handleSearchProduct = () => {
-    if (!nombreProducto.trim()) return;
-    searchByName(nombreProducto.trim());
+  // --- Input producto: escribe y busca con hook ---
+  const handleInputProductoChange = (val) => {
+    const value = val ?? "";
+    setNombreProducto(value);
+    const trimmed = value.trim();
+
+    if (trimmed.length >= 1) {
+      setShowDropdownProducto(true);
+      searchByName(trimmed);
+    } else {
+      setShowDropdownProducto(false);
+    }
   };
 
-  // --- Cuando llega un productDetail desde el backend, lo agregamos a la tabla ---
-  useEffect(() => {
-    if (!productDetail) return;
+  // --- Blur producto: si hay resultados, toma el primero ---
+  const handleBlurProducto = () => {
+    const q = (nombreProducto ?? "").trim();
+    if (!q) {
+      setShowDropdownProducto(false);
+      return;
+    }
 
+    if (productsFound && productsFound.length > 0) {
+      handleSelectProducto(productsFound[0]);
+    } else {
+      setShowDropdownProducto(false);
+    }
+  };
+
+  // --- Seleccionar producto del dropdown ---
+  const handleSelectProducto = (prod) => {
     const producto = {
       codigo:
-        productDetail.codigo_barras_producto_compra ||
-        productDetail.id ||
+        prod.codigo_barras_producto_compra ||
+        prod.id ||
         "",
-      nombre: productDetail.productos?.nombre || "Sin nombre",
+      nombre: prod.productos?.nombre || prod.nombre || "Sin nombre",
       precio: Number(
-        productDetail.precio_venta ??
-          productDetail.precio ??
-          productDetail.productos?.precio_venta ??
-          productDetail.productos?.precio ??
+        prod.precio_venta ??
+          prod.precio ??
+          prod.productos?.precio_venta ??
+          prod.productos?.precio ??
           0
       ),
     };
 
-    if (!producto.nombre) {
-      setMensaje({
-        tipo: "error",
-        texto: "❌ El producto no tiene nombre válido",
-      });
-      return;
-    }
-
+    // Evitar duplicados
     if (
       productos.some(
         (p) =>
@@ -251,32 +290,19 @@ export default function IndexRegisterSale() {
         texto: "⚠️ El producto ya está en la lista",
       });
       setNombreProducto("");
+      setShowDropdownProducto(false);
       return;
     }
 
     setProductos((prev) => [
       ...prev,
-      {
-        ...producto,
-        cantidad: 1,
-        subtotal: producto.precio,
-      },
+      { ...producto, cantidad: 1, subtotal: producto.precio },
     ]);
+
     setMensaje({ tipo: "ok", texto: "✅ Producto agregado" });
     setNombreProducto("");
-  }, [productDetail]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // --- Validación inmediata de cliente inactivo ---
-  useEffect(() => {
-    if (clienteSeleccionado && clienteSeleccionado.estado === "Inactivo") {
-      setMensaje({
-        tipo: "error",
-        texto: `⚠️ El cliente "${clienteSeleccionado.nombre}" está inactivo y no puede realizar esta venta.`,
-      });
-    } else {
-      setMensaje(null);
-    }
-  }, [clienteSeleccionado]);
+    setShowDropdownProducto(false);
+  };
 
   // --- Finalizar venta ---
   const handleFinalizarVenta = () => {
@@ -287,6 +313,7 @@ export default function IndexRegisterSale() {
       });
       return;
     }
+
     if (!metodoPago) {
       setMensaje({
         tipo: "error",
@@ -295,26 +322,13 @@ export default function IndexRegisterSale() {
       return;
     }
 
-    const clienteFinal =
-      clienteSeleccionado ||
-      clientes.find((c) => c.id === CLIENTE_CAJA_ID) || {
-        id: CLIENTE_CAJA_ID,
-        nombre: "Cliente de Caja",
-        estado: "Activo",
-      };
-
-    if (clienteFinal.estado === "Inactivo") {
-      setMensaje({
-        tipo: "error",
-        texto: `⚠️ El cliente "${clienteFinal.nombre}" está inactivo y no puede realizar compras.`,
-      });
-      return;
-    }
+    const cliente =
+      clienteSeleccionado || clientes.find((c) => c.id === CLIENTE_CAJA_ID);
 
     const nuevaVenta = {
       id: Date.now(),
-      cliente: clienteFinal.nombre,
-      clienteId: clienteFinal.id,
+      cliente: cliente.nombre,
+      clienteId: cliente.id,
       productos,
       metodoPago,
       total: productos.reduce((acc, p) => acc + p.subtotal, 0),
@@ -330,52 +344,44 @@ export default function IndexRegisterSale() {
 
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
-      {/* Header */}
+      {/* HEADER */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Ventas</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Completa la información para registrar una nueva venta
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Completa la información</p>
       </div>
 
-      {/* Cliente */}
+      {/* CLIENTE INPUT */}
       <div className="mb-4">
         <label className="block text-sm text-gray-600 mb-1">Cliente</label>
         <div className="flex items-start gap-2 relative">
           <div style={{ flex: 1 }}>
             <input
               ref={inputRef}
-              type="text"
               value={clienteQuery}
               onChange={(e) => handleInputChange(e.target.value)}
               onBlur={() => setTimeout(() => handleBlurCliente(), 150)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleBlurCliente();
-                }
-              }}
-              placeholder="Ingrese el nombre o código del cliente"
+              placeholder="Nombre o documento"
               className="w-full border rounded px-3 py-2 bg-white text-black"
             />
-            {/* Dropdown */}
+
+            {/* DROPDOWN CLIENTE */}
             <div ref={sugRef}>
               {showDropdown &&
                 suggestions.length > 0 &&
                 !clienteSeleccionado && (
-                  <div className="absolute left-0 right-0 bg-white border rounded-md mt-1 shadow z-30 max-h-56 overflow-auto">
+                  <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
                     {suggestions.slice(0, 7).map((s) => (
                       <div
                         key={s.id}
-                        onMouseDown={(ev) => {
-                          ev.preventDefault();
-                          handleSelectSuggestion(s);
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelect(s);
                         }}
                         className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
                       >
-                        <div className="text-sm font-medium">{s.nombre}</div>
+                        <div>{s.nombre}</div>
                         <div className="text-xs text-gray-500">
-                          {s.numeroDocumento || "N/A"}
+                          {s.numeroDocumento}
                         </div>
                       </div>
                     ))}
@@ -384,8 +390,8 @@ export default function IndexRegisterSale() {
             </div>
           </div>
 
-          {/* Botón Registrar cliente */}
-          {clienteQuery.trim() &&
+          {/* BOTÓN REGISTRAR */}
+          {safeClienteQuery &&
             !clienteSeleccionado &&
             suggestions.length === 0 && (
               <button
@@ -397,66 +403,88 @@ export default function IndexRegisterSale() {
             )}
         </div>
 
+        {/* ESTADO CLIENTE */}
         <div className="mt-2">
           {loadingClients && (
-            <p className="text-sm text-gray-500">Buscando cliente...</p>
+            <p className="text-sm text-gray-500">Buscando...</p>
           )}
           {errorClients && (
-            <p className="text-sm text-red-600">
-              Error al buscar cliente: {errorClients}
-            </p>
+            <p className="text-sm text-red-600">Error: {errorClients}</p>
           )}
 
           {clienteSeleccionado ? (
-            <p
-              className={`text-sm ${
-                clienteSeleccionado.estado === "Activo"
-                  ? "text-green-600"
-                  : "text-red-600"
-              }`}
-            >
-              {clienteSeleccionado.estado === "Activo"
-                ? `✅ Cliente seleccionado: ${clienteSeleccionado.nombre}`
-                : `❌ Cliente inactivo: ${clienteSeleccionado.nombre}`}
+            <p className="text-sm text-green-600">
+              ✅ Cliente seleccionado: {clienteSeleccionado.nombre}
             </p>
-          ) : clienteQuery.trim() === "" ? (
-            <p className="text-sm text-gray-600">
-              Se usará el Cliente de Caja
-            </p>
+          ) : safeClienteQuery === "" ? (
+            <p className="text-sm text-gray-600">Se usará Cliente de Caja</p>
           ) : (
             <p className="text-sm text-red-600">No se encontró cliente</p>
           )}
         </div>
       </div>
 
-      {/* Producto (nombre) */}
+      {/* PRODUCTO INPUT */}
       <div className="mb-2">
         <label className="block text-sm text-gray-600 mb-1">Producto</label>
-        <input
-          type="text"
-          value={nombreProducto}
-          onChange={(e) => setNombreProducto(e.target.value)}
-          onBlur={handleSearchProduct}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearchProduct();
-            }
-          }}
-          placeholder="Ingrese el nombre del producto"
-          className="w-full border rounded px-3 py-2 bg-white text-black"
-        />
+
+        <div className="relative">
+          <input
+            ref={prodInputRef}
+            type="text"
+            value={nombreProducto}
+            onChange={(e) => handleInputProductoChange(e.target.value)}
+            onBlur={() => setTimeout(() => handleBlurProducto(), 150)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (productsFound && productsFound.length > 0) {
+                  handleSelectProducto(productsFound[0]);
+                }
+              }
+            }}
+            placeholder="Ingrese el nombre del producto"
+            className="w-full border rounded px-3 py-2 bg-white text-black"
+          />
+
+          {/* DROPDOWN PRODUCTO */}
+          <div ref={prodSugRef}>
+            {showDropdownProducto &&
+              productsFound &&
+              productsFound.length > 0 && (
+                <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
+                  {productsFound.slice(0, 7).map((p) => (
+                    <div
+                      key={p.id || p.codigo_barras_producto_compra}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectProducto(p);
+                      }}
+                      className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
+                    >
+                      <div>{p.productos?.nombre || p.nombre}</div>
+                      <div className="text-xs text-gray-500">
+                        {p.codigo_barras_producto_compra || p.id}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </div>
+        </div>
+
+        {/* ESTADO PRODUCTO */}
+        <div className="mt-1">
+          {loadingProduct && (
+            <p className="text-sm text-gray-500">Buscando producto...</p>
+          )}
+          {errorProduct && (
+            <p className="text-sm text-red-600">{errorProduct}</p>
+          )}
+        </div>
       </div>
 
-      {/* Estado búsqueda de producto */}
-      {loadingProduct && (
-        <p className="text-sm text-gray-500 mb-1">Buscando producto...</p>
-      )}
-      {errorProduct && (
-        <p className="text-sm text-red-600 mb-1">{errorProduct}</p>
-      )}
-
-      {/* Mensaje */}
+      {/* MENSAJE GENERAL */}
       {mensaje && (
         <p
           className={`mb-4 text-sm ${
@@ -467,61 +495,85 @@ export default function IndexRegisterSale() {
         </p>
       )}
 
-      {/* Tabla productos */}
+      {/* TABLA PRODUCTOS */}
       <table className="w-full border-collapse border border-gray-300 mb-4">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 px-3 py-2">Nombre</th>
-            <th className="border border-gray-300 px-3 py-2">Cantidad</th>
-            <th className="border border-gray-300 px-3 py-2">Precio</th>
-            <th className="border border-gray-300 px-3 py-2">Subtotal</th>
-            <th className="border border-gray-300 px-3 py-2">Acciones</th>
+            <th className="border px-3 py-2">Nombre</th>
+            <th className="border px-3 py-2">Cant.</th>
+            <th className="border px-3 py-2">Precio</th>
+            <th className="border px-3 py-2">Subtotal</th>
+            <th className="border px-3 py-2">Acciones</th>
           </tr>
         </thead>
+
         <tbody>
           {productos.length === 0 ? (
             <tr>
-              <td colSpan="5" className="text-center text-gray-400 py-4">
+              <td colSpan="5" className="text-center py-4 text-gray-400">
                 No hay productos
               </td>
             </tr>
           ) : (
-            productos.map((prod, i) => (
+            productos.map((p, i) => (
               <tr key={i}>
-                <td className="border px-3 py-2 text-black">
-                  {prod.nombre}
-                </td>
+                <td className="border px-3 py-2 text-black">{p.nombre}</td>
                 <td className="border px-3 py-2 text-center text-black">
                   <input
                     type="number"
+                    value={p.cantidad === "" ? "" : p.cantidad}
                     min="1"
-                    value={prod.cantidad}
                     onChange={(e) => {
-                      const nuevaCantidad =
-                        parseInt(e.target.value) || 1;
-                      const nuevos = [...productos];
-                      nuevos[i].cantidad = nuevaCantidad;
-                      nuevos[i].subtotal =
-                        nuevaCantidad * nuevos[i].precio;
-                      setProductos(nuevos);
+                      const value = e.target.value;
+                      setProductos((prev) => {
+                        const arr = [...prev];
+
+                        if (value === "") {
+                          // permitir vacío mientras escribe
+                          arr[i].cantidad = "";
+                          arr[i].subtotal = 0;
+                        } else {
+                          const cant = Math.max(
+                            1,
+                            parseInt(value, 10) || 1
+                          );
+                          arr[i].cantidad = cant;
+                          arr[i].subtotal = cant * arr[i].precio;
+                        }
+
+                        return arr;
+                      });
                     }}
-                    className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
+                    onBlur={() => {
+                      // si quedó vacío, devolver a 1
+                      setProductos((prev) => {
+                        const arr = [...prev];
+                        if (
+                          arr[i].cantidad === "" ||
+                          arr[i].cantidad == null ||
+                          isNaN(arr[i].cantidad)
+                        ) {
+                          arr[i].cantidad = 1;
+                          arr[i].subtotal = 1 * arr[i].precio;
+                        }
+                        return arr;
+                      });
+                    }}
+                    className="w-16 text-center border rounded bg-white"
                   />
                 </td>
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.precio}
+                  ${p.precio}
                 </td>
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.subtotal}
+                  ${p.subtotal}
                 </td>
                 <td className="border px-3 py-2 text-center">
                   <button
                     onClick={() =>
-                      setProductos(
-                        productos.filter((_, idx) => idx !== i)
-                      )
+                      setProductos((prev) => prev.filter((_, idx) => idx !== i))
                     }
-                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="px-2 py-1 bg-red-500 text-white rounded"
                   >
                     Eliminar
                   </button>
@@ -532,11 +584,11 @@ export default function IndexRegisterSale() {
         </tbody>
       </table>
 
-      {/* Métodos de pago + Total */}
-      <div className="mb-4 flex items-center justify_between">
+      {/* MÉTODO DE PAGO */}
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="font-semibold mb-2">Método de Pago</p>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <button
               onClick={() => setMetodoPago("efectivo")}
               className={`px-4 py-2 rounded text-white ${
@@ -557,7 +609,8 @@ export default function IndexRegisterSale() {
             </button>
           </div>
         </div>
-        <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
+
+        <div className="bg-gray-100 px-4 py-2 rounded shadow-md text-right">
           <p className="text-sm text-gray-600">Total a pagar</p>
           <p className="text-2xl font-bold text-green-700">
             $
@@ -568,8 +621,8 @@ export default function IndexRegisterSale() {
         </div>
       </div>
 
-      {/* Acciones */}
-      <div className="flex justify-end items-center space-x-2">
+      {/* BOTONES */}
+      <div className="flex justify-end gap-2">
         <button
           onClick={() => navigate("/app/sales")}
           className="px-4 py-2 rounded bg-gray-500 text-white"
@@ -584,7 +637,7 @@ export default function IndexRegisterSale() {
         </button>
       </div>
 
-      {/* Modal cliente */}
+      {/* MODAL CLIENTE */}
       <RegisterClientModal
         isModalOpen={showClientModal}
         setIsModalOpen={setShowClientModal}
@@ -598,12 +651,26 @@ export default function IndexRegisterSale() {
         title="Registrar cliente"
         onClose={() => setShowClientModal(false)}
         editingClientId={null}
-        onSuccess={() => {
-          const q = form.numeroDocumento || form.nombre;
-          if (q) {
-            searchClient(q);
-            setClienteQuery(form.nombre);
-          }
+        onSuccess={(payload) => {
+          const raw = payload?.cliente || payload?.client || payload || {};
+
+          const nuevoCliente = {
+            id: raw.id ?? raw.id_cliente ?? raw.codigo ?? Date.now(),
+            nombre: raw.nombre ?? raw.nombre_cliente ?? "",
+            tipoDocumento: raw.tipoDocumento ?? raw.tipo_documento ?? "",
+            numeroDocumento:
+              raw.numeroDocumento ?? raw.numero_documento ?? "",
+            correo: raw.correo ?? raw.email ?? "",
+            telefono: raw.telefono ?? raw.celular ?? "",
+            estado:
+              raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            fecha: raw.fecha || new Date().toISOString().split("T")[0],
+          };
+
+          setClientes((prev) => [...prev, nuevoCliente]);
+          setClienteSeleccionado(nuevoCliente);
+          setClienteQuery(nuevoCliente.nombre || "");
+
           setShowClientModal(false);
           setShowDropdown(false);
         }}
