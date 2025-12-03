@@ -10,35 +10,23 @@ const formatMoney = (value) =>
     minimumFractionDigits: 0,
   }).format(Number(value) || 0);
 
-const formatPercent = (part, whole) => {
-  const p = Number(part);
-  const w = Number(whole);
-  if (!w || isNaN(p) || isNaN(w)) return "0%";
-  const pct = (p / w) * 100;
-  return new Intl.NumberFormat("es-CO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(pct) + "%";
-};
-
 export function exportSalesToPDF({ rows = [], filename = "ventas.pdf" }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-  // Título
-  doc.setFontSize(16);
-  doc.text("Reporte de Ventas", 40, 40);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Cabecera y cuerpo
-  const head = [[
-    "ID Venta",
-    "Fecha",
-    "Cliente",
-    "Total",
-    "Medio de Pago",
-    "IVA (%)",
-    "ICU (%)",
-    "Estado",
-  ]];
+  const margin = {
+    top: 90,
+    bottom: 60,
+    left: 40,
+    right: 40,
+  };
+
+  // Datos de tabla
+  const head = [
+    ["ID Venta", "Fecha", "Cliente", "Total", "Medio de Pago", "Estado"],
+  ];
 
   const body = rows.map((v) => [
     v.id,
@@ -46,15 +34,11 @@ export function exportSalesToPDF({ rows = [], filename = "ventas.pdf" }) {
     v.cliente,
     formatMoney(v.total),
     v.medioPago,
-    formatPercent(v.iva, v.total),
-    formatPercent(v.icu, v.total),
     v.estado,
   ]);
 
-  // Totales (opcional)
+  // Total general
   const totalCop = rows.reduce((acc, x) => acc + Number(x.total || 0), 0);
-  const totalIva = rows.reduce((acc, x) => acc + Number(x.iva || 0), 0);
-  const totalIcu = rows.reduce((acc, x) => acc + Number(x.icu || 0), 0);
 
   body.push([
     "",
@@ -62,26 +46,73 @@ export function exportSalesToPDF({ rows = [], filename = "ventas.pdf" }) {
     "Totales",
     formatMoney(totalCop),
     "",
-    rows.length ? formatPercent(totalIva, totalCop) : "0%",
-    rows.length ? formatPercent(totalIcu, totalCop) : "0%",
     "",
   ]);
 
   doc.autoTable({
     head,
     body,
-    startY: 60,
-    styles: { fontSize: 9, cellPadding: 6, halign: "left", valign: "middle" },
-    headStyles: { fillColor: [240, 240, 240] },
+    startY: margin.top,
+    margin,
+    theme: "grid",
+    styles: {
+      fontSize: 9,
+      cellPadding: 6,
+      halign: "left",
+      valign: "middle",
+    },
+    headStyles: {
+      fillColor: [22, 163, 74], // verde
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    bodyStyles: {
+      textColor: [55, 65, 81], // gris oscuro
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252], // gris muy claro
+    },
     columnStyles: {
-      0: { cellWidth: 70 },
-      1: { cellWidth: 70 },
-      2: { cellWidth: 120 },
-      3: { cellWidth: 80 },
-      4: { cellWidth: 90 },
-      5: { cellWidth: 60 },
-      6: { cellWidth: 60 },
-      7: { cellWidth: 70 },
+      0: { cellWidth: 70 },  // ID Venta
+      1: { cellWidth: 70 },  // Fecha
+      2: { cellWidth: 140 }, // Cliente
+      3: { cellWidth: 80 },  // Total
+      4: { cellWidth: 90 },  // Medio de Pago
+      5: { cellWidth: 70 },  // Estado
+    },
+    didParseCell: (data) => {
+      // Última fila (totales) → resaltada
+      if (data.section === "body" && data.row.index === body.length - 1) {
+        data.cell.styles.fillColor = [240, 253, 244]; // verde muy claro
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
+    didDrawPage: (data) => {
+      // Encabezado
+      doc.setFillColor(22, 163, 74); // verde
+      doc.rect(0, 0, pageWidth, 60, "F");
+
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text("Reporte de Ventas", margin.left, 30);
+
+      doc.setFontSize(10);
+      const fechaStr = new Date().toLocaleString("es-CO");
+      doc.text(`Generado: ${fechaStr}`, margin.left, 46);
+
+      // Puedes poner aquí el nombre de la empresa, NIT, etc.
+      // doc.text("Mi Empresa S.A.S - NIT 900000000", margin.left, 58);
+
+      // Footer: número de página
+      const pageStr = `Página ${data.pageNumber}`;
+      doc.setFontSize(9);
+      doc.setTextColor(150);
+      const textWidth = doc.getTextWidth(pageStr);
+      doc.text(
+        pageStr,
+        pageWidth - margin.right - textWidth,
+        pageHeight - 20
+      );
     },
   });
 

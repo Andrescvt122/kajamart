@@ -13,8 +13,8 @@ const normalizeText = (text) => {
 };
 
 export const useSearchDetailProduct = () => {
-  const [productDetail, setProductDetail] = useState(null);     // primero de la lista
-  const [productsFound, setProductsFound] = useState([]);       // lista completa
+  const [productDetail, setProductDetail] = useState(null);
+  const [productsFound, setProductsFound] = useState([]);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [errorProduct, setErrorProduct] = useState(null);
 
@@ -31,7 +31,6 @@ export const useSearchDetailProduct = () => {
       setLoadingProduct(true);
       setErrorProduct(null);
 
-      // Normalizamos ANTES de enviar
       const q = normalizeText(raw);
 
       const { data } = await axios.get(
@@ -39,9 +38,19 @@ export const useSearchDetailProduct = () => {
       );
 
       const list = Array.isArray(data) ? data : [];
-      setProductsFound(list);
 
-      const first = list.length > 0 ? list[0] : null;
+      // 🔹 quitar duplicados por producto
+      const uniqueList = list.filter(
+        (item, index, self) =>
+          index === self.findIndex(
+            (p) => p.productos.id_producto === item.productos.id_producto
+            // ^ ajusta a tu nombre de campo (id_producto, id, etc.)
+          )
+      );
+
+      setProductsFound(uniqueList);
+
+      const first = uniqueList.length > 0 ? uniqueList[0] : null;
       setProductDetail(first);
 
       if (!first) {

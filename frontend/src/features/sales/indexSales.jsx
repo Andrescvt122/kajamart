@@ -22,20 +22,6 @@ const formatMoney = (value) =>
     minimumFractionDigits: 0,
   }).format(value);
 
-// ✅ Formatear porcentaje (parte / total * 100)
-const formatPercent = (part, whole) => {
-  const p = Number(part);
-  const w = Number(whole);
-  if (!w || isNaN(p) || isNaN(w)) return "0%";
-  const pct = (p / w) * 100;
-  return (
-    new Intl.NumberFormat("es-CO", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(pct) + "%"
-  );
-};
-
 export default function IndexSales() {
   const navigate = useNavigate();
 
@@ -45,9 +31,7 @@ export default function IndexSales() {
       fecha: "2023-12-01",
       cliente: "Sofía Rodríguez",
       total: 250000,
-      medioPago: "Tarjeta",
-      iva: 47500,
-      icu: 2000,
+      medioPago: "Transferencia",
       estado: "Completada",
     },
     {
@@ -56,8 +40,6 @@ export default function IndexSales() {
       cliente: "Carlos López",
       total: 150000,
       medioPago: "Efectivo",
-      iva: 28500,
-      icu: 1200,
       estado: "Completada",
     },
   ]);
@@ -112,7 +94,7 @@ export default function IndexSales() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // ✅ Botón de imprimir venta con IVA/ICU en %
+  // ✅ Botón de imprimir venta
   const PrintSaleButton = ({ sale }) => (
     <PrinterButton
       alert={() => {
@@ -138,8 +120,6 @@ export default function IndexSales() {
                 <tr><th>Cliente</th><td>${sale.cliente}</td></tr>
                 <tr><th>Total</th><td>${formatMoney(sale.total)}</td></tr>
                 <tr><th>Medio de Pago</th><td>${sale.medioPago}</td></tr>
-                <tr><th>IVA</th><td>${formatPercent(sale.iva, sale.total)}</td></tr>
-                <tr><th>ICU</th><td>${formatPercent(sale.icu, sale.total)}</td></tr>
                 <tr><th>Estado</th><td>${sale.estado}</td></tr>
               </table>
             </body>
@@ -240,30 +220,46 @@ export default function IndexSales() {
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Total</th>
                 <th className="px-6 py-4">Medio de Pago</th>
-                <th className="px-6 py-4">IVA (%)</th>
-                <th className="px-6 py-4">ICU (%)</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
 
-            <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+            <motion.tbody
+              className="divide-y divide-gray-100"
+              variants={tableVariants}
+            >
               {pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
+                  {/* ahora hay 7 columnas */}
+                  <td
+                    colSpan={7}
+                    className="px-6 py-8 text-center text-gray-400"
+                  >
                     No se encontraron ventas.
                   </td>
                 </tr>
               ) : (
                 pageItems.map((v, i) => (
-                  <motion.tr key={v.id + "-" + i} className="hover:bg-gray-50" variants={rowVariants}>
+                  <motion.tr
+                    key={v.id + "-" + i}
+                    className="hover:bg-gray-50"
+                    variants={rowVariants}
+                  >
                     <td className="px-6 py-4 text-sm text-gray-600">{v.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{v.fecha}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{v.cliente}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatMoney(v.total)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{v.medioPago}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatPercent(v.iva, v.total)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{formatPercent(v.icu, v.total)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {v.fecha}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {v.cliente}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatMoney(v.total)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {v.medioPago}
+                    </td>
+
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${

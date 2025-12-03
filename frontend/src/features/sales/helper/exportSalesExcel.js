@@ -10,17 +10,6 @@ const formatMoney = (value) =>
     minimumFractionDigits: 0,
   }).format(Number(value) || 0);
 
-const formatPercent = (part, whole) => {
-  const p = Number(part);
-  const w = Number(whole);
-  if (!w || isNaN(p) || isNaN(w)) return "0%";
-  const pct = (p / w) * 100;
-  return new Intl.NumberFormat("es-CO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(pct) + "%";
-};
-
 export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
   const data = rows.map((v) => ({
     "ID Venta": v.id,
@@ -28,15 +17,11 @@ export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
     Cliente: v.cliente,
     Total: formatMoney(v.total),
     "Medio de Pago": v.medioPago,
-    "IVA (%)": formatPercent(v.iva, v.total),
-    "ICU (%)": formatPercent(v.icu, v.total),
     Estado: v.estado,
   }));
 
-  // Totales (opcional)
+  // Totales (solo del total en COP)
   const totalCop = rows.reduce((acc, x) => acc + Number(x.total || 0), 0);
-  const totalIva = rows.reduce((acc, x) => acc + Number(x.iva || 0), 0);
-  const totalIcu = rows.reduce((acc, x) => acc + Number(x.icu || 0), 0);
 
   data.push({
     "ID Venta": "",
@@ -44,8 +29,6 @@ export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
     Cliente: "Totales",
     Total: formatMoney(totalCop),
     "Medio de Pago": "",
-    "IVA (%)": rows.length ? formatPercent(totalIva, totalCop) : "0%",
-    "ICU (%)": rows.length ? formatPercent(totalIcu, totalCop) : "0%",
     Estado: "",
   });
 

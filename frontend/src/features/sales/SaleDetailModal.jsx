@@ -1,6 +1,6 @@
 // src/features/sales/SaleDetailModal.jsx
 import React from "react";
-import { formatMoney, formatPercent } from "./helper/formatters";
+import { formatMoney } from "./helper/formatters";
 
 const SaleDetailModal = ({ sale, onClose }) => {
   if (!sale) return null;
@@ -13,7 +13,10 @@ const SaleDetailModal = ({ sale, onClose }) => {
   ];
 
   // Total calculado por los productos; si la venta ya trae total, úsalo como base
-  const totalPorProductos = productosEjemplo.reduce((acc, p) => acc + Number(p.subtotal || 0), 0);
+  const totalPorProductos = productosEjemplo.reduce(
+    (acc, p) => acc + Number(p.subtotal || 0),
+    0
+  );
   const totalBase = Number(sale.total) || totalPorProductos;
 
   return (
@@ -25,17 +28,25 @@ const SaleDetailModal = ({ sale, onClose }) => {
 
         {/* Información general */}
         <div className="grid grid-cols-2 gap-3 text-gray-700 mb-4 text-sm">
-          <p><strong>ID Venta:</strong> {sale.id}</p>
-          <p><strong>Fecha:</strong> {sale.fecha}</p>
-          <p><strong>Cliente:</strong> {sale.cliente}</p>
-          <p><strong>Medio de Pago:</strong> {sale.medioPago}</p>
+          <p>
+            <strong>ID Venta:</strong> {sale.id}
+          </p>
+          <p>
+            <strong>Fecha:</strong> {sale.fecha}
+          </p>
+          <p>
+            <strong>Cliente:</strong> {sale.cliente}
+          </p>
+          <p>
+            <strong>Medio de Pago:</strong> {sale.medioPago}
+          </p>
 
-          {/* IVA / ICU como porcentaje del total */}
-          <p><strong>IVA:</strong> {formatPercent(sale.iva, totalBase)}</p>
-          <p><strong>ICU:</strong> {formatPercent(sale.icu, totalBase)}</p>
-
-          <p><strong>Estado:</strong> {sale.estado}</p>
-          <p><strong>Total:</strong> {formatMoney(totalBase)}</p>
+          <p>
+            <strong>Estado:</strong> {sale.estado}
+          </p>
+          <p>
+            <strong>Total:</strong> {formatMoney(totalBase)}
+          </p>
         </div>
 
         {/* Tabla de productos */}
@@ -51,10 +62,15 @@ const SaleDetailModal = ({ sale, onClose }) => {
             </thead>
             <tbody>
               {productosEjemplo.map((p, index) => (
-                <tr key={index} className="border-b hover:bg-green-50 transition text-gray-700">
+                <tr
+                  key={index}
+                  className="border-b hover:bg-green-50 transition text-gray-700"
+                >
                   <td className="p-2">{p.nombre}</td>
                   <td className="p-2 text-center">{p.cantidad}</td>
-                  <td className="p-2 text-center">{formatMoney(p.precioUnitario)}</td>
+                  <td className="p-2 text-center">
+                    {formatMoney(p.precioUnitario)}
+                  </td>
                   <td className="p-2 text-center font-semibold text-green-700">
                     {formatMoney(p.subtotal)}
                   </td>
