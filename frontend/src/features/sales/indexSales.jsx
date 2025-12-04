@@ -1,7 +1,10 @@
+// src/features/sales/indexSales.jsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import Swal from "sweetalert2";
+
 import ondas from "../../assets/ondasHorizontal.png";
 import { exportSaleReceiptPDF } from "./helper/exportSaleReceiptPDF";
 import Paginator from "../../shared/components/paginator";
@@ -15,6 +18,7 @@ import SaleDetailModal from "./SaleDetailModal";
 import { exportSalesToExcel } from "./helper/exportSalesExcel";
 import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
+import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
@@ -34,7 +38,7 @@ const formatDate = (value) => {
   try {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    return d.toISOString().slice(0, 10);
   } catch {
     return String(value);
   }
@@ -43,38 +47,33 @@ const formatDate = (value) => {
 export default function IndexSales() {
   const navigate = useNavigate();
   const { sales, loading, error, refetch } = useSales();
+  const { updateStatus } = useUpdateSaleStatus();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
 
-  // 👇 guardamos el objeto REAL de backend para que el modal tenga relaciones
   const [selectedSale, setSelectedSale] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const normalizedSales = useMemo(() => {
     return (sales || []).map((v) => ({
-      raw: v, // ✅ guardo el original
+      raw: v,
 
-      // ids
       id_ui: v.id_venta ?? v.id ?? "",
-
-      // ✅ formateo de fecha (no ISO completo)
       fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
 
-      // ✅ tu campo correcto: clientes.nombre_cliente
       cliente_ui:
         v?.clientes?.nombre_cliente ??
         v?.clientes?.nombre ??
         v?.cliente ??
         "",
 
-      // pago/estado
       medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
       estado_ui: v.estado_venta ?? v.estado ?? "",
 
       total_ui: Number(v.total || 0),
 
-      // detalle (lo dejamos para export/prints simples)
       productos_ui: v.detalle_venta ?? v.productos ?? [],
     }));
   }, [sales]);
@@ -113,19 +112,17 @@ export default function IndexSales() {
     visible: { opacity: 1, y: 0 },
   };
 
- const PrintSaleButton = ({ sale }) => (
-  <PrinterButton
-    alert={() => {
-      // ✅ sale.raw es el que trae clientes + detalle_venta con joins
-      exportSaleReceiptPDF({
-        sale: sale.raw,
-        filename: `recibo_venta_${sale.id_ui}.pdf`,
-        empresa: "KAJAMART",
-      });
-    }}
-  />
-);
-
+  const PrintSaleButton = ({ sale }) => (
+    <PrinterButton
+      alert={() => {
+        exportSaleReceiptPDF({
+          sale: sale.raw,
+          filename: `recibo_venta_${sale.id_ui}.pdf`,
+          empresa: "KAJAMART",
+        });
+      }}
+    />
+  );
 
   const exportRows = useMemo(() => {
     return filtered.map((v) => ({
@@ -152,6 +149,71 @@ export default function IndexSales() {
     });
   };
 
+  // ✅ Anular (no cancelar)
+  const handleAnnulSale = async (saleRaw) => {
+    const id = saleRaw?.id_venta ?? saleRaw?.id;
+    if (!id) return;
+
+    const current = saleRaw?.estado_venta ?? saleRaw?.estado ?? "";
+    if (current === "Anulada") {
+      await Swal.fire({
+        icon: "info",
+        title: "Ya está anulada",
+        text: `La venta #${id} ya se encuentra anulada.`,
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "¿Anular venta?",
+      html: `Se anulará la venta <b>#${id}</b>.`,
+      showCancelButton: true,
+      confirmButtonText: "Sí, anular",
+      cancelButtonText: "No",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setUpdatingId(id);
+
+      Swal.fire({
+        title: "Anulando...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // ✅ backend: PUT /sales/:id/status  body: { estado }
+      await updateStatus(id, "Anulada");
+
+      await refetch();
+
+      if ((selectedSale?.id_venta ?? selectedSale?.id) === id) {
+        setSelectedSale(null);
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Venta anulada",
+        text: `La venta #${id} fue anulada correctamente.`,
+        confirmButtonColor: "#16a34a",
+      });
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "No se pudo anular",
+        text: e?.message || "Error actualizando estado",
+        confirmButtonColor: "#16a34a",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <>
       <div
@@ -175,9 +237,7 @@ export default function IndexSales() {
           </div>
         </div>
 
-        {loading && (
-          <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>
-        )}
+        {loading && <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>}
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
         <div className="mb-6 flex items-center gap-3">
@@ -198,9 +258,7 @@ export default function IndexSales() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={handleExportExcel}>
-              Excel
-            </ExportExcelButton>
+            <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
             <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
             <button
               onClick={() => navigate("/app/sales/register")}
@@ -230,61 +288,71 @@ export default function IndexSales() {
               </tr>
             </thead>
 
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-            >
+            <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
               {pageItems.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron ventas.
                   </td>
                 </tr>
               ) : (
-                pageItems.map((v, i) => (
-                  <motion.tr
-                    key={v.id_ui + "-" + i}
-                    className="hover:bg-gray-50"
-                    variants={rowVariants}
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.id_ui}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.fecha_ui}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {v.cliente_ui || "Cliente de Caja"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {formatMoney(v.total_ui)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {v.medioPago_ui}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
-                          v.estado_ui === "Completada"
-                            ? "bg-green-50 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {v.estado_ui}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        {/* ✅ abrimos modal con el RAW (con relaciones) */}
-                        <ViewButton event={() => setSelectedSale(v.raw)} />
-                        <PrintSaleButton sale={v} />
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
+                pageItems.map((v, i) => {
+                  const rawId = v.raw?.id_venta ?? v.raw?.id;
+                  const isUpdating = updatingId === rawId;
+                  const isAnnulled = v.estado_ui === "Anulada";
+
+                  return (
+                    <motion.tr
+                      key={v.id_ui + "-" + i}
+                      className="hover:bg-gray-50"
+                      variants={rowVariants}
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-600">{v.id_ui}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{v.fecha_ui}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {v.cliente_ui || "Cliente de Caja"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {formatMoney(v.total_ui)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{v.medioPago_ui}</td>
+
+                      {/* ✅ onClick con event */}
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleAnnulSale(v.raw);
+                          }}
+                          disabled={isUpdating || isAnnulled}
+                          title={isAnnulled ? "Esta venta ya está anulada" : "Click para anular"}
+                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
+                            ${
+                              isAnnulled
+                                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                : "bg-green-50 text-green-700 hover:bg-green-100"
+                            }
+                            ${
+                              isUpdating || isAnnulled
+                                ? "opacity-60 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
+                        >
+                          {isUpdating ? "Actualizando..." : v.estado_ui}
+                        </button>
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <ViewButton event={() => setSelectedSale(v.raw)} />
+                          <PrintSaleButton sale={v} />
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })
               )}
             </motion.tbody>
           </table>
@@ -298,7 +366,6 @@ export default function IndexSales() {
           goToPage={goToPage}
         />
 
-        {/* ✅ modal recibe el objeto backend completo */}
         <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSale(null)} />
       </div>
     </>
