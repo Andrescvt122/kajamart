@@ -50,7 +50,9 @@ const extractItems = (sale) => {
         ) || "Sin nombre";
 
       const cantidad = toNumber(pick(d?.cantidad, d?.cant, d?.qty));
-      const precioUnitario = toNumber(pick(d?.precio_unitario, d?.precioUnitario, d?.precio, 0));
+      const precioUnitario = toNumber(
+        pick(d?.precio_unitario, d?.precioUnitario, d?.precio, d?.valor_unitario, 0)
+      );
       const subtotal = toNumber(pick(d?.subtotal, cantidad * precioUnitario));
 
       return { nombre, cantidad, precioUnitario, subtotal };
@@ -60,9 +62,12 @@ const extractItems = (sale) => {
   const prods = Array.isArray(sale?.productos) ? sale.productos : null;
   if (prods && prods.length) {
     return prods.map((p) => {
-      const nombre = pick(p?.nombre, p?.producto, p?.productos?.nombre) || "Sin nombre";
+      const nombre =
+        pick(p?.nombre, p?.producto, p?.productos?.nombre) || "Sin nombre";
       const cantidad = toNumber(pick(p?.cantidad, p?.cant, p?.qty));
-      const precioUnitario = toNumber(pick(p?.precioUnitario, p?.precio_unitario, p?.precio));
+      const precioUnitario = toNumber(
+        pick(p?.precioUnitario, p?.precio_unitario, p?.precio, 0)
+      );
       const subtotal = toNumber(pick(p?.subtotal, cantidad * precioUnitario));
       return { nombre, cantidad, precioUnitario, subtotal };
     });
@@ -75,16 +80,15 @@ export function exportSaleReceiptPDF({
   sale,
   filename = `recibo_venta_${new Date().toISOString().slice(0, 10)}.pdf`,
   empresa = "KAJAMART",
-  nit = "",
-  direccion = "",
-  telefono = "",
+  nit = "", // ✅ ahora sí existe
+  direccion = "Crr49a Num47a 122",
+  telefono = "3161194195",
 }) {
   if (!sale) return;
 
   // Ticket ~80mm (226pt). Alto dinámico.
   const pageWidth = 226;
   const marginX = 10;
-  const line = 12;
 
   const idVenta = pick(sale?.id_venta, sale?.id) ?? "";
   const fecha = formatDate(pick(sale?.fecha_venta, sale?.fecha, sale?.createdAt));
@@ -100,23 +104,43 @@ export function exportSaleReceiptPDF({
     ) || "Cliente de Caja";
 
   const items = extractItems(sale);
-
   const totalPorProductos = items.reduce((acc, it) => acc + toNumber(it.subtotal), 0);
   const total = toNumber(pick(sale?.total, totalPorProductos));
 
-  // Alto estimado: header + items + totales + footer
-  const baseHeight = 220;
-  const itemsHeight = Math.max(1, items.length) * 22;
-  const pageHeight = baseHeight + itemsHeight;
+  // ✅ Altura dinámica REAL (basada en líneas)
+  const tmp = new jsPDF({ unit: "pt", format: [pageWidth, 500] });
+  tmp.setFont("helvetica", "normal");
+  tmp.setFontSize(9);
+
+  const usableWidth = pageWidth - marginX * 2;
+
+  const headerLines =
+    7 + // empresa + (nit?) + dir + tel + 4 líneas info + separadores aproximados
+    (nit ? 1 : 0);
+
+  const itemLines = items.length
+    ? items.reduce((sum, it) => {
+        const nameLines = tmp.splitTextToSize(String(it.nombre), usableWidth).length;
+        return sum + nameLines + 2; // +2 por línea "cant x unit" y espacio
+      }, 0)
+    : 2;
+
+  const footerLines = 6;
+  const totalLines = 3;
+
+  const lineHeight = 11;
+  const padding = 70;
+
+  const pageHeight =
+    (headerLines + itemLines + totalLines + footerLines) * lineHeight + padding;
 
   const doc = new jsPDF({
     unit: "pt",
-    format: [pageWidth, pageHeight],
+    format: [pageWidth, Math.max(260, pageHeight)],
   });
 
   let y = 16;
 
-  // Helpers de texto en ticket
   const centerText = (txt, yPos, size = 11, bold = true) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(size);
@@ -127,14 +151,14 @@ export function exportSaleReceiptPDF({
   const leftText = (txt, yPos, size = 9, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(size);
-    doc.text(txt, marginX, yPos);
+    doc.text(String(txt), marginX, yPos);
   };
 
   const rightText = (txt, yPos, size = 9, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(size);
-    const w = doc.getTextWidth(txt);
-    doc.text(txt, pageWidth - marginX - w, yPos);
+    const w = doc.getTextWidth(String(txt));
+    doc.text(String(txt), pageWidth - marginX - w, yPos);
   };
 
   const hr = () => {
@@ -164,25 +188,39 @@ export function exportSaleReceiptPDF({
 
   hr();
 
+  leftText(`Venta: #${idVenta}`, y);
+  y += 12;
+
   leftText(`Fecha: ${fecha}`, y);
-  y += line;
-  leftText(`Cliente: ${cliente}`, y);
-  y += line;
+  y += 12;
+
+  // cliente multiline por si es largo
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const clienteLines = doc.splitTextToSize(`Cliente: ${cliente}`, usableWidth);
+  clienteLines.forEach((ln) => {
+    leftText(ln, y, 9, false);
+    y += 11;
+  });
+
   leftText(`Pago: ${medioPago}`, y);
-  y += line;
+  y += 12;
+
   leftText(`Estado: ${estado}`, y);
-  y += 8;
+  y += 6;
 
   hr();
 
   // =========================
-  // Items (lista)
+  // Items
   // =========================
   leftText("PRODUCTO", y, 9, true);
-  y += line;
-  leftText("Cant  x  Unit", y, 8, false);
+  y += 11;
+
+  leftText("Cant x Unit", y, 8, false);
   rightText("Subtotal", y, 8, false);
   y += 8;
+
   hr();
 
   if (!items.length) {
@@ -190,11 +228,10 @@ export function exportSaleReceiptPDF({
     y += 16;
   } else {
     items.forEach((it) => {
-      // nombre multiline si es largo
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      const nameLines = doc.splitTextToSize(String(it.nombre), pageWidth - marginX * 2);
 
+      const nameLines = doc.splitTextToSize(String(it.nombre), usableWidth);
       nameLines.forEach((ln) => {
         leftText(ln, y, 9, false);
         y += 11;
