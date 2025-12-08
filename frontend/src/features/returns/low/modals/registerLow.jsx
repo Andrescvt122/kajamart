@@ -108,6 +108,18 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       return alert("Selecciona al menos un producto.");
     if (selectedProducts.some((p) => !p.reason))
       return alert("Todos los productos deben tener un motivo de baja.");
+    const invalidUnitSale = selectedProducts.some(
+      (p) =>
+        p.reason === "venta unitaria" &&
+        (p.id_producto_traslado == null || p.cantidad_traslado == null)
+    );
+
+    if (invalidUnitSale) {
+      alert(
+        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria."
+      );
+      return;
+    }
     setShowConfirmAlert(true);
   };
 
