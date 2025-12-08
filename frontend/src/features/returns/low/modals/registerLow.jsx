@@ -23,6 +23,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
+  const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
 
@@ -39,6 +40,29 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     { value: "venta unitaria", label: "Venta unitaria" },
     { value: "requerido personal", label: "Requerido personal" },
   ];
+
+  const showReasonLockedAlert = (productId) => {
+    setReasonLockAlertByProduct((prev) => ({ ...prev, [productId]: true }));
+    setTimeout(() => {
+      setReasonLockAlertByProduct((prev) => ({ ...prev, [productId]: false }));
+    }, 2500);
+  };
+
+  const handleRemoveTransfer = (productId) => {
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              reason: "", // ✅ deselecciona "venta unitaria"
+              id_producto_traslado: null,
+              cantidad_traslado: null,
+              nombre_producto_traslado: "",
+            }
+          : p
+      )
+    );
+  };
 
   const handleAddProduct = (product) => {
     const adaptedProduct = {
@@ -75,6 +99,16 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     );
 
   const handleProductReasonSelect = (productId, reason) => {
+    const current = selectedProducts.find((p) => p.id === productId);
+    const hasUnitTransferConfigured =
+      current?.reason === "venta unitaria" &&
+      current?.id_producto_traslado != null;
+
+    // Si ya configuró traslado (destino confirmado), no permitimos cambiar a otro motivo
+    if (hasUnitTransferConfigured && reason !== "venta unitaria") {
+      showReasonLockedAlert(productId);
+      return;
+    }
     setSelectedProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, reason } : p))
     );
@@ -272,29 +306,43 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                               <div className="space-y-2">
                                 {reasonOptions.map((r) => {
                                   const isSelected = p.reason === r.value;
-
+                                  const hasTransferConfigured =
+                                    p.reason === "venta unitaria" &&
+                                    p.id_producto_traslado != null;
+                                  const isLockedOption =
+                                    hasTransferConfigured &&
+                                    r.value !== "venta unitaria";
                                   return (
                                     <label
                                       key={r.value}
-                                      className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
-                                        isSelected
-                                          ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                          : "border-gray-200 hover:bg-gray-50"
+                                      className={` w-full flex items-center justify-start text-left gap-3 rounded-lg border p-2 transition-all select-none ${
+                                        isLockedOption
+                                          ? "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
+                                          : isSelected
+                                          ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
+                                          : "border-gray-200 hover:bg-gray-50 cursor-pointer"
                                       }`}
                                     >
                                       <input
                                         type="radio"
                                         name={`reason-${p.id}`}
                                         checked={isSelected}
-                                        onChange={() =>
+                                        onClick={() => {
+                                          if (isLockedOption)
+                                            showReasonLockedAlert(p.id);
+                                        }}
+                                        onChange={() => {
+                                          if (isLockedOption) {
+                                            showReasonLockedAlert(p.id);
+                                            return;
+                                          }
                                           handleProductReasonSelect(
                                             p.id,
                                             r.value
-                                          )
-                                        }
+                                          );
+                                        }}
                                         className="hidden"
                                       />
-
                                       <div
                                         className={`w-5 h-5 flex items-center justify-center rounded-md border transition-all ${
                                           isSelected
@@ -318,7 +366,6 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           </svg>
                                         )}
                                       </div>
-
                                       <span
                                         className={`text-sm font-medium ${
                                           isSelected
@@ -331,6 +378,61 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                     </label>
                                   );
                                 })}
+                                <AnimatePresence>
+                                  {reasonLockAlertByProduct[p.id] && (
+                                    <motion.div
+                                      className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+                                      initial={{ opacity: 0, y: -6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -6 }}
+                                      transition={{ duration: 0.15 }}
+                                    >
+                                      <AlertTriangle className="w-4 h-4 mt-0.5" />
+                                      <span>
+                                        Para seleccionar otro motivo, elimina
+                                        primero el destino.
+                                      </span>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+
+                                {/* Resumen de traslado (solo venta unitaria) */}
+                                {p.reason === "venta unitaria" &&
+                                  p.id_producto_traslado != null &&
+                                  p.cantidad_traslado != null && (
+                                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-emerald-800">
+                                          Traslado configurado
+                                        </p>
+                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                          Destino:{" "}
+                                          <span className="text-emerald-800">
+                                            {p.nombre_producto_traslado ||
+                                              `ID ${p.id_producto_traslado}`}
+                                          </span>
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-1">
+                                          Cantidad trasladada:{" "}
+                                          <span className="font-semibold">
+                                            {p.cantidad_traslado}
+                                          </span>
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemoveTransfer(p.id)
+                                        }
+                                        className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition"
+                                        title="Eliminar traslado y deseleccionar venta unitaria"
+                                      >
+                                        <Trash2 size={14} />
+                                        Eliminar
+                                      </button>
+                                    </div>
+                                  )}
                               </div>
                             </motion.div>
                           )}
@@ -468,6 +570,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       id_producto_traslado: detalleDestino.id_detalle_producto,
                       // ✅ cantidad_traslado = cantidad_unitaria de la caja
                       cantidad_traslado: p.cantidad_unitaria ?? null,
+                      nombre_producto_traslado:
+                        detalleDestino?.productos?.nombre ?? "",
                     };
                   })
                 );
