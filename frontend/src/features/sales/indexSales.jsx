@@ -59,21 +59,16 @@ export default function IndexSales() {
   const normalizedSales = useMemo(() => {
     return (sales || []).map((v) => ({
       raw: v,
-
       id_ui: v.id_venta ?? v.id ?? "",
       fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
-
       cliente_ui:
         v?.clientes?.nombre_cliente ??
         v?.clientes?.nombre ??
         v?.cliente ??
         "",
-
       medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
       estado_ui: v.estado_venta ?? v.estado ?? "",
-
       total_ui: Number(v.total || 0),
-
       productos_ui: v.detalle_venta ?? v.productos ?? [],
     }));
   }, [sales]);
@@ -149,8 +144,11 @@ export default function IndexSales() {
     });
   };
 
-  // ✅ Anular (no cancelar)
-  const handleAnnulSale = async (saleRaw) => {
+  // ✅ ANULAR (con SweetAlert2) + maneja error por tiempo excedido
+  const handleAnnulSale = async (event, saleRaw) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
     const id = saleRaw?.id_venta ?? saleRaw?.id;
     if (!id) return;
 
@@ -168,7 +166,7 @@ export default function IndexSales() {
     const result = await Swal.fire({
       icon: "warning",
       title: "¿Anular venta?",
-      html: `Se anulará la venta <b>#${id}</b>.`,
+      html: `Se anulará la venta <b>#${id}</b> y se devolverá el stock.`,
       showCancelButton: true,
       confirmButtonText: "Sí, anular",
       cancelButtonText: "No",
@@ -187,15 +185,14 @@ export default function IndexSales() {
         didOpen: () => Swal.showLoading(),
       });
 
-      // ✅ backend: PUT /sales/:id/status  body: { estado }
       await updateStatus(id, "Anulada");
-
       await refetch();
 
       if ((selectedSale?.id_venta ?? selectedSale?.id) === id) {
         setSelectedSale(null);
       }
 
+      Swal.close();
       await Swal.fire({
         icon: "success",
         title: "Venta anulada",
@@ -203,12 +200,30 @@ export default function IndexSales() {
         confirmButtonColor: "#16a34a",
       });
     } catch (e) {
-      await Swal.fire({
-        icon: "error",
-        title: "No se pudo anular",
-        text: e?.message || "Error actualizando estado",
-        confirmButtonColor: "#16a34a",
-      });
+      Swal.close();
+
+      const code = e?.response?.data?.code;
+      const diffMinutes = e?.response?.data?.diffMinutes;
+
+      if (code === "ANULAR_TIEMPO_EXCEDIDO") {
+        await Swal.fire({
+          icon: "info",
+          title: "No se puede anular",
+          text: `Ya han pasado ${diffMinutes ?? "varios"} minutos desde esta venta. Solo se puede anular dentro de 30 minutos.`,
+          confirmButtonColor: "#16a34a",
+        });
+      } else {
+        const msg =
+          e?.response?.data?.message ||
+          e?.message ||
+          "Error actualizando estado";
+        await Swal.fire({
+          icon: "error",
+          title: "No se pudo anular",
+          text: msg,
+          confirmButtonColor: "#16a34a",
+        });
+      }
     } finally {
       setUpdatingId(null);
     }
@@ -237,7 +252,9 @@ export default function IndexSales() {
           </div>
         </div>
 
-        {loading && <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>}
+        {loading && (
+          <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>
+        )}
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
         <div className="mb-6 flex items-center gap-3">
@@ -321,24 +338,18 @@ export default function IndexSales() {
                       <td className="px-6 py-4">
                         <button
                           type="button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            handleAnnulSale(v.raw);
-                          }}
+                          onClick={(event) => handleAnnulSale(event, v.raw)}
                           disabled={isUpdating || isAnnulled}
-                          title={isAnnulled ? "Esta venta ya está anulada" : "Click para anular"}
+                          title={
+                            isAnnulled ? "Esta venta ya está anulada" : "Click para anular"
+                          }
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
                             ${
                               isAnnulled
                                 ? "bg-red-100 text-red-700 hover:bg-red-200"
                                 : "bg-green-50 text-green-700 hover:bg-green-100"
                             }
-                            ${
-                              isUpdating || isAnnulled
-                                ? "opacity-60 cursor-not-allowed"
-                                : "cursor-pointer"
-                            }`}
+                            ${isUpdating || isAnnulled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {isUpdating ? "Actualizando..." : v.estado_ui}
                         </button>

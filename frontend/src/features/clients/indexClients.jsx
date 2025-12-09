@@ -19,8 +19,8 @@ import { exportToPdf } from "./helpers/exportToPdf.js";
 import { useGetClients } from "../../shared/components/hooks/clients/useGetClients";
 import { useClientDelete } from "../../shared/components/hooks/clients/useDeleteClient";
 
-// ID reservado en la BD para el Cliente de Caja (si aplica)
-const CAJA_ID = 1;
+// ✅ ID fijo del Cliente de Caja (coincide con backend)
+const CAJA_ID = 0;
 
 // Icono chevron para acordeón móvil
 function ChevronIcon({ open }) {
@@ -47,7 +47,6 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexClients() {
-  // Estados
   const [selectedClient, setSelectedClient] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,11 +71,9 @@ export default function IndexClients() {
     { label: "NIT", value: "NIT" },
   ];
 
-  // Hooks para obtener y eliminar clientes
   const { data, loading, error, refetch } = useGetClients();
   const { deleteClient: deleteClientHook } = useClientDelete();
 
-  // Control de expansión (móvil)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -86,29 +83,26 @@ export default function IndexClients() {
     });
   };
 
-  // 👉 Helper para saber si un cliente es el Cliente de Caja
+  // ✅ Cliente de Caja (por ID y por nombre como respaldo)
   const isClienteCaja = (client) => {
     if (!client) return false;
-    const byId = client.id === CAJA_ID;
-    const byName =
-      typeof client.nombre === "string" &&
-      client.nombre.toLowerCase().trim() === "cliente de caja";
-    return byId || byName;
+    if (String(client.id) === String(CAJA_ID)) return true;
+    const n = String(client.nombre || "").toLowerCase().trim();
+    return n === "cliente de caja";
   };
 
-  // Adaptar clientes del backend al modelo del front
   const allClients = useMemo(() => {
     const backendArray = Array.isArray(data) ? data : [];
 
-    const adaptedBackendClients = backendArray.map((client) => {
+    const adapted = backendArray.map((client) => {
       const idApi = client.id_cliente ?? client.id;
       const nombre = client.nombre_cliente ?? client.nombre ?? "";
 
       const esCaja =
-        typeof nombre === "string" &&
-        nombre.toLowerCase().trim() === "cliente de caja";
+        String(idApi) === String(CAJA_ID) ||
+        (typeof nombre === "string" &&
+          nombre.toLowerCase().trim() === "cliente de caja");
 
-      // 🔥 Lógica de activo, forzando Cliente de Caja a true
       let activo;
       if (esCaja) {
         activo = true;
@@ -133,35 +127,41 @@ export default function IndexClients() {
       };
     });
 
-    return adaptedBackendClients;
+    // ✅ Garantizar que Caja esté primero SIEMPRE
+    const caja = adapted.find((c) => String(c.id) === String(CAJA_ID));
+    const sinCaja = adapted.filter((c) => String(c.id) !== String(CAJA_ID));
+    return caja ? [caja, ...sinCaja] : adapted;
   }, [data]);
 
-  // Normalización de búsqueda
   const normalizeText = (text) =>
     String(text ?? "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Filtrar + ordenar clientes
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     let result = allClients;
+
     if (s) {
       result = result.filter((c) =>
         Object.values(c).some((value) => normalizeText(value).includes(s))
       );
     }
+
+    // ✅ Orden: Caja primero, luego por ID
     return result.sort((a, b) => {
-      const numA =
-        typeof a.id === "string" ? parseInt(a.id.replace("C", ""), 10) : a.id;
-      const numB =
-        typeof b.id === "string" ? parseInt(b.id.replace("C", ""), 10) : b.id;
-      return numA - numB;
+      const aCaja = String(a.id) === String(CAJA_ID);
+      const bCaja = String(b.id) === String(CAJA_ID);
+      if (aCaja && !bCaja) return -1;
+      if (!aCaja && bCaja) return 1;
+
+      const numA = typeof a.id === "string" ? parseInt(a.id, 10) : a.id;
+      const numB = typeof b.id === "string" ? parseInt(b.id, 10) : b.id;
+      return (numA || 0) - (numB || 0);
     });
   }, [allClients, searchTerm]);
 
-  // Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -173,7 +173,6 @@ export default function IndexClients() {
     setCurrentPage(p);
   };
 
-  // Animaciones
   const tableVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
@@ -183,7 +182,6 @@ export default function IndexClients() {
     visible: { opacity: 1, y: 0 },
   };
 
-  // Editar cliente
   const editClient = (client) => {
     if (isClienteCaja(client)) {
       Swal.fire({
@@ -207,7 +205,6 @@ export default function IndexClients() {
     setIsModalOpen(true);
   };
 
-  // Eliminar cliente
   const deleteClient = async (client) => {
     if (isClienteCaja(client)) {
       Swal.fire({
@@ -243,13 +240,11 @@ export default function IndexClients() {
     }
   };
 
-  // Ver detalles
   const handleView = (client) => {
     setSelectedClient(client);
     setIsViewModalOpen(true);
   };
 
-  // Loading / error
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -268,9 +263,7 @@ export default function IndexClients() {
 
   return (
     <>
-      {/* Contenedor global para controlar overflow horizontal */}
       <div className="flex min-h-screen w-full overflow-x-hidden">
-        {/* Fondo ondas */}
         <div
           className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
           style={{
@@ -286,10 +279,8 @@ export default function IndexClients() {
           <div className="h-full w-full" />
         </div>
 
-        {/* Contenido principal */}
         <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
           <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
-            {/* Header */}
             <div className="mb-4 sm:mb-6">
               <h2 className="text-2xl sm:text-3xl font-semibold">Clientes</h2>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
@@ -297,7 +288,6 @@ export default function IndexClients() {
               </p>
             </div>
 
-            {/* Barra de búsqueda + botones */}
             <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
               <div className="relative w-full min-w-0">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -364,9 +354,7 @@ export default function IndexClients() {
               </div>
             </div>
 
-            {/* ====== LISTADO RESPONSIVE ====== */}
-
-            {/* Móvil: tarjetas / acordeón */}
+            {/* Móvil */}
             <motion.div
               className="md:hidden"
               variants={tableVariants}
@@ -456,15 +444,6 @@ export default function IndexClients() {
                                     {c.telefono?.trim() ? c.telefono : "N/A"}
                                   </p>
                                 </div>
-                                <div>
-                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                    Fecha
-                                  </p>
-                                  <p className="text-gray-800 break-words">
-                                    {c.fecha}
-                                  </p>
-                                </div>
-
                                 <div className="pt-2 flex items-center gap-2">
                                   <ViewButton event={() => handleView(c)} />
                                   <EditButton event={() => editClient(c)} />
@@ -481,7 +460,7 @@ export default function IndexClients() {
               )}
             </motion.div>
 
-            {/* Desktop: tabla */}
+            {/* Desktop */}
             <motion.div
               className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
               variants={tableVariants}
@@ -489,11 +468,7 @@ export default function IndexClients() {
               animate="visible"
             >
               <div className="overflow-x-auto max-w-full">
-                <table
-                  key={currentPage}
-                  className="min-w-[800px] w-full"
-                  style={{ fontSize: "0.9rem" }}
-                >
+                <table key={currentPage} className="min-w-[800px] w-full">
                   <thead>
                     <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
                       <th className="px-4 py-3">ID</th>
@@ -507,16 +482,10 @@ export default function IndexClients() {
                     </tr>
                   </thead>
 
-                  <motion.tbody
-                    className="divide-y divide-gray-100"
-                    variants={tableVariants}
-                  >
+                  <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                     {pageItems.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={8}
-                          className="px-6 py-8 text-center text-gray-400"
-                        >
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                           No se encontraron clientes.
                         </td>
                       </tr>
@@ -575,7 +544,6 @@ export default function IndexClients() {
               </div>
             </motion.div>
 
-            {/* Paginación */}
             <div className="mt-4 sm:mt-6">
               <Paginator
                 currentPage={currentPage}
@@ -588,7 +556,6 @@ export default function IndexClients() {
           </div>
         </div>
 
-        {/* Modales */}
         <RegisterClientModal
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
