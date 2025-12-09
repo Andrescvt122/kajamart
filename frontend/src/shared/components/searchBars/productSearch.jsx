@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Package,
-  CheckCircle,
-  AlertCircle,
-  Check,
-} from "lucide-react";
+import { Search, Package, CheckCircle, AlertCircle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFetchProduct } from "../hooks/searchBars/useFetchProducts";
 
@@ -32,6 +26,16 @@ const ProductSearch = ({ onAddProduct }) => {
   const { data: products, loading, error } = useFetchProduct(debouncedTerm);
 
   const handleSelectProduct = (product) => {
+    // 🚫 Si no tiene stock, no permitimos seleccionarlo
+    if (product.stock_producto <= 0) {
+      showTemporaryAlert(
+        `El producto "${
+          product.productos?.nombre || "sin nombre"
+        }" no tiene stock disponible.`
+      );
+      return;
+    }
+
     setSelectedProduct(product);
     setSearchTerm(product.productos?.nombre || "");
     setShowDropdown(false);
@@ -39,8 +43,10 @@ const ProductSearch = ({ onAddProduct }) => {
   };
 
   const handleAddProduct = async () => {
-    if (!selectedProduct) return showTemporaryAlert("Por favor, selecciona un producto.");
-    if (quantity <= 0) return showTemporaryAlert("La cantidad debe ser mayor a 0.");
+    if (!selectedProduct)
+      return showTemporaryAlert("Por favor, selecciona un producto.");
+    if (quantity <= 0)
+      return showTemporaryAlert("La cantidad debe ser mayor a 0.");
     if (quantity > selectedProduct.stock_producto)
       return showTemporaryAlert(
         `No hay suficiente stock. Solo quedan ${selectedProduct.stock_producto} unidades disponibles.`
@@ -53,7 +59,10 @@ const ProductSearch = ({ onAddProduct }) => {
     setTimeout(() => {
       const newProduct = { ...selectedProduct, requestedQuantity: quantity };
       onAddProduct(newProduct);
-      showTemporaryAlert(`${selectedProduct.productos?.nombre} añadido exitosamente`, true);
+      showTemporaryAlert(
+        `${selectedProduct.productos?.nombre} añadido exitosamente`,
+        true
+      );
 
       // ✅ Mostrar check animado
       setShowCheck(true);
@@ -117,7 +126,9 @@ const ProductSearch = ({ onAddProduct }) => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
         >
-          <label className="text-sm font-semibold text-gray-700 p-6">Cantidad:</label>
+          <label className="text-sm font-semibold text-gray-700 p-6">
+            Cantidad:
+          </label>
           <motion.input
             type="number"
             value={quantity}
@@ -263,33 +274,50 @@ const ProductSearch = ({ onAddProduct }) => {
             ) : error ? (
               <div className="p-4 text-center text-red-500">{error}</div>
             ) : products && products.length > 0 ? (
-              products.map((item) => (
-                <motion.div
-                  key={item.id_detalle_producto}
-                  className="px-4 py-3 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors duration-200"
-                  onClick={() => handleSelectProduct(item)}
-                  whileHover={{
-                    scale: 1.01,
-                    backgroundColor: "#dcfce7",
-                    transition: { duration: 0.2 },
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <img src={item.productos?.url_imagen} alt=""  />
+              products.map((item) => {
+                const isOutOfStock = item.stock_producto <= 0;
+
+                return (
+                  <motion.div
+                    key={item.id_detalle_producto}
+                    className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 ${
+                      isOutOfStock
+                        ? "bg-gray-50 cursor-not-allowed opacity-60"
+                        : "hover:bg-green-50 cursor-pointer"
+                    }`}
+                    onClick={() => handleSelectProduct(item)}
+                    whileHover={
+                      !isOutOfStock
+                        ? {
+                            scale: 1.01,
+                            backgroundColor: "#dcfce7",
+                            transition: { duration: 0.2 },
+                          }
+                        : {}
+                    }
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <img src={item.productos?.url_imagen} alt="" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {item.productos?.nombre}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Cód. {item.codigo_barras_producto_compra} •{" "}
+                          {formatPrice(item.productos?.precio_venta || 0)}
+                        </p>
+                        {isOutOfStock && (
+                          <p className="text-xs text-red-500 font-semibold mt-1">
+                            Sin stock disponible
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.productos?.nombre}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Cód. {item.codigo_barras_producto_compra} •{" "}
-                        {formatPrice(item.productos?.precio_venta || 0)}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             ) : (
               <div className="p-4 text-center text-sm text-gray-500">
                 No se encontraron coincidencias.
