@@ -27,6 +27,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
   const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
+  const { postDetailProduct } = usePostDetailProduct();
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
 
@@ -564,6 +565,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 )?.name
               }
               onConfirmDestination={(detalleDestino) => {
+                console.log("DESTINO RECIBIDO EN REGISTERLOW:", detalleDestino);
                 setSelectedProducts((prev) =>
                   prev.map((p) => {
                     if (p.id !== activeUnitTransferProductId) return p;

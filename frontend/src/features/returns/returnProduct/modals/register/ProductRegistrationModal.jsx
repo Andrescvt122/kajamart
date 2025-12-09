@@ -15,6 +15,7 @@ const ProductRegistrationModal = ({
   onCancelRegistration,
   initialDetail,
   ignoreBarcode,
+  isReturnProduct,
 }) => {
   const {
     details,
@@ -22,10 +23,11 @@ const ProductRegistrationModal = ({
     error,
     refetch,
   } = useFetchAllDetails();
-
+  const [submitting, setSubmitting] = useState(false);
+  const { postDetailProduct } = usePostDetailProduct();
   const [formData, setFormData] = useState({
     barcode: "",
-    quantity: "",
+    quantity: isReturnProduct ? "" : 0,
     expiryDate: "",
     isReturn: true,
   });
@@ -61,7 +63,7 @@ const ProductRegistrationModal = ({
       } else {
         setFormData({
           barcode: "",
-          quantity: "",
+          quantity: isReturnProduct ? "" : "0",
           expiryDate: "",
           isReturn: true,
         });
@@ -165,19 +167,18 @@ const ProductRegistrationModal = ({
   const quantityNum = Number(quantityStr);
   const isQuantityNumeric = /^\d+$/.test(quantityStr);
   const isQuantityValid =
-    isQuantityNumeric && Number.isFinite(quantityNum) && quantityNum > 0;
-
+    isReturnProduct == true
+      ? isQuantityNumeric && Number.isFinite(quantityNum) && quantityNum > 0
+      : true;
+  console.log(isQuantityValid);
   let quantityError = "";
-  if (!quantityStr) {
-    quantityError = "Cantidad requerida";
-  } else if (
-    !isQuantityNumeric ||
-    !Number.isFinite(quantityNum) ||
-    quantityNum < 1
-  ) {
-    quantityError = "Cantidad inválida";
+  if (isReturnProduct) {
+    if (quantityStr === "") quantityError = "Cantidad requerida";
+    else if (!isQuantityValid) quantityError = "Cantidad inválida";
+  } else {
+    // baja: cantidad fija 0, no validamos
+    quantityError = "";
   }
-
   // 3) Fecha de vencimiento
   const expiryStr = formData.expiryDate;
   let expiryError = "";
@@ -200,41 +201,94 @@ const ProductRegistrationModal = ({
   }
 
   // Formulario válido solo si TODO está ok
+  console.log(isBarcodeValid, isQuantityValid, isExpiryValid, loadingDetails);
   const isFormValid =
     isBarcodeValid && isQuantityValid && isExpiryValid && !loadingDetails;
 
   // --- submit ---
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid) return;
 
-    const registeredDetail = {
-      ...product,
-      productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
-      registeredBarcode: formData.barcode,
-      registeredQuantity: Number(formData.quantity),
-      registeredExpiry: formData.expiryDate || null,
-      isReturn: true,
-    };
+    setSubmitting(true);
 
-    if (onConfirm) {
-      onConfirm(registeredDetail);
+    try {
+      const registeredDetail = {
+        ...product,
+        productKey: product?.id_producto,
+        registeredBarcode: formData.barcode,
+        registeredQuantity: isReturnProduct ? Number(formData.quantity) : 0,
+        registeredExpiry: formData.expiryDate || null,
+        isReturn: true,
+      };
+
+      if (isReturnProduct) {
+        // ✅ modo devolución: NO postea aquí, solo devuelve al padre
+        await onConfirm?.(registeredDetail);
+
+        setFormData({
+          barcode: "",
+          quantity: "",
+          expiryDate: "",
+          isReturn: true,
+        });
+
+        onClose();
+        return;
+      }
+
+      // ✅ modo baja: aquí SÍ postea detalle
+      console.log(registeredDetail);
+      console.log(product);
+      const payload = {
+        id_producto: product?.id_producto,
+        registeredBarcode: registeredDetail?.registeredBarcode,
+        registeredExpiry: registeredDetail?.registeredExpiry,
+        registeredQuantity: Number(registeredDetail?.registeredQuantity),
+      };
+      console.log(payload);
+      const createdDetailResp = await postDetailProduct(payload);
+
+      // ✅ si el backend envuelve la respuesta (message + newDetail)
+      const createdDetail =
+        createdDetailResp?.newDetail ??
+        createdDetailResp?.newProductDetail ??
+        createdDetailResp?.detail ??
+        createdDetailResp;
+
+      // ✅ inyecta "productos" para que el preview del destino muestre nombre
+      const createdDetailWithProduct = {
+        ...createdDetail,
+        productos: createdDetail?.productos ||
+          product?.productos || {
+            nombre: product?.productos?.nombre,
+            precio_venta: product?.productos?.precio_venta ?? 0,
+          },
+      };
+      console.log("creacion", createdDetailWithProduct);
+      await onConfirm?.(createdDetailWithProduct);
+
+      setFormData({
+        barcode: "",
+        quantity: "0",
+        expiryDate: "",
+        isReturn: true,
+      });
+
+      onClose();
+    } catch (err) {
+      // aquí puedes mostrar un mensaje visual si quieres
+      console.error(err);
+    } finally {
+      setSubmitting(false);
     }
-
-    setFormData({
-      barcode: "",
-      quantity: "",
-      expiryDate: "",
-      isReturn: true,
-    });
-    onClose();
   };
 
   const handleClose = () => {
     setFormData({
       barcode: "",
-      quantity: "",
+      quantity: isReturnProduct ? "" : "0",
       expiryDate: "",
       isReturn: true,
     });
@@ -245,7 +299,7 @@ const ProductRegistrationModal = ({
     // limpiar formulario
     setFormData({
       barcode: "",
-      quantity: "",
+      quantity: isReturnProduct ? "" : "0",
       expiryDate: "",
       isReturn: true,
     });
@@ -377,18 +431,31 @@ const ProductRegistrationModal = ({
                     </label>
                     <input
                       type="number"
-                      min={1}
+                      min={isReturnProduct ? 1 : 0}
                       inputMode="numeric"
-                      value={formData.quantity}
-                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      value={isReturnProduct ? formData.quantity : 0}
+                      onChange={
+                        isReturnProduct
+                          ? (e) => handleQuantityChange(e.target.value)
+                          : undefined
+                      }
                       onKeyDown={handleNumericKeyDown}
                       onPaste={handleNumericPaste}
                       onWheel={handleNumberWheel}
-                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
-                        quantityError
-                          ? "border-red-400 focus:ring-red-200"
-                          : "border-gray-300 focus:ring-emerald-200"
-                      }`}
+                      disabled={isReturnProduct ? false : true}
+                      className={
+                        isReturnProduct
+                          ? `w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
+                              quantityError
+                                ? "border-red-400 focus:ring-red-200"
+                                : "border-gray-300 focus:ring-emerald-200"
+                            }`
+                          : `w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black bg-gray-100 cursor-not-allowed ${
+                              quantityError
+                                ? "border-red-400 focus:ring-red-200"
+                                : "border-gray-300 focus:ring-emerald-200"
+                            }`
+                      }
                       placeholder="0"
                     />
                     {quantityError && (
@@ -442,14 +509,15 @@ const ProductRegistrationModal = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={!isFormValid}
+                    disabled={!isFormValid || submitting}
                     className={`px-4 py-2 rounded-md flex items-center gap-2 text-white transition ${
                       isFormValid
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-gray-300 cursor-not-allowed"
                     }`}
                   >
-                    <CheckCircle size={16} /> Registrar
+                    <CheckCircle size={16} />{" "}
+                    {submitting ? "Registrando..." : "Registrar"}
                   </button>
                 </div>
               </form>
