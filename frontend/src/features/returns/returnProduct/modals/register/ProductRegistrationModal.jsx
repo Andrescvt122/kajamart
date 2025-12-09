@@ -1,28 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
-import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
+// ❌ YA NO usamos el hook aquí
+// import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 
-const ProductRegistrationModal = ({
-  isOpen,
-  onClose,
-  product,
-  onConfirm,
-  existingBarcodes,
-  onCancelRegistration,
-  initialDetail,
-  ignoreBarcode,
-}) => {
-  const {
-    details,
-    loading: loadingDetails,
-    error,
-    refetch,
-  } = useFetchAllDetails();
-
+const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: "",
@@ -30,185 +14,44 @@ const ProductRegistrationModal = ({
     isReturn: true,
   });
 
-  // Fecha mínima: 4 días después de hoy (00:00:00)
-  const minDate = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4);
-    return d;
-  }, []);
+  const [errors, setErrors] = useState({});
+
+  // Fecha mínima: 4 días después de hoy
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate());
 
   // Resetear campos cuando se abre un producto nuevo
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOpen) {
-      if (initialDetail) {
-        setFormData({
-          barcode:
-            initialDetail.registeredBarcode ||
-            initialDetail.codigo_barras_producto_compra ||
-            "",
-          quantity: String(
-            initialDetail.registeredQuantity ??
-              initialDetail.stock_producto ??
-              ""
-          ),
-          expiryDate:
-            initialDetail.registeredExpiry?.slice(0, 10) ||
-            initialDetail.fecha_vencimiento?.slice(0, 10) ||
-            "",
-          isReturn: true,
-        });
-      } else {
-        setFormData({
-          barcode: "",
-          quantity: "",
-          expiryDate: "",
-          isReturn: true,
-        });
-      }
-
-      // refrescamos detalles para validar códigos únicos
-      refetch && refetch();
+      setFormData({
+        barcode: "",
+        quantity: "",
+        expiryDate: "",
+        isReturn: true,
+      });
+      setErrors({});
     }
-  }, [isOpen, product, initialDetail, refetch]);
+  }, [isOpen, product]);
 
-  // --- handlers de cambio ---
-
-  // Código de barras: solo dígitos y máximo 13
-  const handleBarcodeChange = (value) => {
-    let digitsOnly = value.replace(/\D+/g, "");
-    if (digitsOnly.length > 13) digitsOnly = digitsOnly.slice(0, 13);
-    setFormData((prev) => ({ ...prev, barcode: digitsOnly }));
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleQuantityChange = (value) => {
-    const digitsOnly = value.replace(/\D+/g, "");
-    setFormData((prev) => ({ ...prev, quantity: digitsOnly }));
+  const validate = () => {
+    const errs = {};
+    if (!formData.barcode) errs.barcode = "Código de barras requerido";
+    if (!formData.quantity || Number(formData.quantity) < 1)
+      errs.quantity = "Cantidad inválida";
+    return errs;
   };
-
-  const handleExpiryChange = (e) => {
-    const dateVal = e.value ? e.value.toISOString().slice(0, 10) : "";
-    setFormData((prev) => ({ ...prev, expiryDate: dateVal }));
-  };
-
-  // --- helpers para inputs numéricos ---
-
-  const handleNumericKeyDown = (e) => {
-    const allowedKeys = [
-      "Backspace",
-      "Tab",
-      "ArrowLeft",
-      "ArrowRight",
-      "Delete",
-      "Home",
-      "End",
-    ];
-    if (!/\d/.test(e.key) && !allowedKeys.includes(e.key)) {
-      e.preventDefault();
-    }
-  };
-
-  const handleNumericPaste = (e) => {
-    const paste = (e.clipboardData || window.clipboardData).getData("text");
-    if (!/^\d+$/.test(paste)) {
-      e.preventDefault();
-    }
-  };
-
-  const handleNumberWheel = (e) => {
-    e.target.blur();
-    setTimeout(() => e.target.focus(), 0);
-  };
-
-  // --- VALIDACIONES EN TIEMPO REAL ---
-
-  // 1) Código de barras
-  const barcode = formData.barcode;
-  const isBarcodeFilled = barcode.length > 0;
-  const isBarcode13Digits = /^\d{13}$/.test(barcode);
-
-  // Filtramos el código actual de los detalles de BD
-  const filteredDetails = Array.isArray(details)
-    ? details.filter((d) => d.codigo_barras_producto_compra !== ignoreBarcode)
-    : [];
-
-  // Ya existentes en BD (excepto el actual si estamos editando)
-  const barcodeExistsDB =
-    !!barcode &&
-    filteredDetails.some((d) => d.codigo_barras_producto_compra === barcode);
-
-  // Ya existentes temporalmente (excepto el actual)
-  const effectiveTempBarcodes = Array.isArray(existingBarcodes)
-    ? existingBarcodes.filter((code) => code !== ignoreBarcode)
-    : [];
-
-  const barcodeExistsTemp =
-    !!barcode && effectiveTempBarcodes.includes(barcode);
-
-  let barcodeError = "";
-  if (!isBarcodeFilled) {
-    barcodeError = "Código de barras requerido";
-  } else if (!isBarcode13Digits) {
-    barcodeError = "El código de barras debe de ser de 13 dígitos";
-  } else if (barcodeExistsDB || barcodeExistsTemp) {
-    barcodeError = "El código de barras ya existe";
-  }
-
-  const isBarcodeValid =
-    isBarcodeFilled &&
-    isBarcode13Digits &&
-    !barcodeExistsDB &&
-    !barcodeExistsTemp;
-
-  // 2) Cantidad
-  const quantityStr = formData.quantity;
-  const quantityNum = Number(quantityStr);
-  const isQuantityNumeric = /^\d+$/.test(quantityStr);
-  const isQuantityValid =
-    isQuantityNumeric && Number.isFinite(quantityNum) && quantityNum > 0;
-
-  let quantityError = "";
-  if (!quantityStr) {
-    quantityError = "Cantidad requerida";
-  } else if (
-    !isQuantityNumeric ||
-    !Number.isFinite(quantityNum) ||
-    quantityNum < 1
-  ) {
-    quantityError = "Cantidad inválida";
-  }
-
-  // 3) Fecha de vencimiento
-  const expiryStr = formData.expiryDate;
-  let expiryError = "";
-  let isExpiryValid = false;
-
-  if (!expiryStr) {
-    expiryError = "Fecha de vencimiento requerida";
-  } else {
-    const selected = new Date(expiryStr);
-    selected.setHours(0, 0, 0, 0);
-    const min = new Date(minDate);
-    min.setHours(0, 0, 0, 0);
-
-    if (selected < min) {
-      expiryError =
-        "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
-    } else {
-      isExpiryValid = true;
-    }
-  }
-
-  // Formulario válido solo si TODO está ok
-  const isFormValid =
-    isBarcodeValid && isQuantityValid && isExpiryValid && !loadingDetails;
-
-  // --- submit ---
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!isFormValid) return;
-
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    console.log("product",product);
+    // 🔹 Detalle local, NO se envía a BD aquí
     const registeredDetail = {
       ...product,
       productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
@@ -217,18 +60,13 @@ const ProductRegistrationModal = ({
       registeredExpiry: formData.expiryDate || null,
       isReturn: true,
     };
-
+    
+    // devolvemos al padre
     if (onConfirm) {
-      onConfirm(registeredDetail);
+      onConfirm(registeredDetail); 
     }
 
-    setFormData({
-      barcode: "",
-      quantity: "",
-      expiryDate: "",
-      isReturn: true,
-    });
-    onClose();
+    handleClose();
   };
 
   const handleClose = () => {
@@ -238,24 +76,7 @@ const ProductRegistrationModal = ({
       expiryDate: "",
       isReturn: true,
     });
-    onClose();
-  };
-
-  const handleCancel = () => {
-    // limpiar formulario
-    setFormData({
-      barcode: "",
-      quantity: "",
-      expiryDate: "",
-      isReturn: true,
-    });
-
-    // avisar explícitamente que el usuario canceló el registro
-    if (onCancelRegistration) {
-      onCancelRegistration();
-    }
-
-    // cerrar modal visualmente
+    setErrors({});
     onClose();
   };
 
@@ -265,6 +86,26 @@ const ProductRegistrationModal = ({
       currency: "COP",
       minimumFractionDigits: 0,
     }).format(price);
+
+  // Helpers para el input number
+  const handleQuantityKeyDown = (e) => {
+    const blocked = ["e", "E", "+", "-", ".", ","];
+    if (blocked.includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleQuantityPaste = (e) => {
+    const paste = (e.clipboardData || window.clipboardData).getData("text");
+    if (!/^\d+$/.test(paste)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleQuantityWheel = (e) => {
+    e.target.blur();
+    setTimeout(() => e.target.focus(), 0);
+  };
 
   return (
     <AnimatePresence>
@@ -294,7 +135,7 @@ const ProductRegistrationModal = ({
             >
               {/* Header */}
               <motion.div
-                className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl"
+                className="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.06, duration: 0.2 }}
@@ -310,7 +151,7 @@ const ProductRegistrationModal = ({
                     Registrar producto
                   </h3>
                   <motion.button
-                    onClick={handleCancel}
+                    onClick={handleClose}
                     className="text-gray-400 hover:text-gray-600 transition-all p-2 rounded-full"
                     aria-label="Cerrar modal"
                     whileHover={{ scale: 1.05 }}
@@ -344,33 +185,23 @@ const ProductRegistrationModal = ({
                     </div>
                   </div>
 
-                  {/* Código de barras */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Código de barras
                     </label>
                     <input
                       value={formData.barcode}
-                      onChange={(e) => handleBarcodeChange(e.target.value)}
-                      onKeyDown={handleNumericKeyDown}
-                      onPaste={handleNumericPaste}
-                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
-                        barcodeError
-                          ? "border-red-400 focus:ring-red-200"
-                          : "border-gray-300 focus:ring-emerald-200"
-                      }`}
-                      maxLength={13}
-                      inputMode="numeric"
-                      placeholder="Ingrese código de barras (13 dígitos)"
+                      onChange={(e) => handleChange("barcode", e.target.value)}
+                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
+                      placeholder="Ingrese código de barras"
                     />
-                    {barcodeError && (
-                      <div className="text-xs text-red-500 mt-1">
-                        {barcodeError}
+                    {errors.barcode && (
+                      <div className="text-red-500 text-sm mt-1">
+                        {errors.barcode}
                       </div>
                     )}
                   </div>
 
-                  {/* Cantidad */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Cantidad a registrar
@@ -380,25 +211,25 @@ const ProductRegistrationModal = ({
                       min={1}
                       inputMode="numeric"
                       value={formData.quantity}
-                      onChange={(e) => handleQuantityChange(e.target.value)}
-                      onKeyDown={handleNumericKeyDown}
-                      onPaste={handleNumericPaste}
-                      onWheel={handleNumberWheel}
-                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
-                        quantityError
-                          ? "border-red-400 focus:ring-red-200"
-                          : "border-gray-300 focus:ring-emerald-200"
-                      }`}
+                      onChange={(e) =>
+                        handleChange(
+                          "quantity",
+                          e.target.value.replace(/\D+/g, "")
+                        )
+                      }
+                      onKeyDown={handleQuantityKeyDown}
+                      onPaste={handleQuantityPaste}
+                      onWheel={handleQuantityWheel}
+                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       placeholder="0"
                     />
-                    {quantityError && (
-                      <div className="text-xs text-red-500 mt-1">
-                        {quantityError}
+                    {errors.quantity && (
+                      <div className="text-red-500 text-sm mt-1">
+                        {errors.quantity}
                       </div>
                     )}
                   </div>
 
-                  {/* Fecha de vencimiento */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Fecha de vencimiento
@@ -411,23 +242,19 @@ const ProductRegistrationModal = ({
                             ? new Date(formData.expiryDate)
                             : null
                         }
-                        onChange={handleExpiryChange}
+                        onChange={(e) => {
+                          const dateVal = e.value
+                            ? e.value.toISOString().slice(0, 10)
+                            : "";
+                          handleChange("expiryDate", dateVal);
+                        }}
                         minDate={minDate}
                         showIcon
                         dateFormat="yy-mm-dd"
                         placeholder="YYYY-MM-DD"
-                        className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
-                          expiryError
-                            ? "border-red-400 focus:ring-red-200"
-                            : "border-gray-300 focus:ring-emerald-200"
-                        }`}
+                        className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       />
                     </div>
-                    {expiryError && (
-                      <div className="text-xs text-red-500 mt-1">
-                        {expiryError}
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -435,19 +262,14 @@ const ProductRegistrationModal = ({
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                   <button
                     type="button"
-                    onClick={handleCancel}
-                    className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    onClick={handleClose}
+                    className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    disabled={!isFormValid}
-                    className={`px-4 py-2 rounded-md flex items-center gap-2 text-white transition ${
-                      isFormValid
-                        ? "bg-green-600 hover:bg-green-700"
-                        : "bg-gray-300 cursor-not-allowed"
-                    }`}
+                    className="px-4 py-2 rounded-md flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white transition"
                   >
                     <CheckCircle size={16} /> Registrar
                   </button>
