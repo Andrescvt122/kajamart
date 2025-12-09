@@ -18,7 +18,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
-  minDate.setDate(minDate.getDate());
+  minDate.setDate(minDate.getDate() + 4);
+  minDate.setHours(0, 0, 0, 0);
 
   // Resetear campos cuando se abre un producto nuevo
   React.useEffect(() => {
@@ -39,9 +40,43 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
   const validate = () => {
     const errs = {};
-    if (!formData.barcode) errs.barcode = "Código de barras requerido";
-    if (!formData.quantity || Number(formData.quantity) < 1)
-      errs.quantity = "Cantidad inválida";
+
+    // ✅ Código de barras: obligatorio, solo números, exactamente 13
+    const barcode = String(formData.barcode ?? "").trim();
+    if (!barcode) {
+      errs.barcode = "Código de barras requerido";
+    } else if (!isExactly13Digits(barcode)) {
+      errs.barcode = "El código debe tener exactamente 13 dígitos numéricos";
+    }
+
+    // ✅ Cantidad: obligatoria, solo números, no negativa (permito 0)
+    const qtyStr = String(formData.quantity ?? "").trim();
+    if (!qtyStr) {
+      errs.quantity = "Cantidad requerida";
+    } else if (!isOnlyDigits(qtyStr)) {
+      errs.quantity = "La cantidad solo puede contener números";
+    } else {
+      const qtyNum = Number(qtyStr);
+      if (!Number.isFinite(qtyNum) || qtyNum < 0) {
+        errs.quantity = "La cantidad no puede ser negativa";
+      }
+    }
+
+    // ✅ Fecha: opcional; si se llena => debe ser >= hoy + 4 días
+    const expStr = String(formData.expiryDate ?? "").trim();
+    if (expStr) {
+      const expDate = ymdToDate(expStr);
+      if (!expDate) {
+        errs.expiryDate = "Fecha inválida";
+      } else {
+        const min = new Date(minDate);
+        min.setHours(0, 0, 0, 0);
+        if (expDate < min) {
+          errs.expiryDate = "La fecha debe ser mínimo 4 días después de hoy";
+        }
+      }
+    }
+
     return errs;
   };
 
@@ -50,7 +85,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    console.log("product",product);
+    console.log("product", product);
     // 🔹 Detalle local, NO se envía a BD aquí
     const registeredDetail = {
       ...product,
@@ -60,10 +95,10 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       registeredExpiry: formData.expiryDate || null,
       isReturn: true,
     };
-    
+
     // devolvemos al padre
     if (onConfirm) {
-      onConfirm(registeredDetail); 
+      onConfirm(registeredDetail);
     }
 
     handleClose();
@@ -105,6 +140,16 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const handleQuantityWheel = (e) => {
     e.target.blur();
     setTimeout(() => e.target.focus(), 0);
+  };
+  const isExactly13Digits = (s) => /^\d{13}$/.test(s);
+  const isOnlyDigits = (s) => /^\d+$/.test(s);
+  const ymdToDate = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const dt = new Date(y, m - 1, d);
+    dt.setHours(0, 0, 0, 0);
+    return dt;
   };
 
   return (
