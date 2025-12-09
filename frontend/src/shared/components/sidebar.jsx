@@ -18,7 +18,7 @@ import {
   ArrowLeftToLine,
   Home,
   ShieldUser,
-  X, // 👈 NUEVO icono para cerrar en mobile
+  X,
 } from "lucide-react";
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -105,13 +105,15 @@ export default function Sidebar({
     <motion.aside
       animate={{ width: isCollapsed ? "80px" : "260px" }}
       className={`
-        flex flex-col shadow-md min-h-[100vh]
-        bg-[#b4debf]
-        z-30
-        transform transition-transform duration-300
         fixed inset-y-0 left-0
+        flex flex-col shadow-md min-h-[100vh]
+        z-[40]
+        inset-0
+        bg-[#b4debf]
+        transform transition-transform duration-300
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 md:static
+        md:translate-x-0 md:relative
+        z-[40]  /* Sidebar > navbar (z-10) pero < modales (z-50) */
       `}
       style={{
         boxShadow: "inset -3px 0 12px rgba(0,0,0,0.15)",
@@ -120,7 +122,7 @@ export default function Sidebar({
     >
       {/* Fondo inferior borroso */}
       <div
-        className="absolute bottom-0 left-0"
+        className="absolute bottom-0 left-0 pointer-events-none"
         style={{
           width: isCollapsed ? "80px" : "260px",
           height: "50%",

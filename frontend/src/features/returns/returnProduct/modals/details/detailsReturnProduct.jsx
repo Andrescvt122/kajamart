@@ -15,6 +15,7 @@ import {
 
 const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
   const [page, setPage] = useState(1);
+  const [expandedBarcodeId, setExpandedBarcodeId] = useState(null);
   const perPage = 5;
   const products = returnData?.products || [];
   const totalPages = Math.ceil(products.length / perPage);
@@ -79,6 +80,17 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
                   #{returnData.idReturn}
                 </p>
               </div>
+              <div className="bg-gray-50 rounded-lg p-4 ">
+                <div className="flex items-center gap-3 mb-2">
+                  <Hash className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Factura
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  #{returnData.numeroFactura}
+                </p>
+              </div>
 
               <div className="bg-gray-50 rounded-lg p-4 ">
                 <div className="flex items-center gap-3 mb-2">
@@ -104,7 +116,7 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
                 </p>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
+              <div className="bg-gray-50 rounded-lg p-4 flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <Package className="text-green-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
@@ -135,6 +147,7 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">Nombre</div>
                       </th>
+
                       <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">
                         <div className="flex items-center gap-2">Cantidad</div>
                       </th>

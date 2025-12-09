@@ -36,21 +36,22 @@ export default function SupplierDetailModal({
       };
     }
 
-    // Categorías: puede venir como [{id_categoria, nombre_categoria, ...}]
-    // o strings; lo mapeamos a un array de nombres
     const catObjs =
       Array.isArray(raw.categorias) && raw.categorias.length > 0
         ? raw.categorias
         : Array.isArray(raw.proveedor_categoria)
-          ? raw.proveedor_categoria.map((pc) => pc?.categorias).filter(Boolean)
-          : [];
+        ? raw.proveedor_categoria.map((pc) => pc?.categorias).filter(Boolean)
+        : [];
 
     const categorias = catObjs
-      .map((c) => c?.nombre_categoria ?? c?.nombre ?? (typeof c === "string" ? c : ""))
+      .map((c) =>
+        c?.nombre_categoria ??
+        c?.nombre ??
+        (typeof c === "string" ? c : "")
+      )
       .map((s) => String(s || "").trim())
       .filter(Boolean);
 
-    // Productos: normalizamos a { nombre, categoria, costo_unitario, stock }
     const productos = Array.isArray(raw.productos) ? raw.productos : [];
     const productosUI = productos.map((p) => ({
       id_producto: p.id_producto,
@@ -60,7 +61,6 @@ export default function SupplierDetailModal({
         p?.categoria?.nombre ??
         p?.categoria ??
         "",
-      // BD: costo_unitario (int) y stock_actual (int)
       costo_unitario: Number(p.costo_unitario ?? p.precio ?? 0),
       stock: p.stock_actual ?? p.stock ?? null,
     }));
@@ -80,7 +80,6 @@ export default function SupplierDetailModal({
     };
   };
 
-  // Preferimos datos del hook; si no, fallback a 'supplier' prop
   const detailRaw = data ?? supplier ?? null;
   const detail = useMemo(() => normalizeSupplier(detailRaw), [detailRaw]);
 
@@ -105,7 +104,10 @@ export default function SupplierDetailModal({
       const cost = String(p.costo_unitario ?? "").toLowerCase();
       const stock = String(p.stock ?? "").toLowerCase();
       return (
-        name.includes(s) || cat.includes(s) || cost.includes(s) || stock.includes(s)
+        name.includes(s) ||
+        cat.includes(s) ||
+        cost.includes(s) ||
+        stock.includes(s)
       );
     });
   }, [detail.productos, searchTerm]);
@@ -156,7 +158,8 @@ export default function SupplierDetailModal({
     isOpen && (
       <motion.div
         key="overlay-container"
-        className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+        // ⬆️ Ahora arranca más arriba y permite scroll vertical
+        className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-6 sm:pt-10 pb-6 overflow-y-auto"
         initial="hidden"
         animate="visible"
         exit="exit"
@@ -172,7 +175,7 @@ export default function SupplierDetailModal({
         {/* Modal */}
         <motion.div
           key="modal"
-          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto p-6 z-10"
+          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto p-6 z-10 my-6"
           variants={modalVars}
           initial="hidden"
           animate="visible"
@@ -182,8 +185,12 @@ export default function SupplierDetailModal({
           {/* Header + close */}
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Detalles del Proveedor</h2>
-              <p className="text-sm text-gray-500 mt-1">Información completa del proveedor</p>
+              <h2 className="text-2xl font-bold text-gray-800">
+                Detalles del Proveedor
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Información completa del proveedor
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -204,7 +211,8 @@ export default function SupplierDetailModal({
           )}
           {isError && (
             <div className="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">
-              No se pudo cargar el detalle del proveedor. {String(error?.message || "")}
+              No se pudo cargar el detalle del proveedor.{" "}
+              {String(error?.message || "")}
             </div>
           )}
 
@@ -283,7 +291,9 @@ export default function SupplierDetailModal({
                     Categorías del proveedor
                   </h4>
                   {detail.categorias.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No tiene categorías asignadas.</p>
+                    <p className="text-gray-500 text-sm">
+                      No tiene categorías asignadas.
+                    </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {detail.categorias.map((c, idx) => (
@@ -302,7 +312,9 @@ export default function SupplierDetailModal({
           </AnimatePresence>
 
           {/* Productos */}
-          <h3 className="text-lg font-semibold mb-3">Productos Suministrados</h3>
+          <h3 className="text-lg font-semibold mb-3">
+            Productos Suministrados
+          </h3>
           <div className="bg-gray-50 rounded-lg border border-gray-100 shadow-sm overflow-hidden">
             <table className="min-w-full">
               <thead>
@@ -316,8 +328,13 @@ export default function SupplierDetailModal({
               <tbody className="divide-y divide-gray-100">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                      {isLoading ? "Cargando..." : "No se encontraron productos."}
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-gray-400"
+                    >
+                      {isLoading
+                        ? "Cargando..."
+                        : "No se encontraron productos."}
                     </td>
                   </tr>
                 ) : (
@@ -366,7 +383,6 @@ export default function SupplierDetailModal({
           <div className="flex justify-end gap-3 mt-6">
             <button
               onClick={() => {
-                // Para editar, mejor pasa el RAW (data del server) en vez del normalizado
                 if (onEdit) onEdit(detailRaw);
               }}
               className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"

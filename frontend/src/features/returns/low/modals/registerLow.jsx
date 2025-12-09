@@ -9,15 +9,30 @@ import {
   Plus,
   AlertTriangle,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
+import UnitTransferProductModal from "./UnitTransferProductModal";
+import ProductRegisterModal from "../../../products/productRegisterModal";
+import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
+import {usePostDetailProduct} from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [openConfigProductId, setOpenConfigProductId] = useState(null);
+  const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
+  const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
+  const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
+    useState(null);
+
+  const toggleConfigDropdown = (productId) => {
+    setOpenConfigProductId((prev) => (prev === productId ? null : productId));
+  };
 
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = 1;
@@ -25,8 +40,32 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
     { value: "dañado", label: "Producto dañado" },
+    { value: "venta unitaria", label: "Venta unitaria" },
     { value: "requerido personal", label: "Requerido personal" },
   ];
+
+  const showReasonLockedAlert = (productId) => {
+    setReasonLockAlertByProduct((prev) => ({ ...prev, [productId]: true }));
+    setTimeout(() => {
+      setReasonLockAlertByProduct((prev) => ({ ...prev, [productId]: false }));
+    }, 2500);
+  };
+
+  const handleRemoveTransfer = (productId) => {
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? {
+              ...p,
+              reason: "", // ✅ deselecciona "venta unitaria"
+              id_producto_traslado: null,
+              cantidad_traslado: null,
+              nombre_producto_traslado: "",
+            }
+          : p
+      )
+    );
+  };
 
   const handleAddProduct = (product) => {
     const adaptedProduct = {
@@ -36,13 +75,16 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       salePrice: product.productos?.precio_venta || 0,
       requestedQuantity: 1,
       unitCost: product.productos?.costo_unitario || 0,
+      cantidad_unitaria: product?.productos?.cantidad_unitaria ?? null,
       reason: "",
     };
     setSelectedProducts((prev) => [...prev, adaptedProduct]);
   };
 
-  const handleRemoveProduct = (id) =>
+  const handleRemoveProduct = (id) => {
     setSelectedProducts((prev) => prev.filter((p) => p.id !== id));
+    if (openConfigProductId === id) setOpenConfigProductId(null);
+  };
 
   const handleUpdateProductQuantity = (id, delta) =>
     setSelectedProducts((prev) =>
@@ -59,10 +101,36 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       )
     );
 
-  const handleProductReasonSelect = (productId, reason) =>
+  const handleProductReasonSelect = (productId, reason) => {
+    const current = selectedProducts.find((p) => p.id === productId);
+    const hasUnitTransferConfigured =
+      current?.reason === "venta unitaria" &&
+      current?.id_producto_traslado != null;
+
+    // Si ya configuró traslado (destino confirmado), no permitimos cambiar a otro motivo
+    if (hasUnitTransferConfigured && reason !== "venta unitaria") {
+      showReasonLockedAlert(productId);
+      return;
+    }
     setSelectedProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, reason } : p))
     );
+
+    // Si el motivo es venta unitaria, abre modal para elegir producto destino
+    if (reason === "venta unitaria") {
+      setActiveUnitTransferProductId(productId);
+      setIsUnitTransferModalOpen(true);
+    } else {
+      // si cambia a otro motivo, limpiamos campos de traslado por seguridad
+      setSelectedProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId
+            ? { ...p, id_producto_traslado: null, cantidad_traslado: null }
+            : p
+        )
+      );
+    }
+  };
 
   const formatPrice = (price) =>
     new Intl.NumberFormat("es-CO", {
@@ -77,6 +145,18 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       return alert("Selecciona al menos un producto.");
     if (selectedProducts.some((p) => !p.reason))
       return alert("Todos los productos deben tener un motivo de baja.");
+    const invalidUnitSale = selectedProducts.some(
+      (p) =>
+        p.reason === "venta unitaria" &&
+        (p.id_producto_traslado == null || p.cantidad_traslado == null)
+    );
+
+    if (invalidUnitSale) {
+      alert(
+        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria."
+      );
+      return;
+    }
     setShowConfirmAlert(true);
   };
 
@@ -135,7 +215,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
               </div>
 
-              {/* Contenido */}  
+              {/* Contenido */}
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
                 <ProductSearch onAddProduct={handleAddProduct} />
 
@@ -155,6 +235,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                           <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                             <Package className="w-4 h-4 text-green-700" />
                           </div>
+
                           <div className="flex-1">
                             <p className="font-medium text-sm text-gray-800">
                               {p.name}
@@ -163,6 +244,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                               {formatPrice(p.salePrice)} c/u
                             </p>
                           </div>
+
                           <div className="flex items-center gap-2">
                             <motion.button
                               onClick={() =>
@@ -173,9 +255,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             >
                               <Minus size={14} />
                             </motion.button>
+
                             <span className="font-bold text-sm text-gray-800">
                               {p.requestedQuantity}
                             </span>
+
                             <motion.button
                               onClick={() =>
                                 handleUpdateProductQuantity(p.id, 1)
@@ -186,6 +270,21 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                               <Plus size={14} />
                             </motion.button>
                           </div>
+
+                          {/* Botón dropdown estilo ProductReturnModal */}
+                          <button
+                            type="button"
+                            onClick={() => toggleConfigDropdown(p.id)}
+                            className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
+                          >
+                            Opciones
+                            {openConfigProductId === p.id ? (
+                              <ChevronUp size={14} />
+                            ) : (
+                              <ChevronDown size={14} />
+                            )}
+                          </button>
+
                           <button
                             onClick={() => handleRemoveProduct(p.id)}
                             className="text-gray-400 hover:text-red-500 transition"
@@ -194,71 +293,153 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                           </button>
                         </div>
 
-                        {/* Motivos */}
-                        <div className="pl-12 space-y-2">
-                          <p className="text-xs font-medium text-gray-700 mb-1">
-                            Motivo de baja:
-                          </p>
-                          <div className="flex flex-col gap-2">
-                            {reasonOptions.map((r) => {
-                              const isSelected = p.reason === r.value;
-                              return (
-                                <label
-                                  key={r.value}
-                                  className={`flex items-center justify-between border rounded-lg p-2 cursor-pointer transition-all ${
-                                    isSelected
-                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                      : "border-gray-200 hover:bg-gray-50"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <input
-                                      type="radio"
-                                      name={`reason-${p.id}`}
-                                      checked={isSelected}
-                                      onChange={() =>
-                                        handleProductReasonSelect(p.id, r.value)
-                                      }
-                                      className="hidden"
-                                    />
-                                    <div
-                                      className={`w-5 h-5 flex items-center justify-center rounded-md border transition-all ${
-                                        isSelected
-                                          ? "bg-emerald-600 border-emerald-600"
-                                          : "bg-white border-gray-300"
+                        {/* Dropdown por producto: Motivos */}
+                        <AnimatePresence>
+                          {openConfigProductId === p.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-2 border-t pt-3 space-y-3 pl-12"
+                            >
+                              <p className="text-xs font-semibold text-gray-700 mb-2">
+                                Motivo de baja
+                              </p>
+
+                              <div className="space-y-2">
+                                {reasonOptions.map((r) => {
+                                  const isSelected = p.reason === r.value;
+                                  const hasTransferConfigured =
+                                    p.reason === "venta unitaria" &&
+                                    p.id_producto_traslado != null;
+                                  const isLockedOption =
+                                    hasTransferConfigured &&
+                                    r.value !== "venta unitaria";
+                                  return (
+                                    <label
+                                      key={r.value}
+                                      className={` w-full flex items-center justify-start text-left gap-3 rounded-lg border p-2 transition-all select-none ${
+                                        isLockedOption
+                                          ? "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
+                                          : isSelected
+                                          ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
+                                          : "border-gray-200 hover:bg-gray-50 cursor-pointer"
                                       }`}
                                     >
-                                      {isSelected && (
-                                        <svg
-                                          className="w-3 h-3 text-white"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth="3"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                      )}
+                                      <input
+                                        type="radio"
+                                        name={`reason-${p.id}`}
+                                        checked={isSelected}
+                                        onClick={() => {
+                                          if (isLockedOption)
+                                            showReasonLockedAlert(p.id);
+                                        }}
+                                        onChange={() => {
+                                          if (isLockedOption) {
+                                            showReasonLockedAlert(p.id);
+                                            return;
+                                          }
+                                          handleProductReasonSelect(
+                                            p.id,
+                                            r.value
+                                          );
+                                        }}
+                                        className="hidden"
+                                      />
+                                      <div
+                                        className={`w-5 h-5 flex items-center justify-center rounded-md border transition-all ${
+                                          isSelected
+                                            ? "bg-emerald-600 border-emerald-600"
+                                            : "bg-white border-gray-300"
+                                        }`}
+                                      >
+                                        {isSelected && (
+                                          <svg
+                                            className="w-3 h-3 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="3"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M5 13l4 4L19 7"
+                                            />
+                                          </svg>
+                                        )}
+                                      </div>
+                                      <span
+                                        className={`text-sm font-medium ${
+                                          isSelected
+                                            ? "text-emerald-700"
+                                            : "text-gray-700"
+                                        }`}
+                                      >
+                                        {r.label}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                                <AnimatePresence>
+                                  {reasonLockAlertByProduct[p.id] && (
+                                    <motion.div
+                                      className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+                                      initial={{ opacity: 0, y: -6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -6 }}
+                                      transition={{ duration: 0.15 }}
+                                    >
+                                      <AlertTriangle className="w-4 h-4 mt-0.5" />
+                                      <span>
+                                        Para seleccionar otro motivo, elimina
+                                        primero el destino.
+                                      </span>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+
+                                {/* Resumen de traslado (solo venta unitaria) */}
+                                {p.reason === "venta unitaria" &&
+                                  p.id_producto_traslado != null &&
+                                  p.cantidad_traslado != null && (
+                                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-emerald-800">
+                                          Traslado configurado
+                                        </p>
+                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                          Destino:{" "}
+                                          <span className="text-emerald-800">
+                                            {p.nombre_producto_traslado ||
+                                              `ID ${p.id_producto_traslado}`}
+                                          </span>
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-1">
+                                          Cantidad trasladada:{" "}
+                                          <span className="font-semibold">
+                                            {p.cantidad_traslado}
+                                          </span>
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemoveTransfer(p.id)
+                                        }
+                                        className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition"
+                                        title="Eliminar traslado y deseleccionar venta unitaria"
+                                      >
+                                        <Trash2 size={14} />
+                                        Eliminar
+                                      </button>
                                     </div>
-                                    <span
-                                      className={`text-sm font-medium ${
-                                        isSelected
-                                          ? "text-emerald-700"
-                                          : "text-gray-700"
-                                      }`}
-                                    >
-                                      {r.label}
-                                    </span>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
+                                  )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     ))}
                   </div>
@@ -355,6 +536,53 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 )}
               </AnimatePresence>
             </motion.div>
+            <UnitTransferProductModal
+              isOpen={isUnitTransferModalOpen}
+              onClose={() => {
+                // Si se cierra el modal, deselecciona "venta unitaria" del producto activo
+                if (activeUnitTransferProductId != null) {
+                  setSelectedProducts((prev) =>
+                    prev.map((p) =>
+                      p.id === activeUnitTransferProductId
+                        ? {
+                            ...p,
+                            reason: "", // <- deselecciona venta unitaria
+                            id_producto_traslado: null,
+                            cantidad_traslado: null,
+                          }
+                        : p
+                    )
+                  );
+                }
+
+                setIsUnitTransferModalOpen(false);
+                setActiveUnitTransferProductId(null);
+              }}
+              currentBoxProductName={
+                selectedProducts.find(
+                  (p) => p.id === activeUnitTransferProductId
+                )?.name
+              }
+              onConfirmDestination={(detalleDestino) => {
+                setSelectedProducts((prev) =>
+                  prev.map((p) => {
+                    if (p.id !== activeUnitTransferProductId) return p;
+
+                    return {
+                      ...p,
+                      id_producto_traslado: detalleDestino.id_detalle_producto,
+                      // ✅ cantidad_traslado = cantidad_unitaria de la caja
+                      cantidad_traslado: p.cantidad_unitaria ?? null,
+                      nombre_producto_traslado:
+                        detalleDestino?.productos?.nombre ?? "",
+                    };
+                  })
+                );
+
+                setIsUnitTransferModalOpen(false);
+                setActiveUnitTransferProductId(null);
+              }}
+            />
           </motion.div>
         </>
       )}

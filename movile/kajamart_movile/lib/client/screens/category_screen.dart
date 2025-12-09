@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'category_products_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -240,10 +241,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         },
                         child: GestureDetector(
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Categoría: ${category.name}'),
-                                duration: const Duration(seconds: 2),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => CategoryProductsScreen(
+                                  categoryId: category.id,
+                                  categoryName: category.name,
+                                  categoryDescription: category.description,
+                                ),
                               ),
                             );
                           },
