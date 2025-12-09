@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle, AlertTriangle } from "lucide-react";
 import ProductSearchSelect from "../../../../shared/components/searchBars/productSearchSelect";
 import ProductRegisterModal from "../../../products/productRegisterModal";
-import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
+import ProductRegistrationModal from "../modals/ProductRegistrationModal";
 import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 const UnitTransferProductModal = ({
   isOpen,
   onClose,
   onConfirmDestination,
   currentBoxProductName, // opcional para mostrar contexto
+  transferQuantity
 }) => {
   const isReturnModal = false;
   const [selectedDestination, setSelectedDestination] = useState(null);
@@ -17,11 +18,10 @@ const UnitTransferProductModal = ({
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
   const [isDetailRegistrationOpen, setIsDetailRegistrationOpen] =
     useState(false);
-
   const [createdProduct, setCreatedProduct] = useState(null); // producto base creado
   const [existingBarcodes, setExistingBarcodes] = useState([]); // opcional, si lo usas
   const { postDetailProduct } = usePostDetailProduct();
-
+  console.log("transferQuantity", transferQuantity);
   const handlePickDestination = (detalleProducto) => {
     setSelectedDestination(detalleProducto);
     setError("");
@@ -36,7 +36,7 @@ const UnitTransferProductModal = ({
     onConfirmDestination(selectedDestination);
     setSelectedDestination(null);
     setError("");
-    onClose(); // <- esto es clave
+    // onClose(); // <- esto es clave
   };
 
   const handleClose = () => {
@@ -123,7 +123,7 @@ const UnitTransferProductModal = ({
                     setSelectedDestination(detalle);
                     setError("");
                   }}
-                  onCreateProduct={() => setIsCreateProductOpen(true)}
+                  onCreateProduct={() => setIsCreateProductOpen(true)}  
                 />
 
                 {/* Preview seleccionado */}
@@ -205,6 +205,7 @@ const UnitTransferProductModal = ({
             product={adaptedCreatedForRegistration}
             isReturnProduct={false}
             existingBarcodes={[]}
+            transferQuantity={transferQuantity}
             onConfirm={(createdDetail) => {
               // el modal puede llamarte con createdDetail (si posteó internamente)
               setSelectedDestination(createdDetail);
