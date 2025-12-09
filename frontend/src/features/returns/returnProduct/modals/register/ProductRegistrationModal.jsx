@@ -4,6 +4,7 @@ import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
 import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
+import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 
 const ProductRegistrationModal = ({
   isOpen,

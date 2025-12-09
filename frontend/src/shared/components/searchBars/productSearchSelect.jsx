@@ -14,6 +14,7 @@ const ProductSearchSelect = ({
   onSelect,
   placeholder = "Buscar por producto...",
   filterOutOfStock = true,
+  onCreateProduct,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
@@ -68,7 +69,10 @@ const ProductSearchSelect = ({
     const width = rect.width;
 
     // Ajuste si no cabe hacia abajo (evitar que se salga de pantalla)
-    const approxHeight = Math.min(320, 56 + (filteredProducts?.length || 0) * 64); // aprox max-h-80
+    const approxHeight = Math.min(
+      320,
+      56 + (filteredProducts?.length || 0) * 64
+    ); // aprox max-h-80
     const viewportH = window.innerHeight;
     if (top + approxHeight > viewportH - 8) {
       // si no cabe abajo, lo mostramos arriba
@@ -89,7 +93,9 @@ const ProductSearchSelect = ({
 
     if (filterOutOfStock && isOutOfStock) {
       showTemporaryAlert(
-        `El producto "${product.productos?.nombre || "sin nombre"}" no tiene stock disponible.`
+        `El producto "${
+          product.productos?.nombre || "sin nombre"
+        }" no tiene stock disponible.`
       );
       return;
     }
@@ -234,9 +240,13 @@ const ProductSearchSelect = ({
               );
             })
           ) : (
-            <div className="p-4 text-center text-sm text-gray-500">
-              No se encontraron coincidencias.
-            </div>
+            <button
+              type="button"
+              onClick={() => onCreateProduct?.(searchTerm)}
+              className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
+            >
+              Crear producto
+            </button>
           )}
         </motion.div>
       )}

@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Upload, X } from "lucide-react";
 import Swal from "sweetalert2";
 import { useCreateProduct } from "../../shared/components/hooks/products/products.hooks.js";
-import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
-
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js"
 import {
   showLoadingAlert,
   showErrorAlert,
@@ -42,6 +41,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     stockMin: "",
     stockMax: "",
     categoriaId: "",
+    cantidadUnitaria: "",
   });
 
   const [imagenFile, setImagenFile] = useState(null);
@@ -71,6 +71,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       stockMin: "",
       stockMax: "",
       categoriaId: "",
+      cantidadUnitaria: "",
     });
     setImagenFile(null);
     setPreviewURL(null);
@@ -103,15 +104,21 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
       case "stockMax":
         if (
           value !== "" &&
-          (value === null ||
-            Number.isNaN(Number(value)) ||
-            Number(value) < 0)
+          (value === null || Number.isNaN(Number(value)) || Number(value) < 0)
         ) {
           error = "Debe ser un número válido (>= 0).";
         }
         break;
       case "categoriaId":
         if (!value) error = "Selecciona una categoría.";
+        break;
+      case "cantidadUnitaria":
+        if (
+          value !== "" &&
+          (value === null || Number.isNaN(Number(value)) || Number(value) < 1)
+        ) {
+          error = "Si se indica, debe ser un número válido (>= 1).";
+        }
         break;
       default:
         break;
@@ -156,7 +163,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     });
 
     // Validar numéricos opcionales
-    ["stockMin", "stockMax"].forEach((f) => {
+    ["stockMin", "stockMax", "cantidadUnitaria"].forEach((f) => {
       const err = validateField(f, form[f]);
       if (err) {
         valid = false;
@@ -189,12 +196,9 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     fd.append("descripcion", form.descripcion?.trim() || "");
 
     // Como ya no pedimos stock en el formulario:
-    const stockMinNum =
-      form.stockMin !== "" ? Number(form.stockMin) || 0 : 0;
+    const stockMinNum = form.stockMin !== "" ? Number(form.stockMin) || 0 : 0;
     const stockMaxNum =
-      form.stockMax !== ""
-        ? Number(form.stockMax) || 0
-        : stockMinNum * 5; // regla simple por defecto
+      form.stockMax !== "" ? Number(form.stockMax) || 0 : stockMinNum * 5; // regla simple por defecto
 
     fd.append("stock_actual", "0");
     fd.append("stock_minimo", String(stockMinNum));
@@ -210,6 +214,13 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     fd.append("porcentaje_incremento", "0");
     fd.append("costo_unitario", "0");
     fd.append("precio_venta", "0");
+    // cantidad_unitaria opcional: si viene vacío => no forzamos, lo mandamos vacío
+    if (form.cantidadUnitaria !== "") {
+      fd.append("cantidad_unitaria", String(Number(form.cantidadUnitaria)));
+    } else {
+      // si tu backend interpreta ausencia como null, esto es mejor que mandar 0
+      fd.append("cantidad_unitaria", "");
+    }
 
     // 🔹 sin proveedor (se asocia en otro módulo)
     fd.append("imagen", imagenFile);
@@ -413,6 +424,54 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
                       </p>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-sm font-semibold text-gray-800">
+                      Cantidad unitaria (opcional)
+                    </label>
+
+                    {/* Icono info */}
+                    <div className="relative group">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-300 text-xs font-bold text-gray-600 cursor-help bg-white">
+                        i
+                      </span>
+
+                      {/* Tooltip */}
+                      <div className="absolute left-0 top-7 hidden group-hover:block z-50">
+                        <div className="max-w-xs text-xs text-gray-700 bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2">
+                          Si el producto contiene unidades adentro, indícalo. Si
+                          no, déjalo en blanco.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Cantidad unitaria (opcional) */}
+                <div>
+                  <input
+                    name="cantidadUnitaria"
+                    type="number"
+                    min="1"
+                    value={form.cantidadUnitaria}
+                    onChange={handleChange}
+                    onBlur={(e) =>
+                      validateField("cantidadUnitaria", e.target.value)
+                    }
+                    placeholder="Ej: 20"
+                    className={`${inputClass} ${
+                      errors.cantidadUnitaria
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                    onKeyDown={(e) =>
+                      ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+                    }
+                  />
+
+                  {errors.cantidadUnitaria && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors.cantidadUnitaria}
+                    </p>
+                  )}
                 </div>
 
                 {/* Categoría */}

@@ -15,6 +15,9 @@ import {
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
+import ProductRegisterModal from "../../../products/productRegisterModal";
+import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
+import {usePostDetailProduct} from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
