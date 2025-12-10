@@ -2,16 +2,26 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle, AlertTriangle } from "lucide-react";
 import ProductSearchSelect from "../../../../shared/components/searchBars/productSearchSelect";
-
+import ProductRegisterModal from "../../../products/productRegisterModal";
+import ProductRegistrationModal from "../modals/ProductRegistrationModal";
+import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 const UnitTransferProductModal = ({
   isOpen,
   onClose,
   onConfirmDestination,
   currentBoxProductName, // opcional para mostrar contexto
+  transferQuantity
 }) => {
+  const isReturnModal = false;
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [error, setError] = useState("");
-
+  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [isDetailRegistrationOpen, setIsDetailRegistrationOpen] =
+    useState(false);
+  const [createdProduct, setCreatedProduct] = useState(null); // producto base creado
+  const [existingBarcodes, setExistingBarcodes] = useState([]); // opcional, si lo usas
+  const { postDetailProduct } = usePostDetailProduct();
+  console.log("transferQuantity", transferQuantity);
   const handlePickDestination = (detalleProducto) => {
     setSelectedDestination(detalleProducto);
     setError("");
@@ -22,10 +32,11 @@ const UnitTransferProductModal = ({
       setError("Selecciona el producto (unidad) destino del traslado.");
       return;
     }
+    console.log("DESTINO ENVIADO A REGISTERLOW:", selectedDestination);
     onConfirmDestination(selectedDestination);
-    // Cierra localmente sin disparar lógica de "cancelación" del padre:
     setSelectedDestination(null);
     setError("");
+    // onClose(); // <- esto es clave
   };
 
   const handleClose = () => {
@@ -33,14 +44,28 @@ const UnitTransferProductModal = ({
     setError("");
     onClose();
   };
-
+  console.log("si", createdProduct);
+  const adaptedCreatedForRegistration = createdProduct
+    ? {
+        id_producto:
+          createdProduct.id_producto ?? createdProduct.productos?.id_producto,
+        productos: {
+          nombre: createdProduct.nombre ?? createdProduct.productos?.nombre,
+          precio_venta:
+            createdProduct.precio_venta ??
+            createdProduct.productos?.precio_venta ??
+            0,
+        },
+      }
+    : null;
+  console.log(adaptedCreatedForRegistration);
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[50]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -49,7 +74,7 @@ const UnitTransferProductModal = ({
 
           {/* Modal */}
           <motion.div
-            className="fixed inset-0 flex items-center justify-center z-[61] p-4"
+            className="fixed inset-0 flex items-center justify-center z-[51] p-4"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -93,7 +118,13 @@ const UnitTransferProductModal = ({
                 </p>
 
                 {/* Buscador existente */}
-                <ProductSearchSelect onSelect={handlePickDestination} />
+                <ProductSearchSelect
+                  onSelect={(detalle) => {
+                    setSelectedDestination(detalle);
+                    setError("");
+                  }}
+                  onCreateProduct={() => setIsCreateProductOpen(true)}  
+                />
 
                 {/* Preview seleccionado */}
                 {selectedDestination && (
@@ -150,6 +181,37 @@ const UnitTransferProductModal = ({
               </div>
             </motion.div>
           </motion.div>
+          <ProductRegisterModal
+            isOpen={isCreateProductOpen}
+            onClose={() => setIsCreateProductOpen(false)}
+            onCreated={(newProduct) => {
+              // 1) guardar producto creado
+              setCreatedProduct(newProduct);
+
+              // 2) cerrar modal de creación
+              setIsCreateProductOpen(false);
+
+              // 3) abrir modal de registro de detalle
+              setIsDetailRegistrationOpen(true);
+            }}
+          />
+          <ProductRegistrationModal
+            isOpen={isDetailRegistrationOpen}
+            onClose={() => setIsDetailRegistrationOpen(false)}
+            onCancelRegistration={() => {
+              setIsDetailRegistrationOpen(false);
+              setCreatedProduct(null);
+            }}
+            product={adaptedCreatedForRegistration}
+            isReturnProduct={false}
+            existingBarcodes={[]}
+            transferQuantity={transferQuantity}
+            onConfirm={(createdDetail) => {
+              // el modal puede llamarte con createdDetail (si posteó internamente)
+              setSelectedDestination(createdDetail);
+              setError("");
+            }}
+          />
         </>
       )}
     </AnimatePresence>
