@@ -10,7 +10,7 @@ import { useClientCreate } from "../../shared/components/hooks/clients/useClient
 import { useClientUpdate } from "../../shared/components/hooks/clients/useUpdateClient";
 
 const DOC_MIN = 5;
-const DOC_MAX = 15;
+const DOC_MAX = 10;
 const PHONE_MIN = 7;
 const PHONE_MAX = 10;
 
