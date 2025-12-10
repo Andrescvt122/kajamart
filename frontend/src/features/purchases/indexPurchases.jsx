@@ -295,10 +295,10 @@ export default function IndexPurchases() {
                         exit={{ opacity: 0, y: -10 }}
                         className="hover:bg-gray-50"
                       >
-                        <td className="px-6 py-4 text-black">{v.fecha}</td>
-                        <td className="px-6 py-4 text-black">{v.factura}</td>
-                        <td className="px-6 py-4 text-black">{v.proveedor}</td>
-                        <td className="px-6 py-4 text-black">
+                        <td className="px-4 py-3 text-sm text-gray-600">{v.fecha}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{v.factura}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{v.proveedor}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
                           ${v.total.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">

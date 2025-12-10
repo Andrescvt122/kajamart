@@ -2,70 +2,68 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 // --------------------
-// Datos de ejemplo
+// Utilidades
 // --------------------
-const baseLows = [];
-for (let i = 1; i <= 44; i++) {
-  baseLows.push({
-    idLow: i,
-    idDetailProduct: 100 + i,
-    dateLow: `2023-11-${(i + 15) % 30 < 10 ? "0" : ""}${(i + 15) % 30}`,
-    type: i % 3 === 0 ? "Reembolso del dinero" : "Cambio por otro producto",
-    responsible: i % 3 === 0 ? "Arturo" : "Federico",
-    cantidad: Math.floor(Math.random() * (5 - 1 + 1)) + 1,
-    products: [
-      {
-        id: 1,
-        name: "Producto A",
-        lowQuantity: 2,
-        quantity: 5,
-        reason:
-          i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-      {
-        id: 2,
-        name: "Producto B",
-        lowQuantity: 1,
-        quantity: 3,
-        reason:
-          i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-      {
-        id: 3,
-        name: "Producto C",
-        lowQuantity: 4,
-        quantity: 1,
-        reason:
-          i % 2 === 0 ? "Producto dañado" : "Supero fecha de vencimiento limite",
-      },
-    ],
-  });
-}
+const formatDate = (date) => {
+  if (!date) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toISOString().split("T")[0];
+};
 
-// --------------------
-// Aplanar para tabla
-// --------------------
-const getFlattenedProducts = () =>
-  baseLows.flatMap((low) =>
-    low.products.map((prod) => ({
-      "ID Baja": `#${low.idLow}`,
-      "ID Detalle": low.idDetailProduct,
-      Fecha: low.dateLow,
-      Tipo: low.type,
-      Responsable: low.responsible,
-      Producto: prod.name,
-      "Cant. Baja": prod.lowQuantity,
-      Stock: prod.quantity,
-      Motivo: prod.reason,
-    }))
-  );
+const flattenProductLows = (lows = []) => {
+  if (!Array.isArray(lows)) return [];
+
+  return lows.flatMap((low) => {
+    const baseInfo = {
+      idLow: low?.idLow ?? "",
+      dateLow: formatDate(low?.dateLow),
+      responsible: low?.responsible ?? "",
+    };
+
+    if (low?.currentProduct) {
+      const product = low.currentProduct;
+      return [
+        {
+          ...baseInfo,
+          productName: product?.name ?? "",
+          lowQuantity: product?.lowQuantity ?? "",
+          reason: product?.reason ?? "",
+        },
+      ];
+    }
+
+    if (Array.isArray(low?.products) && low.products.length > 0) {
+      return low.products.map((product) => ({
+        ...baseInfo,
+        productName: product?.name ?? "",
+        lowQuantity: product?.lowQuantity ?? "",
+        reason: product?.reason ?? "",
+      }));
+    }
+
+    return [
+      {
+        ...baseInfo,
+        productName: "",
+        lowQuantity: "",
+        reason: "",
+      },
+    ];
+  });
+};
 
 // --------------------
 // Función principal
 // --------------------
-export const generateProductLowsXLS = async () => {
+export const generateProductLowsXLS = async (lows = []) => {
   try {
-    const products = getFlattenedProducts();
+    const products = flattenProductLows(lows);
+
+    if (products.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
 
     // Crear libro y hoja
     const workbook = new ExcelJS.Workbook();
@@ -76,7 +74,7 @@ export const generateProductLowsXLS = async () => {
     const lightMint = "F0FFF0";
 
     // Título
-    sheet.mergeCells("A1:I1");
+    sheet.mergeCells("A1:F1");
     const titleCell = sheet.getCell("A1");
     titleCell.value = "Reporte de Bajas de Productos";
     titleCell.font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
@@ -89,13 +87,20 @@ export const generateProductLowsXLS = async () => {
     sheet.getRow(1).height = 25;
 
     // Subtítulo
-    sheet.mergeCells("A2:I2");
+    sheet.mergeCells("A2:F2");
     sheet.getCell("A2").value = `Generado el: ${new Date().toLocaleDateString()} - Total registros: ${products.length}`;
     sheet.getCell("A2").font = { italic: true, color: { argb: "555555" } };
     sheet.getCell("A2").alignment = { horizontal: "center" };
 
     // Encabezados
-    const headers = Object.keys(products[0]);
+    const headers = [
+      "ID Baja",
+      "Fecha",
+      "Producto",
+      "Cant. Baja",
+      "Motivo",
+      "Responsable",
+    ];
     sheet.addRow(headers);
     const headerRow = sheet.getRow(3);
     headerRow.eachCell((cell) => {
@@ -110,7 +115,14 @@ export const generateProductLowsXLS = async () => {
 
     // Datos
     products.forEach((product, idx) => {
-      const row = sheet.addRow(Object.values(product));
+      const row = sheet.addRow([
+        `#${product.idLow}`,
+        product.dateLow,
+        product.productName,
+        product.lowQuantity,
+        product.reason,
+        product.responsible,
+      ]);
       row.alignment = { vertical: "middle", horizontal: "left" };
 
       // Alternar color de filas

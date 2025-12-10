@@ -1,8 +1,20 @@
-import React, { useState, useRef, useEffect } from "react";
+// SuplliersRegisterModal.jsx
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
-export default function ProductRegisterModal({
+// hooks y alerts
+import { useCreateSupplier } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+
+import Swal from "sweetalert2";
+import {
+  showLoadingAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from "../../shared/components/alerts.jsx";
+
+export default function SuplliersRegisterModal({
   isOpen,
   onClose,
   onSubmit,
@@ -15,26 +27,75 @@ export default function ProductRegisterModal({
     contacto: "",
     telefono: "",
     correo: "",
-    estado: "Activo",
-    categorias: [],
+    categorias: [], // ← IDs numéricos
     direccion: "",
   });
 
+  const createMutation = useCreateSupplier();
+
+  // categorías desde BD (solo activas)
+  const {
+    categories,
+    loading: loadingCats,
+    error: catsError,
+  } = useCategories();
+
+  const hookOptions = useMemo(() => {
+    if (!Array.isArray(categories)) return [];
+    return categories
+      .filter((c) => c.estado === "Activo")
+      .map((c) => ({
+        id: Number(c.id_categoria),
+        label: (c.nombre || "").trim(),
+      }))
+      .filter((o) => o.id && o.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [categories]);
+
+  const propOptionsMapped = useMemo(() => {
+    if (
+      !Array.isArray(categoriasOptions) ||
+      categoriasOptions.length === 0 ||
+      hookOptions.length === 0
+    ) {
+      return [];
+    }
+    const nameToId = new Map(
+      hookOptions.map((o) => [o.label.toLowerCase(), o.id])
+    );
+    return categoriasOptions
+      .map((name) => {
+        const id = nameToId.get(String(name).trim().toLowerCase());
+        return id ? { id, label: String(name).trim() } : null;
+      })
+      .filter(Boolean);
+  }, [categoriasOptions, hookOptions]);
+
+  const mergedCategoriasOptions =
+    hookOptions.length > 0 ? hookOptions : propOptionsMapped;
+
+  const optionsMap = useMemo(
+    () => new Map(mergedCategoriasOptions.map((o) => [o.id, o.label])),
+    [mergedCategoriasOptions]
+  );
+
   const [errors, setErrors] = useState({});
   const [personaOpen, setPersonaOpen] = useState(false);
-  const [estadoOpen, setEstadoOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
 
   const personaRef = useRef();
-  const estadoRef = useRef();
   const categoriasRef = useRef();
 
   // Cierra dropdowns si haces click afuera
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (personaRef.current && !personaRef.current.contains(event.target)) setPersonaOpen(false);
-      if (estadoRef.current && !estadoRef.current.contains(event.target)) setEstadoOpen(false);
-      if (categoriasRef.current && !categoriasRef.current.contains(event.target)) setCategoriasOpen(false);
+      if (personaRef.current && !personaRef.current.contains(event.target))
+        setPersonaOpen(false);
+      if (
+        categoriasRef.current &&
+        !categoriasRef.current.contains(event.target)
+      )
+        setCategoriasOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -48,7 +109,6 @@ export default function ProductRegisterModal({
     if (name === "nit" || name === "telefono") {
       newValue = value.replace(/[eE]/g, "");
     }
-
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
 
@@ -69,38 +129,51 @@ export default function ProductRegisterModal({
   };
 
   const handleNumericKeyDown = (e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab") e.preventDefault();
+    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab")
+      e.preventDefault();
   };
 
-  const toggleCategoria = (categoria) => {
-    setForm((prev) => ({
-      ...prev,
-      categorias: prev.categorias.includes(categoria)
-        ? prev.categorias.filter((c) => c !== categoria)
-        : [...prev.categorias, categoria],
-    }));
+  // Toggle por ID
+  const toggleCategoria = (categoriaId) => {
+    setForm((prev) => {
+      const id = Number(categoriaId);
+      const exists = prev.categorias.includes(id);
+      return {
+        ...prev,
+        categorias: exists
+          ? prev.categorias.filter((c) => c !== id)
+          : [...prev.categorias, id],
+      };
+    });
     setErrors((prev) => ({ ...prev, categorias: "" }));
   };
 
-  const removeCategoriaTag = (categoria) => {
+  const removeCategoriaTag = (categoriaId) => {
     setForm((prev) => ({
       ...prev,
-      categorias: prev.categorias.filter((c) => c !== categoria),
+      categorias: prev.categorias.filter((c) => c !== Number(categoriaId)),
     }));
   };
 
   const validateAll = () => {
     const newErrors = {};
     Object.entries(form).forEach(([key, value]) => {
-      if (key !== "direccion" && !value?.toString().trim()) newErrors[key] = "Este campo es obligatorio";
-      else if (key === "correo") {
+      if (
+        key !== "direccion" &&
+        (value === null ||
+          value === undefined ||
+          value?.toString().trim() === "")
+      ) {
+        newErrors[key] = "Este campo es obligatorio";
+      } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
       } else if (key === "telefono" || key === "nit") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
       }
     });
-    if (form.categorias.length === 0) newErrors.categorias = "Seleccione al menos una categoría";
+    if (!Array.isArray(form.categorias) || form.categorias.length === 0)
+      newErrors.categorias = "Seleccione al menos una categoría";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -108,35 +181,75 @@ export default function ProductRegisterModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateAll()) return;
-    onSubmit(form);
-    onClose();
-    setForm({
-      nombre: "",
-      nit: "",
-      personaType: "",
-      contacto: "",
-      telefono: "",
-      correo: "",
-      estado: "Activo",
-      categorias: [],
-      direccion: "",
+
+    // payload al backend (estado SIEMPRE activo, sin max_porcentaje_de_devolucion)
+    const payload = {
+      nombre: form.nombre.trim(),
+      nit: Number(form.nit),
+      tipo_persona: form.personaType,
+      contacto: form.contacto.trim(),
+      telefono: form.telefono.trim(),
+      correo: form.correo.trim(),
+      direccion: form.direccion.trim(),
+      estado: true, // 👈 siempre activo
+      categorias: form.categorias,
+    };
+
+    showLoadingAlert("Registrando proveedor...");
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        try {
+          Swal.close();
+        } catch (_) {}
+        showSuccessAlert && showSuccessAlert("Proveedor registrado");
+
+        if (typeof onSubmit === "function") onSubmit(payload);
+        onClose && onClose();
+
+        // Reset
+        setForm({
+          nombre: "",
+          nit: "",
+          personaType: "",
+          contacto: "",
+          telefono: "",
+          correo: "",
+          categorias: [],
+          direccion: "",
+        });
+        setErrors({});
+      },
+      onError: (err) => {
+        try {
+          Swal.close();
+        } catch (_) {}
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "No se pudo registrar el proveedor.";
+        showErrorAlert && showErrorAlert(msg);
+      },
     });
-    setErrors({});
   };
 
-  const listVariants = { hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } };
+  const listVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+  };
   const itemVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
+      {/* ⬆️ Modal más arriba y scrollable */}
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-50 flex items-start justify-center pt-6 sm:pt-10 overflow-y-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        {/* Fondo */}
         <motion.div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm"
           onClick={onClose}
@@ -145,14 +258,17 @@ export default function ProductRegisterModal({
           exit={{ opacity: 0 }}
         />
 
+        {/* Contenido */}
         <motion.div
-          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50"
+          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50 my-6 max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, scale: 0.95, y: -20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -20 }}
           transition={{ duration: 0.26, ease: "easeOut" }}
         >
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Registrar Proveedor</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">
+            Registrar Proveedor
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -168,7 +284,9 @@ export default function ProductRegisterModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre}</span>}
+                {errors.nombre && (
+                  <span className="text-red-500 text-xs">{errors.nombre}</span>
+                )}
               </div>
 
               {/* NIT */}
@@ -185,12 +303,16 @@ export default function ProductRegisterModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.nit && <span className="text-red-500 text-xs">{errors.nit}</span>}
+                {errors.nit && (
+                  <span className="text-red-500 text-xs">{errors.nit}</span>
+                )}
               </div>
 
               {/* Tipo de persona */}
               <div ref={personaRef}>
-                <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Tipo de persona
+                </label>
                 <div className="relative mt-1 w-full">
                   <div className="w-full border border-gray-300 bg-white rounded-lg">
                     <button
@@ -198,10 +320,17 @@ export default function ProductRegisterModal({
                       onClick={() => setPersonaOpen((s) => !s)}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
                     >
-                      <span className={`text-sm ${form.personaType ? "text-gray-800" : "text-gray-400"}`}>
+                      <span
+                        className={`text-sm ${
+                          form.personaType ? "text-gray-800" : "text-gray-400"
+                        }`}
+                      >
                         {form.personaType || "Seleccionar tipo"}
                       </span>
-                      <motion.span animate={{ rotate: personaOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                      <motion.span
+                        animate={{ rotate: personaOpen ? 180 : 0 }}
+                        transition={{ duration: 0.18 }}
+                      >
                         <ChevronDown size={18} className="text-gray-500" />
                       </motion.span>
                     </button>
@@ -220,7 +349,10 @@ export default function ProductRegisterModal({
                             key={opt}
                             variants={itemVariants}
                             onClick={() => {
-                              setForm((prev) => ({ ...prev, personaType: opt }));
+                              setForm((prev) => ({
+                                ...prev,
+                                personaType: opt,
+                              }));
                               setPersonaOpen(false);
                             }}
                             className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
@@ -232,12 +364,16 @@ export default function ProductRegisterModal({
                     )}
                   </AnimatePresence>
                 </div>
-                {errors.personaType && <span className="text-red-500 text-xs">{errors.personaType}</span>}
+                {errors.personaType && (
+                  <span className="text-red-500 text-xs">{errors.personaType}</span>
+                )}
               </div>
 
               {/* Contacto */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Persona de contacto
+                </label>
                 <input
                   name="contacto"
                   value={form.contacto}
@@ -247,12 +383,16 @@ export default function ProductRegisterModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.contacto && <span className="text-red-500 text-xs">{errors.contacto}</span>}
+                {errors.contacto && (
+                  <span className="text-red-500 text-xs">{errors.contacto}</span>
+                )}
               </div>
 
               {/* Teléfono */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Teléfono de contacto
+                </label>
                 <input
                   name="telefono"
                   value={form.telefono}
@@ -264,7 +404,9 @@ export default function ProductRegisterModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.telefono && <span className="text-red-500 text-xs">{errors.telefono}</span>}
+                {errors.telefono && (
+                  <span className="text-red-500 text-xs">{errors.telefono}</span>
+                )}
               </div>
 
               {/* Correo */}
@@ -280,110 +422,65 @@ export default function ProductRegisterModal({
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
-                {errors.correo && <span className="text-red-500 text-xs">{errors.correo}</span>}
-              </div>
-
-              {/* Estado */}
-              <div ref={estadoRef}>
-                <label className="block text-sm text-gray-700 mb-1">Estado</label>
-                <div
-                  className={`relative mt-1 w-full rounded-lg border transition ${
-                    form.estado === "Activo"
-                      ? "border-green-500 bg-green-50"
-                      : form.estado === "Inactivo"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-300 bg-white"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setEstadoOpen((s) => !s)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-transparent rounded-lg text-sm focus:outline-none"
-                  >
-                    <span
-                      className={`${
-                        form.estado === "Activo"
-                          ? "text-green-700 font-medium"
-                          : form.estado === "Inactivo"
-                          ? "text-red-700 font-medium"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {form.estado || "Seleccionar estado"}
-                    </span>
-                    <motion.span animate={{ rotate: estadoOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
-                      <ChevronDown
-                        size={18}
-                        className={`${
-                          form.estado === "Activo"
-                            ? "text-green-700"
-                            : form.estado === "Inactivo"
-                            ? "text-red-700"
-                            : "text-gray-500"
-                        }`}
-                      />
-                    </motion.span>
-                  </button>
-                  <AnimatePresence>
-                    {estadoOpen && (
-                      <motion.ul
-                        className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-50"
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        variants={listVariants}
-                      >
-                        {["Activo", "Inactivo"].map((opt) => (
-                          <motion.li
-                            key={opt}
-                            variants={itemVariants}
-                            onClick={() => {
-                              setForm((prev) => ({ ...prev, estado: opt }));
-                              setEstadoOpen(false);
-                            }}
-                            className={`px-4 py-3 cursor-pointer text-sm ${
-                              opt === "Activo" ? "hover:bg-green-50 text-green-700" : "hover:bg-red-50 text-red-700"
-                            } ${
-                              form.estado === opt
-                                ? opt === "Activo"
-                                  ? "bg-green-100 font-medium"
-                                  : "bg-red-100 font-medium"
-                                : ""
-                            }`}
-                          >
-                            {opt}
-                          </motion.li>
-                        ))}
-                      </motion.ul>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {errors.estado && <span className="text-red-500 text-xs">{errors.estado}</span>}
+                {errors.correo && (
+                  <span className="text-red-500 text-xs">{errors.correo}</span>
+                )}
               </div>
             </div>
 
-            {/* Categorías */}
+            {/* Categorías (IDs) */}
             <div ref={categoriasRef} className="mt-2">
-              <label className="block text-sm text-gray-700 mb-1">Categorías</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Categorías
+              </label>
+
+              {catsError && mergedCategoriasOptions.length === 0 && (
+                <p className="text-xs text-red-600 mb-1">
+                  Error al cargar categorías: {String(catsError)}
+                </p>
+              )}
+
               <div className="relative mt-1 w-full">
                 <div className="w-full border border-gray-300 bg-white rounded-lg">
                   <button
                     type="button"
-                    onClick={() => setCategoriasOpen((s) => !s)}
+                    onClick={() => {
+                      if (loadingCats && mergedCategoriasOptions.length === 0)
+                        return;
+                      setCategoriasOpen((s) => !s);
+                    }}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
+                    disabled={loadingCats && mergedCategoriasOptions.length === 0}
+                    title={
+                      loadingCats && mergedCategoriasOptions.length === 0
+                        ? "Cargando categorías..."
+                        : undefined
+                    }
                   >
                     <div className="flex items-center">
-                      {form.categorias.length === 0 ? (
-                        <span className="text-sm text-gray-400">Seleccionar categorías</span>
+                      {loadingCats && mergedCategoriasOptions.length === 0 ? (
+                        <span className="text-sm text-gray-400">
+                          Cargando categorías...
+                        </span>
+                      ) : form.categorias.length === 0 ? (
+                        <span className="text-sm text-gray-400">
+                          Seleccionar categorías
+                        </span>
                       ) : (
-                        <span className="text-sm text-gray-800">{form.categorias.length} seleccionada(s)</span>
+                        <span className="text-sm text-gray-800">
+                          {form.categorias.length} seleccionada(s)
+                        </span>
                       )}
                     </div>
-                    <motion.span animate={{ rotate: categoriasOpen ? 180 : 0 }} transition={{ duration: 0.18 }}>
+                    <motion.span
+                      animate={{ rotate: categoriasOpen ? 180 : 0 }}
+                      transition={{ duration: 0.18 }}
+                    >
                       <ChevronDown size={18} className="text-gray-500" />
                     </motion.span>
                   </button>
                 </div>
+
                 <AnimatePresence>
                   {categoriasOpen && (
                     <motion.ul
@@ -393,31 +490,43 @@ export default function ProductRegisterModal({
                       exit="hidden"
                       variants={listVariants}
                     >
-                      {categoriasOptions.map((opt) => (
-                        <motion.li
-                          key={opt}
-                          variants={itemVariants}
-                          onClick={() => toggleCategoria(opt)}
-                          className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between"
-                        >
-                          <span>{opt}</span>
-                          {form.categorias.includes(opt) && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓</span>
-                          )}
-                        </motion.li>
-                      ))}
+                      {mergedCategoriasOptions.length === 0 ? (
+                        <li className="px-4 py-2 text-sm text-gray-500">
+                          No hay categorías disponibles
+                        </li>
+                      ) : (
+                        mergedCategoriasOptions.map((opt) => (
+                          <motion.li
+                            key={opt.id}
+                            variants={itemVariants}
+                            onClick={() => toggleCategoria(opt.id)}
+                            className="px-4 py-2 cursor-pointer text-sm text-gray-700 hover:bg-green-50 flex items-center justify-between"
+                          >
+                            <span>{opt.label}</span>
+                            {form.categorias.includes(opt.id) && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                ✓
+                              </span>
+                            )}
+                          </motion.li>
+                        ))
+                      )}
                     </motion.ul>
                   )}
                 </AnimatePresence>
               </div>
+
               <div className="mt-2 flex flex-wrap gap-2">
-                {form.categorias.map((c) => (
-                  <div key={c} className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs">
-                    <span>{c}</span>
+                {form.categorias.map((id) => (
+                  <div
+                    key={id}
+                    className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs"
+                  >
+                    <span>{optionsMap.get(id) || id}</span>
                     <button
                       type="button"
-                      onClick={() => removeCategoriaTag(c)}
-                      aria-label={`Eliminar ${c}`}
+                      onClick={() => removeCategoriaTag(id)}
+                      aria-label={`Eliminar ${optionsMap.get(id) || id}`}
                       className="opacity-70 hover:opacity-100"
                     >
                       ×
@@ -425,12 +534,16 @@ export default function ProductRegisterModal({
                   </div>
                 ))}
               </div>
-              {errors.categorias && <span className="text-red-500 text-xs">{errors.categorias}</span>}
+              {errors.categorias && (
+                <span className="text-red-500 text-xs">{errors.categorias}</span>
+              )}
             </div>
 
             {/* Dirección */}
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Dirección</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Dirección
+              </label>
               <input
                 name="direccion"
                 value={form.direccion}
@@ -446,14 +559,16 @@ export default function ProductRegisterModal({
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+                disabled={createMutation.isLoading}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
+                disabled={createMutation.isLoading}
               >
-                Guardar
+                {createMutation.isLoading ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </form>

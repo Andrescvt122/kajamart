@@ -2,81 +2,115 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import Paginator from "../../shared/components/paginator.jsx";
 import { Search } from "lucide-react";
+import Paginator from "../../shared/components/paginator.jsx";
+
+// 🔎 Hook que acabamos de crear
+import { useSupplierDetail } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 
 export default function SupplierDetailModal({
   isOpen,
   onClose,
-  supplier,
+  supplier,       // opcional: si ya lo tienes, lo usamos de fallback
+  supplierId,     // recomendado: id del proveedor a consultar
   onEdit,
 }) {
+  const resolvedId = supplierId ?? supplier?.id_proveedor ?? supplier?.id;
+  const { data, isLoading, isError, error } = useSupplierDetail(resolvedId);
+
+  // ----------------- Normalización -----------------
+  const normalizeSupplier = (raw) => {
+    if (!raw) {
+      return {
+        id_proveedor: null,
+        nombre: "",
+        nit: "",
+        tipo_persona: "",
+        telefono: "",
+        correo: "",
+        direccion: "",
+        estado: null,
+        max_porcentaje_de_devolucion: null,
+        categorias: [],
+        productos: [],
+      };
+    }
+
+    const catObjs =
+      Array.isArray(raw.categorias) && raw.categorias.length > 0
+        ? raw.categorias
+        : Array.isArray(raw.proveedor_categoria)
+        ? raw.proveedor_categoria.map((pc) => pc?.categorias).filter(Boolean)
+        : [];
+
+    const categorias = catObjs
+      .map((c) =>
+        c?.nombre_categoria ??
+        c?.nombre ??
+        (typeof c === "string" ? c : "")
+      )
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+
+    const productos = Array.isArray(raw.productos) ? raw.productos : [];
+    const productosUI = productos.map((p) => ({
+      id_producto: p.id_producto,
+      nombre: p.nombre,
+      categoria:
+        p?.categorias?.nombre_categoria ??
+        p?.categoria?.nombre ??
+        p?.categoria ??
+        "",
+      costo_unitario: Number(p.costo_unitario ?? p.precio ?? 0),
+      stock: p.stock_actual ?? p.stock ?? null,
+    }));
+
+    return {
+      id_proveedor: raw.id_proveedor ?? raw.id,
+      nombre: raw.nombre ?? "",
+      nit: raw.nit ?? "",
+      tipo_persona: raw.tipo_persona ?? raw.tipoPersona ?? "",
+      telefono: raw.telefono ?? "",
+      correo: raw.correo ?? "",
+      direccion: raw.direccion ?? "",
+      estado: typeof raw.estado === "boolean" ? raw.estado : null,
+      max_porcentaje_de_devolucion: raw.max_porcentaje_de_devolucion ?? null,
+      categorias,
+      productos: productosUI,
+    };
+  };
+
+  const detailRaw = data ?? supplier ?? null;
+  const detail = useMemo(() => normalizeSupplier(detailRaw), [detailRaw]);
+
+  // ----------------- UI: búsqueda y paginación -----------------
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
-
-  // buscador dentro del modal
   const [searchTerm, setSearchTerm] = useState("");
-  // mostrar panel de categorias
   const [showCategories, setShowCategories] = useState(false);
 
-  const safeSupplier = supplier || {
-    nombre: "",
-    nit: "",
-    tipoPersona: "",
-    telefono: "",
-    correo: "",
-    direccion: "",
-    productos: [],
-    categorias: [],
-  };
-  const products = safeSupplier.productos || [];
-
-  // derivar categorías: si el objeto trae `categorias` úsalo, si no, saca desde productos
-  const categories = useMemo(() => {
-    if (
-      Array.isArray(safeSupplier.categorias) &&
-      safeSupplier.categorias.length > 0
-    ) {
-      // normalizar a strings (puede venir como objetos)
-      return Array.from(
-        new Set(
-          safeSupplier.categorias
-            .map((c) => (typeof c === "string" ? c : c.nombre || "").trim())
-            .filter(Boolean)
-        )
-      );
-    }
-    return Array.from(
-      new Set(
-        products.map((p) => String(p.categoria || "").trim()).filter(Boolean)
-      )
-    );
-  }, [safeSupplier.categorias, products]);
-
   useEffect(() => {
-    // reset páginas y buscador cuando cambia el proveedor
     setCurrentPage(1);
     setSearchTerm("");
     setShowCategories(false);
-  }, [safeSupplier.nit]);
+  }, [detail.id_proveedor]);
 
-  // Filtrado de productos por searchTerm (nombre, categoría, precio, stock)
   const filteredProducts = useMemo(() => {
     const s = (searchTerm || "").trim().toLowerCase();
-    if (!s) return products;
-    return products.filter((p) => {
+    if (!s) return detail.productos;
+    return detail.productos.filter((p) => {
       const name = String(p.nombre || "").toLowerCase();
       const cat = String(p.categoria || "").toLowerCase();
-      const price = String(p.precio ?? "").toLowerCase();
+      const cost = String(p.costo_unitario ?? "").toLowerCase();
       const stock = String(p.stock ?? "").toLowerCase();
       return (
         name.includes(s) ||
         cat.includes(s) ||
-        price.includes(s) ||
+        cost.includes(s) ||
         stock.includes(s)
       );
     });
-  }, [products, searchTerm]);
+  }, [detail.productos, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
   const pageItems = useMemo(() => {
@@ -85,7 +119,6 @@ export default function SupplierDetailModal({
   }, [filteredProducts, currentPage]);
 
   useEffect(() => {
-    // if currentPage > totalPages because filtering shrank results, clamp it
     setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
   }, [totalPages]);
 
@@ -94,7 +127,7 @@ export default function SupplierDetailModal({
     setCurrentPage(p);
   };
 
-  // Animations
+  // ----------------- helpers -----------------
   const overlayVars = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.22 } },
@@ -112,13 +145,21 @@ export default function SupplierDetailModal({
     exit: { opacity: 0, y: 20, scale: 0.98, transition: { duration: 0.2 } },
   };
 
+  const money = (v) =>
+    Number(v ?? 0).toLocaleString("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    });
+
   if (typeof document === "undefined") return null;
 
   return createPortal(
     isOpen && (
       <motion.div
         key="overlay-container"
-        className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+        // ⬆️ Ahora arranca más arriba y permite scroll vertical
+        className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-6 sm:pt-10 pb-6 overflow-y-auto"
         initial="hidden"
         animate="visible"
         exit="exit"
@@ -134,15 +175,15 @@ export default function SupplierDetailModal({
         {/* Modal */}
         <motion.div
           key="modal"
-          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto p-6 z-10"
+          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-auto p-6 z-10 my-6"
           variants={modalVars}
           initial="hidden"
           animate="visible"
           exit="exit"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header + buscador + ver categorias */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          {/* Header + close */}
+          <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">
                 Detalles del Proveedor
@@ -151,65 +192,75 @@ export default function SupplierDetailModal({
                 Información completa del proveedor
               </p>
             </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              {/* cerrar */}
-              <button
-                onClick={onClose}
-                aria-label="Cerrar modal"
-                className="rounded-full p-2 hover:bg-gray-100 ml-1"
-              >
-                ✕
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar modal"
+              className="rounded-full p-2 hover:bg-gray-100 ml-1"
+            >
+              ✕
+            </button>
           </div>
+
+          {/* Loading / Error */}
+          {isLoading && (
+            <div className="space-y-3 mb-4">
+              <div className="h-4 bg-gray-100 animate-pulse rounded w-1/2" />
+              <div className="h-4 bg-gray-100 animate-pulse rounded w-1/3" />
+              <div className="h-4 bg-gray-100 animate-pulse rounded w-2/3" />
+            </div>
+          )}
+          {isError && (
+            <div className="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">
+              No se pudo cargar el detalle del proveedor.{" "}
+              {String(error?.message || "")}
+            </div>
+          )}
 
           {/* Info general */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-sm">
             <div>
               <p className="text-gray-500">NIT</p>
-              <p className="font-medium">{safeSupplier.nit || "—"}</p>
+              <p className="font-medium">{detail.nit || "—"}</p>
             </div>
             <div>
               <p className="text-gray-500">Nombre</p>
-              <p className="font-medium">{safeSupplier.nombre || "—"}</p>
+              <p className="font-medium">{detail.nombre || "—"}</p>
             </div>
             <div>
               <p className="text-gray-500">Tipo de persona</p>
-              <p className="font-medium">{safeSupplier.tipoPersona || "—"}</p>
+              <p className="font-medium">{detail.tipo_persona || "—"}</p>
             </div>
             <div>
               <p className="text-gray-500">Teléfono</p>
-              <p className="font-medium">{safeSupplier.telefono || "—"}</p>
+              <p className="font-medium">{detail.telefono || "—"}</p>
             </div>
             <div>
               <p className="text-gray-500">Correo electrónico</p>
-              <p className="font-medium">{safeSupplier.correo || "—"}</p>
+              <p className="font-medium">{detail.correo || "—"}</p>
             </div>
-
             <div>
               <p className="text-gray-500">Dirección</p>
-              <p className="font-medium">{safeSupplier.direccion || "—"}</p>
+              <p className="font-medium">{detail.direccion || "—"}</p>
             </div>
 
             {/* botón ver categorías */}
-            <div>
+            <div className="col-span-2 md:col-span-3">
               <button
                 type="button"
                 onClick={() => setShowCategories((s) => !s)}
-                className="px-4 py-2 rounded-full bg-white text-sm text-gray-800 font-medium
-             border border-transparent hover:bg-gray-50 focus:outline-none transition"
+                className="px-4 py-2 rounded-full bg-white text-sm text-gray-800 font-medium border border-transparent hover:bg-gray-50 focus:outline-none transition"
                 style={{ boxShadow: "0 0 0 1px rgba(17,24,39,0.12)" }}
                 aria-expanded={showCategories}
               >
                 {showCategories
                   ? "Ocultar categorías"
-                  : `Ver categorías (${categories.length})`}
+                  : `Ver categorías (${detail.categorias.length})`}
               </button>
             </div>
           </div>
+
           {/* buscador pequeño */}
-          <div className="relative flex-1 sm:flex-none w-full max-w-md">
+          <div className="relative w-full max-w-md mb-3">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search size={18} className="text-gray-400" />
             </div>
@@ -239,15 +290,15 @@ export default function SupplierDetailModal({
                   <h4 className="text-sm font-semibold mb-2">
                     Categorías del proveedor
                   </h4>
-                  {categories.length === 0 ? (
+                  {detail.categorias.length === 0 ? (
                     <p className="text-gray-500 text-sm">
                       No tiene categorías asignadas.
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {categories.map((c, idx) => (
+                      {detail.categorias.map((c, idx) => (
                         <span
-                          key={c + "-" + idx}
+                          key={`${c}-${idx}`}
                           className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs"
                         >
                           {c}
@@ -281,14 +332,16 @@ export default function SupplierDetailModal({
                       colSpan={4}
                       className="px-6 py-8 text-center text-gray-400"
                     >
-                      No se encontraron productos.
+                      {isLoading
+                        ? "Cargando..."
+                        : "No se encontraron productos."}
                     </td>
                   </tr>
                 ) : (
                   <AnimatePresence mode="wait" initial={false}>
                     {pageItems.map((p, i) => (
                       <motion.tr
-                        key={p.nombre + "-" + i + "-" + currentPage}
+                        key={`${p.id_producto || p.nombre}-${i}-${currentPage}`}
                         className="hover:bg-white"
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -299,13 +352,13 @@ export default function SupplierDetailModal({
                           {p.nombre}
                         </td>
                         <td className="px-6 py-3 text-sm text-green-700">
-                          {p.categoria}
+                          {p.categoria || "—"}
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          ${Number(p.precio || 0).toFixed(2)}
+                          {money(p.costo_unitario)}
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-600">
-                          {p.stock ?? "-"}
+                          {p.stock ?? "—"}
                         </td>
                       </motion.tr>
                     ))}
@@ -330,8 +383,7 @@ export default function SupplierDetailModal({
           <div className="flex justify-end gap-3 mt-6">
             <button
               onClick={() => {
-                // cerrar detalle y delegar la edición al padre (si lo requiere)
-                if (onEdit) onEdit(safeSupplier);
+                if (onEdit) onEdit(detailRaw);
               }}
               className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
             >

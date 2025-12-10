@@ -1,4 +1,3 @@
-// features/products/indexProducts.jsx
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,20 +10,76 @@ import {
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { exportProductsToExcel } from "./helpers/exportToXls";
 import { exportProductsToPDF } from "./helpers/exportToPdf";
 
 import {
-  showInfoAlert,
-  showInputAlert,
   showLoadingAlert,
+  showErrorAlert,
+  showSuccessAlert,
 } from "../../shared/components/alerts";
 
 import ProductRegisterModal from "./productRegisterModal.jsx";
 import ProductEditModal from "./productEditModal.jsx";
 import ProductDeleteModal from "./productDeleteModal.jsx";
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+import Loading from "../../features/onboarding/loading.jsx";
 
+import {
+  useProducts,
+  useDeleteProduct,
+  useUpdateProduct,
+} from "../../shared/components/hooks/products/products.hooks.js";
+
+// ===== Texto seguro / anti-overflow
+const LONG_TEXT_CLS =
+  "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
+const ONE_LINE_SAFE =
+  "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+
+// ===== Animaciones (idénticas a Proveedores)
+const tableVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      when: "beforeChildren",
+      staggerChildren: 0.12,
+    },
+  },
+};
+const rowVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
+  exit: { opacity: 0, y: -6, transition: { duration: 0.18 } },
+};
+
+// Chevron acordeón móvil
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
+  );
+}
+
+// Evitar overflow-x global
 if (typeof document !== "undefined") {
   document.documentElement.style.overflowX = "hidden";
   document.body.style.overflowX = "hidden";
@@ -35,255 +90,92 @@ if (typeof document !== "undefined") {
 export default function IndexProducts() {
   const navigate = useNavigate();
 
-  const [categories] = useState([
-    { id: "CAT001", nombre: "Lácteos" },
-    { id: "CAT002", nombre: "Carnes" },
-    { id: "CAT003", nombre: "Bebidas" },
-    { id: "CAT004", nombre: "Snacks" },
-  ]);
+  // Datos
+  const { data: productsRaw = [], isLoading, isError, error } = useProducts();
 
-  const [products, setProducts] = useState([
-    {
-      id: "P001",
-      nombre: "Leche Entera 1L",
-      categoria: "Lácteos",
-      stockMin: 6,
-      stockMax: 80,
-      precio: 4200,
-      estado: "Inactivo",
-      imagen: null,
-      lotes: [
-        {
-          id: "L001",
-          barcode: "987654321001",
-          vencimiento: "2024-12-01",
-          stock: 10,
-          stockMin: 2,
-          stockMax: 20,
-        },
-        {
-          id: "L002",
-          barcode: "987654321002",
-          vencimiento: "2024-12-10",
-          stock: 5,
-          stockMin: 1,
-          stockMax: 15,
-        },
-        {
-          id: "L003",
-          barcode: "987654321003",
-          vencimiento: "2024-12-20",
-          stock: 6,
-          stockMin: 2,
-          stockMax: 18,
-        },
-        {
-          id: "L004",
-          barcode: "987654321004",
-          vencimiento: "2024-12-31",
-          stock: 3,
-          stockMin: 1,
-          stockMax: 10,
-        },
-      ],
-    },
-    {
-      id: "P002",
-      nombre: "Papas Fritas 80g",
-      categoria: "Snacks",
-      stockMin: 20,
-      stockMax: 300,
-      precio: 2500,
-      estado: "Activo",
-      imagen: null,
-      lotes: [
-        {
-          id: "L005",
-          barcode: "987654321005",
-          vencimiento: "2025-01-05",
-          stock: 30,
-          stockMin: 10,
-          stockMax: 50,
-        },
-        {
-          id: "L006",
-          barcode: "987654321006",
-          vencimiento: "2025-01-15",
-          stock: 40,
-          stockMin: 15,
-          stockMax: 60,
-        },
-        {
-          id: "L007",
-          barcode: "987654321007",
-          vencimiento: "2025-01-25",
-          stock: 25,
-          stockMin: 10,
-          stockMax: 40,
-        },
-        {
-          id: "L008",
-          barcode: "987654321008",
-          vencimiento: "2025-01-30",
-          stock: 35,
-          stockMin: 12,
-          stockMax: 50,
-        },
-      ],
-    },
-    {
-      id: "P003",
-      nombre: "Queso Azul 200g",
-      categoria: "Lácteos",
-      stockMin: 10,
-      stockMax: 100,
-      precio: 7500,
-      estado: "Activo",
-      imagen: null,
-      lotes: [
-        {
-          id: "L009",
-          barcode: "987654321009",
-          vencimiento: "2024-11-15",
-          stock: 15,
-          stockMin: 5,
-          stockMax: 25,
-        },
-        {
-          id: "L010",
-          barcode: "987654321010",
-          vencimiento: "2024-11-25",
-          stock: 12,
-          stockMin: 5,
-          stockMax: 20,
-        },
-        {
-          id: "L011",
-          barcode: "987654321011",
-          vencimiento: "2024-12-05",
-          stock: 8,
-          stockMin: 2,
-          stockMax: 15,
-        },
-        {
-          id: "L012",
-          barcode: "987654321012",
-          vencimiento: "2024-12-15",
-          stock: 10,
-          stockMin: 3,
-          stockMax: 18,
-        },
-      ],
-    },
-    {
-      id: "P004",
-      nombre: "Arroz 500g",
-      categoria: "Alimentos",
-      stockMin: 50,
-      stockMax: 500,
-      precio: 3200,
-      estado: "Activo",
-      imagen: null,
-      lotes: [
-        {
-          id: "L013",
-          barcode: "987654321013",
-          vencimiento: "2025-02-10",
-          stock: 100,
-          stockMin: 30,
-          stockMax: 150,
-        },
-        {
-          id: "L014",
-          barcode: "987654321014",
-          vencimiento: "2025-02-20",
-          stock: 80,
-          stockMin: 20,
-          stockMax: 120,
-        },
-        {
-          id: "L015",
-          barcode: "987654321015",
-          vencimiento: "2025-02-28",
-          stock: 70,
-          stockMin: 20,
-          stockMax: 100,
-        },
-        {
-          id: "L016",
-          barcode: "987654321016",
-          vencimiento: "2025-03-05",
-          stock: 50,
-          stockMin: 15,
-          stockMax: 90,
-        },
-      ],
-    },
-    {
-      id: "P005",
-      nombre: "Fideos 200g",
-      categoria: "Alimentos",
-      stockMin: 30,
-      stockMax: 300,
-      precio: 2800,
-      estado: "Activo",
-      imagen: null,
-      lotes: [
-        {
-          id: "L017",
-          barcode: "987654321017",
-          vencimiento: "2024-10-10",
-          stock: 40,
-          stockMin: 10,
-          stockMax: 60,
-        },
-        {
-          id: "L018",
-          barcode: "987654321018",
-          vencimiento: "2024-10-20",
-          stock: 35,
-          stockMin: 10,
-          stockMax: 50,
-        },
-        {
-          id: "L019",
-          barcode: "987654321019",
-          vencimiento: "2024-10-30",
-          stock: 25,
-          stockMin: 5,
-          stockMax: 40,
-        },
-        {
-          id: "L020",
-          barcode: "987654321020",
-          vencimiento: "2024-11-05",
-          stock: 30,
-          stockMin: 10,
-          stockMax: 50,
-        },
-      ],
-    },
-  ]);
+  const catHook =
+    (typeof useCategories === "function" ? useCategories() : null) || {};
+  const categoriesRaw = Array.isArray(catHook.categories)
+    ? catHook.categories
+    : [];
+  const isCatLoading = catHook.isLoading ?? catHook.loading ?? false;
+  const isCatError = catHook.isError ?? !!catHook.error ?? false;
+
+  const deleteMutation = useDeleteProduct();
+  const updateMutation = useUpdateProduct();
+
+  // Normalizar categorías
+  const categories = useMemo(
+    () =>
+      categoriesRaw
+        .map((c) => ({
+          id: c.id_categoria ?? c.id ?? "",
+          nombre: c.nombre_categoria || c.nombre || "",
+          estado: c.estado,
+        }))
+        .filter((c) => c.id && c.nombre),
+    [categoriesRaw]
+  );
+
+  // Normalizar productos
+  const products = useMemo(() => {
+    if (!Array.isArray(productsRaw)) return [];
+    return productsRaw.map((p) => ({
+      id: p.id_producto,
+      nombre: p.nombre,
+      descripcion: p.descripcion,
+      categoria:
+        p.categoria ||
+        p?.categorias?.nombre_categoria ||
+        p?.categorias?.nombre ||
+        "—",
+      stockActual: p.stock_actual ?? 0,
+      stockMin: p.stock_minimo ?? 0,
+      stockMax: p.stock_maximo ?? 0,
+      precio: p.precio_venta ?? 0,
+      estado: p.estado ? "Activo" : "Inactivo",
+      imagen: p.url_imagen || null,
+      raw: p,
+    }));
+  }, [productsRaw]);
+
+  // Delete
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProductToDelete, setSelectedProductToDelete] = useState(null);
+
   const handleDeleteClick = (product) => {
     setSelectedProductToDelete(product);
     setIsDeleteModalOpen(true);
   };
 
-  // 3️⃣ Función que confirma la eliminación
   const handleDeleteConfirm = (product) => {
-    setProducts((prev) => prev.filter((p) => p.id !== product.id));
-    showLoadingAlert(`Producto ${product.nombre} eliminado`);
+    const id = product?.id;
+    if (!id) {
+      showErrorAlert && showErrorAlert("No se encontró id del producto.");
+      return;
+    }
+    showLoadingAlert("Eliminando producto...");
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        showSuccessAlert &&
+          showSuccessAlert("Producto eliminado correctamente.");
+        setIsDeleteModalOpen(false);
+        setSelectedProductToDelete(null);
+      },
+      onError: (err) => {
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Error al eliminar el producto.";
+        showErrorAlert && showErrorAlert(msg);
+      },
+    });
   };
 
-  // Calculamos stockActual automáticamente sumando todos los lotes
-  products.forEach((p) => {
-    p.stockActual = p.lotes.reduce((acc, l) => acc + l.stock, 0);
-  });
-
+  // Edit
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState({
+    id: null,
     nombre: "",
     descripcion: "",
     precioCompra: "",
@@ -294,169 +186,145 @@ export default function IndexProducts() {
     categoria: "",
     imagenes: [],
   });
-  const listVariants = {
-    hidden: { opacity: 0, y: -10 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-  };
+  const [selectedProductRaw, setSelectedProductRaw] = useState(null);
 
   const handleEditClick = (product) => {
+    const p = product?.raw || product;
+    setSelectedProductRaw(p);
     setSelectedProduct({
-      nombre: product.nombre,
-      descripcion: product.descripcion,
-      precioCompra: product.precioCompra,
-      precioVenta: product.precioVenta,
-      iva: product.iva,
-      stock: product.stock,
-      estado: product.estado,
-      categoria: product.categoria,
-      imagenes: product.imagenes || [],
+      id: p.id_producto,
+      nombre: p.nombre || "",
+      descripcion: p.descripcion || "",
+      precioCompra: p.costo_unitario != null ? String(p.costo_unitario) : "",
+      precioVenta: p.precio_venta != null ? String(p.precio_venta) : "",
+      iva:
+        p.iva_detalle?.valor_impuesto != null
+          ? `${p.iva_detalle.valor_impuesto}%`
+          : p.iva != null && p.iva !== 0
+          ? `${p.iva}%`
+          : "",
+      stock: p.stock_actual != null ? String(p.stock_actual) : "",
+      estado: p.estado ? "Activo" : "Inactivo",
+      categoria:
+        p.categoria ||
+        p?.categorias?.nombre_categoria ||
+        p?.categorias?.nombre ||
+        "",
+      imagenes: p.url_imagen ? [p.url_imagen] : [],
     });
     setIsEditModalOpen(true);
   };
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    console.log("Producto editado:", selectedProduct);
-    setIsEditModalOpen(false);
+
+  const handleEditSubmit = async (editedForm) => {
+    const id = selectedProductRaw?.id_producto;
+    if (!id) {
+      showErrorAlert && showErrorAlert("No se encontró el producto a editar.");
+      return;
+    }
+
+    try {
+      showLoadingAlert && showLoadingAlert("Guardando cambios...");
+
+      const cat = categories.find((c) => c.nombre === editedForm.categoria);
+      const id_categoria =
+        cat?.id ??
+        selectedProductRaw?.id_categoria ??
+        selectedProductRaw?.categorias?.id_categoria ??
+        null;
+
+      const ivaVal =
+        editedForm.iva && editedForm.iva.trim() !== ""
+          ? editedForm.iva.replace("%", "")
+          : "0";
+
+      const newFile = (editedForm.imagenes || []).find(
+        (it) => it instanceof File || it instanceof Blob
+      );
+
+      if (newFile) {
+        const fd = new FormData();
+        fd.append("nombre", editedForm.nombre.trim());
+        fd.append("descripcion", editedForm.descripcion?.trim() || "");
+        fd.append("stock_actual", String(Number(editedForm.stock) || 0));
+        fd.append("estado", editedForm.estado === "Activo" ? "true" : "false");
+        if (id_categoria) fd.append("id_categoria", String(id_categoria));
+        fd.append("iva", String(ivaVal || "0"));
+        fd.append(
+          "costo_unitario",
+          String(Number(editedForm.precioCompra) || 0)
+        );
+        fd.append("precio_venta", String(Number(editedForm.precioVenta) || 0));
+        fd.append("imagen", newFile);
+
+        await updateMutation.mutateAsync({ id, data: fd });
+      } else {
+        const payload = {
+          nombre: editedForm.nombre.trim(),
+          descripcion: editedForm.descripcion?.trim() || "",
+          stock_actual: String(Number(editedForm.stock) || 0),
+          estado: editedForm.estado === "Activo" ? "true" : "false",
+          iva: String(ivaVal || "0"),
+          costo_unitario: String(Number(editedForm.precioCompra) || 0),
+          precio_venta: String(Number(editedForm.precioVenta) || 0),
+        };
+        if (id_categoria) payload.id_categoria = String(id_categoria);
+
+        await updateMutation.mutateAsync({ id, ...payload });
+      }
+
+      showSuccessAlert && showSuccessAlert("Producto actualizado");
+      setIsEditModalOpen(false);
+      setSelectedProductRaw(null);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo actualizar el producto.";
+      showErrorAlert && showErrorAlert(msg);
+    }
   };
 
+  // UI local
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    nombre: "",
-    descripcion: "",
-    imagenes: [],
-    precioCompra: "",
-    precioVenta: "",
-    iva: "",
-    stock: "",
-    estado: "",
-    categoria: "",
-  });
-
   const [estadoOpen, setEstadoOpen] = useState(false);
   const estadoRef = useRef(null);
   const [categoriaOpen, setCategoriaOpen] = useState(false);
   const categoriaRef = useRef(null);
 
-  const estadoOptions = [
-    { value: "Activo", label: "Activo" },
-    { value: "Inactivo", label: "Inactivo" },
-  ];
-
   useEffect(() => {
     function handleClickOutside(e) {
-      if (estadoRef.current && !estadoRef.current.contains(e.target)) {
+      if (estadoRef.current && !estadoRef.current.contains(e.target))
         setEstadoOpen(false);
-      }
-      if (categoriaRef.current && !categoriaRef.current.contains(e.target)) {
+      if (categoriaRef.current && !categoriaRef.current.contains(e.target))
         setCategoriaOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 🔒 Bloquear scroll cuando cualquier modal esté abierto
+  const anyModalOpen = isModalOpen || isEditModalOpen || isDeleteModalOpen;
   useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
-  }, [isModalOpen]);
+    document.body.style.overflow = anyModalOpen ? "hidden" : "auto";
+  }, [anyModalOpen]);
 
   const handleOpenModal = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
     setIsModalOpen(true);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleImages = (e) => {
-    const files = Array.from(e.target.files || []);
-    const next = [...form.imagenes, ...files].slice(0, 6);
-    setForm((prev) => ({ ...prev, imagenes: next }));
-  };
-
-  const removeImageAt = (idx) => {
-    setForm((prev) => ({
-      ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== idx),
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (
-      !form.nombre.trim() ||
-      !form.precioCompra ||
-      !form.precioVenta ||
-      !form.stock ||
-      !form.estado ||
-      !form.categoria
-    ) {
-      showInfoAlert(
-        "Por favor complete los campos obligatorios marcados con *"
-      );
-      return;
-    }
-
-    const newProduct = {
-      id: `P${String(products.length + 1).padStart(3, "0")}`,
-      nombre: form.nombre,
-      descripcion: form.descripcion,
-      categoria: form.categoria,
-      stockActual: Number(form.stock),
-      stockMin: 0,
-      stockMax: Number(form.stock) * 5,
-      precio: Number(form.precioVenta),
-      precioCompra: Number(form.precioCompra),
-      iva: form.iva || "0",
-      estado: form.estado,
-      imagen: form.imagenes[0] ? URL.createObjectURL(form.imagenes[0]) : null,
-    };
-
-    setProducts((p) => [newProduct, ...p]);
-    setForm({
-      nombre: "",
-      descripcion: "",
-      imagenes: [],
-      precioCompra: "",
-      precioVenta: "",
-      iva: "",
-      stock: "",
-      estado: "",
-      categoria: "",
-    });
-    setIsModalOpen(false);
-    setEstadoOpen(false);
-    setCategoriaOpen(false);
-    showLoadingAlert("Producto registrado");
-  };
-
+  // Filtro + paginación
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return products;
-    if (/^activos?$/.test(s)) {
+    if (/^activos?$/.test(s))
       return products.filter((p) => p.estado.toLowerCase() === "activo");
-    }
-    if (/^inactivos?$/.test(s)) {
+    if (/^inactivos?$/.test(s))
       return products.filter((p) => p.estado.toLowerCase() === "inactivo");
-    }
     return products.filter((p) =>
       `${p.id} ${p.nombre} ${p.descripcion || ""} ${p.categoria} ${p.estado}`
         .toLowerCase()
@@ -468,109 +336,299 @@ export default function IndexProducts() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
+  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
-  // ANIMACIONES
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
-  };
-  const rowVariants = {
-    hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0 },
+  // Errores globales
+  if (isError || isCatError) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Error al cargar productos.";
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <p className="text-red-600 text-center">{msg}</p>
+      </div>
+    );
+  }
+
+  // Acordeón móvil
+  const [expanded, setExpanded] = useState(new Set());
+  const toggleExpand = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Fondo decorativo (misma implementación que en Categories/AllProducts) */}
+    <div className="flex min-h-screen w-full overflow-x-hidden">
+      {/* Fondo decorativo */}
       <div
-        className="absolute bottom-0 left-0 w-full pointer-events-none"
+        className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
         style={{
           height: "50%",
           backgroundImage: `url(${ondas})`,
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center bottom",
           backgroundSize: "cover",
-          transform: "scaleX(1.15)",
           zIndex: 0,
         }}
-      />
+      >
+        <div className="h-full w-full" />
+      </div>
 
-      {/* Contenido principal */}
-      <div className="flex-1 relative min-h-screen p-8 overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-semibold">Productos</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Administrador de Inventario
-              </p>
-            </div>
+      {/* Contenido */}
+      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+          {/* Header */}
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-2xl sm:text-3xl font-semibold">Productos</h2>
+            {/* Subtítulo de administrador eliminado para reducir espacio */}
           </div>
 
-          {/* Barra búsqueda + acciones */}
-          <div className="flex justify-between items-center mb-6 gap-4">
-            <div className="flex-grow">
-              <SearchBar
-                placeholder="Buscar productos..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
+          {/* Toolbar (alineada en una fila; responsive) */}
+          <div className="mb-4 sm:mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+              {/* Buscar (ocupa todo el espacio disponible) */}
+              <div className="min-w-0">
+                <SearchBar
+                  placeholder="Buscar productos..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-10"
+                />
+              </div>
 
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
-                Excel
-              </ExportExcelButton>
-              <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
-                PDF
-              </ExportPDFButton>
-              <button
-                onClick={handleOpenModal}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                Registrar Nuevo Producto
-              </button>
+              {/* Exportar Excel */}
+              <div className="flex justify-end">
+                <ExportExcelButton
+                  event={() => exportProductsToExcel(filtered)}
+                >
+                  Excel
+                </ExportExcelButton>
+              </div>
+
+              {/* Exportar PDF */}
+              <div className="flex justify-end">
+                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                  PDF
+                </ExportPDFButton>
+              </div>
+
+              {/* Registrar */}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleOpenModal}
+                  className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                >
+                  Registrar Nuevo Producto
+                </button>
+              </div>
             </div>
           </div>
+          {/* ====== LISTAS ====== */}
 
-          {/* Tabla productos */}
+          {/* MÓVIL: lista/accordion con cascada */}
           <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            className="md:hidden"
             variants={tableVariants}
             initial="hidden"
             animate="visible"
           >
-            <table key={currentPage} className="min-w-full">
+            {isLoading || isCatLoading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
+                <Loading inline heightClass="h-28" />
+              </div>
+            ) : pageItems.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+                No se encontraron productos.
+              </div>
+            ) : (
+              <motion.ul
+                className="space-y-3"
+                variants={tableVariants}
+                key={`m-${currentPage}-${filtered.length}-${searchTerm}`}
+                initial="hidden"
+                animate="visible"
+              >
+                {pageItems.map((p, i) => {
+                  const key = p.id ?? i;
+                  const isOpen = expanded.has(key);
+                  const pid = `prod-${key}`;
+                  return (
+                    <motion.li
+                      key={key}
+                      variants={rowVariants} // <- hereda del ul
+                      className="bg-white rounded-xl shadow-sm border border-gray-100"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(key)}
+                        aria-expanded={isOpen}
+                        aria-controls={pid}
+                        className="w-full p-4 text-left"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Imagen */}
+                          <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+                            {p.imagen ? (
+                              <img
+                                src={p.imagen}
+                                alt={p.nombre}
+                                className="object-cover w-full h-full"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">
+                                No img
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={
+                                "text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
+                              title={p.nombre}
+                            >
+                              {p.nombre}
+                            </p>
+                            <p
+                              className={
+                                "text-xs text-gray-500 mt-1 " + ONE_LINE_SAFE
+                              }
+                              title={p.categoria}
+                            >
+                              {p.categoria}
+                            </p>
+                          </div>
+
+                          <ChevronIcon open={isOpen} />
+                        </div>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            id={pid}
+                            initial={{ height: 0, opacity: 0, y: -4 }}
+                            animate={{ height: "auto", opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -2 }}
+                            transition={{
+                              duration: 0.32,
+                              ease: [0.22, 1, 0.36, 1],
+                            }}
+                            className="overflow-hidden border-t border-gray-100"
+                            aria-live="polite"
+                          >
+                            <div className="px-4 py-4 grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Precio
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  ${Number(p.precio || 0).toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Estado
+                                </p>
+                                <span
+                                  className={`inline-flex items-center justify-center px-2.5 py-[3px] text-[11px] font-semibold rounded-full ${
+                                    p.estado === "Activo"
+                                      ? "bg-green-50 text-green-700"
+                                      : "bg-red-100 text-red-600"
+                                  }`}
+                                >
+                                  {p.estado}
+                                </span>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Descripción
+                                </p>
+                                <p
+                                  className={
+                                    "text-sm text-gray-800 " + LONG_TEXT_CLS
+                                  }
+                                >
+                                  {p.descripcion || "—"}
+                                </p>
+                              </div>
+
+                              <div className="col-span-2 pt-1 flex items-center gap-2">
+                                <ViewButton
+                                  event={() =>
+                                    navigate(`/app/products/${p.id}/detalles`, {
+                                      state: { product: p.raw || p },
+                                    })
+                                  }
+                                />
+                                <EditButton event={() => handleEditClick(p)} />
+                                <DeleteButton
+                                  event={() => handleDeleteClick(p)}
+                                />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
+                  );
+                })}
+              </motion.ul>
+            )}
+          </motion.div>
+
+          {/* DESKTOP: tabla con cascada real (tbody → filas) */}
+          <motion.div
+            className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <table className="w-full table-auto">
               <thead>
                 <tr className="text-left text-xs text-gray-500 uppercase">
-                  <th className="px-6 py-4">Imagen</th>
-                  <th className="px-6 py-4">Nombre</th>
-                  <th className="px-6 py-4">Categoría</th>
-                  <th className="px-6 py-4">Stock Actual</th>
-                  <th className="px-6 py-4">Stock Mínimo</th>
-                  <th className="px-6 py-4">Stock Máximo</th>
-                  <th className="px-6 py-4">Precio</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4">Imagen</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4">Nombre</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 hidden lg:table-cell">
+                    Categoría
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
+
+              {/* IMPORTANTE: el stagger vive en el tbody y las filas solo heredan */}
               <motion.tbody
+                key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
                 className="divide-y divide-gray-100"
                 variants={tableVariants}
+                initial="hidden"
+                animate="visible"
               >
-                {pageItems.length === 0 ? (
+                {isLoading || isCatLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12">
+                      <Loading inline heightClass="h-28" />
+                    </td>
+                  </tr>
+                ) : pageItems.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={6}
                       className="px-6 py-8 text-center text-gray-400"
                     >
                       No se encontraron productos.
@@ -580,10 +638,11 @@ export default function IndexProducts() {
                   pageItems.map((p, i) => (
                     <motion.tr
                       key={p.id + "-" + i}
-                      className="hover:bg-gray-50"
-                      variants={rowVariants}
+                      variants={rowVariants} // <- hereda de tbody
+                      className="hover:bg-gray-50 align-top"
+                      layout
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-4 lg:px-6 py-4">
                         <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
                           {p.imagen ? (
                             <img
@@ -598,25 +657,28 @@ export default function IndexProducts() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {p.nombre}
+
+                      <td className="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900">
+                        <div className="min-w-0">
+                          <div className={ONE_LINE_SAFE} title={p.nombre}>
+                            {p.nombre}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.categoria}
+
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">
+                        <div className="min-w-0">
+                          <div className={ONE_LINE_SAFE} title={p.categoria}>
+                            {p.categoria}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockActual}
+
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                        ${Number(p.precio || 0).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockMin}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {p.stockMax}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        ${p.precio.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
+
+                      <td className="px-4 lg:px-6 py-4">
                         <span
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full ${
                             p.estado === "Activo"
@@ -627,16 +689,16 @@ export default function IndexProducts() {
                           {p.estado}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+
+                      <td className="px-4 lg:px-6 py-4 text-right">
                         <div className="inline-flex items-center gap-2">
                           <ViewButton
                             event={() =>
                               navigate(`/app/products/${p.id}/detalles`, {
-                                state: { product: p },
+                                state: { product: p.raw || p },
                               })
                             }
                           />
-
                           <EditButton event={() => handleEditClick(p)} />
                           <DeleteButton event={() => handleDeleteClick(p)} />
                         </div>
@@ -649,15 +711,18 @@ export default function IndexProducts() {
           </motion.div>
 
           {/* Paginador */}
-          <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
-            goToPage={goToPage}
-          />
+          <div className="mt-4 sm:mt-6">
+            <Paginator
+              currentPage={currentPage}
+              perPage={perPage}
+              totalPages={totalPages}
+              filteredLength={filtered.length}
+              goToPage={goToPage}
+            />
+          </div>
         </div>
       </div>
+
       {/* Delete Modal */}
       <ProductDeleteModal
         isOpen={isDeleteModalOpen}
@@ -666,13 +731,14 @@ export default function IndexProducts() {
         product={selectedProductToDelete}
       />
 
+      {/* Edit Modal */}
       <ProductEditModal
         isModalOpen={isEditModalOpen}
         setIsModalOpen={setIsEditModalOpen}
         form={selectedProduct}
         setForm={setSelectedProduct}
         handleImages={(e) => {
-          const files = Array.from(e.target.files);
+          const files = Array.from(e.target.files || []);
           setSelectedProduct((prev) => ({
             ...prev,
             imagenes: [...prev.imagenes, ...files].slice(0, 6),
@@ -691,30 +757,19 @@ export default function IndexProducts() {
         setCategoriaOpen={setCategoriaOpen}
         estadoRef={estadoRef}
         categoriaRef={categoriaRef}
-        estadoOptions={estadoOptions}
+        estadoOptions={[
+          { value: "Activo", label: "Activo" },
+          { value: "Inactivo", label: "Inactivo" },
+        ]}
         categories={categories}
-        listVariants={listVariants}
-        itemVariants={itemVariants}
+        listVariants={tableVariants}
+        itemVariants={rowVariants}
       />
 
-      {/* Modal externo de registro */}
+      {/* Modal de registro */}
       <ProductRegisterModal
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
-        form={form}
-        setForm={setForm}
-        handleChange={handleChange}
-        handleSubmit={handleSubmit}
-        handleImages={handleImages}
-        removeImageAt={removeImageAt}
-        estadoOpen={estadoOpen}
-        setEstadoOpen={setEstadoOpen}
-        categoriaOpen={categoriaOpen}
-        setCategoriaOpen={setCategoriaOpen}
-        estadoRef={estadoRef}
-        categoriaRef={categoriaRef}
-        categories={categories}
-        estadoOptions={estadoOptions}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </div>
   );
