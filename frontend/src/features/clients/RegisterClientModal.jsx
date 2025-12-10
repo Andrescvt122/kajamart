@@ -5,6 +5,8 @@ import {
   showErrorAlert,
   showWarningAlert,
 } from "../../shared/components/alerts";
+import { useClientCreate } from "../../shared/components/hooks/clients/useClientCreate";
+import { useClientUpdate } from "../../shared/components/hooks/clients/useUpdateClient";
 
 export default function RegisterClientModal({
   isModalOpen,
@@ -12,10 +14,10 @@ export default function RegisterClientModal({
   form,
   setForm,
   tipoOptions,
-  addClient,
   onClose,
   title,
-  editingClientId,
+  editingClientId, // null = crear, número = editar, 0 = Cliente de Caja
+  onSuccess, // callback: IndexClients hace refetch + cierra modal
 }) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -25,6 +27,18 @@ export default function RegisterClientModal({
   const docRef = useRef();
   const correoRef = useRef();
   const telefonoRef = useRef();
+
+  const {
+    createClient,
+    loading: createLoading,
+    error: createError,
+  } = useClientCreate();
+
+  const {
+    updateClient,
+    loading: updateLoading,
+    error: updateError,
+  } = useClientUpdate();
 
   // Bloquear scroll cuando el modal está abierto
   useEffect(() => {
@@ -40,6 +54,8 @@ export default function RegisterClientModal({
 
   // Validaciones en tiempo real
   useEffect(() => {
+    if (editingClientId === 0) return;
+
     const newErrors = {};
     if (touched.nombre) {
       if (!form.nombre.trim()) newErrors.nombre = "Nombre es requerido";
@@ -64,17 +80,23 @@ export default function RegisterClientModal({
       newErrors.tipoDocumento = "Seleccione un tipo de documento";
     }
     setErrors(newErrors);
-  }, [form, touched]);
+  }, [form, touched, editingClientId]);
 
-  // Registrar cliente
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Cliente de Caja no se edita
+    if (editingClientId === 0) {
+      showWarningAlert("No se puede editar el Cliente de Caja ⚠️");
+      return;
+    }
 
     const mandatoryFields = ["nombre", "numeroDocumento", "tipoDocumento"];
     let missing = {};
     mandatoryFields.forEach((f) => {
-      if (!form[f] || form[f].toString().trim() === "")
+      if (!form[f] || form[f].toString().trim() === "") {
         missing[f] = "Campo obligatorio";
+      }
     });
 
     if (Object.keys(errors).length > 0 || Object.keys(missing).length > 0) {
@@ -83,19 +105,51 @@ export default function RegisterClientModal({
       return;
     }
 
-   try {
-      addClient(form);
-      setTouched({});
-      setIsModalOpen(false);
+    try {
+      let result = null;
 
+      // 👇 Si hay editingClientId → actualizar, si no → crear
       if (editingClientId) {
-        showSuccessAlert("Cliente actualizado correctamente 🎉");
+        result = await updateClient(editingClientId, { ...form });
       } else {
-        showSuccessAlert("Cliente registrado correctamente 🎉");
+        result = await createClient({ ...form });
       }
 
+      if (result) {
+        setTouched({});
+        setErrors({});
+
+        // Resetear formulario solo cuando es creación nueva
+        if (!editingClientId) {
+          setForm({
+            nombre: "",
+            tipoDocumento: "",
+            numeroDocumento: "",
+            correo: "",
+            telefono: "",
+            activo: true,
+          });
+        }
+
+        showSuccessAlert(
+          editingClientId
+            ? "Cliente actualizado correctamente 🎉"
+            : "Cliente registrado correctamente 🎉"
+        );
+
+        if (typeof onSuccess === "function") {
+          onSuccess(); // IndexClients: refetch + cerrar modal
+        } else {
+          setIsModalOpen(false);
+        }
+      }
     } catch (error) {
-      showErrorAlert("No se pudo guardar el cliente ❌");
+      console.error(error);
+      showErrorAlert(
+        editingClientId
+          ? "No se pudo actualizar el cliente ❌"
+          : "No se pudo guardar el cliente ❌"
+      );
     }
   };
 
@@ -109,6 +163,43 @@ export default function RegisterClientModal({
   };
 
   if (!isModalOpen) return null;
+
+  // Modal especial Cliente de Caja
+  if (editingClientId === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-md"
+          onClick={() => setIsModalOpen(false)}
+        ></div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.85 }}
+          className="relative bg-white text-black rounded-xl shadow-lg p-6 w-full max-w-md z-10"
+        >
+          <h2 className="text-2xl font-semibold mb-4 text-center">
+            Cliente de Caja
+          </h2>
+          <p className="text-center text-gray-600 mb-6">
+            Este cliente es especial y no se puede editar.
+          </p>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+            >
+              Cerrar
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const isLoading = createLoading || updateLoading;
+  const globalError = createError || updateError;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -125,7 +216,11 @@ export default function RegisterClientModal({
         exit={{ opacity: 0, scale: 0.85 }}
         className="relative bg-white text-black rounded-xl shadow-lg p-6 w-full max-w-2xl z-10"
       >
-          <h2 className="text-2xl font-semibold mb-4">{title}</h2>
+        <h2 className="text-2xl font-semibold mb-4">{title}</h2>
+
+        {globalError && (
+          <p className="mb-4 text-red-600 text-sm">{globalError}</p>
+        )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
           {/* Nombre */}
@@ -144,6 +239,7 @@ export default function RegisterClientModal({
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black ${
                 errors.nombre ? "border-red-500" : "border-gray-300"
               }`}
+              disabled={isLoading}
             />
             {errors.nombre && (
               <p className="text-red-600 text-sm mt-1">{errors.nombre}</p>
@@ -166,6 +262,7 @@ export default function RegisterClientModal({
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black appearance-none ${
                 errors.tipoDocumento ? "border-red-500" : "border-gray-300"
               }`}
+              disabled={isLoading}
             >
               <option value="">Seleccione</option>
               {tipoOptions.map((opt) => (
@@ -202,6 +299,7 @@ export default function RegisterClientModal({
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black ${
                 errors.numeroDocumento ? "border-red-500" : "border-gray-300"
               }`}
+              disabled={isLoading}
             />
             {errors.numeroDocumento && (
               <p className="text-red-600 text-sm mt-1">
@@ -210,7 +308,7 @@ export default function RegisterClientModal({
             )}
           </div>
 
-          {/* Correo */}
+          {/* Correo (opcional) */}
           <div className="col-span-2 md:col-span-1">
             <label className="block mb-1 font-medium">Correo Electrónico</label>
             <input
@@ -224,13 +322,14 @@ export default function RegisterClientModal({
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black ${
                 errors.correo ? "border-red-500" : "border-gray-300"
               }`}
+              disabled={isLoading}
             />
             {errors.correo && (
               <p className="text-red-600 text-sm mt-1">{errors.correo}</p>
             )}
           </div>
 
-          {/* Teléfono */}
+          {/* Teléfono (opcional) */}
           <div className="col-span-2 md:col-span-1">
             <label className="block mb-1 font-medium">Número de Teléfono</label>
             <input
@@ -249,6 +348,7 @@ export default function RegisterClientModal({
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black ${
                 errors.telefono ? "border-red-500" : "border-gray-300"
               }`}
+              disabled={isLoading}
             />
             {errors.telefono && (
               <p className="text-red-600 text-sm mt-1">{errors.telefono}</p>
@@ -264,6 +364,7 @@ export default function RegisterClientModal({
               className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ${
                 form.activo ? "bg-green-500" : "bg-gray-300"
               }`}
+              disabled={isLoading}
             >
               <div
                 className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${
@@ -275,23 +376,26 @@ export default function RegisterClientModal({
 
           {/* Botones */}
           <div className="flex justify-end gap-2 col-span-2 mt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-          >
-            Cancelar
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              disabled={isLoading}
+            >
+              Cancelar
+            </button>
 
-          {/* Registrar / Guardar */}
-          <button
-            type="submit"
-            className={`px-4 py-2 rounded text-white ${
-              editingClientId ? "bg-green-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"
-            }`}
-          >
-            {editingClientId ? "Guardar Cambios" : "Registrar Cliente"}
-          </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700"
+              disabled={isLoading}
+            >
+              {isLoading
+                ? "Guardando..."
+                : editingClientId
+                ? "Actualizar Cliente"
+                : "Registrar Cliente"}
+            </button>
           </div>
         </form>
       </motion.div>

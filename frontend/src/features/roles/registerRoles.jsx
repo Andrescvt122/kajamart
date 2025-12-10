@@ -1,181 +1,239 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
+import { showConfirmAlert, showSuccessAlert } from "../../shared/components/alerts.jsx";
+import { useCreateRole } from "../../shared/components/hooks/roles/useCreateRole.js";
 
-export default function RegisterRoles({
-  isOpen,
-  onClose,
-  form,
-  setForm,
-  handleChange,
-  handlePermisoChange,
-  handleSubmit,
-  permisosAgrupados,
-}) {
-  // Seleccionar/Deseleccionar todos
-  const toggleSelectAll = () => {
-    const allSelected = Object.entries(permisosAgrupados).every(([modulo, permisos]) =>
-      permisos.every((permiso) => form.permisos[`${modulo}-${permiso}`])
-    );
+export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRoleCreated }) {
+  const { createRole, loading } = useCreateRole();
 
-    const newPermisos = {};
-    Object.entries(permisosAgrupados).forEach(([modulo, permisos]) => {
-      permisos.forEach((permiso) => {
-        const key = `${modulo}-${permiso}`;
-        newPermisos[key] = !allSelected;
+  const [form, setForm] = useState({
+    nombreRol: "",
+    descripcion: "",
+    estado: true,
+    permisos: {},
+  });
+
+  // 🧩 Normalización + inicialización de permisos
+  useEffect(() => {
+    if (permisosAgrupados && Object.keys(permisosAgrupados).length > 0) {
+      console.log("🧩 permisosAgrupados recibidos del backend:", permisosAgrupados);
+
+      const inicial = {};
+      Object.entries(permisosAgrupados).forEach(([modulo, permisos]) => {
+        // Normalizamos: si vienen strings ("Crear", "Leer"), los convertimos a objetos con ID temporal
+        const permisosNormalizados = permisos.map((p, index) => {
+          if (typeof p === "string") {
+            console.warn(`⚠️ El permiso en "${modulo}" vino como string:`, p);
+            return { permiso_id: index + 1, permiso_nombre: p };
+          }
+          // Si ya viene como objeto, lo usamos directamente
+          return {
+            permiso_id: p.permiso_id ?? p.id ?? index + 1,
+            permiso_nombre: p.permiso_nombre ?? p.nombre ?? "Permiso sin nombre",
+          };
+        });
+
+        permisosNormalizados.forEach((p) => {
+          const key = `${modulo}-${p.permiso_id}`;
+          inicial[key] = false;
+        });
       });
-    });
 
+      console.log("🧱 permisos inicializados en el form (normalizados):", inicial);
+      setForm((prev) => ({ ...prev, permisos: inicial }));
+    }
+  }, [permisosAgrupados]);
+
+  // 🧩 Manejadores de cambios
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePermisoChange = (key) => {
     setForm((prev) => ({
       ...prev,
-      permisos: { ...prev.permisos, ...newPermisos },
+      permisos: { ...prev.permisos, [key]: !prev.permisos[key] },
     }));
   };
 
-  // Seleccionar/Deseleccionar todos los permisos de un módulo
-  const toggleSelectModule = (modulo, permisos) => {
-    const allSelected = permisos.every(
-      (permiso) => form.permisos[`${modulo}-${permiso}`]
-    );
-
+  const toggleSelectAll = () => {
+    const allSelected = Object.values(form.permisos).every((v) => v);
     const newPermisos = {};
-    permisos.forEach((permiso) => {
-      const key = `${modulo}-${permiso}`;
+    Object.keys(form.permisos).forEach((key) => {
       newPermisos[key] = !allSelected;
     });
+    setForm((prev) => ({ ...prev, permisos: newPermisos }));
+  };
 
-    setForm((prev) => ({
-      ...prev,
-      permisos: { ...prev.permisos, ...newPermisos },
-    }));
+  const toggleSelectModule = (modulo, permisos) => {
+    const allSelected = permisos.every((p, i) => form.permisos[`${modulo}-${p.permiso_id ?? i + 1}`]);
+    const newPermisos = {};
+    permisos.forEach((p, i) => {
+      const key = `${modulo}-${p.permiso_id ?? i + 1}`;
+      newPermisos[key] = !allSelected;
+    });
+    setForm((prev) => ({ ...prev, permisos: { ...prev.permisos, ...newPermisos } }));
+  };
+
+  const handleEstadoChange = () => {
+    const nuevoEstado = !form.estado;
+    const message = `¿Estás seguro de que quieres cambiar el estado a ${nuevoEstado ? "'Activo'" : "'Inactivo'"}?`;
+    showConfirmAlert(message).then((confirmed) => {
+      if (confirmed) setForm((prev) => ({ ...prev, estado: nuevoEstado }));
+    });
+  };
+
+  // 🟢 Enviar formulario
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const permisosSeleccionados = Object.entries(form.permisos)
+      .filter(([_, checked]) => checked)
+      .map(([key]) => parseInt(key.split("-")[1], 10))
+      .filter((id) => !isNaN(id));
+
+    console.log("✅ Permisos seleccionados:", permisosSeleccionados);
+
+    const nuevoRol = {
+      rol_nombre: form.nombreRol,
+      descripcion: form.descripcion,
+      estado_rol: form.estado,
+      permisosIds: permisosSeleccionados,
+    };
+
+    console.log("🚀 Payload final enviado al backend:", nuevoRol);
+
+    const creado = await createRole(nuevoRol);
+    if (creado) {
+      showSuccessAlert("Rol creado correctamente ✅");
+      // 💡 FIX: La respuesta de la API (`creado`) puede no tener la estructura completa
+      // que la tabla necesita. Construimos el objeto con los datos del formulario.
+      const rolParaUI = {
+        rol_id: creado.rol_id, // Usamos el ID devuelto por el backend
+        rol_nombre: form.nombreRol,
+        descripcion: form.descripcion,
+        estado_rol: form.estado,
+        // 💡 FIX: Añadir la propiedad de permisos para que la estructura del objeto sea consistente
+        rol_permisos: creado.rol_permisos ||[],
+      };
+      onRoleCreated(rolParaUI); // 🚀 Notifica al padre con el objeto completo para la UI
+
+      // 💡 FIX: Reiniciar el formulario a su estado inicial después de una creación exitosa.
+      setForm({
+        nombreRol: "",
+        descripcion: "",
+        estado: true,
+        permisos: {},
+      });
+    }
+  };
+
+  // 🟢 Animaciones Framer Motion
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.18 } },
+    exit: { opacity: 0, transition: { duration: 0.14 } },
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 25 } },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.14 } },
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Fondo */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={onClose}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+
+          {/* Modal principal */}
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -30 }}
-              transition={{ type: "spring", stiffness: 260, damping: 22 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative pointer-events-auto"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative pointer-events-auto max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Header */}
               <div className="flex justify-between items-center px-6 py-4 border-b">
                 <h2 className="text-xl font-bold text-gray-800">Crear Rol</h2>
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition"
-                >
-                  ✕
+                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <motion.form
-                onSubmit={handleSubmit}
-                className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scroll"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 },
-                  },
-                }}
-              >
+              {/* Formulario */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* Nombre y descripción */}
-                <motion.div className="space-y-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre del rol
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del rol</label>
                     <input
                       type="text"
                       name="nombreRol"
                       value={form.nombreRol}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-300 focus:outline-none"
+                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
                       placeholder="Nombre del rol"
                       required
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Descripción
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                     <textarea
                       name="descripcion"
                       value={form.descripcion}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-300 focus:outline-none"
+                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
                       rows={3}
                       placeholder="Descripción del rol"
                       required
                     />
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Estado */}
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700">
-                    Estado del Rol
-                  </span>
-                  <span
-                    className={`text-sm ${
-                      form.estado ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
+                  <span className="text-sm font-medium text-gray-700">Estado del Rol</span>
+                  <span className={`text-sm ${form.estado ? "text-green-600" : "text-red-600"}`}>
                     {form.estado ? "Activo" : "Inactivo"}
                   </span>
                   <label className="inline-flex relative items-center cursor-pointer ml-auto">
-                    <input
-                      type="checkbox"
-                      checked={form.estado}
-                      onChange={() =>
-                        setForm((prev) => ({ ...prev, estado: !prev.estado }))
-                      }
-                      className="sr-only peer"
-                    />
+                    <input type="checkbox" checked={form.estado} onChange={handleEstadoChange} className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-green-500 transition"></div>
                     <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
                   </label>
                 </div>
 
-                {/* Permisos agrupados */}
+                {/* Permisos */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Asignar permisos y privilegios
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-800">Asignar permisos y privilegios</h3>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        onChange={toggleSelectAll}
-                        checked={Object.entries(permisosAgrupados).every(
-                          ([modulo, permisos]) =>
-                            permisos.every(
-                              (permiso) => form.permisos[`${modulo}-${permiso}`]
-                            )
-                        )}
-                        className="custom-checkbox"
-                      />
-                      <span className="text-green-700 text-sm">
-                        Seleccionar todos
-                      </span>
+                      <input type="checkbox" onChange={toggleSelectAll} checked={Object.values(form.permisos).every((v) => v)} />
+                      <span className="text-green-700 text-sm">Seleccionar todos</span>
                     </label>
                   </div>
+
                   <div className="overflow-hidden rounded-xl border max-h-64 overflow-y-auto custom-scroll">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-green-50 text-gray-700">
+                      <thead className="bg-green-100 text-gray-700">
                         <tr>
                           <th className="px-4 py-3 text-left">Módulo</th>
                           <th className="px-4 py-3 text-left">Permisos/Privilegios</th>
@@ -185,22 +243,20 @@ export default function RegisterRoles({
                       <tbody className="divide-y">
                         {Object.entries(permisosAgrupados).map(([modulo, permisos], i) => (
                           <tr key={i}>
-                            <td className="px-4 py-3 font-medium text-gray-900">
-                              {modulo}
-                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{modulo}</td>
                             <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-3">
-                                {permisos.map((permiso, j) => {
-                                  const key = `${modulo}-${permiso}`;
+                              <div className="flex flex-wrap gap-4">
+                                {permisos.map((p, index) => {
+                                  const permiso = typeof p === "string" ? { permiso_id: index + 1, permiso_nombre: p } : p;
+                                  const key = `${modulo}-${permiso.permiso_id}`;
                                   return (
-                                    <label key={j} className="flex items-center gap-2">
+                                    <label key={key} className="inline-flex items-center gap-2">
                                       <input
                                         type="checkbox"
                                         checked={form.permisos[key] || false}
-                                        onChange={() => handlePermisoChange(modulo, permiso)}
-                                        className="custom-checkbox"
+                                        onChange={() => handlePermisoChange(key)}
                                       />
-                                      <span className="text-green-600">{permiso}</span>
+                                      <span className="text-green-600 font-medium">{permiso.permiso_nombre}</span>
                                     </label>
                                   );
                                 })}
@@ -211,9 +267,8 @@ export default function RegisterRoles({
                                 type="checkbox"
                                 onChange={() => toggleSelectModule(modulo, permisos)}
                                 checked={permisos.every(
-                                  (permiso) => form.permisos[`${modulo}-${permiso}`]
+                                  (p, index) => form.permisos[`${modulo}-${p.permiso_id ?? index + 1}`]
                                 )}
-                                className="custom-checkbox"
                               />
                             </td>
                           </tr>
@@ -224,17 +279,25 @@ export default function RegisterRoles({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end pt-4 border-t">
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-sm transition"
+                  >
+                    Cancelar
+                  </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition"
+                    disabled={loading}
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition disabled:opacity-50"
                   >
-                    Crear Rol
+                    {loading ? "Creando..." : "Crear rol"}
                   </button>
                 </div>
-              </motion.form>
+              </form>
             </motion.div>
-          </div>
+          </motion.div>
         </>
       )}
     </AnimatePresence>

@@ -1,24 +1,26 @@
-// clients/helpers/exportToXls.js
 import * as XLSX from "xlsx";
 
-export const exportToXls = (data, fileName = "Clientes.xlsx") => {
-  if (!data || !data.length) return;
+export const exportToXls = (clients = []) => {
+  console.log("🔹 exportToXls llamado con", clients.length, "clientes");
 
-  // Formatear datos: reemplazar campos vacíos por "N/A"
-  const formatted = data.map((c) => ({
-    ID: c.id,
-    Nombre: c.nombre,
-    "Tipo Documento": c.tipoDocumento || "N/A",
-    "Número Documento": c.numeroDocumento || "N/A",
+  if (!Array.isArray(clients) || clients.length === 0) {
+    alert("No hay clientes para exportar");
+    return;
+  }
+
+  const rows = clients.map((c, index) => ({
+    "#": index + 1,
+    ID: c.id === 0 ? "C000" : c.id,
+    Nombre: c.nombre || "",
+    Documento: `${c.tipoDocumento || ""} ${c.numeroDocumento || ""}`.trim(),
     Correo: c.correo?.trim() || "N/A",
     Teléfono: c.telefono?.trim() || "N/A",
-    Estado: c.estado,
-    Fecha: c.fecha,
+    Estado: c.activo ? "Activo" : "Inactivo",
   }));
 
-  const ws = XLSX.utils.json_to_sheet(formatted);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
 
-  XLSX.writeFile(wb, fileName);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+  XLSX.writeFile(workbook, "clientes.xlsx");
 };
