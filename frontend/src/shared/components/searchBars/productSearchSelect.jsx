@@ -153,7 +153,7 @@ const ProductSearchSelect = ({
             top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
-            zIndex: 9999, // por encima del modal
+            zIndex: 50, // debajo del modal que tiene z-[55]
           }}
           className="bg-white border border-gray-200 rounded-xl shadow-lg max-h-80 overflow-y-auto"
           initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -240,13 +240,15 @@ const ProductSearchSelect = ({
               );
             })
           ) : (
-            <button
-              type="button"
-              onClick={() => onCreateProduct?.(searchTerm)}
-              className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
-            >
-              Crear producto
-            </button>
+            <div className="flex justify-center p-4">
+              <button
+                type="button"
+                onClick={() => onCreateProduct?.(searchTerm)}
+                className="px-4 py-2 rounded-lg bg-green-100 text-green-700 text-sm font-semibold hover:bg-green-200 transition"
+              >
+                Crear producto
+              </button>
+            </div>
           )}
         </motion.div>
       )}
