@@ -119,7 +119,7 @@ export const generateProductLowsPDF = async (lows = []) => {
       "Motivo",
       "Responsable",
     ];
-    const widths = [20, 25, 40, 25, 40, 20];
+    const widths = [25, 25, 35, 25, 35, 25];
 
     doc.setFillColor(...lightMint);
     doc.rect(20, y, 170, 8, "F");
