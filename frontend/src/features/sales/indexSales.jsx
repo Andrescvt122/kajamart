@@ -1,5 +1,5 @@
 // src/features/sales/indexSales.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
@@ -57,20 +57,27 @@ export default function IndexSales() {
   const [updatingId, setUpdatingId] = useState(null);
 
   const normalizedSales = useMemo(() => {
-    return (sales || []).map((v) => ({
-      raw: v,
-      id_ui: v.id_venta ?? v.id ?? "",
-      fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
-      cliente_ui:
+    return (sales || []).map((v) => {
+      const idVenta = v.id_venta ?? v.id ?? "";
+      const idCliente = v?.id_cliente ?? null;
+
+      const clienteNombre =
         v?.clientes?.nombre_cliente ??
         v?.clientes?.nombre ??
         v?.cliente ??
-        "",
-      medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
-      estado_ui: v.estado_venta ?? v.estado ?? "",
-      total_ui: Number(v.total || 0),
-      productos_ui: v.detalle_venta ?? v.productos ?? [],
-    }));
+        (idCliente ? `Cliente #${idCliente}` : "Cliente de Caja");
+
+      return {
+        raw: v,
+        id_ui: String(idVenta),
+        fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
+        cliente_ui: clienteNombre,
+        medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
+        estado_ui: v.estado_venta ?? v.estado ?? "",
+        total_ui: Number(v.total || 0),
+        productos_ui: v.detalle_venta ?? v.productos ?? [],
+      };
+    });
   }, [sales]);
 
   const filtered = useMemo(() => {
@@ -87,6 +94,11 @@ export default function IndexSales() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
 
+  // ✅ evita página inválida
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(1);
+  }, [currentPage, totalPages]);
+
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
@@ -97,13 +109,14 @@ export default function IndexSales() {
     setCurrentPage(p);
   };
 
+  // ✅ IMPORTANTE: NO uses opacity:0 en el contenedor (causa filas invisibles)
   const tableVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.08 } },
   };
 
   const rowVariants = {
-    hidden: { opacity: 0, y: 12 },
+    hidden: { opacity: 0, y: 10 },
     visible: { opacity: 1, y: 0 },
   };
 
@@ -144,7 +157,6 @@ export default function IndexSales() {
     });
   };
 
-  // ✅ ANULAR (con SweetAlert2) + maneja error por tiempo excedido
   const handleAnnulSale = async (event, saleRaw) => {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -209,14 +221,14 @@ export default function IndexSales() {
         await Swal.fire({
           icon: "info",
           title: "No se puede anular",
-          text: `Ya han pasado ${diffMinutes ?? "varios"} minutos desde esta venta. Solo se puede anular dentro de 30 minutos.`,
+          text: `Ya han pasado ${
+            diffMinutes ?? "varios"
+          } minutos desde esta venta. Solo se puede anular dentro de 30 minutos.`,
           confirmButtonColor: "#16a34a",
         });
       } else {
         const msg =
-          e?.response?.data?.message ||
-          e?.message ||
-          "Error actualizando estado";
+          e?.response?.data?.message || e?.message || "Error actualizando estado";
         await Swal.fire({
           icon: "error",
           title: "No se pudo anular",
@@ -277,6 +289,7 @@ export default function IndexSales() {
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
             <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
+
             <button
               onClick={() => navigate("/app/sales/register")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -286,12 +299,7 @@ export default function IndexSales() {
           </div>
         </div>
 
-        <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-          variants={tableVariants}
-          initial="hidden"
-          animate="visible"
-        >
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
@@ -305,7 +313,12 @@ export default function IndexSales() {
               </tr>
             </thead>
 
-            <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+            {/* ✅ tbody animado explícitamente (evita quedar invisible) */}
+            <motion.tbody
+              className="divide-y divide-gray-100"
+              variants={tableVariants}
+              animate="visible"
+            >
               {pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
@@ -320,21 +333,23 @@ export default function IndexSales() {
 
                   return (
                     <motion.tr
-                      key={v.id_ui + "-" + i}
+                      key={`${v.id_ui}-${i}`}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
                       <td className="px-6 py-4 text-sm text-gray-600">{v.id_ui}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{v.fecha_ui}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {v.cliente_ui || "Cliente de Caja"}
+                        {v.cliente_ui}
+                        
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {formatMoney(v.total_ui)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{v.medioPago_ui}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {v.medioPago_ui}
+                      </td>
 
-                      {/* ✅ onClick con event */}
                       <td className="px-6 py-4">
                         <button
                           type="button"
@@ -349,7 +364,11 @@ export default function IndexSales() {
                                 ? "bg-red-100 text-red-700 hover:bg-red-200"
                                 : "bg-green-50 text-green-700 hover:bg-green-100"
                             }
-                            ${isUpdating || isAnnulled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                            ${
+                              isUpdating || isAnnulled
+                                ? "opacity-60 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
                         >
                           {isUpdating ? "Actualizando..." : v.estado_ui}
                         </button>
@@ -367,7 +386,7 @@ export default function IndexSales() {
               )}
             </motion.tbody>
           </table>
-        </motion.div>
+        </div>
 
         <Paginator
           currentPage={currentPage}

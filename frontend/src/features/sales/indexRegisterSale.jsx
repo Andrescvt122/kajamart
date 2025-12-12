@@ -75,6 +75,23 @@ export default function IndexRegisterSale() {
 
   const safeClienteQuery = (clienteQuery ?? "").trim();
 
+  // ✅ NUEVO: validar si un cliente está inactivo (Caja siempre permitido)
+  const isClienteInactivo = (cliente) => {
+    if (!cliente) return false;
+
+    // Cliente de Caja siempre permitido
+    if (cliente.id === CLIENTE_CAJA_ID) return false;
+
+    // Soporta ambos formatos (activo boolean o estado texto)
+    if (typeof cliente.activo === "boolean") return cliente.activo === false;
+
+    if (cliente.estado) {
+      return String(cliente.estado).toLowerCase() === "inactivo";
+    }
+
+    return false;
+  };
+
   const suggestionsClientes = useMemo(() => {
     if (!safeClienteQuery) return [];
     const q = normalize(safeClienteQuery);
@@ -125,6 +142,7 @@ export default function IndexRegisterSale() {
     const fixed = stored.map((c) =>
       c.id === CLIENTE_CAJA_ID ? { ...c, activo: true, estado: "Activo" } : c
     );
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fixed));
     setClientes(fixed);
 
@@ -199,7 +217,17 @@ export default function IndexRegisterSale() {
     if (trimmed.length >= 2) searchClient(trimmed);
   };
 
+  // ✅ MODIFICADO: bloquear selección si el cliente está inactivo
   const handleSelectCliente = (c) => {
+    if (isClienteInactivo(c)) {
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ No se puede usar este cliente porque está INACTIVO",
+      });
+      return;
+    }
+
+    setMensaje(null);
     setClienteSeleccionado(c);
     setClienteQuery(c.nombre || c.nombre_cliente || "");
     setShowDropdownCliente(false);
@@ -220,6 +248,16 @@ export default function IndexRegisterSale() {
     );
 
     if (byName) {
+      // ✅ MODIFICADO: si al perder foco queda un inactivo, no lo deja seleccionado
+      if (isClienteInactivo(byName)) {
+        setMensaje({
+          tipo: "error",
+          texto: "⚠️ No se puede usar este cliente porque está INACTIVO",
+        });
+        setClienteSeleccionado(null);
+        return;
+      }
+
       setClienteSeleccionado(byName);
       setClienteQuery(byName.nombre || byName.nombre_cliente || "");
       return;
@@ -258,20 +296,7 @@ export default function IndexRegisterSale() {
   };
 
   const handleSelectProducto = (prod) => {
-    /**
-     * IMPORTANTÍSIMO:
-     * En tu BD el detalle_venta guarda id_detalle_producto (int).
-     * En lo que llega desde el buscador, normalmente ese id está en:
-     * - prod.id_detalle_producto (si viene de detalle_productos)
-     * - o prod.id
-     * - o prod.codigo_barras_producto_compra (si fuera código de barras, pero tu DB espera int)
-     *
-     * Ajuste: priorizamos id_detalle_producto / id.
-     */
-    const idDetalleProducto =
-      prod.id_detalle_producto ??
-      prod.id ??
-      null;
+    const idDetalleProducto = prod.id_detalle_producto ?? prod.id ?? null;
 
     const nombre =
       prod.productos?.nombre ||
@@ -289,8 +314,7 @@ export default function IndexRegisterSale() {
     );
 
     const producto = {
-      // lo que tu estado usa
-      productoId: idDetalleProducto, // <- ESTE es el que debes mandar en POST como id_detalle_producto
+      productoId: idDetalleProducto,
       nombre,
       precioUnitario,
     };
@@ -350,33 +374,42 @@ export default function IndexRegisterSale() {
       return;
     }
 
+    // ✅ NUEVO: bloqueo si el cliente seleccionado está inactivo
+    if (isClienteInactivo(clienteSeleccionado)) {
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ No se puede registrar la venta con un cliente INACTIVO",
+      });
+      return;
+    }
+
     const clienteCaja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
     const cliente = clienteSeleccionado || clienteCaja;
 
-    // ✅ id_cliente real (INT) cuando viene de BD
     const clienteIdReal =
-      cliente?.id_cliente ?? (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ?? null;
+      cliente?.id_cliente ??
+      (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ??
+      null;
 
-    // ✅ Payload final que sí te sirve con tu estructura actual
     const payload = {
-      // tu backend valida fecha_venta o fecha. Mandamos fecha_venta para no fallar.
-      fecha_venta: new Date().toISOString(), // ISO
-      // y también fecha por si la usas
+      fecha_venta: new Date().toISOString(),
       fecha: new Date().toISOString().slice(0, 10),
 
-      clienteId: clienteIdReal, // backend lo mapeará a ventas.id_cliente (int)
+      clienteId: clienteIdReal,
       cliente: cliente?.nombre ?? cliente?.nombre_cliente ?? "Cliente de Caja",
 
       medioPago: metodoPago === "efectivo" ? "Efectivo" : "Transferencia",
       estado: "Completada",
 
       productos: productos.map((p) => ({
-        // backend: detalle_venta.id_detalle_producto (int) => mandamos el productoId del estado
         productoId: p.productoId ?? null,
-        nombre: p.nombre ?? "Sin nombre", // informativo, no lo guardes si tu tabla no tiene columna
+        nombre: p.nombre ?? "Sin nombre",
         cantidad: Number(p.cantidad || 1),
         precioUnitario: Number(p.precioUnitario || 0),
-        subtotal: Number(p.subtotal ?? Number(p.cantidad || 1) * Number(p.precioUnitario || 0)),
+        subtotal: Number(
+          p.subtotal ??
+            Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
+        ),
       })),
     };
 
@@ -499,7 +532,11 @@ export default function IndexRegisterSale() {
               <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
                 {productsFound.slice(0, 7).map((p) => (
                   <div
-                    key={String(p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra)}
+                    key={String(
+                      p.id_detalle_producto ??
+                        p.id ??
+                        p.codigo_barras_producto_compra
+                    )}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       handleSelectProducto(p);
@@ -673,8 +710,8 @@ export default function IndexRegisterSale() {
             numeroDocumento: raw.numeroDocumento ?? raw.numero_documento ?? "",
             correo: raw.correo ?? raw.email ?? "",
             telefono: raw.telefono ?? raw.celular ?? "",
-            estado:
-              raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            estado: raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            activo: typeof raw.activo === "boolean" ? raw.activo : undefined, // opcional
             fecha: raw.fecha || new Date().toISOString().split("T")[0],
           };
 

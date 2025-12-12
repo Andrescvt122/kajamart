@@ -1,5 +1,5 @@
-// RegisterClientModal.jsx
-import React, { useState, useEffect, useRef } from "react";
+// src/features/clients/RegisterClientModal.jsx
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   showSuccessAlert,
@@ -14,6 +14,10 @@ const DOC_MAX = 10;
 const PHONE_MIN = 7;
 const PHONE_MAX = 10;
 
+const ONLY_LETTERS = /^[a-zA-Z\s]+$/;
+const ONLY_DIGITS = /^\d+$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterClientModal({
   isModalOpen,
   setIsModalOpen,
@@ -23,7 +27,8 @@ export default function RegisterClientModal({
   onClose,
   title,
   editingClientId, // null = crear, número = editar, 0 = Cliente de Caja
-  onSuccess, // callback: desde Clientes o Ventas
+  onSuccess,
+  allClients = [], // ✅ para validar unicidad en tiempo real (si lo pasas)
 }) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -34,64 +39,104 @@ export default function RegisterClientModal({
   const correoRef = useRef();
   const telefonoRef = useRef();
 
-  const {
-    createClient,
-    loading: createLoading,
-    error: createError,
-  } = useClientCreate();
-
-  const {
-    updateClient,
-    loading: updateLoading,
-    error: updateError,
-  } = useClientUpdate();
+  const { createClient, loading: createLoading, error: createError } =
+    useClientCreate();
+  const { updateClient, loading: updateLoading, error: updateError } =
+    useClientUpdate();
 
   const isLoading = createLoading || updateLoading;
   const globalError = createError || updateError;
 
-  // --------- FUNCION DE VALIDACIÓN GLOBAL ----------
+  // ---------------- Helpers ----------------
+  const closeModal = () => (onClose ? onClose() : setIsModalOpen(false));
+
+  const handleEnter = (e, nextRef) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      nextRef?.current?.focus();
+    }
+  };
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const markAllTouched = () => {
+    setTouched({
+      nombre: true,
+      tipoDocumento: true,
+      numeroDocumento: true,
+      correo: true,
+      telefono: true,
+    });
+  };
+
+  const isDocDuplicate = (numeroDocumento) => {
+    if (!numeroDocumento) return false;
+
+    return allClients?.some((c) => {
+      const sameDoc =
+        String(c.numeroDocumento) === String(numeroDocumento).trim();
+      const sameClient =
+        editingClientId && String(c.id) === String(editingClientId);
+      return sameDoc && !sameClient; // si edito, no me comparo conmigo
+    });
+  };
+
+  // ✅ Normaliza teléfono: si viene "N/A" lo tratamos como vacío
+  const normalizePhone = (raw) => {
+    const t = String(raw ?? "").trim();
+    if (!t) return "";
+    if (t.toUpperCase() === "N/A") return "";
+    return t;
+  };
+
+  // ---------------- Validación ----------------
   const validate = (values) => {
     const newErrors = {};
 
-    // Nombre
-    if (!values.nombre?.trim()) {
+    const nombre = values.nombre?.trim() ?? "";
+    const tipoDocumento = values.tipoDocumento ?? "";
+    const numeroDocumento = values.numeroDocumento?.trim() ?? "";
+    const correo = values.correo?.trim() ?? "";
+    const telefono = normalizePhone(values.telefono); // ✅ opcional real
+
+    // Nombre (obligatorio)
+    if (!nombre) {
       newErrors.nombre = "Nombre es requerido";
-    } else if (!/^[a-zA-Z\s]+$/.test(values.nombre)) {
+    } else if (!ONLY_LETTERS.test(nombre)) {
       newErrors.nombre = "Nombre solo puede contener letras";
     }
 
-    // Tipo de documento
-    if (!values.tipoDocumento) {
+    // Tipo de documento (obligatorio)
+    if (!tipoDocumento) {
       newErrors.tipoDocumento = "Seleccione un tipo de documento";
     }
 
-    // Número de documento
-    if (!values.numeroDocumento?.trim()) {
+    // Documento (obligatorio + formato + longitud + unicidad)
+    if (!numeroDocumento) {
       newErrors.numeroDocumento = "Documento es requerido";
-    } else if (!/^\d+$/.test(values.numeroDocumento)) {
+    } else if (!ONLY_DIGITS.test(numeroDocumento)) {
       newErrors.numeroDocumento = "Documento solo puede contener números";
     } else if (
-      values.numeroDocumento.length < DOC_MIN ||
-      values.numeroDocumento.length > DOC_MAX
+      numeroDocumento.length < DOC_MIN ||
+      numeroDocumento.length > DOC_MAX
     ) {
       newErrors.numeroDocumento = `El documento debe tener entre ${DOC_MIN} y ${DOC_MAX} dígitos`;
+    } else if (isDocDuplicate(numeroDocumento)) {
+      newErrors.numeroDocumento = "Ya existe un cliente con esta cédula";
     }
 
     // Correo (opcional)
-    if (values.correo) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.correo)) {
-        newErrors.correo = "Correo inválido";
-      }
+    if (correo && !EMAIL_REGEX.test(correo)) {
+      newErrors.correo = "Correo inválido";
     }
 
-    // Teléfono (opcional)
-    if (values.telefono) {
-      if (!/^\d+$/.test(values.telefono)) {
+    // ✅ Teléfono (opcional) -> SOLO valida si hay número real
+    if (telefono) {
+      if (!ONLY_DIGITS.test(telefono)) {
         newErrors.telefono = "Teléfono solo puede contener números";
-      } else if (
-        values.telefono.length < PHONE_MIN ||
-        values.telefono.length > PHONE_MAX
-      ) {
+      } else if (telefono.length < PHONE_MIN || telefono.length > PHONE_MAX) {
         newErrors.telefono = `El teléfono debe tener entre ${PHONE_MIN} y ${PHONE_MAX} dígitos`;
       }
     }
@@ -101,21 +146,41 @@ export default function RegisterClientModal({
 
   // Bloquear scroll cuando el modal está abierto
   useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = isModalOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [isModalOpen]);
 
-  // ✅ Validación en TIEMPO REAL cada vez que cambia el form
+  // ✅ Si llega "N/A" al editar, lo limpiamos para que NO bloquee
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (editingClientId === 0) return;
+
+    const t = String(form?.telefono ?? "").trim();
+    if (t && t.toUpperCase() === "N/A") {
+      setForm((prev) => ({ ...prev, telefono: "" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, editingClientId]);
+
+  // ✅ Validación en tiempo real (incluye unicidad si llega allClients)
   useEffect(() => {
     if (!isModalOpen || editingClientId === 0) return;
     setErrors(validate(form));
-  }, [form, isModalOpen, editingClientId]);
+  }, [form, isModalOpen, editingClientId, allClients]);
+
+  const resetFormIfCreate = () => {
+    if (editingClientId) return;
+    setForm({
+      nombre: "",
+      tipoDocumento: "",
+      numeroDocumento: "",
+      correo: "",
+      telefono: "",
+      activo: true,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,14 +191,7 @@ export default function RegisterClientModal({
       return;
     }
 
-    // Marcamos todos como tocados al intentar guardar
-    setTouched({
-      nombre: true,
-      tipoDocumento: true,
-      numeroDocumento: true,
-      correo: true,
-      telefono: true,
-    });
+    markAllTouched();
 
     const currentErrors = validate(form);
     setErrors(currentErrors);
@@ -144,67 +202,46 @@ export default function RegisterClientModal({
     }
 
     try {
-      let result = null;
+      // ✅ si el teléfono está vacío o "N/A", mandamos vacío (no obligatorio)
+      const payloadToSend = {
+        ...form,
+        telefono: normalizePhone(form.telefono),
+      };
 
-      // Actualizar o crear según editingClientId
-      if (editingClientId) {
-        result = await updateClient(editingClientId, { ...form });
-      } else {
-        result = await createClient({ ...form });
-      }
+      const result = editingClientId
+        ? await updateClient(editingClientId, payloadToSend)
+        : await createClient(payloadToSend);
 
-      if (result) {
-        setTouched({});
-        setErrors({});
+      const payload = result?.data ?? result;
 
-        // Muchos hooks devuelven { data }, otros devuelven el objeto directo
-        const payload = result?.data ?? result;
+      setTouched({});
+      setErrors({});
+      resetFormIfCreate();
 
-        // Reset solo cuando es creación
-        if (!editingClientId) {
-          setForm({
-            nombre: "",
-            tipoDocumento: "",
-            numeroDocumento: "",
-            correo: "",
-            telefono: "",
-            activo: true,
-          });
-        }
-
-        showSuccessAlert(
-          editingClientId
-            ? "Cliente actualizado correctamente 🎉"
-            : "Cliente registrado correctamente 🎉"
-        );
-
-        if (typeof onSuccess === "function") {
-          onSuccess(payload);
-        } else {
-          setIsModalOpen(false);
-        }
-      }
-    } catch (error) {
-      console.error(error);
-      showErrorAlert(
+      showSuccessAlert(
         editingClientId
-          ? "No se pudo actualizar el cliente ❌"
-          : "No se pudo guardar el cliente ❌"
+          ? "Cliente actualizado correctamente 🎉"
+          : "Cliente registrado correctamente 🎉"
+      );
+
+      if (typeof onSuccess === "function") onSuccess(payload);
+      else closeModal();
+    } catch (err) {
+      const backendMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message;
+
+      showErrorAlert(
+        backendMsg ||
+          (editingClientId
+            ? "No se pudo actualizar el cliente ❌"
+            : "No se pudo guardar el cliente ❌")
       );
     }
   };
 
-  const handleBlur = (field) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-  };
-
-  const handleEnter = (e, nextRef) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      nextRef?.current?.focus();
-    }
-  };
-
+  // ---------------- Render ----------------
   if (!isModalOpen) return null;
 
   // Modal especial Cliente de Caja
@@ -213,9 +250,8 @@ export default function RegisterClientModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div
           className="absolute inset-0 bg-black/40 backdrop-blur-md"
-          onClick={() => (onClose ? onClose() : setIsModalOpen(false))}
-        ></div>
-
+          onClick={closeModal}
+        />
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -230,7 +266,7 @@ export default function RegisterClientModal({
           </p>
           <div className="flex justify-center">
             <button
-              onClick={() => (onClose ? onClose() : setIsModalOpen(false))}
+              onClick={closeModal}
               className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
             >
               Cerrar
@@ -243,13 +279,11 @@ export default function RegisterClientModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-md"
-        onClick={() => (onClose ? onClose() : setIsModalOpen(false))}
-      ></div>
+        onClick={closeModal}
+      />
 
-      {/* Modal */}
       <motion.div
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -266,7 +300,7 @@ export default function RegisterClientModal({
           {/* Nombre */}
           <div className="col-span-2 md:col-span-1">
             <label className="block mb-1 font-medium">
-              Nombre <span className="text-red-500">*</span>
+              Nombrea y Apellidos<span className="text-red-500">*</span>
             </label>
             <input
               ref={nombreRef}
@@ -291,7 +325,7 @@ export default function RegisterClientModal({
           </div>
 
           {/* Tipo de Documento */}
-          <div className="col-span-2 md:col-span-1 relative">
+          <div className="col-span-2 md:col-span-1">
             <label className="block mb-1 font-medium">
               Tipo de Documento <span className="text-red-500">*</span>
             </label>
@@ -299,10 +333,7 @@ export default function RegisterClientModal({
               ref={tipoRef}
               value={form.tipoDocumento}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  tipoDocumento: e.target.value,
-                }))
+                setForm((prev) => ({ ...prev, tipoDocumento: e.target.value }))
               }
               onBlur={() => handleBlur("tipoDocumento")}
               onKeyDown={(e) => handleEnter(e, docRef)}
@@ -321,9 +352,7 @@ export default function RegisterClientModal({
               ))}
             </select>
             {touched.tipoDocumento && errors.tipoDocumento && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.tipoDocumento}
-              </p>
+              <p className="text-red-600 text-sm mt-1">{errors.tipoDocumento}</p>
             )}
           </div>
 
@@ -341,10 +370,7 @@ export default function RegisterClientModal({
               value={form.numeroDocumento}
               onChange={(e) => {
                 const digits = e.target.value.replace(/\D/g, "");
-                setForm((prev) => ({
-                  ...prev,
-                  numeroDocumento: digits,
-                }));
+                setForm((prev) => ({ ...prev, numeroDocumento: digits }));
               }}
               onBlur={() => handleBlur("numeroDocumento")}
               onKeyDown={(e) => handleEnter(e, correoRef)}
@@ -362,7 +388,7 @@ export default function RegisterClientModal({
             )}
           </div>
 
-          {/* Correo Electrónico (opcional) */}
+          {/* Correo */}
           <div className="col-span-2 md:col-span-1">
             <label className="block mb-1 font-medium">Correo Electrónico</label>
             <input
@@ -399,13 +425,9 @@ export default function RegisterClientModal({
               value={form.telefono}
               onChange={(e) => {
                 const digits = e.target.value.replace(/\D/g, "");
-                setForm((prev) => ({
-                  ...prev,
-                  telefono: digits,
-                }));
+                setForm((prev) => ({ ...prev, telefono: digits }));
               }}
               onBlur={() => handleBlur("telefono")}
-              onKeyDown={(e) => handleEnter(e, null)}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-200 bg-white text-black ${
                 touched.telefono && errors.telefono
                   ? "border-red-500"
@@ -435,7 +457,7 @@ export default function RegisterClientModal({
                 className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ${
                   form.activo ? "translate-x-6" : "translate-x-0"
                 }`}
-              ></div>
+              />
             </button>
           </div>
 
@@ -443,7 +465,7 @@ export default function RegisterClientModal({
           <div className="flex justify-end gap-2 col-span-2 mt-6">
             <button
               type="button"
-              onClick={() => (onClose ? onClose() : setIsModalOpen(false))}
+              onClick={closeModal}
               className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
               disabled={isLoading}
             >
