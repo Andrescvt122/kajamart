@@ -14,9 +14,19 @@ export const useAllDetailProducts = () =>
     queryKey: ["detailProducts"],
     queryFn: async () => {
       const { data } = await axios.get(DETAILS_URL);
-      return Array.isArray(data) ? data : [];
+
+      // ✅ soporta respuestas tipo: [] | {data: []} | {rows: []} | {results: []}
+      const arr =
+        (Array.isArray(data) && data) ||
+        (Array.isArray(data?.data) && data.data) ||
+        (Array.isArray(data?.rows) && data.rows) ||
+        (Array.isArray(data?.results) && data.results) ||
+        [];
+
+      return arr;
     },
   });
+
 
 // 🟣 Traer detalles de un producto específico (por id_producto)
 export const useDetailProductsByProduct = (id_producto) =>
@@ -97,28 +107,40 @@ export const useUpdateDetailProduct = () => {
     },
   });
 };
-
 // 🔴 Eliminar detalle
 export const useDeleteDetailProduct = () => {
   const qc = useQueryClient();
+
   return useMutation({
     // payload: { id_detalle_producto, id_producto? }
     mutationFn: async ({ id_detalle_producto }) => {
-      const { data } = await axios.delete(
-        `${DETAILS_URL}/${id_detalle_producto}`
-      );
+      const { data } = await axios.delete(`${DETAILS_URL}/${id_detalle_producto}`);
       return data;
     },
+
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["detailProducts"] });
-      qc.invalidateQueries({
-        queryKey: ["detailProduct", variables.id_detalle_producto],
-      });
+      qc.invalidateQueries({ queryKey: ["detailProduct", variables.id_detalle_producto] });
+
       if (variables?.id_producto) {
         qc.invalidateQueries({
           queryKey: ["detailProductsByProduct", variables.id_producto],
         });
       }
+    },
+
+    // ✅ (opcional) deja el error “limpio” para mostrarlo en alertas
+    onError: (err) => {
+      // Esto NO impide que el componente lo capture con try/catch,
+      // solo asegura que el error tenga un mensaje claro en consola
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Error al eliminar el detalle";
+
+      console.error(`❌ Delete detail failed (${status ?? "sin status"}):`, msg, err?.response?.data);
     },
   });
 };
