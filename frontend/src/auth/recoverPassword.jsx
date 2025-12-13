@@ -1,187 +1,177 @@
-// src/auth/RecoverPassword.jsx
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff } from "lucide-react";
-import tiendaImg from "../assets/image.png"; // Usa la misma imagen que ForgotPassword
-import logoImg from "../assets/logo.png";   // Usa el mismo logo
+import { Eye, EyeOff, KeyRound } from "lucide-react";
+import tiendaImg from "../assets/image.png";
+import logoImg from "../assets/logo.png";
+import api from "../api/axiosConfig";
 
-// Componente de carga
-const Loading = () => {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="flex flex-col items-center">
-        <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-white text-lg font-semibold">Actualizando...</p>
-      </div>
+const Loading = () => (
+    <div className="flex items-center justify-center min-h-screen bg-black/50">
+      <div className="w-16 h-16 border-4 border-t-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
-  );
-};
+);
 
 export default function RecoverPassword() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Obtenemos el email enviado desde la pantalla anterior
+  const email = location.state?.email;
+
+  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Si no hay email (alguien entró por URL directa), lo devolvemos
+  useEffect(() => {
+    if (!email) {
+        navigate("/forgot-password");
+    }
+  }, [email, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
-      return;
+        return setError("Las contraseñas no coinciden.");
     }
-
-    // ✅ Si pasa las validaciones nativas, seguimos
-    if (!e.target.checkValidity()) {
-      e.target.reportValidity();
-      return;
+    if (code.length < 6) {
+        return setError("El código debe tener 6 dígitos.");
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Petición al Backend
+      await api.post("/auth/reset-password", { 
+          email: email, 
+          codigo: code, 
+          newPassword: password 
+      });
+      
       setSubmitted(true);
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || "Código incorrecto o expirado.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
-    return <Loading />;
-  }
+  if (loading) return <Loading />;
 
   return (
-    <div className="relative min-h-screen w-full">
-      {/* Fondo borroso */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${tiendaImg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(10px) brightness(1.1)",
-          zIndex: 0,
-        }}
-      ></div>
-
+    <div className="relative min-h-screen w-full flex items-center justify-center px-4">
+      {/* Fondo */}
+      <div className="absolute inset-0 z-0" style={{ backgroundImage: `url(${tiendaImg})`, backgroundSize: "cover", filter: "blur(10px) brightness(1.1)" }}></div>
       <div className="absolute inset-0 bg-black/20 z-10"></div>
 
-      {/* Contenedor principal */}
-      <div className="relative z-20 flex items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-md p-8 space-y-6 bg-white/20 backdrop-blur-md rounded-3xl shadow-xl">
-          {submitted ? (
-            <div className="text-center text-white">
-              <h1 className="text-2xl font-bold drop-shadow-md">
-                ¡Contraseña actualizada!
-              </h1>
-              <p className="mt-4 text-white/90 drop-shadow-sm">
-                Tu contraseña ha sido cambiada exitosamente. Ahora puedes iniciar
-                sesión con tus nuevas credenciales.
-              </p>
-              <Link
-                to="/auth"
-                className="mt-8 inline-block w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
-              >
-                Ir a Iniciar Sesión
-              </Link>
-            </div>
-          ) : (
-            <>
-              {/* Logo */}
-              <Link to="/auth">
-                <motion.img
-                  src={logoImg}
-                  alt="Logo"
-                  className="w-32 mb-6 mx-auto block cursor-pointer"
-                  whileHover={{ scale: 1.1, rotate: -3 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                />
-              </Link>
+      {/* Contenedor Principal */}
+      <div className="relative z-20 w-full max-w-md p-8 bg-white/20 backdrop-blur-md rounded-3xl shadow-xl border border-white/10">
+        
+        {submitted ? (
+           // --- VISTA DE ÉXITO ---
+           <div className="text-center text-white">
+             <motion.div 
+               initial={{ scale: 0 }} animate={{ scale: 1 }}
+               className="mx-auto w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-lg"
+             >
+                <span className="text-3xl">✓</span>
+             </motion.div>
+             <h1 className="text-2xl font-bold">¡Éxito!</h1>
+             <p className="mt-4 text-white/90">Contraseña actualizada correctamente.</p>
+             <Link to="/" className="mt-6 block w-full py-2 bg-emerald-600 rounded-xl hover:bg-emerald-700 font-bold transition">
+                Iniciar Sesión
+             </Link>
+           </div>
+        ) : (
+           // --- VISTA DE FORMULARIO ---
+           <>
+             <img src={logoImg} className="w-24 mx-auto mb-4" alt="logo"/>
+             <h2 className="text-center text-white text-2xl font-bold mb-1">Verificar Código</h2>
+             <p className="text-center text-white/80 text-sm mb-6">
+                Enviado a: <span className="font-bold text-emerald-300">{email}</span>
+             </p>
 
-              {/* Encabezado */}
-              <div className="text-center">
-                <h1 className="text-3xl font-bold text-white drop-shadow-md">
-                  Restablecer Contraseña
-                </h1>
-                <p className="mt-2 text-sm text-white/90 drop-shadow-sm">
-                  Crea tu nueva contraseña.
-                </p>
-              </div>
-
-              {/* Formulario */}
-              <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-                {/* Nueva contraseña */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-white drop-shadow">
-                    Nueva contraseña
-                  </label>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    minLength={8}
-                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
-                    title="Debe tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
-                    className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-[34px] text-gray-500 hover:text-emerald-600"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-
-                {/* Confirmar contraseña */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-white drop-shadow">
-                    Confirmar contraseña
-                  </label>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    required
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    minLength={8}
-                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
-                    title="Debe coincidir con la contraseña y tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
-                    className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-[34px] text-gray-500 hover:text-emerald-600"
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-
-                {/* Error */}
-                {error && (
-                  <p className="text-sm text-red-300 bg-red-900/50 px-3 py-2 rounded-lg text-center drop-shadow-md">
+             {error && (
+                <div className="bg-red-500/80 text-white p-2 rounded-lg mb-4 text-center text-sm border border-red-400">
                     {error}
-                  </p>
-                )}
+                </div>
+             )}
 
-                {/* Botón enviar */}
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
+             <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Input Código */}
+                <div className="relative">
+                    <label className="text-white text-sm font-medium ml-1">Código (6 dígitos)</label>
+                    <input 
+                        type="text" 
+                        maxLength="6" 
+                        value={code} 
+                        // Corregido: onChange maneja el estado correctamente permitiendo escribir
+                        onChange={(e) => setCode(e.target.value.replace(/\D/g,''))} 
+                        className="w-full pl-3 py-2 mt-1 rounded-xl text-center tracking-widest font-bold text-lg text-gray-900 bg-white/90 focus:outline-none focus:ring-2 focus:ring-emerald-400" 
+                        placeholder="000000" 
+                        required
+                    />
+                    <KeyRound className="absolute right-3 top-9 text-gray-500" size={18}/>
+                </div>
+                
+                {/* Input Nueva Password */}
+                <div className="relative">
+                    <label className="text-white text-sm font-medium ml-1">Nueva Contraseña</label>
+                    <input 
+                        type={showPassword ? "text" : "password"} 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        className="w-full pl-3 py-2 mt-1 rounded-xl text-gray-900 bg-white/90 focus:outline-none focus:ring-2 focus:ring-emerald-400" 
+                        required 
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                    />
+                    <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)} 
+                        className="absolute right-3 top-9 text-gray-500 hover:text-emerald-600"
+                    >
+                        {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                    </button>
+                </div>
+
+                {/* Input Confirmar Password */}
+                <div className="relative">
+                    <label className="text-white text-sm font-medium ml-1">Confirmar Contraseña</label>
+                    <input 
+                        type="password" 
+                        value={confirmPassword} 
+                        onChange={(e) => setConfirmPassword(e.target.value)} 
+                        className="w-full pl-3 py-2 mt-1 rounded-xl text-gray-900 bg-white/90 focus:outline-none focus:ring-2 focus:ring-emerald-400" 
+                        required 
+                        minLength={6}
+                        placeholder="Repite la contraseña"
+                    />
+                </div>
+
+                <button 
+                    type="submit" 
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl mt-2 transition shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Actualizar Contraseña
-                </motion.button>
-              </form>
-            </>
-          )}
-        </div>
+                    Cambiar Contraseña
+                </button>
+             </form>
+             
+             {/* 🔴 AQUÍ ESTABA EL ERROR: Cambié 'class' por 'className' */}
+             <Link to="/forgot-password" className="block text-center mt-4 text-white/70 text-sm hover:text-white transition">
+                ¿No llegó el código? Reintentar
+             </Link>
+           </>
+        )}
       </div>
     </div>
   );

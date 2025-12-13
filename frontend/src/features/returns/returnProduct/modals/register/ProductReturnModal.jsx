@@ -20,6 +20,7 @@ import { usePostDetailProduct } from "../../../../../shared/components/hooks/pro
 import { usePurchases } from "../../../../../shared/components/hooks/purchases/usePurchases";
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
+  const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
@@ -1075,6 +1076,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       {/* Modal de registro de producto */}
       <ProductRegistrationModal
+        isReturnProduct={true}
         isOpen={isRegistrationModalOpen}
         onClose={handleRegistrationModalClose}
         onCancelRegistration={handleRegistrationModalCancel}

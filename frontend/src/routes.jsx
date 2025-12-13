@@ -41,7 +41,10 @@ export default function RoutesAdmin() {
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<AuthLayout />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/recover-password" element={<RecoverPassword />} />
+      
+      {/* 🔴 CAMBIO AQUÍ: Cambiamos "/recover-password" por "/verify-code" para que coincida */}
+      <Route path="/verify-code" element={<RecoverPassword />} />
+
       {/* Main App */}
       <Route path="/app" element={<MainLayout />}>
         <Route path="suppliers" element={<IndexSuppliers />} />

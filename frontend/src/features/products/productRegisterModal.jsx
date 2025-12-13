@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Upload, X } from "lucide-react";
 import Swal from "sweetalert2";
 import { useCreateProduct } from "../../shared/components/hooks/products/products.hooks.js";
-import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js"
+import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 import {
   showLoadingAlert,
   showErrorAlert,
@@ -27,7 +27,7 @@ const itemVariants = {
 // 🔹 Helper para considerar activo: boolean true o string "Activo"/"activo"
 const isActive = (v) => v === true || v === "Activo" || v === "activo";
 
-export default function ProductRegisterModal({ isOpen, onClose }) {
+export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
   const { categories: catList = [], loading: catLoading } = useCategories();
   // 🔹 Solo categorías activas
   const activeCategories = (Array.isArray(catList) ? catList : []).filter((c) =>
@@ -227,13 +227,17 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
 
     try {
       showLoadingAlert && showLoadingAlert("Registrando producto...");
-      await createMutation.mutateAsync(fd);
+      const created = await createMutation.mutateAsync(fd);
+      onCreated?.(created?.newProduct ?? created);
+      console.log("created product:", created);
       try {
         Swal.close();
       } catch (e) {
         console.log(e);
       }
+
       showSuccessAlert && showSuccessAlert("Producto registrado");
+      onCreated?.(created?.newProduct ?? created);
       onClose?.();
     } catch (err) {
       try {
@@ -254,7 +258,7 @@ export default function ProductRegisterModal({ isOpen, onClose }) {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/50 backdrop-blur-sm px-2 sm:px-4 pt-10 pb-10 overflow-y-auto"
+          className="fixed inset-0 z-[55] flex items-start justify-center bg-black/50 backdrop-blur-sm px-2 sm:px-4 pt-10 pb-10 overflow-y-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
