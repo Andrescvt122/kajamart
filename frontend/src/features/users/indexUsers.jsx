@@ -475,7 +475,7 @@ export default function IndexUsers() {
                         <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                           {user.Nombre}
                         </td>
-                        <td className="px-6 py-4 align-top text-sm text-green-700">
+                        <td className="px-6 py-4 align-top text-sm text-green-700 truncate">
                           {user.Correo}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-600">

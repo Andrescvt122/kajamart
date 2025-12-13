@@ -2,12 +2,14 @@ import React from "react";
 import { motion } from "framer-motion";
 import { CalendarCheck, MessageSquareHeart, Sparkles } from "lucide-react";
 import welcomeIllustration from "../../assets/cafe-removebg-preview.png";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 const accentGradient = "bg-gradient-to-br from-emerald-200 via-emerald-100 to-emerald-50";
 
 export default function Welcome() {
+  const {payload} = useAuth();
   // TODO: reemplazar "user" con el nombre del usuario autenticado cuando el acceso esté implementado.
-  const username = "user";
+  console.log("payload welcome", payload);
+  const username = payload?.nombre || "";;
 
   return (
     <div className="min-h-[calc(100vh-6rem)] w-full">
@@ -44,7 +46,7 @@ export default function Welcome() {
                   <span className="font-semibold">Planifica tu día</span>
                 </div>
                 <p className="text-sm text-emerald-900/70">
-                  Revisa las ventas recientes y organiza los pendientes de tu equipo.
+                  a las ventas recientes y organiza los pendientes de tu equipo.
                 </p>
               </div>
 

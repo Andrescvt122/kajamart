@@ -12,6 +12,7 @@ export const useRoleById = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log("🔍 Obteniendo rol con ID:", id);
       const { data } = await axios.get(`${API_URL}/${id}`);
       setRol(data);
       return data;
