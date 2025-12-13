@@ -577,7 +577,7 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                     <AnimatePresence>
                       {categoriaOpen && (
                         <motion.ul
-                          className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-56 overflow-y-auto"
+                          className="absolute left-0 right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
                           initial="hidden"
                           animate="visible"
                           exit="hidden"
