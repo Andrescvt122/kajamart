@@ -8,7 +8,7 @@ import 'primereact/resources/themes/saga-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
+import { AuthProvider } from './context/AtuhProvider';
 // 🟢 Instancia global de React Query
 const queryClient = new QueryClient();
 
@@ -18,7 +18,9 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <PrimeReactProvider>
         <QueryClientProvider client={queryClient}>
+          <AuthProvider>
           <App />
+          </AuthProvider>
         </QueryClientProvider>
       </PrimeReactProvider>
     </BrowserRouter>

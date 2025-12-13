@@ -21,7 +21,7 @@ import {
 import { exportProductsToExcel } from "./helpers/exportToXlsProducts";
 import { exportProductsToPDF } from "./helpers/exportToPdfProducts";
 import Loading from "../../features/onboarding/loading.jsx";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 // hooks
 import { useProduct } from "../../shared/components/hooks/products/products.hooks";
 import {
@@ -83,7 +83,8 @@ const getErrorTitle = (err) => {
 export default function AllProductsPage() {
   const { state } = useLocation();
   const params = useParams();
-
+  const {hasPermission} = useAuth();
+  const canDelete = hasPermission("Eliminar productos");
   const passedProduct = state?.product || null;
   const productId =
     (params.id && Number(params.id)) ||
@@ -387,7 +388,7 @@ export default function AllProductsPage() {
                                     setIsModalOpen(true);
                                   }}
                                 />
-                                <DeleteButton event={() => handleDeleteClick(p)} />
+                                <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
                               </div>
                             </div>
                           </motion.div>
@@ -485,7 +486,7 @@ export default function AllProductsPage() {
                                 setIsModalOpen(true);
                               }}
                             />
-                            <DeleteButton event={() => handleDeleteClick(p)} />
+                            <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
                           </div>
                         </td>
                       </motion.tr>

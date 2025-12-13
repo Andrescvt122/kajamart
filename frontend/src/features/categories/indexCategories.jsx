@@ -17,7 +17,7 @@ import { exportCategoriesToPDF } from "../../features/categories/helpers/exportT
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 // 🔔 Alerts para mostrar mensajes claros
 import {
   showLoadingAlert,
@@ -99,7 +99,10 @@ export default function IndexCategories() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
-
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission("Eliminar categorías");
+  const canCreate = hasPermission("Crear categorías");
+  const canEdit = hasPermission("Editar categorías");
   // Acordeón (móvil/desktop)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
@@ -321,6 +324,7 @@ export default function IndexCategories() {
                   }}
                   className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 w-full sm:w-auto"
                   disabled={creating}
+                  hidden={!canCreate}
                 >
                   {creating ? "Creando..." : "Registrar Nueva Categoría"}
                 </button>
@@ -435,6 +439,7 @@ export default function IndexCategories() {
 
                               <div className="mt-4 flex items-center gap-2">
                                 <EditButton
+                                  canEdit={canEdit}
                                   event={() => {
                                     setSelectedCategory(c);
                                     setIsEditModalOpen(true);
@@ -443,6 +448,7 @@ export default function IndexCategories() {
                                   aria-label={`Editar categoría ${c.nombre}`}
                                 />
                                 <DeleteButton
+                                  canDelete={canDelete}
                                   event={() => {
                                     setSelectedCategory(c);
                                     setIsDeleteOpen(true);
@@ -630,6 +636,7 @@ export default function IndexCategories() {
                           <td className="px-4 lg:px-6 py-4 text-right">
                             <div className="inline-flex items-center gap-2">
                               <EditButton
+                                canEdit={canEdit}
                                 event={() => {
                                   setSelectedCategory(c);
                                   setIsEditModalOpen(true);
@@ -637,6 +644,7 @@ export default function IndexCategories() {
                                 disabled={updating}
                               />
                               <DeleteButton
+                                canDelete={canDelete}
                                 event={() => {
                                   setSelectedCategory(c);
                                   setIsDeleteOpen(true);
