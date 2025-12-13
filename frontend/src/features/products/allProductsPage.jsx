@@ -1,5 +1,5 @@
 // frontend/src/features/products/AllProductsPage.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -59,12 +59,26 @@ function ChevronIcon({ open }) {
   );
 }
 
-// Helper para extraer mensaje de error del backend
+// Helper para extraer mensaje de error del backend (compatible message/error)
 const getErrorMessage = (err, fallback) =>
   err?.response?.data?.message ||
+  err?.response?.data?.error ||
   err?.message ||
   fallback ||
   "Ocurrió un error inesperado.";
+
+// Helper: título según status (para alertas más claras)
+const getErrorTitle = (err) => {
+  const status = err?.response?.status;
+  if (!err?.response) return "No se pudo conectar";
+  if (status === 400) return "Datos inválidos";
+  if (status === 401) return "No autorizado";
+  if (status === 403) return "Acceso denegado";
+  if (status === 404) return "No encontrado";
+  if (status === 409) return "No se puede completar";
+  if (status >= 500) return "Error del servidor";
+  return `Error (${status || "desconocido"})`;
+};
 
 export default function AllProductsPage() {
   const { state } = useLocation();
@@ -81,7 +95,8 @@ export default function AllProductsPage() {
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   const product =
-    passedProduct ?? fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
+    passedProduct ??
+    fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -104,6 +119,21 @@ export default function AllProductsPage() {
   const errorMessage = error
     ? getErrorMessage(error, "Error al cargar los detalles del producto.")
     : null;
+
+  // ✅ Mostrar alerta cuando falle el LISTADO (solo 1 vez por error)
+  const lastListErrorRef = useRef(null);
+  useEffect(() => {
+    if (!error) return;
+
+    const title = getErrorTitle(error);
+    const msg = getErrorMessage(error, "Error al cargar los detalles del producto.");
+    const key = `${title}::${msg}`;
+
+    if (lastListErrorRef.current !== key) {
+      showErrorAlert(`${title}: ${msg}`);
+      lastListErrorRef.current = key;
+    }
+  }, [error]);
 
   // map UI
   const allProducts = useMemo(() => {
@@ -158,9 +188,9 @@ export default function AllProductsPage() {
       setIsDeleteModalOpen(false);
     } catch (err) {
       console.error(err);
-      showErrorAlert(
-        err?.response?.data?.message || "Error al eliminar el detalle"
-      );
+      const title = getErrorTitle(err);
+      const msg = getErrorMessage(err, "Error al eliminar el detalle");
+      showErrorAlert(`${title}: ${msg}`);
     }
   };
 
@@ -237,9 +267,7 @@ export default function AllProductsPage() {
 
               {/* Exportar Excel */}
               <div className="flex justify-end">
-                <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
-                >
+                <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
                   Excel
                 </ExportExcelButton>
               </div>
@@ -254,8 +282,7 @@ export default function AllProductsPage() {
           </div>
 
           {/* ====== LISTADO ====== */}
-
-          {/* Móvil: acordeón con cascada */}
+          {/* Móvil */}
           <motion.div
             className="md:hidden"
             variants={listVariants}
@@ -301,10 +328,7 @@ export default function AllProductsPage() {
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">
                             <p
-                              className={
-                                "text-base font-semibold text-gray-900 " +
-                                ONE_LINE_SAFE
-                              }
+                              className={"text-base font-semibold text-gray-900 " + ONE_LINE_SAFE}
                               title={p.barcode}
                             >
                               {p.barcode}
@@ -324,10 +348,7 @@ export default function AllProductsPage() {
                             initial={{ height: 0, opacity: 0, y: -4 }}
                             animate={{ height: "auto", opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{
-                              duration: 0.32,
-                              ease: [0.22, 1, 0.36, 1],
-                            }}
+                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                             className="overflow-hidden border-t border-gray-100"
                             aria-live="polite"
                           >
@@ -342,17 +363,13 @@ export default function AllProductsPage() {
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Cantidad
                                 </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.cantidad}
-                                </p>
+                                <p className="text-sm text-gray-800">{p.cantidad}</p>
                               </div>
                               <div>
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Consumido
                                 </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.consumido}
-                                </p>
+                                <p className="text-sm text-gray-800">{p.consumido}</p>
                               </div>
                               <div>
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
@@ -370,9 +387,7 @@ export default function AllProductsPage() {
                                     setIsModalOpen(true);
                                   }}
                                 />
-                                <DeleteButton
-                                  event={() => handleDeleteClick(p)}
-                                />
+                                <DeleteButton event={() => handleDeleteClick(p)} />
                               </div>
                             </div>
                           </motion.div>
@@ -385,7 +400,7 @@ export default function AllProductsPage() {
             )}
           </motion.div>
 
-          {/* Desktop: tabla con cascada */}
+          {/* Desktop */}
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={listVariants}
@@ -397,20 +412,12 @@ export default function AllProductsPage() {
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-4 lg:px-6 py-3 lg:py-4">ID Detalle</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Código de barras
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Fecha de vencimiento
-                    </th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Código de barras</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Fecha de vencimiento</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Stock consumido
-                    </th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Stock consumido</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
-                      Acciones
-                    </th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
 
@@ -429,19 +436,13 @@ export default function AllProductsPage() {
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-red-500"
-                      >
+                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
                         {errorMessage}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                         No se encontraron detalles.
                       </td>
                     </tr>

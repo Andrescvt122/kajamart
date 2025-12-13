@@ -33,58 +33,79 @@ import DashboardLows from "./features/dashboard/returns/dashboardLows";
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
 import Welcome from "./pages/dashboard/Welcome";
-
+import PublicRoute from "./PublicRoute.jsx";
+import ProtectedRoute from "./protectedRoute.jsx";
 export default function RoutesAdmin() {
   return (
     <Routes>
-      {/* Auth routes */}
+      {/* Public */}
       <Route path="/" element={<Landing />} />
-      <Route path="/auth" element={<AuthLayout />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      
-      {/* 🔴 CAMBIO AQUÍ: Cambiamos "/recover-password" por "/verify-code" para que coincida */}
-      <Route path="/verify-code" element={<RecoverPassword />} />
 
-      {/* Main App */}
-      <Route path="/app" element={<MainLayout />}>
-        <Route path="suppliers" element={<IndexSuppliers />} />
-        <Route path="categories" element={<IndexCategories />} />
-        <Route path="clients" element={<IndexClients />} />
-        <Route path="sales" element={<IndexSales />} />
-        <Route path="sales/register" element={<IndexRegisterSale />} />
-        <Route path="purchases" element={<IndexPurchases />} />
-        <Route path="purchases/register" element={<IndexRegisterPurchase />} />
-        <Route path="products" element={<IndexProducts />} />
-        {/* Products */}
-        <Route path="products" element={<ProductsLayout />}>
-          <Route index element={<IndexProducts />} />
-          <Route path=":id/detalles" element={<AllProductsPage />} />
-        </Route>
-        {/* Returns */}
-        <Route path="returns">
-          <Route path="clients" element={<IndexClientReturns />} />
-          <Route path="products" element={<IndexProductReturns />} />
-          <Route path="low" element={<IndexLow />} />
-        </Route>
+      {/* Auth (solo si NO está logueado) */}
+      <Route element={<PublicRoute />}>
+        <Route path="/auth" element={<AuthLayout />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/recover-password" element={<RecoverPassword />} />
+      </Route>
 
-        {/* Settings */}
-        <Route path="settings">
-          <Route path="users" element={<IndexUsers />} />
-          <Route path="roles" element={<IndexRoles />} />
-          <Route path="general" element={<IndexSettings />} />
-        </Route>
-        <Route path="" element={<DashboardLayout />}>
-          <Route index element={<Welcome />} />
-           <Route path="dashboard/suppliers" element={<DashboardSuppliers />} />
-          <Route path="dashboard/categories" element={<DashboardCategories />} />
-          <Route path="dashboard/clients" element={<DashboardClients />} />
-          <Route path="dashboard/sales" element={<DashboardSales />} /> 
-          <Route path="dashboard/products" element={<DashboardProducts />} />
-           <Route path="dashboard/purchases" element={<DashboardPurchases />} /> 
-          <Route path="dashboard/return">
-             <Route path="clients" element={<DashboardReturnClients />} />
-            <Route path="products" element={<DashboardReturnProducts />} />
-            <Route path="low" element={<DashboardLows />} /> 
+      {/* App (protegido) */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<MainLayout />}>
+          <Route path="suppliers" element={<IndexSuppliers />} />
+          <Route path="categories" element={<IndexCategories />} />
+          <Route path="clients" element={<IndexClients />} />
+          <Route path="sales" element={<IndexSales />} />
+          <Route path="sales/register" element={<IndexRegisterSale />} />
+
+          <Route path="purchases" element={<IndexPurchases />} />
+          <Route
+            path="purchases/register"
+            element={<IndexRegisterPurchase />}
+          />
+
+          {/* Products */}
+          <Route path="products" element={<ProductsLayout />}>
+            <Route index element={<IndexProducts />} />
+            <Route path=":id/detalles" element={<AllProductsPage />} />
+          </Route>
+
+          {/* Returns */}
+          <Route path="returns">
+            <Route path="clients" element={<IndexClientReturns />} />
+            <Route path="products" element={<IndexProductReturns />} />
+            <Route path="low" element={<IndexLow />} />
+          </Route>
+
+          {/* Settings */}
+          <Route path="settings">
+            <Route path="users" element={<IndexUsers />} />
+            <Route path="roles" element={<IndexRoles />} />
+            <Route path="general" element={<IndexSettings />} />
+          </Route>
+
+          {/* Dashboard */}
+          <Route element={<DashboardLayout />}>
+            <Route index element={<Welcome />} />
+            <Route
+              path="dashboard/suppliers"
+              element={<DashboardSuppliers />}
+            />
+            <Route
+              path="dashboard/categories"
+              element={<DashboardCategories />}
+            />
+            <Route path="dashboard/clients" element={<DashboardClients />} />
+            <Route path="dashboard/sales" element={<DashboardSales />} />
+            <Route path="dashboard/products" element={<DashboardProducts />} />
+            <Route
+              path="dashboard/purchases"
+              element={<DashboardPurchases />}
+            />
+            <Route path="dashboard/return">
+              <Route path="clients" element={<DashboardReturnClients />} />
+              <Route path="products" element={<DashboardReturnProducts />} />
+              <Route path="low" element={<DashboardLows />} />
+            </Route>
           </Route>
         </Route>
       </Route>
