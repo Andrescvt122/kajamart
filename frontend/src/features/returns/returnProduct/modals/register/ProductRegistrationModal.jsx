@@ -86,6 +86,9 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     console.log("product", product);
+    const cleanBarcode = String(formData.barcode).trim();
+    const cleanQty = Number(String(formData.quantity).trim());
+
     // 🔹 Detalle local, NO se envía a BD aquí
     const registeredDetail = {
       ...product,
@@ -236,9 +239,23 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                     </label>
                     <input
                       value={formData.barcode}
-                      onChange={(e) => handleChange("barcode", e.target.value)}
+                      onChange={(e) => {
+                        const digits = e.target.value
+                          .replace(/\D+/g, "")
+                          .slice(0, 13);
+                        handleChange("barcode", digits);
+                      }}
+                      onPaste={(e) => {
+                        const paste = (
+                          e.clipboardData || window.clipboardData
+                        ).getData("text");
+                        const digits = paste.replace(/\D+/g, "");
+                        if (!digits) e.preventDefault();
+                      }}
+                      inputMode="numeric"
+                      maxLength={13}
                       className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
-                      placeholder="Ingrese código de barras"
+                      placeholder="13 dígitos"
                     />
                     {errors.barcode && (
                       <div className="text-red-500 text-sm mt-1">
@@ -253,7 +270,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                     </label>
                     <input
                       type="number"
-                      min={1}
+                      min={0}
                       inputMode="numeric"
                       value={formData.quantity}
                       onChange={(e) =>
@@ -299,6 +316,11 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                         placeholder="YYYY-MM-DD"
                         className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
                       />
+                      {errors.expiryDate && (
+                        <div className="text-red-500 text-sm mt-1">
+                          {errors.expiryDate}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -146,6 +146,7 @@ export default function IndexLow() {
       >
         <div className="h-full w-full" />
       </div>
+
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
