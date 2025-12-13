@@ -26,7 +26,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import ondasHorizontal from "../../assets/ondasHorizontal.png";
 import { showConfirmAlert } from "./alerts";
-
+import { useLogin } from "./hooks/auth/useLogin";
 export default function Sidebar({
   isMobileOpen = false,
   onMobileClose,
@@ -35,12 +35,13 @@ export default function Sidebar({
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
+  const { logout } = useLogin();
   const handleLogout = () => {
     showConfirmAlert("¿Estás seguro de que quieres cerrar la sesión?").then(
       (confirmed) => {
         if (confirmed) {
           navigate("/");
+          logout();
           if (onMobileClose) onMobileClose();
         }
       }
