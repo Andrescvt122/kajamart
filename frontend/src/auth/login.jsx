@@ -1,13 +1,12 @@
 // src/auth/Login.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
-import {useLogin} from "../shared/components/hooks/auth/useLogin";
 // Assets
 import tiendaImg from "../assets/image.png";
 import logo from "../assets/logo.png";
-
+import { useAuth } from "../context/useAtuh";
 // Componentes
 // import Loading from "../features/onboarding/loading";
 
@@ -17,15 +16,18 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(null);
-  const { login, loading } = useLogin();
-
+  const { signIn, loading } = useAuth();
+  const locatino = useLocation();
+  //Guarda la ruta donde se intento ingresar o app
+  const from = locatino.state?.from?.pathname || "/app";
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError(null);
 
-    const result = await login({ email, password });
+    const result = await signIn({ email, password });
     if (result.ok) {
-      navigate("/app");
+      // Redirigir a la ruta anterior o a /app
+      navigate(from, { replace: true });
     } else {
       setLoginError("Correo o contrasena incorrectas");
     }
@@ -78,7 +80,7 @@ export default function Login() {
           </div>
 
           {/* Formulario */}
-          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-white drop-shadow">

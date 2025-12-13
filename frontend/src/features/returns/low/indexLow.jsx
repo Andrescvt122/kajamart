@@ -13,7 +13,7 @@ import DetailsLow from "./modals/detailsLow";
 import generateProductLowsPDF from "./helpers/exportToPdf";
 import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
-
+import { useAuth } from "../../../context/useAtuh";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -70,6 +70,11 @@ export default function IndexLow() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
+  const {hasPermission} = useAuth();
+
+  // Permiso requerido para ver la página
+  const canView = hasPermission('Ver baja productos');
+  const canCreate = hasPermission('Crear baja productos');
   const perPage = 6;
 
   // Normalización de texto
@@ -191,6 +196,7 @@ export default function IndexLow() {
                   window.scrollTo({ top: 0, behavior: "auto" });
                   setIsOpen(true);
                 }}
+                hidden={!canCreate}
                 className="px-4 py-2.5 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
               >
                 Registrar nueva baja

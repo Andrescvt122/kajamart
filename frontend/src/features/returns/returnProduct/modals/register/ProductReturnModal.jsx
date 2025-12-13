@@ -17,7 +17,7 @@ import ProductSearch from "../../../../../shared/components/searchBars/productSe
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
-import { usePurchases } from "../../../../../shared/components/hooks/purchases/usePurchases";
+import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
@@ -37,7 +37,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { postReturnProducts, loading } = usePostReturnProducts();
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
-  const { purchases } = usePurchases();
+  const { purchases } = useFetchPurchases();
 
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
