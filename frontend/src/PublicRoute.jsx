@@ -1,12 +1,10 @@
 // src/routes/PublicRoute.jsx
 import { Navigate, Outlet } from "react-router-dom";
-import { useLogin } from "./shared/components/hooks/auth/useLogin.jsx";
-
+import { useAuth } from "./context/useAtuh.jsx";
 export default function PublicRoute() {
-  const { getToken } = useLogin();
-  const token = getToken();
+  const { isAuthenticated } = useAuth();
 
-  if (token) return <Navigate to="/app" replace />;
+  if (isAuthenticated) return <Navigate to="/app" replace />;
 
   return <Outlet />;
 }

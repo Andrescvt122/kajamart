@@ -2,19 +2,15 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import {
-  ViewButton,
-  EditButton,
-  DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
 import { Search } from "lucide-react";
+import { FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  showSuccessAlert,
-} from "../../shared/components/alerts.jsx";
+import { showSuccessAlert } from "../../shared/components/alerts.jsx";
 
 import { exportToExcel } from "./helper/exportToExcel.js";
 import { exportToPdf } from "./helper/exportToPdf.js";
@@ -25,10 +21,13 @@ import RegisterUsers from "./registerUsers";
 import DeleteUserModal from "./deleteUsers";
 
 import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
+import { useAuth } from "../../context/useAtuh.jsx";
 
 // Clases utilitarias
-const ONE_LINE_SAFE = "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
-const LONG_TEXT_CLS = "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
+const ONE_LINE_SAFE =
+  "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+const LONG_TEXT_CLS =
+  "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
 
 function ChevronIcon({ open }) {
   return (
@@ -68,6 +67,12 @@ export default function IndexUsers() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
+  const { hasPermission } = useAuth();
+
+  const canCreate = hasPermission("Crear usuarios");
+  console.log("can create en usuarios", canCreate);
+  const canEdit = hasPermission("Editar usuarios");
+  const canDelete = hasPermission("Eliminar usuarios");
   // expansión móvil por id
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
@@ -157,7 +162,9 @@ export default function IndexUsers() {
   };
 
   const handleDelete = (userToDelete) => {
-    setUsuarios((prev) => (prev || []).filter((user) => user.id !== userToDelete.id));
+    setUsuarios((prev) =>
+      (prev || []).filter((user) => user.id !== userToDelete.id)
+    );
     showSuccessAlert("Usuario eliminado correctamente");
     setIsDeleteOpen(false);
     setUserToDelete(null);
@@ -182,7 +189,14 @@ export default function IndexUsers() {
   };
 
   const handleExportPdf = () => {
-    const headers = ["Nombre", "Correo", "Documento", "Teléfono", "Rol asignado", "Estado"];
+    const headers = [
+      "Nombre",
+      "Correo",
+      "Documento",
+      "Teléfono",
+      "Rol asignado",
+      "Estado",
+    ];
     const dataToExport = filtered.map((user) => ({
       Nombre: user.Nombre,
       Correo: user.Correo,
@@ -194,13 +208,21 @@ export default function IndexUsers() {
     exportToPdf(dataToExport, headers, "Listado de Usuarios", "usuarios");
   };
 
-  const tableVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
-  const rowVariants = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } };
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+  };
+  const rowVariants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-red-600 text-center">{typeof error === "string" ? error : "Error al cargar usuarios."}</p>
+        <p className="text-red-600 text-center">
+          {typeof error === "string" ? error : "Error al cargar usuarios."}
+        </p>
       </div>
     );
   }
@@ -224,8 +246,12 @@ export default function IndexUsers() {
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
           <div className="mb-4 sm:mb-6">
-            <h2 className="text-2xl sm:text-3xl font-semibold">Gestión de Usuarios</h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">Administrador de tienda</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold">
+              Gestión de Usuarios
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Administrador de tienda
+            </p>
           </div>
 
           <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
@@ -248,7 +274,9 @@ export default function IndexUsers() {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
+              <ExportExcelButton event={handleExportExcel}>
+                Excel
+              </ExportExcelButton>
               <ExportPDFButton event={handleExportPdf}>PDF</ExportPDFButton>
               <button
                 onClick={() => {
@@ -256,6 +284,7 @@ export default function IndexUsers() {
                   setIsModalOpen(true);
                 }}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                hidden={!canCreate}
               >
                 Registrar Nuevo Usuario
               </button>
@@ -263,10 +292,17 @@ export default function IndexUsers() {
           </div>
 
           {/* Móvil */}
-          <motion.div className="md:hidden" variants={tableVariants} initial="hidden" animate="visible">
+          <motion.div
+            className="md:hidden"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <span className="text-sm text-gray-600">Cargando usuarios...</span>
+                <span className="text-sm text-gray-600">
+                  Cargando usuarios...
+                </span>
               </div>
             ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
@@ -277,7 +313,11 @@ export default function IndexUsers() {
                 {pageItems.map((u, i) => {
                   const isExpanded = expanded.has(u.id);
                   return (
-                    <motion.li key={u.id + "-mobile-" + i} variants={rowVariants} className="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <motion.li
+                      key={u.id + "-mobile-" + i}
+                      variants={rowVariants}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100"
+                    >
                       <button
                         type="button"
                         onClick={() => toggleExpand(u.id)}
@@ -287,15 +327,31 @@ export default function IndexUsers() {
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] uppercase tracking-wide text-gray-500">ID {u.id}</span>
-                              <span className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${u.Estado === "Activo" ? "bg-green-50 text-green-700" : "bg-red-100 text-red-600"}`}>
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                                ID {u.id}
+                              </span>
+                              <span
+                                className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
+                                  u.Estado === "Activo"
+                                    ? "bg-green-50 text-green-700"
+                                    : "bg-red-100 text-red-600"
+                                }`}
+                              >
                                 {u.Estado}
                               </span>
                             </div>
-                            <p className={"mt-1 text-base font-semibold text-gray-900 " + ONE_LINE_SAFE} title={u.Nombre}>
+                            <p
+                              className={
+                                "mt-1 text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
+                              title={u.Nombre}
+                            >
                               {u.Nombre}
                             </p>
-                            <p className="mt-1 text-sm text-gray-600 truncate">{u.Correo}</p>
+                            <p className="mt-1 text-sm text-gray-600 truncate">
+                              {u.Correo}
+                            </p>
                           </div>
                           <ChevronIcon open={isExpanded} />
                         </div>
@@ -311,27 +367,48 @@ export default function IndexUsers() {
                             className="overflow-hidden border-t border-gray-100"
                           >
                             <div className="px-4 py-4">
-                              <p className="text-[11px] uppercase tracking-wide text-gray-500">Documento</p>
-                              <p className={LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"}>{u.Documento || "—"}</p>
+                              <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                Documento
+                              </p>
+                              <p
+                                className={
+                                  LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"
+                                }
+                              >
+                                {u.Documento || "—"}
+                              </p>
 
                               <div className="mt-3 flex items-center gap-2">
-                                <ViewButton
-                                  event={() => {
+                                <button
+                                  className="button-square view-btn"
+                                  onClick={() => {
                                     setSelectedUser(u);
                                     setIsDetailsOpen(true);
                                   }}
-                                />
-                                <EditButton
-                                  event={() => {
-                                    setSelectedUser(u);
-                                    setIsEditOpen(true);
-                                  }}
-                                />
-                                <DeleteButton
-                                  event={() => {
-                                    openDeleteModal(u);
-                                  }}
-                                />
+                                >
+                                  <FiEye size={20} />
+                                </button>
+
+                                {canEdit && (
+                                  <button
+                                    className="button-square edit-btn"
+                                    onClick={() => {
+                                      setSelectedUser(u);
+                                      setIsEditOpen(true);
+                                    }}
+                                  >
+                                    <FiEdit2 size={20} />
+                                  </button>
+                                )}
+
+                                {canDelete && (
+                                  <button
+                                    className="button-square delete-btn"
+                                    onClick={() => openDeleteModal(u)}
+                                  >
+                                    <FiTrash2 size={20} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </motion.div>
@@ -345,7 +422,12 @@ export default function IndexUsers() {
           </motion.div>
 
           {/* Desktop */}
-          <motion.div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100" variants={tableVariants} initial="hidden" animate="visible">
+          <motion.div
+            className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
             <div className="overflow-x-auto max-w-full">
               <table className="min-w-[720px] lg:min-w-[960px] w-full md:table-fixed">
                 <thead>
@@ -356,49 +438,102 @@ export default function IndexUsers() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Teléfono</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Rol asignado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
 
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <motion.tbody
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                >
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center">
-                        <span className="text-sm text-gray-600">Cargando usuarios...</span>
+                        <span className="text-sm text-gray-600">
+                          Cargando usuarios...
+                        </span>
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">No se encontraron usuarios.</td>
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
+                        No se encontraron usuarios.
+                      </td>
                     </tr>
                   ) : (
                     pageItems.map((user) => (
-                      <motion.tr key={user.id} className="hover:bg-gray-50" variants={rowVariants}>
-                        <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">{user.Nombre}</td>
-                        <td className="px-6 py-4 align-top text-sm text-green-700">{user.Correo}</td>
-                        <td className="px-6 py-4 align-top text-sm text-gray-600">{user.Documento}</td>
-                        <td className="px-6 py-4 align-top text-sm text-gray-600">{user.Telefono}</td>
-                        <td className="px-6 py-4 align-top text-sm text-gray-600">{user.Rol}</td>
+                      <motion.tr
+                        key={user.id}
+                        className="hover:bg-gray-50"
+                        variants={rowVariants}
+                      >
+                        <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
+                          {user.Nombre}
+                        </td>
+                        <td className="px-6 py-4 align-top text-sm text-green-700">
+                          {user.Correo}
+                        </td>
+                        <td className="px-6 py-4 align-top text-sm text-gray-600">
+                          {user.Documento}
+                        </td>
+                        <td className="px-6 py-4 align-top text-sm text-gray-600">
+                          {user.Telefono}
+                        </td>
+                        <td className="px-6 py-4 align-top text-sm text-gray-600">
+                          {user.Rol}
+                        </td>
                         <td className="px-6 py-4 align-top">
                           {user.Estado === "Activo" ? (
-                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">Activo</span>
+                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700">
+                              Activo
+                            </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">Inactivo</span>
+                            <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700">
+                              Inactivo
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 align-top text-right">
                           <div className="inline-flex items-center gap-2">
-                            <ViewButton
-                              event={() =>
-                                window.dispatchEvent(new CustomEvent("open-user-details", { detail: user }))
+                            <button
+                              className="button-square view-btn"
+                              onClick={() =>
+                                window.dispatchEvent(
+                                  new CustomEvent("open-user-details", {
+                                    detail: user,
+                                  })
+                                )
                               }
-                            />
-                            <EditButton
-                              event={() =>
-                                window.dispatchEvent(new CustomEvent("open-user-edit", { detail: user }))
-                              }
-                            />
-                            <DeleteButton event={() => openDeleteModal(user)} />
+                            >
+                              <FiEye size={20} />
+                            </button>
+                            {canEdit && (
+                              <button
+                                className="button-square edit-btn"
+                                onClick={() =>
+                                  window.dispatchEvent(
+                                    new CustomEvent("open-user-edit", {
+                                      detail: user,
+                                    })
+                                  )
+                                }
+                              >
+                                <FiEdit2 size={20} />
+                              </button>
+                            )}
+                            {canDelete &&(
+                            <button
+                              className="button-square delete-btn"
+                              onClick={() => openDeleteModal(user)}
+                              hidden={!canDelete}
+                            >
+                              <FiTrash2 size={20} />
+                            </button>)}
                           </div>
                         </td>
                       </motion.tr>
@@ -410,16 +545,40 @@ export default function IndexUsers() {
           </motion.div>
 
           <div className="mt-4 sm:mt-6">
-            <Paginator currentPage={currentPage} perPage={perPage} totalPages={totalPages} filteredLength={filtered.length} goToPage={goToPage} />
+            <Paginator
+              currentPage={currentPage}
+              perPage={perPage}
+              totalPages={totalPages}
+              filteredLength={filtered.length}
+              goToPage={goToPage}
+            />
           </div>
         </div>
       </div>
 
       {/* Modales */}
-      <RegisterUsers isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onRegister={handleRegisterUser} />
-      <DetailsUsers isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} user={selectedUser} />
-      <EditUsers isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} user={selectedUser} onSave={handleSaveUser} />
-      <DeleteUserModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} onConfirm={handleDelete} user={userToDelete} />
+      <RegisterUsers
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onRegister={handleRegisterUser}
+      />
+      <DetailsUsers
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        user={selectedUser}
+      />
+      <EditUsers
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        user={selectedUser}
+        onSave={handleSaveUser}
+      />
+      <DeleteUserModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDelete}
+        user={userToDelete}
+      />
     </div>
   );
 }
