@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from '../shared/components/sidebar.jsx';
 import { Menu } from 'lucide-react';
 import logo from '../assets/logo.png';
+import NavBarDashboard from '../shared/components/navbars/navbarDashboard.jsx';
 export default function MainLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
@@ -29,7 +30,7 @@ export default function MainLayout() {
       {/* Overlay oscuro cuando la sidebar está abierta en mobile */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          className="fixed inset-0 bg-black/40 z-10 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
@@ -37,7 +38,6 @@ export default function MainLayout() {
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col">
         {/* Top bar */}
-        <header className="flex items-center justify-between px-4 py-3 border-b bg-white sticky top-0 z-10">
           {/* Botón para abrir sidebar en mobile */}
           <button
             className="md:hidden inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium shadow bg-emerald-700 text-white"
@@ -46,13 +46,8 @@ export default function MainLayout() {
             <Menu size={18} />
             <span>Menú</span>
           </button>
-
-          {/* Texto de la derecha (como lo tienes en el screenshot) */}
-          <div className="ml-auto text-sm font-semibold text-gray-600">
-            Panel de administración
-          </div>
-        </header>
-
+        
+        
         <main className="flex-1 p-4 md:p-8 relative">
           <Outlet />
         </main>

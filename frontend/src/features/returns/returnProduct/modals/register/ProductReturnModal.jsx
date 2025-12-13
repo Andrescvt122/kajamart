@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -17,8 +17,10 @@ import ProductSearch from "../../../../../shared/components/searchBars/productSe
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
+import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 
 const ProductReturnModal = ({ isOpen, onClose }) => {
+  const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
@@ -27,12 +29,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [registrationMode, setRegistrationMode] = useState("create"); // 'create' | 'edit'
   const [detailToEdit, setDetailToEdit] = useState(null);
-
+  // 🔹 NUEVOS estados para la factura
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceError, setInvoiceError] = useState("");
   // 🔹 Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
-  const { refetch } = useFetchReturnProducts();
+  const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
+  const { purchases } = useFetchPurchases();
 
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
@@ -43,6 +48,58 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     { value: "descuento", label: "Descuento" },
     { value: "registrar", label: "Registrar" },
   ];
+  // 🔹 Lista de números de factura ya usados en compras y devoluciones
+  const existingInvoiceNumbers = useMemo(() => {
+    const fromPurchases =
+      purchases
+        ?.map((p) => {
+          // Intentamos varios nombres de campo y, si no, usamos id_compra como fallback
+          return (
+            p.numero_factura ||
+            p.numeroFactura ||
+            p.invoiceNumber ||
+            (p.id_compra != null ? String(p.id_compra) : null)
+          );
+        })
+        .filter(Boolean) || [];
+
+    const fromReturns =
+      returns
+        ?.map((r) => {
+          return r.invoiceNumber || r.numero_factura || r.numeroFactura || null;
+        })
+        .filter(Boolean) || [];
+
+    // normalizamos y quitamos duplicados
+    const all = [...fromPurchases, ...fromReturns].map((n) => String(n).trim());
+
+    return Array.from(new Set(all));
+  }, [purchases, returns]);
+
+  const validateInvoiceNumber = (value) => {
+    const v = value.trim();
+
+    if (!v) {
+      return "El número de factura es obligatorio.";
+    }
+    if (v.length < 4) {
+      return "El número de factura debe tener al menos 4 caracteres.";
+    }
+    if (v.length > 20) {
+      return "El número de factura no puede superar los 20 caracteres.";
+    }
+    if (existingInvoiceNumbers.includes(v)) {
+      return "El número de factura ya existe en compras o devoluciones anteriores.";
+    }
+
+    return "";
+  };
+
+  const handleInvoiceChange = (e) => {
+    const value = e.target.value;
+    setInvoiceNumber(value);
+    setInvoiceError(validateInvoiceNumber(value)); // 🔴 validación en tiempo real
+  };
 
   // Helper: encontrar detalle para un producto
   const getPendingDetailForProduct = (productId) =>
@@ -209,10 +266,18 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setProductToRegister(null);
     setOpenConfigProductId(null);
     setPendingDetails([]);
+    setInvoiceNumber(""); // ⬅️ limpiar número de factura
+    setInvoiceError(""); // ⬅️ limpiar error
     onClose();
   };
 
   const handleConfirmReturn = async () => {
+    const errorMsg = validateInvoiceNumber(invoiceNumber);
+    if (errorMsg) {
+      setInvoiceError(errorMsg);
+      alert("Corrige el número de factura antes de continuar.");
+      return;
+    }
     if (selectedProducts.length === 0) {
       alert("Selecciona al menos un producto.");
       return;
@@ -249,42 +314,74 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleCancelAlert = () => setShowConfirmAlert(false);
 
   const handleAcceptAlert = async () => {
+    console.log("👉 handleAcceptAlert DISPARADO");
     setShowConfirmAlert(false);
+
     const id_responsable = 1; // TODO: reemplazar con el usuario logueado
 
     try {
-      const productsPayload = selectedProducts.map((p) => {
-        const detail = getPendingDetailForProduct(p.id_producto);
+      console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
+      console.log("pendingDetails en handleAcceptAlert:", pendingDetails);
 
-        // Para 'registrar' debe existir un detalle recién creado
-        const id_detalle =
-          p.actionType === "registrar"
-            ? detail?.id_detalle_producto
-            : p.id_detalle_producto; // para descuento viene del producto
+      const productsPayload = selectedProducts
+        .map((p) => {
+          const detail = getPendingDetailForProduct(p.id_producto);
 
-        if (!id_detalle) {
-          throw new Error(
-            `El producto "${
-              p.productos?.nombre ?? p.nombre_producto
-            }" no tiene id_detalle_producto.`
+          const id_detalle =
+            p.actionType === "registrar"
+              ? detail?.id_detalle_producto
+              : p.id_detalle_producto;
+
+          if (!id_detalle && p.actionType === "registrar") {
+            console.error(
+              "❌ Falta id_detalle_producto para este producto (registrar):",
+              p,
+              "detail:",
+              detail
+            );
+            alert(
+              `El producto "${
+                p.productos?.nombre ?? p.nombre_producto
+              }" no tiene id_detalle_producto. Revisa el origen de los datos.`
+            );
+            return null;
+          }
+
+          console.log(
+            "✅ Producto listo para payload:",
+            p.productos?.nombre ?? p.nombre_producto,
+            " -> id_detalle_producto:",
+            id_detalle
           );
-        }
 
-        return {
-          id_detalle_producto: id_detalle,
-          cantidad: p.returnQuantity || 1,
-          motivo: p.returnReason,
-          nombre_producto: p.productos?.nombre ?? p.nombre_producto,
-          es_descuento: p.actionType === "descuento",
-        };
-      });
+          return {
+            id_detalle_producto: id_detalle,
+            cantidad: p.returnQuantity || 1,
+            motivo: p.returnReason,
+            nombre_producto: p.productos?.nombre ?? p.nombre_producto,
+            es_descuento: p.actionType === "descuento",
+          };
+        })
+        .filter(Boolean); // quitamos los null
+
+      if (productsPayload.length === 0) {
+        console.error(
+          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío)."
+        );
+        return;
+      }
 
       const payload = {
         id_responsable,
+        numero_factura: invoiceNumber.trim(),
         products: productsPayload,
       };
 
+      console.log("📦 Payload FINAL antes de POST:", payload);
+
       const result = await postReturnProducts(payload);
+
+      console.log("🔙 Resultado de postReturnProducts:", result);
 
       if (result) {
         refetch();
@@ -293,9 +390,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           setShowSuccessMessage(false);
           handleCloseModal();
         }, 2500);
+        console.log("✅ Devolución registrada con éxito");
+      } else {
+        console.warn("⚠️ postReturnProducts devolvió null/undefined");
       }
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error en handleAcceptAlert:", err);
       alert(err.message || "No fue posible registrar la devolución.");
     }
   };
@@ -306,6 +406,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       currency: "COP",
       minimumFractionDigits: 0,
     }).format(price);
+
+  useEffect(() => {
+    if (invoiceNumber) {
+      setInvoiceError(validateInvoiceNumber(invoiceNumber));
+    }
+  }, [existingInvoiceNumbers, invoiceNumber]);
 
   useEffect(() => {
     if (selectedProducts.length === 0) {
@@ -418,6 +524,33 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3, duration: 0.5 }}
                   >
+                    <motion.div
+                      className="space-y-2"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25, duration: 0.3 }}
+                    >
+                      <label className="block text-sm font-medium text-gray-700">
+                        Número de factura
+                      </label>
+                      <input
+                        type="text"
+                        value={invoiceNumber}
+                        onChange={handleInvoiceChange}
+                        maxLength={20}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
+                          invoiceError
+                            ? "border-red-500 focus:ring-1 focus:ring-red-500"
+                            : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                        }`}
+                        placeholder="Ej. 0001-2025"
+                      />
+                      {invoiceError && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {invoiceError}
+                        </p>
+                      )}
+                    </motion.div>
                     {/* Búsqueda y listado de productos */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -429,7 +562,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       </h3>
                       <ProductSearch onAddProduct={handleAddProduct} />
                     </motion.div>
-
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
                       {selectedProducts.length > 0 && (
@@ -742,10 +874,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                   </label>
 
                                                   {/* Código de barras debajo del checkbox "Registrar" */}
-                                                  {console.log(
-                                                    "details",
-                                                    detail
-                                                  )}
+
                                                   {action.value ===
                                                     "registrar" &&
                                                     detail && (
@@ -947,6 +1076,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       {/* Modal de registro de producto */}
       <ProductRegistrationModal
+        isReturnProduct={true}
         isOpen={isRegistrationModalOpen}
         onClose={handleRegistrationModalClose}
         onCancelRegistration={handleRegistrationModalCancel}

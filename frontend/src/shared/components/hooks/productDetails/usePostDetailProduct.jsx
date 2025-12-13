@@ -22,7 +22,7 @@ export const usePostDetailProduct = () => {
         fecha_vencimiento: productData.registeredExpiry || null,
         stock_producto: Number(productData.registeredQuantity),
       };
-
+      console.log(productData);
       console.log("📦 Enviando payload:", payload);
 
       const res = await axios.post(API_URL, payload, {

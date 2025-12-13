@@ -1,39 +1,37 @@
 // src/auth/Login.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
-
 // Assets
 import tiendaImg from "../assets/image.png";
 import logo from "../assets/logo.png";
-
+import { useAuth } from "../context/useAtuh";
 // Componentes
-import Loading from "../features/onboarding/loading";
+// import Loading from "../features/onboarding/loading";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const handleSubmit = (e) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(null);
+  const { signIn, loading } = useAuth();
+  const locatino = useLocation();
+  //Guarda la ruta donde se intento ingresar o app
+  const from = locatino.state?.from?.pathname || "/app";
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoginError(null);
 
-    // Valida con el navegador
-    if (e.target.checkValidity()) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        navigate("/app");
-      }, 2000);
+    const result = await signIn({ email, password });
+    if (result.ok) {
+      // Redirigir a la ruta anterior o a /app
+      navigate(from, { replace: true });
     } else {
-      e.target.reportValidity(); // 🔹 fuerza mostrar el tooltip
+      setLoginError("Correo o contrasena incorrectas");
     }
   };
-
-  if (loading) {
-    return <Loading />;
-  }
 
   return (
     <div className="relative min-h-screen w-full">
@@ -82,7 +80,7 @@ export default function Login() {
           </div>
 
           {/* Formulario */}
-          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-white drop-shadow">
@@ -93,7 +91,8 @@ export default function Login() {
                 name="email"
                 placeholder="tu@email.com"
                 required
-                title="Por favor ingresa un correo válido."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
             </div>
@@ -109,8 +108,8 @@ export default function Login() {
                 placeholder="••••••••"
                 required
                 minLength={8}
-                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}"
-                title="Debe tener mínimo 8 caracteres, incluyendo mayúscula, minúscula, número y un símbolo."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
               <button
@@ -135,10 +134,16 @@ export default function Login() {
             {/* Botón ingresar */}
             <button
               type="submit"
-              className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
+              disabled={!email || !password || loading}
+              className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200"
             >
-              Ingresar
+              {loading ? "Cargando..." : "Ingresar"}
             </button>
+
+            {/* Mostrar error si existe */}
+            {loginError && (
+              <p className="text-red-500 text-sm text-center">{loginError}</p>
+            )}
 
             {/* Botón volver */}
             <Link

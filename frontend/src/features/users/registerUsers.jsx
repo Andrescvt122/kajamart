@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { showErrorAlert, showSuccessAlert } from "../../shared/components/alerts.jsx";
 import { useRolesList } from "../../shared/components/hooks/roles/useRolesList.js";
 import { useCreateUsuario } from "../../shared/components/hooks/users/useCreateUser.js";
+import { useAuth } from "../../context/useAtuh.jsx";
 
 // 🔘 Switch de estado (Activo/Inactivo)
 const EstadoToggle = ({ enabled, onChange }) => (
@@ -25,7 +26,7 @@ const EstadoToggle = ({ enabled, onChange }) => (
 export default function RegisterUsers({ isOpen, onClose }) {
   const { roles } = useRolesList();
   const { createUsuario } = useCreateUsuario();
-
+  
   const [form, setForm] = useState({
     usuario: "",
     correo: "",

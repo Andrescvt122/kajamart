@@ -27,9 +27,8 @@ export default function SuplliersRegisterModal({
     contacto: "",
     telefono: "",
     correo: "",
-    categorias: [],              // ← IDs numéricos
+    categorias: [], // ← IDs numéricos
     direccion: "",
-    max_porcentaje_de_devolucion: "",
   });
 
   const createMutation = useCreateSupplier();
@@ -161,7 +160,6 @@ export default function SuplliersRegisterModal({
     Object.entries(form).forEach(([key, value]) => {
       if (
         key !== "direccion" &&
-        key !== "max_porcentaje_de_devolucion" &&
         (value === null ||
           value === undefined ||
           value?.toString().trim() === "")
@@ -172,13 +170,6 @@ export default function SuplliersRegisterModal({
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
       } else if (key === "telefono" || key === "nit") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
-      } else if (key === "max_porcentaje_de_devolucion") {
-        if (
-          value &&
-          (isNaN(value) || Number(value) < 0 || Number(value) > 100)
-        ) {
-          newErrors[key] = "Debe ser un número entre 0 y 100";
-        }
       }
     });
     if (!Array.isArray(form.categorias) || form.categorias.length === 0)
@@ -191,7 +182,7 @@ export default function SuplliersRegisterModal({
     e.preventDefault();
     if (!validateAll()) return;
 
-    // payload al backend (estado SIEMPRE activo)
+    // payload al backend (estado SIEMPRE activo, sin max_porcentaje_de_devolucion)
     const payload = {
       nombre: form.nombre.trim(),
       nit: Number(form.nit),
@@ -202,9 +193,6 @@ export default function SuplliersRegisterModal({
       direccion: form.direccion.trim(),
       estado: true, // 👈 siempre activo
       categorias: form.categorias,
-      max_porcentaje_de_devolucion: form.max_porcentaje_de_devolucion
-        ? parseFloat(form.max_porcentaje_de_devolucion)
-        : null,
     };
 
     showLoadingAlert("Registrando proveedor...");
@@ -228,7 +216,6 @@ export default function SuplliersRegisterModal({
           correo: "",
           categorias: [],
           direccion: "",
-          max_porcentaje_de_devolucion: "",
         });
         setErrors({});
       },
@@ -255,12 +242,14 @@ export default function SuplliersRegisterModal({
 
   return (
     <AnimatePresence>
+      {/* ⬆️ Modal más arriba y scrollable */}
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-50 flex items-start justify-center pt-6 sm:pt-10 overflow-y-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        {/* Fondo */}
         <motion.div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm"
           onClick={onClose}
@@ -269,8 +258,9 @@ export default function SuplliersRegisterModal({
           exit={{ opacity: 0 }}
         />
 
+        {/* Contenido */}
         <motion.div
-          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50"
+          className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-3xl pointer-events-auto z-50 my-6 max-h-[90vh] overflow-y-auto"
           initial={{ opacity: 0, scale: 0.95, y: -20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -320,7 +310,9 @@ export default function SuplliersRegisterModal({
 
               {/* Tipo de persona */}
               <div ref={personaRef}>
-                <label className="block text-sm text-gray-700 mb-1">Tipo de persona</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Tipo de persona
+                </label>
                 <div className="relative mt-1 w-full">
                   <div className="w-full border border-gray-300 bg-white rounded-lg">
                     <button
@@ -379,7 +371,9 @@ export default function SuplliersRegisterModal({
 
               {/* Contacto */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Persona de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Persona de contacto
+                </label>
                 <input
                   name="contacto"
                   value={form.contacto}
@@ -396,7 +390,9 @@ export default function SuplliersRegisterModal({
 
               {/* Teléfono */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Teléfono de contacto</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Teléfono de contacto
+                </label>
                 <input
                   name="telefono"
                   value={form.telefono}
@@ -432,48 +428,11 @@ export default function SuplliersRegisterModal({
               </div>
             </div>
 
-            {/* Máximo porcentaje de devolución */}
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Máx. % de devolución
-              </label>
-              <input
-                name="max_porcentaje_de_devolucion"
-                value={form.max_porcentaje_de_devolucion}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d*\.?\d*$/.test(value)) {
-                    setForm((prev) => ({
-                      ...prev,
-                      max_porcentaje_de_devolucion: value,
-                    }));
-                  }
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value.trim();
-                  let error = "";
-                  if (value && (isNaN(value) || Number(value) < 0 || Number(value) > 100)) {
-                    error = "Debe ser un número entre 0 y 100";
-                  }
-                  setErrors((prev) => ({
-                    ...prev,
-                    max_porcentaje_de_devolucion: error,
-                  }));
-                }}
-                inputMode="decimal"
-                placeholder="Ej: 10.5"
-                className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
-              />
-              {errors.max_porcentaje_de_devolucion && (
-                <span className="text-red-500 text-xs">
-                  {errors.max_porcentaje_de_devolucion}
-                </span>
-              )}
-            </div>
-
             {/* Categorías (IDs) */}
             <div ref={categoriasRef} className="mt-2">
-              <label className="block text-sm text-gray-700 mb-1">Categorías</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Categorías
+              </label>
 
               {catsError && mergedCategoriasOptions.length === 0 && (
                 <p className="text-xs text-red-600 mb-1">
@@ -486,7 +445,8 @@ export default function SuplliersRegisterModal({
                   <button
                     type="button"
                     onClick={() => {
-                      if (loadingCats && mergedCategoriasOptions.length === 0) return;
+                      if (loadingCats && mergedCategoriasOptions.length === 0)
+                        return;
                       setCategoriasOpen((s) => !s);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-200"
@@ -499,9 +459,13 @@ export default function SuplliersRegisterModal({
                   >
                     <div className="flex items-center">
                       {loadingCats && mergedCategoriasOptions.length === 0 ? (
-                        <span className="text-sm text-gray-400">Cargando categorías...</span>
+                        <span className="text-sm text-gray-400">
+                          Cargando categorías...
+                        </span>
                       ) : form.categorias.length === 0 ? (
-                        <span className="text-sm text-gray-400">Seleccionar categorías</span>
+                        <span className="text-sm text-gray-400">
+                          Seleccionar categorías
+                        </span>
                       ) : (
                         <span className="text-sm text-gray-800">
                           {form.categorias.length} seleccionada(s)
@@ -577,7 +541,9 @@ export default function SuplliersRegisterModal({
 
             {/* Dirección */}
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Dirección</label>
+              <label className="block text-sm text-gray-700 mb-1">
+                Dirección
+              </label>
               <input
                 name="direccion"
                 value={form.direccion}

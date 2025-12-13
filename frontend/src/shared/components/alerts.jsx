@@ -8,16 +8,18 @@ export const showSuccessAlert = (
     icon: "success",
     title: "Éxito",
     text: message,
-    timer: 2000, // ⏳ se cierra automáticamente en 2 segundos
-    timerProgressBar: true, // 🔄 barra de tiempo visible
-    showConfirmButton: false, // ❌ sin botón, se cierra solo
-    background: "#f6ddcc",    // Fondo café claro
-    color: "#3e2723",         // Texto marrón oscuro
+    showConfirmButton: true,
+    confirmButtonText: "Aceptar",
+    confirmButtonColor: "#4CAF50",
+    background: "#f6ddcc",
+    color: "#3e2723",
   });
 };
 
 // ❌ Error (rojo, pero en armonía)
-export const showErrorAlert = (message = "Ha ocurrido un error inesperado") => {
+export const showErrorAlert = (
+  message = "Ha ocurrido un error inesperado"
+) => {
   Swal.fire({
     icon: "error",
     title: "Error",
@@ -49,7 +51,9 @@ export const showConfirmAlert = async (
 };
 
 // ⚠️ Advertencia (naranja pero en la misma paleta)
-export const showWarningAlert = (message = "Debes revisar la información") => {
+export const showWarningAlert = (
+  message = "Debes revisar la información"
+) => {
   Swal.fire({
     icon: "warning",
     title: "Cuidado",
@@ -62,7 +66,9 @@ export const showWarningAlert = (message = "Debes revisar la información") => {
 };
 
 // ℹ️ Información (azul discreto)
-export const showInfoAlert = (message = "Información importante") => {
+export const showInfoAlert = (
+  message = "Información importante"
+) => {
   Swal.fire({
     icon: "info",
     title: "Información",
@@ -74,25 +80,24 @@ export const showInfoAlert = (message = "Información importante") => {
   });
 };
 
-// ⏳ Cargando (sin botón, solo coherencia de fondo)
-const showLoadingAlert = (mensaje) => {
+// ⏳ Cargando (sin botón, sin timer, lo cierras tú con Swal.close())
+export const showLoadingAlert = (mensaje = "Procesando...") => {
   Swal.fire({
     title: mensaje,
     text: "Por favor espera...",
     allowOutsideClick: false,
     allowEscapeKey: false,
+    showConfirmButton: false,
+    background: "#f6ddcc",
+    color: "#3e2723",
     didOpen: () => {
       Swal.showLoading();
-      setTimeout(() => {
-        Swal.close();
-      }, 1500); // cierra el alert después de 1.5 segundos
     },
-    timer: 5000, // ⏳ máximo 5 segundos
-    timerProgressBar: true,
+    // ❌ Quitamos timer y setTimeout para que NO se cierre solo
+    // timer: 5000,
+    // timerProgressBar: true,
   });
 };
-export { showLoadingAlert };
-
 
 // ✍️ Input (verde + café)
 export const showInputAlert = async (message = "Escribe algo") => {

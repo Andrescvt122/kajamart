@@ -1,4 +1,3 @@
-// frontend/src/features/products/indexProducts.jsx
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,7 +13,7 @@ import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
 import { exportProductsToExcel } from "./helpers/exportToXls";
 import { exportProductsToPDF } from "./helpers/exportToPdf";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
   showErrorAlert,
@@ -104,7 +103,10 @@ export default function IndexProducts() {
 
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
-
+  const {hasPermission} = useAuth();
+  const canDelete = hasPermission("Eliminar productos");
+  const canEdit = hasPermission("Editar productos");
+  const canCreate = hasPermission("Crear productos");
   // Normalizar categorías
   const categories = useMemo(
     () =>
@@ -307,9 +309,11 @@ export default function IndexProducts() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 🔒 Bloquear scroll cuando cualquier modal esté abierto
+  const anyModalOpen = isModalOpen || isEditModalOpen || isDeleteModalOpen;
   useEffect(() => {
-    document.body.style.overflow = isModalOpen ? "hidden" : "auto";
-  }, [isModalOpen]);
+    document.body.style.overflow = anyModalOpen ? "hidden" : "auto";
+  }, [anyModalOpen]);
 
   const handleOpenModal = () => {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -383,15 +387,13 @@ export default function IndexProducts() {
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
           {/* Header */}
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-3 sm:mb-4">
             <h2 className="text-2xl sm:text-3xl font-semibold">Productos</h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Administrador de Inventario
-            </p>
+            {/* Subtítulo de administrador eliminado para reducir espacio */}
           </div>
 
           {/* Toolbar (alineada en una fila; responsive) */}
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-4 sm:mb-5">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
               {/* Buscar (ocupa todo el espacio disponible) */}
               <div className="min-w-0">
@@ -427,6 +429,7 @@ export default function IndexProducts() {
                 <button
                   onClick={handleOpenModal}
                   className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                  hidden={!canCreate}
                 >
                   Registrar Nuevo Producto
                 </button>
@@ -532,15 +535,6 @@ export default function IndexProducts() {
                             <div className="px-4 py-4 grid grid-cols-2 gap-3">
                               <div>
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Stock
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.stockActual} (min {p.stockMin}, max{" "}
-                                  {p.stockMax})
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Precio
                                 </p>
                                 <p className="text-sm text-gray-800">
@@ -561,7 +555,7 @@ export default function IndexProducts() {
                                   {p.estado}
                                 </span>
                               </div>
-                              <div>
+                              <div className="col-span-2">
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Descripción
                                 </p>
@@ -582,9 +576,10 @@ export default function IndexProducts() {
                                     })
                                   }
                                 />
-                                <EditButton event={() => handleEditClick(p)} />
+                                <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
                                 <DeleteButton
                                   event={() => handleDeleteClick(p)}
+                                  canDelete={canDelete} 
                                 />
                               </div>
                             </div>
@@ -613,13 +608,6 @@ export default function IndexProducts() {
                   <th className="px-4 lg:px-6 py-3 lg:py-4 hidden lg:table-cell">
                     Categoría
                   </th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4">Stock Actual</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 hidden xl:table-cell">
-                    Stock Mínimo
-                  </th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 hidden xl:table-cell">
-                    Stock Máximo
-                  </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
@@ -638,14 +626,14 @@ export default function IndexProducts() {
               >
                 {isLoading || isCatLoading ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12">
+                    <td colSpan={6} className="px-6 py-12">
                       <Loading inline heightClass="h-28" />
                     </td>
                   </tr>
                 ) : pageItems.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={6}
                       className="px-6 py-8 text-center text-gray-400"
                     >
                       No se encontraron productos.
@@ -692,16 +680,6 @@ export default function IndexProducts() {
                       </td>
 
                       <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        {p.stockActual}
-                      </td>
-                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap hidden xl:table-cell">
-                        {p.stockMin}
-                      </td>
-                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap hidden xl:table-cell">
-                        {p.stockMax}
-                      </td>
-
-                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         ${Number(p.precio || 0).toLocaleString()}
                       </td>
 
@@ -726,8 +704,8 @@ export default function IndexProducts() {
                               })
                             }
                           />
-                          <EditButton event={() => handleEditClick(p)} />
-                          <DeleteButton event={() => handleDeleteClick(p)} />
+                          <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
+                          <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
                         </div>
                       </td>
                     </motion.tr>

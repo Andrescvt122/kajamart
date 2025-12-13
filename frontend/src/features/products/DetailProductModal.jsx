@@ -26,16 +26,10 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
     return d.toLocaleDateString();
   };
 
-  // Soportar ambas formas de objeto para el detalle
-  const detalleId =
-    detail.id_detalle_producto ?? detail.id ?? "—";
-
+  const detalleId = detail.id_detalle_producto ?? detail.id ?? "—";
   const codigoBarras =
     detail.codigo_barras_producto_compra ?? detail.barcode ?? "—";
-
-  const stockLote =
-    detail.stock_producto ?? detail.cantidad ?? "—";
-
+  const stockLote = detail.stock_producto ?? detail.cantidad ?? "—";
   const fechaVencimiento = detail.fecha_vencimiento || detail.vencimiento || null;
 
   const esDevolucion =
@@ -51,13 +45,13 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
     product.porcentaje_incremento ??
     "—";
 
-  // ------- UI -------
+  // ------- Info combinada (producto + lote) en un solo grid ancho -------
   const productInfo = [
-    { label: "ID Producto", value: product.id_producto, icon: Hash },
-    { label: "Nombre producto", value: product.nombre, icon: Package },
-    { label: "Stock total (producto)", value: product.stock_actual, icon: Boxes },
-    { label: "Stock mínimo", value: product.stock_minimo, icon: Layers },
-    { label: "Stock máximo", value: product.stock_maximo, icon: Layers },
+    { label: "ID Producto", value: product.id_producto, icon: Hash, group: "Producto" },
+    { label: "Nombre producto", value: product.nombre, icon: Package, group: "Producto" },
+    { label: "Stock total (producto)", value: product.stock_actual, icon: Boxes, group: "Producto" },
+    { label: "Stock mínimo", value: product.stock_minimo, icon: Layers, group: "Producto" },
+    { label: "Stock máximo", value: product.stock_maximo, icon: Layers, group: "Producto" },
     {
       label: "Costo unitario",
       value:
@@ -65,6 +59,7 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
           ? `$${product.costo_unitario.toLocaleString()}`
           : "—",
       icon: DollarSign,
+      group: "Producto",
     },
     {
       label: "Precio venta",
@@ -73,33 +68,49 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
           ? `$${product.precio_venta.toLocaleString()}`
           : "—",
       icon: DollarSign,
+      group: "Producto",
     },
-    { label: "IVA (%)", value: ivaValor, icon: Percent },
-    { label: "ICU (%)", value: icuValor, icon: QrCode },
-    { label: "Incremento venta (%)", value: incrementoValor, icon: TrendingUp },
+    { label: "IVA (%)", value: ivaValor, icon: Percent, group: "Producto" },
+    { label: "ICU (%)", value: icuValor, icon: QrCode, group: "Producto" },
+    {
+      label: "Incremento venta (%)",
+      value: incrementoValor,
+      icon: TrendingUp,
+      group: "Producto",
+    },
   ];
 
   const detailInfo = [
-    { label: "ID Detalle", value: detalleId, icon: Hash },
-    { label: "Código de barras", value: codigoBarras, icon: Barcode },
+    { label: "ID Detalle", value: detalleId, icon: Hash, group: "Lote" },
+    { label: "Código de barras", value: codigoBarras, icon: Barcode, group: "Lote" },
     {
       label: "Fecha de vencimiento",
       value: formatDate(fechaVencimiento),
       icon: Calendar,
+      group: "Lote",
     },
-    { label: "Stock en este lote", value: stockLote, icon: Boxes },
+    {
+      label: "Stock en este lote",
+      value: stockLote,
+      icon: Boxes,
+      group: "Lote",
+    },
     {
       label: "¿Es devolución?",
       value: esDevolucion ? "Sí" : "No",
       icon: Boxes,
+      group: "Lote",
     },
   ];
+
+  const combinedInfo = [...productInfo, ...detailInfo];
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50"
+          // ⬆️ Alineado arriba y con scroll vertical si hace falta
+          className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50 px-4 pt-6 sm:pt-10 pb-6 overflow-y-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -110,7 +121,7 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -20 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-3xl relative text-gray-800"
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-5xl my-6 relative text-gray-800 max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -120,8 +131,8 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
                   Detalles del producto y lote
                 </h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  Producto: <span className="font-medium">{product.nombre}</span>{" "}
-                  · Detalle{" "}
+                  Producto:{" "}
+                  <span className="font-medium">{product.nombre}</span> · Detalle{" "}
                   <span className="font-mono">#{detalleId}</span>
                 </p>
               </div>
@@ -133,65 +144,40 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
               </button>
             </div>
 
-            {/* Contenido principal: izquierda info, derecha imagen */}
-            <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-6">
-              {/* Info secciones */}
-              <div className="space-y-5">
-                {/* Sección Producto */}
-                <section>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Package className="w-4 h-4 text-green-600" />
-                    Información del producto
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {productInfo.map(({ label, value, icon: Icon }, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
-                      >
-                        <Icon className="w-5 h-5 text-green-600 shrink-0" />
-                        <div>
-                          <p className="text-[11px] text-gray-500 uppercase tracking-wide">
-                            {label}
-                          </p>
-                          <p className="text-sm font-medium text-gray-800 break-all">
-                            {value !== undefined && value !== null && value !== ""
-                              ? value
-                              : "—"}
-                          </p>
-                        </div>
+            {/* Contenido principal: info a lo ancho + imagen */}
+            <div className="grid grid-cols-1 lg:grid-cols-[3fr,2fr] gap-6">
+              {/* Info combinada en un solo grid ancho */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Información general
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {combinedInfo.map(({ label, value, icon: Icon, group }, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
+                    >
+                      <Icon
+                        className={`w-5 h-5 shrink-0 ${
+                          group === "Producto" ? "text-green-600" : "text-blue-600"
+                        }`}
+                      />
+                      <div>
+                        <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+                          {label}
+                        </p>
+                        <p className="text-xs font-semibold text-gray-400 mb-0.5">
+                          {group}
+                        </p>
+                        <p className="text-sm font-medium text-gray-800 break-all">
+                          {value !== undefined && value !== null && value !== ""
+                            ? value
+                            : "—"}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Sección Lote */}
-                <section>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Boxes className="w-4 h-4 text-blue-600" />
-                    Información del lote
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {detailInfo.map(({ label, value, icon: Icon }, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
-                      >
-                        <Icon className="w-5 h-5 text-blue-600 shrink-0" />
-                        <div>
-                          <p className="text-[11px] text-gray-500 uppercase tracking-wide">
-                            {label}
-                          </p>
-                          <p className="text-sm font-medium text-gray-800 break-all">
-                            {value !== undefined && value !== null && value !== ""
-                              ? value
-                              : "—"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Imagen */}
@@ -203,15 +189,15 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
                   <img
                     src={product.url_imagen}
                     alt={product.nombre}
-                    className="w-48 h-48 object-cover rounded-xl border shadow"
+                    className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-xl border shadow"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.parentNode.innerHTML =
-                        '<div class="w-48 h-48 flex items-center justify-center rounded-xl border-2 border-dashed text-gray-500 text-xs text-center px-2">Imagen no encontrada</div>';
+                        '<div class="w-48 h-48 md:w-56 md:h-56 flex items-center justify-center rounded-xl border-2 border-dashed text-gray-500 text-xs text-center px-2">Imagen no encontrada</div>';
                     }}
                   />
                 ) : (
-                  <div className="w-48 h-48 flex items-center justify-center rounded-xl border-2 border-dashed text-gray-500 text-xs text-center px-2">
+                  <div className="w-48 h-48 md:w-56 md:h-56 flex items-center justify-center rounded-xl border-2 border-dashed text-gray-500 text-xs text-center px-2">
                     Imagen no encontrada
                   </div>
                 )}

@@ -10,13 +10,18 @@ export const usePostReturnProducts = () => {
 
   // Ahora recibe el payload completo ya armado en el modal
   const postReturnProducts = async (payload) => {
+    console.log("post disparado");
     setLoading(true);
     setError(null);
     setSuccess(false);
     try {
+      console.log("comienza el post")
       const response = await axios.post(API_URL, payload, {
         headers: { "Content-Type": "application/json" },
       });
+      console.log("termina el post");
+      console.log("payload", payload);
+      console.log("post existoso");
       setSuccess(true);
       return response.data;
     } catch (err) {

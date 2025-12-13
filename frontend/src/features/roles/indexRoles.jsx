@@ -10,7 +10,7 @@ import DeleteRoleModal from "./deleteRoles.jsx";
 import RegisterRoles from "./registerRoles";
 import { usePermisosList } from "../../shared/components/hooks/roles/usePermisosList.js";
 import { useRolesList } from "../../shared/components/hooks/roles/useRolesList.js";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 const ONE_LINE_SAFE = "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
 const LONG_TEXT_CLS = "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
 
@@ -55,11 +55,13 @@ export default function IndexRoles() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
-
+  const {hasPermission} = useAuth();
+  const canCreate = hasPermission("Crear roles");
+  const canEdit = hasPermission("Editar roles");
+  const canDelete = hasPermission("Eliminar roles");
   // expansión móvil
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
@@ -201,6 +203,7 @@ export default function IndexRoles() {
 
             <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
               <button
+              hiddent={!canCreate}
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: "auto" });
                   setIsModalOpen(true);
@@ -263,9 +266,9 @@ export default function IndexRoles() {
                               <p className={LONG_TEXT_CLS + " mt-1 text-sm text-gray-800"}>{role.descripcion || "Sin descripción"}</p>
 
                               <div className="mt-4 flex items-center gap-2">
-                                <ViewButton event={() => openDetailsModal(role)} />
-                                <EditButton event={() => openEditModal(role)} />
-                                <DeleteButton event={() => openDeleteModal(role)} />
+                                <ViewButton  event={() => openDetailsModal(role)} />
+                                <EditButton canEdit={canEdit} event={() => openEditModal(role)} />
+                                <DeleteButton canDelete={canDelete} event={() => openDeleteModal(role)} />
                               </div>
                             </div>
                           </motion.div>
@@ -315,8 +318,8 @@ export default function IndexRoles() {
                         <td className="px-4 lg:px-6 py-4 text-right">
                           <div className="inline-flex items-center gap-2">
                             <button type="button" onClick={() => openDetailsModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Ver detalles"><ViewButton /></button>
-                            <button type="button" onClick={() => openEditModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Editar"><EditButton /></button>
-                            <button type="button" onClick={() => openDeleteModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Eliminar"><DeleteButton /></button>
+                            <button type="button" onClick={() => openEditModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Editar"><EditButton canEdit={canEdit} /></button>
+                            <button type="button" onClick={() => openDeleteModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Eliminar"><DeleteButton canDelete={canDelete}/></button>
                           </div>
                         </td>
                       </motion.tr>

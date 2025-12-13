@@ -21,6 +21,8 @@ export const usePostLowProducts = () => {
         id_detalle_productos: p.id,
         cantidad: p.requestedQuantity,
         motivo: p.reason,
+        id_producto_traslado: p.id_producto_traslado ?? null,
+        cantidad_traslado: p.cantidad_traslado ?? null,
         total_producto_baja: p.unitCost * p.requestedQuantity,
       }));
 
@@ -37,8 +39,7 @@ export const usePostLowProducts = () => {
     } catch (err) {
       console.error("❌ Error al registrar baja:", err);
       setError(
-        err.response?.data?.error ||
-          "Error al registrar la baja de productos."
+        err.response?.data?.error || "Error al registrar la baja de productos."
       );
     } finally {
       setLoading(false);
