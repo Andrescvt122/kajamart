@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         setPayload(decoded);
-
+        console.log("✅ Token válido. Payload:", decoded);
         const roleData = await getRoleById(decoded.rol_id);
         setRole(roleData);
 
@@ -94,6 +94,7 @@ export const AuthProvider = ({ children }) => {
     (permName) => permissions?.includes(permName),
     [permissions]
   );
+  console.log("User permissions:", permissions);
   const value = useMemo(
     () => ({
       loading,
