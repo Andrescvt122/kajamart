@@ -3,7 +3,7 @@ import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
 // Auth
 import ForgotPassword from "./auth/ForgotPassword";
-import RecoverPassword from "./auth/recoverPassword";
+import RecoverPassword from "./auth/recoverPassword"; // Asegúrate que el nombre del archivo coincida (mayúsculas/minúsculas)
 // Features
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
@@ -35,6 +35,7 @@ import ProductsLayout from "./layouts/ProductsLayout";
 import Welcome from "./pages/dashboard/Welcome";
 import PublicRoute from "./PublicRoute.jsx";
 import ProtectedRoute from "./protectedRoute.jsx";
+
 export default function RoutesAdmin() {
   return (
     <Routes>
@@ -45,7 +46,10 @@ export default function RoutesAdmin() {
       <Route element={<PublicRoute />}>
         <Route path="/auth" element={<AuthLayout />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/recover-password" element={<RecoverPassword />} />
+        
+        {/* 🔴 CORRECCIÓN: Cambiamos "/recover-password" por "/verify-code" */}
+        {/* Esto conecta con el navigate('/verify-code') del paso anterior */}
+        <Route path="/verify-code" element={<RecoverPassword />} />
       </Route>
 
       {/* App (protegido) */}
