@@ -2,66 +2,34 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, AlertCircle } from "lucide-react"; // Agregué AlertCircle para el mensaje de error
-
+import { Eye, EyeOff } from "lucide-react";
+import {useLogin} from "../shared/components/hooks/auth/useLogin";
 // Assets
 import tiendaImg from "../assets/image.png";
 import logo from "../assets/logo.png";
 
 // Componentes
-import Loading from "../features/onboarding/loading";
-
-// API (IMPORTANTE: Ajusta la ruta si tu archivo axiosConfig está en otro lado)
-import api from "../api/axiosConfig"; 
+// import Loading from "../features/onboarding/loading";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(""); // Estado para guardar mensajes de error del backend
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(null);
+  const { login, loading } = useLogin();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoginError(null);
 
-    // Valida con las reglas HTML (required, pattern, etc.)
-    if (e.target.checkValidity()) {
-      setLoading(true);
-      setError(""); // Limpiamos errores previos
-
-      // 1. Extraer datos directamente de los inputs del formulario
-      const email = e.target.email.value;
-      const password = e.target.password.value;
-
-      try {
-        // 2. Petición al Backend
-        const response = await api.post('/auth/login', { email, password });
-        
-        // 3. Si es exitoso:
-        const { token, user } = response.data;
-        
-        // Guardar en LocalStorage
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        // Redirigir
-        navigate("/app");
-
-      } catch (err) {
-        console.error(err);
-        // 4. Si falla: Mostrar mensaje del servidor (ej: "Credenciales inválidas")
-        setError(err.response?.data?.error || "Error al conectar con el servidor.");
-      } finally {
-        setLoading(false);
-      }
-
+    const result = await login({ email, password });
+    if (result.ok) {
+      navigate("/app");
     } else {
-      e.target.reportValidity(); // fuerza mostrar el tooltip del navegador
+      setLoginError("Correo o contrasena incorrectas");
     }
   };
-
-  if (loading) {
-    return <Loading />;
-  }
 
   return (
     <div className="relative min-h-screen w-full">
@@ -109,18 +77,6 @@ export default function Login() {
             </p>
           </div>
 
-          {/* 🔴 ALERTA DE ERROR (Solo se muestra si hay error) */}
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-500/80 backdrop-blur-sm border border-red-400 text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 shadow-lg"
-            >
-              <AlertCircle size={18} />
-              <span>{error}</span>
-            </motion.div>
-          )}
-
           {/* Formulario */}
           <form className="space-y-6" onSubmit={handleSubmit} noValidate>
             {/* Email */}
@@ -133,7 +89,8 @@ export default function Login() {
                 name="email"
                 placeholder="tu@email.com"
                 required
-                title="Por favor ingresa un correo válido."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
             </div>
@@ -148,12 +105,9 @@ export default function Login() {
                 name="password"
                 placeholder="••••••••"
                 required
-                // Nota: He comentado el pattern temporalmente. 
-                // Si tus usuarios de prueba tienen claves sencillas (ej: "123456"),
-                // el pattern no te dejará enviar el formulario.
-                // Descoméntalo cuando vayas a producción.
-                /* pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}" */
-                minLength={6} 
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-3 pr-10 py-2 mt-1 text-gray-900 placeholder-gray-400 bg-white/70 border border-white/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 backdrop-blur-sm"
               />
               <button
@@ -178,10 +132,16 @@ export default function Login() {
             {/* Botón ingresar */}
             <button
               type="submit"
-              className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 transition duration-200"
+              disabled={!email || !password || loading}
+              className="w-full px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl shadow-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200"
             >
-              Ingresar
+              {loading ? "Cargando..." : "Ingresar"}
             </button>
+
+            {/* Mostrar error si existe */}
+            {loginError && (
+              <p className="text-red-500 text-sm text-center">{loginError}</p>
+            )}
 
             {/* Botón volver */}
             <Link
