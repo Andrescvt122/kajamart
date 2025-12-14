@@ -18,7 +18,7 @@ import { usePostReturnProducts } from "../../../../../shared/components/hooks/re
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
-
+import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -39,7 +39,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
-
+  const { payload:payloadId } = useAuth();
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
@@ -317,8 +317,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleAcceptAlert = async () => {
     console.log("👉 handleAcceptAlert DISPARADO");
     setShowConfirmAlert(false);
-
-    const id_responsable = 1; // TODO: reemplazar con el usuario logueado
+    console.log("📋 selectedProducts al confirmar:", payloadId.uid);
+    const id_responsable = payloadId.uid; // TODO: reemplazar con el usuario logueado
 
     try {
       console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
