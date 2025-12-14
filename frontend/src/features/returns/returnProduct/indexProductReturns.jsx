@@ -17,6 +17,7 @@ import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { useAuth } from "../../../context/useAtuh";
+import Loading from "../../../features/onboarding/loading.jsx";
 // ===== Helpers de responsive (tomados de IndexLow) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -215,7 +216,7 @@ export default function IndexProductReturns() {
           <motion.div className="md:hidden" variants={tableVariants} initial="hidden" animate="visible">
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loader2 size={24} className="animate-spin" />
+                <Loading inline heightClass="h-28" />
               </div>
             ) : error ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
@@ -346,10 +347,8 @@ export default function IndexProductReturns() {
                 <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12">
-                        <div className="flex items-center justify-center">
-                          <Loader2 size={24} className="animate-spin" />
-                        </div>
+                      <td colSpan={7} className="px-6 py-12 text-center">
+                        <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
