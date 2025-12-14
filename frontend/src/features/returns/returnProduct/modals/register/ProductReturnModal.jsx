@@ -325,21 +325,48 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
       console.log("pendingDetails en handleAcceptAlert:", pendingDetails);
 
+      // 🔹 PRIMERO: Guardar todos los detalles pendientes en la BD
+      const savedDetails = [];
+      for (const detail of pendingDetails) {
+        console.log("Guardando detalle:", detail);
+        const saved = await postDetailProduct({
+          id_producto: detail.productKey,
+          registeredBarcode: detail.registeredBarcode,
+          registeredExpiry: detail.registeredExpiry,
+          registeredQuantity: detail.registeredQuantity,
+        });
+        if (saved && saved.id_detalle_producto) {
+          savedDetails.push({
+            productKey: detail.productKey,
+            id_detalle_producto: saved.id_detalle_producto,
+          });
+        } else {
+          throw new Error(`No se pudo guardar el detalle para el producto ${detail.productKey}`);
+        }
+      }
+
+      console.log("✅ Detalles guardados:", savedDetails);
+
+      // 🔹 SEGUNDO: Construir payload con los IDs de detalles guardados
       const productsPayload = selectedProducts
         .map((p) => {
-          const detail = getPendingDetailForProduct(p.id_producto);
+          let id_detalle;
 
-          const id_detalle =
-            p.actionType === "registrar"
-              ? detail?.id_detalle_producto
-              : p.id_detalle_producto;
+          if (p.actionType === "registrar") {
+            // Buscar el detalle guardado
+            const savedDetail = savedDetails.find((d) => d.productKey === p.id_producto);
+            id_detalle = savedDetail?.id_detalle_producto;
+          } else {
+            // Para descuento, usar el detalle existente
+            id_detalle = p.id_detalle_producto;
+          }
 
-          if (!id_detalle && p.actionType === "registrar") {
+          if (!id_detalle) {
             console.error(
-              "❌ Falta id_detalle_producto para este producto (registrar):",
+              "❌ Falta id_detalle_producto para este producto:",
               p,
-              "detail:",
-              detail
+              "savedDetails:",
+              savedDetails
             );
             alert(
               `El producto "${
