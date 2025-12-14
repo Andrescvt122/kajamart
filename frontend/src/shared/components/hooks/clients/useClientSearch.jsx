@@ -32,7 +32,7 @@ export const useSearchClient = () => {
       }
 
       const data = await res.json();
-
+      console.log("Datos recibidos del back en búsqueda de clientes:", data);
       // Normalizamos todos los clientes al formato del FRONT
       const normalized = Array.isArray(data)
         ? data.map(mapClientFromBackend)
@@ -45,11 +45,11 @@ export const useSearchClient = () => {
       setClients([]);
     } finally {
       setLoading(false);
+      console.log("Clientes después de la búsqueda:", clients);
     }
   };
 
   const clearClients = () => setClients([]);
-
   return {
     clients,        // 👉 ya vienen con {id, nombre, numeroDocumento, estado, ...}
     loading,

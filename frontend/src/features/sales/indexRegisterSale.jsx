@@ -21,7 +21,7 @@ export default function IndexRegisterSale() {
     error: errorClients,
     searchClient,
   } = useSearchClient();
-
+  console.log("nuevo apiClients", apiClients)
   const { productsFound, loadingProduct, errorProduct, searchByName } =
     useSearchDetailProduct();
 
@@ -83,14 +83,7 @@ export default function IndexRegisterSale() {
 
     if (typeof c.activo === "boolean") return c.activo;
 
-    const estadoRaw =
-      c.estado ??
-      c.estado_cliente ??
-      c.status ??
-      c.activo ??
-      c.estadoCliente ??
-      "";
-
+    const estadoRaw = c.estado_cliente
     const estado = String(estadoRaw).toLowerCase().trim();
     if (estado === "activo" || estado === "true") return true;
     if (estado === "inactivo" || estado === "false") return false;
@@ -250,7 +243,7 @@ export default function IndexRegisterSale() {
     setShowDropdownCliente(true);
     if (trimmed.length >= 2) searchClient(trimmed);
   };
-
+  console.log("clientes", clientes)
   const handleSelectCliente = (c) => {
     if (!isClienteActivo(c)) {
       setMensaje({
@@ -571,21 +564,13 @@ navigate("/app/sales");
                   <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
                     {suggestionsClientes.slice(0, 7).map((s) => {
                       const activo = isClienteActivo(s);
-
                       return (
                         <div
                           key={String(s.id ?? s.id_cliente)}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             if (creatingSale) return;
-                            if (!activo) {
-                              setMensaje({
-                                tipo: "error",
-                                texto:
-                                  "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
-                              });
-                              return;
-                            }
+                            if (!activo) return; // Deshabilitado, no hacer nada
                             handleSelectCliente(s);
                           }}
                           className={`px-3 py-2 text-black ${
@@ -716,7 +701,7 @@ navigate("/app/sales");
                       </div>
 
                       <div className="text-xs text-gray-500">
-                        ID: {p.id_detalle_producto ?? p.id ?? "N/A"}
+                        Código: {p.codigo_barras ?? p.codigo_barras_producto_compra ?? "N/A"}
                       </div>
                     </div>
                   );
