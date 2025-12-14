@@ -26,35 +26,77 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import ondasHorizontal from "../../assets/ondasHorizontal.png";
 import { showConfirmAlert } from "./alerts";
-
-export default function Sidebar({
-  isMobileOpen = false,
-  onMobileClose,
-}) {
+import { useAuth } from "../../context/useAtuh.jsx";
+export default function Sidebar({ isMobileOpen = false, onMobileClose }) {
   const [openDropdown, setOpenDropdown] = React.useState(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const { hasPermission, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-
   const handleLogout = () => {
     showConfirmAlert("¿Estás seguro de que quieres cerrar la sesión?").then(
       (confirmed) => {
         if (confirmed) {
           navigate("/");
+          signOut();
           if (onMobileClose) onMobileClose();
         }
       }
     );
   };
-
+  const canView = {
+    users: hasPermission("Ver usuarios"),
+    roles: hasPermission("Ver roles"),
+    products: hasPermission("Ver productos"),
+    categories: hasPermission("Ver categorías"),
+    suppliers: hasPermission("Ver proveedores"),
+    clients: hasPermission("Ver clientes"),
+    purchases: hasPermission("Ver compras"),
+    sales: hasPermission("Ver ventas"),
+    returnClients: hasPermission("Ver devolución clientes"),
+    returnProducts: hasPermission("Ver Gestión devolución productos"),
+    low: hasPermission("Ver baja productos"),
+  };
+  console.log("can view client", canView.clients);
+  console.log("can view users", canView.users);
   const menuItems = [
     { name: "Inicio", icon: <Home size={20} />, path: "/app" },
-    { name: "Ventas", icon: <DollarSign size={20} />, path: "/app/sales" },
-    { name: "Compras", icon: <ShoppingCart size={20} />, path: "/app/purchases" },
-    { name: "Categorias", icon: <List size={20} />, path: "/app/categories" },
-    { name: "Productos", icon: <Box size={20} />, path: "/app/products" },
-    { name: "Proveedores", icon: <Truck size={20} />, path: "/app/suppliers" },
-    { name: "Clientes", icon: <Users size={20} />, path: "/app/clients" },
+    {
+      name: "Ventas",
+      icon: <DollarSign size={20} />,
+      path: "/app/sales",
+      hidden: !canView.sales,
+    },
+    {
+      name: "Compras",
+      icon: <ShoppingCart size={20} />,
+      path: "/app/purchases",
+      hidden: !canView.purchases,
+    },
+    {
+      name: "Categorias",
+      icon: <List size={20} />,
+      path: "/app/categories",
+      hidden: !canView.categories,
+    },
+    {
+      name: "Productos",
+      icon: <Box size={20} />,
+      path: "/app/products",
+      hidden: !canView.products,
+    },
+    {
+      name: "Proveedores",
+      icon: <Truck size={20} />,
+      path: "/app/suppliers",
+      hidden: !canView.suppliers,
+    },
+    {
+      name: "Clientes",
+      icon: <Users size={20} />,
+      path: "/app/clients",
+      hidden: !canView.clients,
+    },
     {
       name: "Devoluciones/baja",
       icon: <RotateCcw size={20} />,
@@ -63,16 +105,19 @@ export default function Sidebar({
           name: "Devoluciones de productos",
           icon: <Undo2 size={17} />,
           path: "/app/returns/products",
+          hidden: !canView.returnProducts,
         },
         {
           name: "Devoluciones de clientes",
           icon: <HandCoins size={17} />,
           path: "/app/returns/clients",
+          hidden: !canView.returnClients,
         },
         {
           name: "Baja de productos",
           icon: <Trash2 size={17} />,
           path: "/app/returns/low",
+          hidden: !canView.low,
         },
       ],
     },
@@ -80,11 +125,25 @@ export default function Sidebar({
       name: "Configuración",
       icon: <Settings size={20} />,
       submenu: [
-        { name: "Usuarios", icon: <Users size={20} />, path: "/app/settings/users" },
-        { name: "Roles", icon: <ShieldUser size={20} />, path: "/app/settings/roles" },
+        {
+          name: "Usuarios",
+          icon: <Users size={20} />,
+          path: "/app/settings/users",
+          hidden: !canView.users,
+        },
+        {
+          name: "Roles",
+          icon: <ShieldUser size={20} />,
+          path: "/app/settings/roles",
+          hidden: !canView.roles,
+        },
       ],
     },
-    { name: "Salir", icon: <ArrowLeftToLine size={20} />, action: handleLogout },
+    {
+      name: "Salir",
+      icon: <ArrowLeftToLine size={20} />,
+      action: handleLogout,
+    },
   ];
 
   const containerVariants = {
@@ -100,6 +159,19 @@ export default function Sidebar({
   const handleItemClick = () => {
     if (onMobileClose) onMobileClose();
   };
+  const visibleMenuItems = menuItems
+    .map((item) => {
+      if (!item.submenu) return item;
+
+      const visibleSubmenu = item.submenu.filter((sub) => !sub.hidden);
+
+      return {
+        ...item,
+        submenu: visibleSubmenu,
+        hidden: item.hidden || visibleSubmenu.length === 0, // si no hay hijos visibles, ocultar padre
+      };
+    })
+    .filter((item) => !item.hidden);
 
   return (
     <motion.aside
@@ -214,7 +286,7 @@ export default function Sidebar({
         initial="hidden"
         animate="visible"
       >
-        {menuItems.map((item, i) => {
+        {visibleMenuItems.map((item, i) => {
           const isActive = item.submenu
             ? item.submenu.some((sub) => location.pathname === sub.path)
             : location.pathname === item.path;
@@ -223,9 +295,7 @@ export default function Sidebar({
             <motion.div key={i} variants={itemVariants} className="relative">
               {item.submenu ? (
                 <button
-                  onClick={() =>
-                    setOpenDropdown(openDropdown === i ? null : i)
-                  }
+                  onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
                   className={`flex items-center justify-between gap-3 px-4 py-2 rounded-md text-sm font-medium w-full text-left relative z-10 transition-colors duration-200
                     ${
                       isActive

@@ -16,7 +16,7 @@ import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
-
+import { useAuth } from "../../../context/useAtuh";
 // ===== Helpers de responsive (tomados de IndexLow) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -71,7 +71,8 @@ export default function IndexProductReturns() {
   const [selectedReturnData, setSelectedReturnData] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const perPage = 6;
-
+  const {hasPermission} = useAuth();
+  const canCreate = hasPermission('Crear devolución productos');
   // Normalización de texto
   const normalizeText = (text) =>
     (text ?? "")
@@ -201,6 +202,7 @@ export default function IndexProductReturns() {
                   boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)",
                 }}
                 whileTap={{ scale: 0.98 }}
+                hidden={!canCreate}
               >
                 Registrar nueva devolución
               </motion.button>

@@ -240,11 +240,11 @@ const ProductSearchSelect = ({
               );
             })
           ) : (
-            <div className="flex justify-center p-4">
+            <div className="flex justify-center mt-3">
               <button
                 type="button"
                 onClick={() => onCreateProduct?.(searchTerm)}
-                className="px-4 py-2 rounded-lg bg-green-100 text-green-700 text-sm font-semibold hover:bg-green-200 transition"
+                className="px-4 py-2 rounded-lg bg-green-400 text-white text-sm font-semibold hover:bg-green-500 transition"
               >
                 Crear producto
               </button>

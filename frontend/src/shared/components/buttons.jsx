@@ -35,17 +35,19 @@ export const ViewDetailsButton = ({event}) => (
   </button>
 );
 
-export const EditButton = ({event}) => (
-  <button className="button-square edit-btn" onClick={event}>
+export const EditButton = ({event, canEdit}) => (
+  (canEdit && (<button className="button-square edit-btn" onClick={event} hidden={true}>
     <FiEdit2 size={20} />
-  </button>
+  </button>))
+  
 );
 
-export const DeleteButton = ({event}) => (
-  <button className="button-square delete-btn" onClick={event}>
+export const DeleteButton = ({event, canDelete}) => (
+  (canDelete && (
+    <button className="button-square delete-btn" onClick={event} hidden={!canDelete}>
     <FiTrash2 size={20} />
-  </button>
-);
+  </button>)
+  ));
 
 /* ----------------------------- */
 /* Botones rectangulares grandes */

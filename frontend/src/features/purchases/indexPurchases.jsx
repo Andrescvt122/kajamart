@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "../../context/useAtuh";
 import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import {
@@ -15,7 +15,9 @@ import PurchaseDetailModal from "./PurchaseDetailModal";
 
 export default function IndexPurchases() {
   const navigate = useNavigate();
-
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission("Crear compra");
+  const canAnnular = hasPermission("Anular compra");
   // =========================
   // Mock (temporal) -> luego se reemplaza por hook/API
   // =========================
@@ -292,6 +294,7 @@ export default function IndexPurchases() {
               <button
                 onClick={() => navigate("/app/purchases/register")}
                 className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition"
+                hidden={!canCreate}
               >
                 Registrar Nueva Compra
               </button>
@@ -358,6 +361,7 @@ export default function IndexPurchases() {
                                 ? "bg-yellow-50 text-yellow-700"
                                 : "bg-red-100 text-red-700"
                             }`}
+                            disabled={!canAnnular}
                           >
                             {p.estado}
                           </span>
