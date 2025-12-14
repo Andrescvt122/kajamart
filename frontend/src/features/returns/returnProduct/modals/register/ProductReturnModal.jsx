@@ -132,6 +132,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           returnQuantity: safeQuantity,
           returnReason: "",
           actionType: "",
+          id_detalle_producto: product.id_detalle_producto,
         },
       ]);
     }
@@ -561,7 +562,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
                         Buscar y agregar productos
                       </h3>
-                      <ProductSearch onAddProduct={handleAddProduct} />
+                      <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id_detalle_producto)} />
                     </motion.div>
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>

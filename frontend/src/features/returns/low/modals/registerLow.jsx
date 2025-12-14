@@ -218,7 +218,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
               {/* Contenido */}
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
-                <ProductSearch onAddProduct={handleAddProduct} />
+                <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id)} />
 
                 {selectedProducts.length > 0 && (
                   <div
