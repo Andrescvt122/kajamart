@@ -7,6 +7,7 @@ import {
 } from "../../shared/components/alerts.jsx";
 import { useRolesList } from "../../shared/components/hooks/roles/useRolesList.js";
 import { useCreateUsuario } from "../../shared/components/hooks/users/useCreateUser.js";
+import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
 import { useAuth } from "../../context/useAtuh.jsx";
 
 // 🔘 Switch de estado (Activo/Inactivo)
@@ -29,6 +30,7 @@ const EstadoToggle = ({ enabled, onChange }) => (
 export default function RegisterUsers({ isOpen, onClose }) {
   const { roles } = useRolesList();
   const { createUsuario } = useCreateUsuario();
+  const { usuarios } = useUsuariosList();
 
   const [form, setForm] = useState({
     usuario: "",
@@ -43,6 +45,8 @@ export default function RegisterUsers({ isOpen, onClose }) {
     rol_id: null,
     estado: true,
   });
+
+  const [errors, setErrors] = useState({});
 
   const [rolOpen, setRolOpen] = useState(false);
   const rolRef = useRef(null);
@@ -63,6 +67,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
         rol_id: null,
         estado: true,
       });
+      setErrors({});
       setRolOpen(false);
     }
   }, [isOpen]);
@@ -102,33 +107,88 @@ export default function RegisterUsers({ isOpen, onClose }) {
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
+
+    // Validaciones en tiempo real
+    if (name === "correo") {
+      const emailError = !isValidEmail(value) ? "Formato de correo inválido." : validateEmailUniqueness(value);
+      setErrors((prev) => ({ ...prev, correo: emailError }));
+    }
+    if (name === "documento") {
+      const docError = validateDocumentoUniqueness(value);
+      setErrors((prev) => ({ ...prev, documento: docError }));
+    }
+    if (name === "contrasena") {
+      const passError = validatePassword(value);
+      setErrors((prev) => ({ ...prev, contrasena: passError }));
+      // Revalidar confirmar contraseña
+      if (form.confirmarContrasena) {
+        const confirmError = validateConfirmPassword(form.confirmarContrasena, value);
+        setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
+      }
+    }
+    if (name === "confirmarContrasena") {
+      const confirmError = validateConfirmPassword(value, form.contrasena);
+      setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
+    }
   };
 
   // 📧 Validar formato email
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+  // 🔐 Validar contraseña
+  const validatePassword = (password) => {
+    if (!password) return "La contraseña es requerida.";
+    if (password.length < 8) return "Debe tener al menos 8 caracteres.";
+    if (!/[a-z]/.test(password)) return "Debe contener al menos una letra minúscula.";
+    if (!/[A-Z]/.test(password)) return "Debe contener al menos una letra mayúscula.";
+    if (!/\d/.test(password)) return "Debe contener al menos un número.";
+    return "";
+  };
+
+  // 🔐 Validar confirmar contraseña
+  const validateConfirmPassword = (confirmPassword, password) => {
+    if (!confirmPassword) return "Confirmar contraseña es requerido.";
+    if (confirmPassword !== password) return "Las contraseñas no coinciden.";
+    return "";
+  };
+
+  // 📧 Validar unicidad de correo
+  const validateEmailUniqueness = (email) => {
+    if (!email) return "";
+    const exists = usuarios?.some(user => user.Correo?.toLowerCase() === email.toLowerCase());
+    return exists ? "Este correo ya está registrado." : "";
+  };
+
+  // 🆔 Validar unicidad de documento
+  const validateDocumentoUniqueness = (documento) => {
+    if (!documento) return "";
+    const exists = usuarios?.some(user => user.Documento === documento);
+    return exists ? "Este documento ya está registrado." : "";
+  };
+
   // 🧾 Envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Verificar errores de validación
+    const hasErrors = Object.values(errors).some((err) => err);
+    if (hasErrors) {
+      showErrorAlert("Corrige los errores antes de enviar.");
+      return;
+    }
+
     const missing = [];
 
     if (!form.nombre.trim()) missing.push("Nombre");
     if (!form.apellido.trim()) missing.push("Apellido");
     if (!form.correo.trim()) missing.push("Correo");
-    if (form.correo && !isValidEmail(form.correo))
-      missing.push("Correo (inválido)");
     if (!form.documento.trim()) missing.push("Documento");
     if (!form.rol_id) missing.push("Rol asignado");
     if (!form.contrasena.trim()) missing.push("Contraseña");
     if (!form.confirmarContrasena.trim()) missing.push("Confirmar contraseña");
 
-    if (form.contrasena !== form.confirmarContrasena) {
-      showErrorAlert("Las contraseñas no coinciden.");
-      return;
-    }
-
     if (missing.length > 0) {
-      showErrorAlert(`Campos inválidos: ${missing.join(", ")}`);
+      showErrorAlert(`Campos requeridos: ${missing.join(", ")}`);
       return;
     }
 
@@ -224,6 +284,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.documento && <p className="text-red-500 text-sm mt-1">{errors.documento}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -238,6 +299,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.correo && <p className="text-red-500 text-sm mt-1">{errors.correo}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -254,6 +316,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       pattern="^(?=.*[A-Za-z])(?=.*\d).{8,}$"
                       title="Debe tener mínimo 8 caracteres e incluir al menos 1 letra y 1 número."
                     />
+                    {errors.contrasena && <p className="text-red-500 text-sm mt-1">{errors.contrasena}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -270,6 +333,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       pattern="^(?=.*[A-Za-z])(?=.*\d).{8,}$"
                       title="Debe tener mínimo 8 caracteres e incluir al menos 1 letra y 1 número."
                     />
+                    {errors.confirmarContrasena && <p className="text-red-500 text-sm mt-1">{errors.confirmarContrasena}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">

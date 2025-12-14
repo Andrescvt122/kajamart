@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 // hooks y alerts
 import { useCreateSupplier } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+import { useSuppliers } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 
 import Swal from "sweetalert2";
@@ -32,6 +33,9 @@ export default function SuplliersRegisterModal({
   });
 
   const createMutation = useCreateSupplier();
+
+  // Hook para obtener proveedores y validar duplicados
+  const { data: suppliersRaw = [] } = useSuppliers();
 
   // categorías desde BD (solo activas)
   const {
@@ -106,8 +110,21 @@ export default function SuplliersRegisterModal({
     let newValue = value;
 
     // Solo campos numéricos: quitar 'e' o 'E'
-    if (name === "nit" || name === "telefono") {
-      newValue = value.replace(/[eE]/g, "");
+    if (name === "telefono") {
+      newValue = value.replace(/[eE]/g, "").replace(/[^0-9]/g, "").slice(0, 10);
+    }
+    // Para NIT, permitir números, puntos y guiones, pero limitar a 10 dígitos
+    if (name === "nit") {
+      newValue = value.replace(/[^0-9.\-]/g, "");
+      // Limitar a máximo 10 dígitos
+      let digitCount = 0;
+      newValue = newValue.split('').filter(char => {
+        if (/\d/.test(char)) {
+          digitCount++;
+          return digitCount <= 10;
+        }
+        return true;
+      }).join('');
     }
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
@@ -121,8 +138,29 @@ export default function SuplliersRegisterModal({
     } else if (name === "correo") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (value && !emailRegex.test(value)) error = "Correo inválido";
-    } else if (name === "telefono" || name === "nit") {
+      if (!error && value) {
+        const exists = suppliersRaw.some(s => s.correo === value);
+        if (exists) error = "Este correo ya está registrado.";
+      }
+    } else if (name === "telefono") {
       if (value && !/^\d+$/.test(value)) error = "Solo se permiten números";
+      if (!error && value && value.length > 10) error = "El teléfono debe tener máximo 10 dígitos";
+      if (!error && value) {
+        const exists = suppliersRaw.some(s => s.telefono === value);
+        if (exists) error = "Este teléfono ya está registrado.";
+      }
+    } else if (name === "nit") {
+      error = validateNit(value);
+      if (!error && value) {
+        const digits = value.replace(/[^\d]/g, '');
+        const exists = suppliersRaw.some(s => String(s.nit) === digits);
+        if (exists) error = "Este NIT ya está registrado.";
+      }
+    } else if (name === "direccion") {
+      if (value.trim()) {
+        const exists = suppliersRaw.some(s => s.direccion === value.trim());
+        if (exists) error = "Esta dirección ya está registrada.";
+      }
     }
 
     setErrors((prev) => ({ ...prev, [name]: error }));
@@ -131,6 +169,17 @@ export default function SuplliersRegisterModal({
   const handleNumericKeyDown = (e) => {
     if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab")
       e.preventDefault();
+  };
+
+  const handleNitKeyDown = (e) => {
+    if (!/[0-9.\-]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Delete")
+      e.preventDefault();
+  };
+
+  const validateNit = (value) => {
+    const digitsOnly = value.replace(/[^\d]/g, '');
+    if (digitsOnly.length !== 10) return "El NIT debe tener exactamente 10 dígitos numéricos";
+    return "";
   };
 
   // Toggle por ID
@@ -168,8 +217,30 @@ export default function SuplliersRegisterModal({
       } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
-      } else if (key === "telefono" || key === "nit") {
+        if (!newErrors[key] && value) {
+          const exists = suppliersRaw.some(s => s.correo === value);
+          if (exists) newErrors[key] = "Este correo ya está registrado.";
+        }
+      } else if (key === "telefono") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
+        if (!newErrors[key] && value && value.length > 10) newErrors[key] = "El teléfono debe tener máximo 10 dígitos";
+        if (!newErrors[key] && value) {
+          const exists = suppliersRaw.some(s => s.telefono === value);
+          if (exists) newErrors[key] = "Este teléfono ya está registrado.";
+        }
+      } else if (key === "nit") {
+        const nitError = validateNit(value);
+        if (nitError) newErrors[key] = nitError;
+        if (!newErrors[key] && value) {
+          const digits = value.replace(/[^\d]/g, '');
+          const exists = suppliersRaw.some(s => String(s.nit) === digits);
+          if (exists) newErrors[key] = "Este NIT ya está registrado.";
+        }
+      } else if (key === "direccion") {
+        if (value && value.trim()) {
+          const exists = suppliersRaw.some(s => s.direccion === value.trim());
+          if (exists) newErrors[key] = "Esta dirección ya está registrada.";
+        }
       }
     });
     if (!Array.isArray(form.categorias) || form.categorias.length === 0)
@@ -185,7 +256,7 @@ export default function SuplliersRegisterModal({
     // payload al backend (estado SIEMPRE activo, sin max_porcentaje_de_devolucion)
     const payload = {
       nombre: form.nombre.trim(),
-      nit: Number(form.nit),
+      nit: form.nit.replace(/[^\d]/g, ''), // Enviar como string de dígitos
       tipo_persona: form.personaType,
       contacto: form.contacto.trim(),
       telefono: form.telefono.trim(),
@@ -293,13 +364,14 @@ export default function SuplliersRegisterModal({
               <div>
                 <label className="block text-sm text-gray-700 mb-1">NIT</label>
                 <input
+                  type="text"
                   name="nit"
                   value={form.nit}
                   onChange={handleFormChange}
                   onBlur={handleBlur}
-                  onKeyDown={handleNumericKeyDown}
-                  inputMode="numeric"
-                  placeholder="NIT / Identificación"
+                  onKeyDown={handleNitKeyDown}
+                  inputMode="text"
+                  placeholder="NIT / Identificación (10 dígitos)"
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
                 />
