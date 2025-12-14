@@ -1,6 +1,7 @@
 // src/features/sales/indexRegisterSale.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 import RegisterClientModal from "../clients/RegisterClientModal";
 
@@ -75,6 +76,42 @@ export default function IndexRegisterSale() {
 
   const safeClienteQuery = (clienteQuery ?? "").trim();
 
+  // ✅ Determinar si un cliente está activo/inactivo (compat)
+  const isClienteActivo = (c) => {
+    if (!c) return false;
+    if (String(c.id) === String(CLIENTE_CAJA_ID)) return true;
+
+    if (typeof c.activo === "boolean") return c.activo;
+
+    const estadoRaw =
+      c.estado ??
+      c.estado_cliente ??
+      c.status ??
+      c.activo ??
+      c.estadoCliente ??
+      "";
+
+    const estado = String(estadoRaw).toLowerCase().trim();
+    if (estado === "activo" || estado === "true") return true;
+    if (estado === "inactivo" || estado === "false") return false;
+    return true;
+  };
+
+  // ✅ Obtener stock desde cualquier forma en que venga el producto
+  const getStock = (prod) => {
+    const s =
+      prod?.stock_producto ??
+      prod?.detalle_productos?.stock_producto ??
+      prod?.productos?.stock_actual ??
+      prod?.detalle_productos?.productos?.stock_actual ??
+      0;
+
+    return Number(s || 0);
+  };
+
+  // ✅ Obtener ID “real” del producto detalle (para comparar duplicados)
+  const getProductoId = (prod) => String(prod?.id_detalle_producto ?? prod?.id ?? "");
+
   const suggestionsClientes = useMemo(() => {
     if (!safeClienteQuery) return [];
     const q = normalize(safeClienteQuery);
@@ -92,6 +129,21 @@ export default function IndexRegisterSale() {
     () => productos.reduce((acc, p) => acc + Number(p.subtotal || 0), 0),
     [productos]
   );
+
+  // ✅ SET de ids ya seleccionados (para filtrar resultados en tiempo real)
+  const selectedProductIds = useMemo(() => {
+    return new Set(productos.map((p) => String(p.productoId)));
+  }, [productos]);
+
+  // ✅ Lista de resultados filtrados: no mostrar ya seleccionados
+  const filteredProductsFound = useMemo(() => {
+    const arr = Array.isArray(productsFound) ? productsFound : [];
+    return arr.filter((p) => {
+      const id = getProductoId(p);
+      if (!id) return true;
+      return !selectedProductIds.has(String(id));
+    });
+  }, [productsFound, selectedProductIds]);
 
   // =========================
   // Cliente de caja (local)
@@ -200,6 +252,19 @@ export default function IndexRegisterSale() {
   };
 
   const handleSelectCliente = (c) => {
+    if (!isClienteActivo(c)) {
+      setMensaje({
+        tipo: "error",
+        texto:
+          "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
+      });
+      setClienteSeleccionado(null);
+      setClienteQuery("");
+      setShowDropdownCliente(false);
+      return;
+    }
+
+    setMensaje(null);
     setClienteSeleccionado(c);
     setClienteQuery(c.nombre || c.nombre_cliente || "");
     setShowDropdownCliente(false);
@@ -220,6 +285,17 @@ export default function IndexRegisterSale() {
     );
 
     if (byName) {
+      if (!isClienteActivo(byName)) {
+        setMensaje({
+          tipo: "error",
+          texto:
+            "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
+        });
+        setClienteSeleccionado(null);
+        setClienteQuery("");
+        return;
+      }
+
       setClienteSeleccionado(byName);
       setClienteQuery(byName.nombre || byName.nombre_cliente || "");
       return;
@@ -258,20 +334,29 @@ export default function IndexRegisterSale() {
   };
 
   const handleSelectProducto = (prod) => {
-    /**
-     * IMPORTANTÍSIMO:
-     * En tu BD el detalle_venta guarda id_detalle_producto (int).
-     * En lo que llega desde el buscador, normalmente ese id está en:
-     * - prod.id_detalle_producto (si viene de detalle_productos)
-     * - o prod.id
-     * - o prod.codigo_barras_producto_compra (si fuera código de barras, pero tu DB espera int)
-     *
-     * Ajuste: priorizamos id_detalle_producto / id.
-     */
-    const idDetalleProducto =
-      prod.id_detalle_producto ??
-      prod.id ??
-      null;
+    // ✅ Validación: stock 0 -> bloquear
+    const stock = getStock(prod);
+    if (stock <= 0) {
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+      });
+      setNombreProducto("");
+      setShowDropdownProducto(false);
+      return;
+    }
+
+    // ✅ Validación: ya seleccionado -> bloquear
+    const idDetalleProducto = prod.id_detalle_producto ?? prod.id ?? null;
+    if (idDetalleProducto != null && selectedProductIds.has(String(idDetalleProducto))) {
+      setMensaje({
+        tipo: "error",
+        texto: "⚠️ Este producto ya fue agregado.",
+      });
+      setNombreProducto("");
+      setShowDropdownProducto(false);
+      return;
+    }
 
     const nombre =
       prod.productos?.nombre ||
@@ -289,22 +374,10 @@ export default function IndexRegisterSale() {
     );
 
     const producto = {
-      // lo que tu estado usa
-      productoId: idDetalleProducto, // <- ESTE es el que debes mandar en POST como id_detalle_producto
+      productoId: idDetalleProducto,
       nombre,
       precioUnitario,
     };
-
-    const duplicado = productos.some(
-      (p) => String(p.productoId) === String(producto.productoId)
-    );
-
-    if (duplicado) {
-      setMensaje({ tipo: "error", texto: "⚠️ El producto ya está en la lista" });
-      setNombreProducto("");
-      setShowDropdownProducto(false);
-      return;
-    }
 
     setProductos((prev) => [
       ...prev,
@@ -341,53 +414,115 @@ export default function IndexRegisterSale() {
     setMensaje(null);
 
     if (productos.length === 0) {
-      setMensaje({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe agregar al menos un producto.",
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
     if (!metodoPago) {
-      setMensaje({ tipo: "error", texto: "⚠️ Seleccione un método de pago" });
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Seleccione un método de pago.",
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
     const clienteCaja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
     const cliente = clienteSeleccionado || clienteCaja;
 
-    // ✅ id_cliente real (INT) cuando viene de BD
-    const clienteIdReal =
-      cliente?.id_cliente ?? (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ?? null;
+    if (
+      cliente &&
+      String(cliente.id) !== String(CLIENTE_CAJA_ID) &&
+      !isClienteActivo(cliente)
+    ) {
+      await Swal.fire({
+        icon: "error",
+        title: "Cliente inactivo",
+        text: "No se puede registrar la venta: el cliente está inactivo. Actívalo para continuar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
 
-    // ✅ Payload final que sí te sirve con tu estructura actual
+    const clienteIdReal =
+      cliente?.id_cliente ??
+      (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ??
+      null;
+
     const payload = {
-      // tu backend valida fecha_venta o fecha. Mandamos fecha_venta para no fallar.
-      fecha_venta: new Date().toISOString(), // ISO
-      // y también fecha por si la usas
+      fecha_venta: new Date().toISOString(),
       fecha: new Date().toISOString().slice(0, 10),
 
-      clienteId: clienteIdReal, // backend lo mapeará a ventas.id_cliente (int)
+      clienteId: clienteIdReal,
       cliente: cliente?.nombre ?? cliente?.nombre_cliente ?? "Cliente de Caja",
 
       medioPago: metodoPago === "efectivo" ? "Efectivo" : "Transferencia",
       estado: "Completada",
 
       productos: productos.map((p) => ({
-        // backend: detalle_venta.id_detalle_producto (int) => mandamos el productoId del estado
         productoId: p.productoId ?? null,
-        nombre: p.nombre ?? "Sin nombre", // informativo, no lo guardes si tu tabla no tiene columna
+        nombre: p.nombre ?? "Sin nombre",
         cantidad: Number(p.cantidad || 1),
         precioUnitario: Number(p.precioUnitario || 0),
-        subtotal: Number(p.subtotal ?? Number(p.cantidad || 1) * Number(p.precioUnitario || 0)),
+        subtotal: Number(
+          p.subtotal ?? Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
+        ),
       })),
     };
 
     try {
+      // ✅ LOADING mientras se crea la venta
+      Swal.fire({
+        title: "Registrando venta...",
+        text: "Por favor espera",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await createSale(payload);
-      setMensaje({ tipo: "ok", texto: "✅ Venta registrada correctamente" });
-      navigate("/app/sales");
+
+      Swal.close();
+
+// ✅ Se muestra y se redirige de inmediato (sin esperar confirmación)
+Swal.fire({
+  icon: "success",
+  title: "Venta registrada",
+  text: "✅ La venta se registró correctamente.",
+  timer: 1200,
+  showConfirmButton: false,
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  timerProgressBar: true,
+});
+
+// ✅ redirige apenas aparece
+navigate("/app/sales");
     } catch (e) {
+      Swal.close();
+
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "Error registrando la venta";
+
+      await Swal.fire({
+        icon: "error",
+        title: "No se pudo registrar",
+        text: msg,
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensaje({
         tipo: "error",
-        texto: `❌ No se pudo registrar: ${e?.message || "Error"}`,
+        texto: `❌ No se pudo registrar: ${msg}`,
       });
     }
   };
@@ -397,6 +532,16 @@ export default function IndexRegisterSale() {
   // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
+      {/* ✅ Overlay Loading (extra visual) */}
+      {creatingSale && (
+        <div className="fixed inset-0 z-[9999] bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-lg px-6 py-4 text-black">
+            <p className="font-semibold">Registrando venta...</p>
+            <p className="text-sm text-gray-600">Por favor espera</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Ventas</h2>
@@ -416,6 +561,7 @@ export default function IndexRegisterSale() {
               onBlur={() => setTimeout(handleBlurCliente, 150)}
               placeholder="Nombre o documento"
               className="w-full border rounded px-3 py-2 bg-white text-black"
+              disabled={creatingSale}
             />
 
             <div ref={sugRef}>
@@ -423,21 +569,50 @@ export default function IndexRegisterSale() {
                 suggestionsClientes.length > 0 &&
                 !clienteSeleccionado && (
                   <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
-                    {suggestionsClientes.slice(0, 7).map((s) => (
-                      <div
-                        key={String(s.id ?? s.id_cliente)}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSelectCliente(s);
-                        }}
-                        className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
-                      >
-                        <div>{s.nombre || s.nombre_cliente}</div>
-                        <div className="text-xs text-gray-500">
-                          {s.numeroDocumento || s.numero_documento || ""}
+                    {suggestionsClientes.slice(0, 7).map((s) => {
+                      const activo = isClienteActivo(s);
+
+                      return (
+                        <div
+                          key={String(s.id ?? s.id_cliente)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if (creatingSale) return;
+                            if (!activo) {
+                              setMensaje({
+                                tipo: "error",
+                                texto:
+                                  "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
+                              });
+                              return;
+                            }
+                            handleSelectCliente(s);
+                          }}
+                          className={`px-3 py-2 text-black ${
+                            activo
+                              ? "hover:bg-green-50 cursor-pointer"
+                              : "opacity-60 cursor-not-allowed bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>{s.nombre || s.nombre_cliente}</div>
+                            <span
+                              className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                                activo
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {activo ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-gray-500">
+                            {s.numeroDocumento || s.numero_documento || ""}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
             </div>
@@ -448,7 +623,8 @@ export default function IndexRegisterSale() {
             suggestionsClientes.length === 0 && (
               <button
                 onClick={openRegisterModal}
-                className="px-4 py-2 bg-green-600 text-white rounded-md"
+                className="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-60"
+                disabled={creatingSale}
               >
                 Registrar cliente
               </button>
@@ -487,33 +663,75 @@ export default function IndexRegisterSale() {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                if (productsFound?.length) handleSelectProducto(productsFound[0]);
+                if (filteredProductsFound?.length) handleSelectProducto(filteredProductsFound[0]);
               }
             }}
             placeholder="Ingrese el nombre del producto"
             className="w-full border rounded px-3 py-2 bg-white text-black"
+            disabled={creatingSale}
           />
 
           <div ref={prodSugRef}>
-            {showDropdownProducto && productsFound?.length > 0 && (
+            {showDropdownProducto && filteredProductsFound?.length > 0 && (
               <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
-                {productsFound.slice(0, 7).map((p) => (
-                  <div
-                    key={String(p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra)}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSelectProducto(p);
-                    }}
-                    className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
-                  >
-                    <div>{p.productos?.nombre || p.nombre}</div>
-                    <div className="text-xs text-gray-500">
-                      ID: {p.id_detalle_producto ?? p.id ?? "N/A"}
+                {filteredProductsFound.slice(0, 7).map((p) => {
+                  const stock = getStock(p);
+                  const sinStock = stock <= 0;
+
+                  return (
+                    <div
+                      key={String(
+                        p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra
+                      )}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (creatingSale) return;
+                        if (sinStock) {
+                          setMensaje({
+                            tipo: "error",
+                            texto:
+                              "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+                          });
+                          return;
+                        }
+                        handleSelectProducto(p);
+                      }}
+                      className={`px-3 py-2 text-black ${
+                        sinStock
+                          ? "opacity-60 cursor-not-allowed bg-gray-50"
+                          : "hover:bg-green-50 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>{p.productos?.nombre || p.nombre}</div>
+                        <span
+                          className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                            sinStock
+                              ? "bg-red-100 text-red-700"
+                              : "bg-green-50 text-green-700"
+                          }`}
+                        >
+                          Stock: {stock}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        ID: {p.id_detalle_producto ?? p.id ?? "N/A"}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
+            {showDropdownProducto &&
+              Array.isArray(productsFound) &&
+              productsFound.length > 0 &&
+              filteredProductsFound.length === 0 && (
+                <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 px-3 py-2 text-sm text-gray-500">
+                  Todos esos productos ya fueron agregados.
+                </div>
+              )}
           </div>
         </div>
 
@@ -534,9 +752,6 @@ export default function IndexRegisterSale() {
         >
           {mensaje.texto}
         </p>
-      )}
-      {creatingSale && (
-        <p className="text-sm text-gray-500 mb-3">Registrando venta...</p>
       )}
       {errorCreate && <p className="text-sm text-red-600 mb-3">{errorCreate}</p>}
 
@@ -571,6 +786,7 @@ export default function IndexRegisterSale() {
                     min="1"
                     onChange={(e) => handleChangeCantidad(i, e.target.value)}
                     className="w-16 text-center border rounded bg-white"
+                    disabled={creatingSale}
                   />
                 </td>
 
@@ -585,7 +801,8 @@ export default function IndexRegisterSale() {
                 <td className="border px-3 py-2 text-center">
                   <button
                     onClick={() => handleRemoveProducto(i)}
-                    className="px-2 py-1 bg-red-500 text-white rounded"
+                    className="px-2 py-1 bg-red-500 text-white rounded disabled:opacity-60"
+                    disabled={creatingSale}
                   >
                     Eliminar
                   </button>
@@ -605,7 +822,8 @@ export default function IndexRegisterSale() {
               onClick={() => setMetodoPago("efectivo")}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "efectivo" ? "bg-green-600" : "bg-gray-500"
-              }`}
+              } disabled:opacity-60`}
+              disabled={creatingSale}
             >
               Efectivo
             </button>
@@ -614,7 +832,8 @@ export default function IndexRegisterSale() {
               onClick={() => setMetodoPago("transferencia")}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
-              }`}
+              } disabled:opacity-60`}
+              disabled={creatingSale}
             >
               Transferencia
             </button>
@@ -633,17 +852,18 @@ export default function IndexRegisterSale() {
       <div className="flex justify-end gap-2">
         <button
           onClick={() => navigate("/app/sales")}
-          className="px-4 py-2 rounded bg-gray-500 text-white"
+          className="px-4 py-2 rounded bg-gray-500 text-white disabled:opacity-60"
+          disabled={creatingSale}
         >
           Cancelar
         </button>
 
         <button
           onClick={handleFinalizarVenta}
-          className="px-4 py-2 rounded bg-green-600 text-white"
+          className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-60"
           disabled={creatingSale}
         >
-          Finalizar Venta
+          {creatingSale ? "Registrando..." : "Finalizar Venta"}
         </button>
       </div>
 
@@ -673,14 +893,26 @@ export default function IndexRegisterSale() {
             numeroDocumento: raw.numeroDocumento ?? raw.numero_documento ?? "",
             correo: raw.correo ?? raw.email ?? "",
             telefono: raw.telefono ?? raw.celular ?? "",
-            estado:
-              raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            estado: raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            activo: typeof raw.activo === "boolean" ? raw.activo : undefined,
             fecha: raw.fecha || new Date().toISOString().split("T")[0],
           };
 
           setClientes((prev) => [...prev, nuevoCliente]);
-          setClienteSeleccionado(nuevoCliente);
-          setClienteQuery(nuevoCliente.nombre || nuevoCliente.nombre_cliente || "");
+
+          if (!isClienteActivo(nuevoCliente)) {
+            setMensaje({
+              tipo: "error",
+              texto:
+                "⚠️ Cliente creado como inactivo. Actívalo para poder asociarlo a una venta.",
+            });
+            setClienteSeleccionado(null);
+            setClienteQuery("");
+          } else {
+            setClienteSeleccionado(nuevoCliente);
+            setClienteQuery(nuevoCliente.nombre || nuevoCliente.nombre_cliente || "");
+          }
+
           setShowClientModal(false);
           setShowDropdownCliente(false);
         }}
