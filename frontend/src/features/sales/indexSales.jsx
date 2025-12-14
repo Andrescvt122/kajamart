@@ -19,7 +19,7 @@ import { exportSalesToExcel } from "./helper/exportSalesExcel";
 import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
-
+import { useAuth } from "../../context/useAtuh";
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -48,14 +48,15 @@ export default function IndexSales() {
   const navigate = useNavigate();
   const { sales, loading, error, refetch } = useSales();
   const { updateStatus } = useUpdateSaleStatus();
-
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
-
   const [selectedSale, setSelectedSale] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
-
+  const { hasPermission } = useAuth();
+  const canCreate= hasPermission("Crear venta");
+  const canAnnular= hasPermission('Anular una venta');
+  console.log("poder anular venta", canAnnular);
   const normalizedSales = useMemo(() => {
     return (sales || []).map((v) => {
       const idVenta = v.id_venta ?? v.id ?? "";
@@ -293,6 +294,7 @@ export default function IndexSales() {
             <button
               onClick={() => navigate("/app/sales/register")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              disabled={!canCreate}
             >
               Registrar Nueva Venta
             </button>
@@ -354,13 +356,13 @@ export default function IndexSales() {
                         <button
                           type="button"
                           onClick={(event) => handleAnnulSale(event, v.raw)}
-                          disabled={isUpdating || isAnnulled}
+                          disabled={isUpdating || isAnnulled || !canAnnular}
                           title={
                             isAnnulled ? "Esta venta ya está anulada" : "Click para anular"
                           }
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
                             ${
-                              isAnnulled
+                              isAnnulled || !canAnnular
                                 ? "bg-red-100 text-red-700 hover:bg-red-200"
                                 : "bg-green-50 text-green-700 hover:bg-green-100"
                             }

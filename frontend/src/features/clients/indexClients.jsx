@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAtuh.jsx";
 
 import ondas from "../../assets/ondasHorizontal.png";
 
@@ -101,10 +102,13 @@ export default function IndexClients() {
   // UI state
   const [selectedClient, setSelectedClient] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-
+  const {hasPermission} = useAuth(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState(null);
-
+  const canCreate = hasPermission("Crear cliente");
+  const canEdit = hasPermission('Editar un cliente');
+  console.log("can edit cliente", canEdit);
+  const canDelte = hasPermission("Eliminar cliente");
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
@@ -384,6 +388,7 @@ export default function IndexClients() {
               <button
                 onClick={openCreateModal}
                 className="px-4 py-2.5 sm:py-2 rounded-full bg-green-600 text-white hover:bg-green-700 text-sm w-full sm:w-auto"
+                hidden={!canCreate}
               >
                 Registrar Cliente
               </button>
@@ -485,8 +490,8 @@ export default function IndexClients() {
 
                               <div className="pt-2 flex items-center gap-2">
                                 <ViewButton event={() => handleView(c)} />
-                                <EditButton event={() => editClient(c)} />
-                                <DeleteButton event={() => deleteClient(c)} />
+                                  {canEdit &&(<EditButton event={() => editClient(c)} />)}
+                                  {canDelte &&(<DeleteButton event={() => deleteClient(c)} />)}
                               </div>
                             </div>
                           </motion.div>
@@ -570,8 +575,9 @@ export default function IndexClients() {
                           <td className="px-4 py-3 text-right">
                             <div className="inline-flex items-center gap-1">
                               <ViewButton event={() => handleView(c)} />
-                              <EditButton event={() => editClient(c)} />
-                              <DeleteButton event={() => deleteClient(c)} />
+
+                              <EditButton canEdit={canEdit} event={() => editClient(c)} />
+                              <DeleteButton canDelete={canDelte} event={() => deleteClient(c)} />
                             </div>
                           </td>
                         </motion.tr>

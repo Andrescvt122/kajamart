@@ -52,10 +52,46 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
   };
 
   const handlePermisoChange = (key) => {
-    setForm((prev) => ({
-      ...prev,
-      permisos: { ...prev.permisos, [key]: !prev.permisos[key] },
-    }));
+    const [modulo, permisoId] = key.split("-");
+    const permisoIdNum = parseInt(permisoId, 10);
+
+    // Encontrar el permiso actual
+    const permisosModulo = permisosAgrupados[modulo] || [];
+    const permisoActual = permisosModulo.find((p) => (p.permiso_id ?? p.id ?? permisosModulo.indexOf(p) + 1) === permisoIdNum);
+    const nombrePermiso = permisoActual?.permiso_nombre?.toLowerCase() || "";
+
+    // Encontrar la clave del permiso "ver" en este módulo
+    const verKey = Object.keys(form.permisos).find((k) => {
+      const [mod, pid] = k.split("-");
+      if (mod !== modulo) return false;
+      const p = permisosModulo.find((perm) => (perm.permiso_id ?? perm.id ?? permisosModulo.indexOf(perm) + 1) === parseInt(pid, 10));
+      return p?.permiso_nombre?.toLowerCase().includes("ver") || p?.permiso_nombre?.toLowerCase().includes("leer");
+    });
+
+    setForm((prev) => {
+      const newPermisos = { ...prev.permisos };
+      const isSelecting = !newPermisos[key];
+
+      // Cambiar el permiso actual
+      newPermisos[key] = isSelecting;
+
+      // Si se selecciona un permiso que no es "ver", seleccionar "ver" automáticamente
+      if (isSelecting && !nombrePermiso.includes("ver") && !nombrePermiso.includes("leer") && verKey) {
+        newPermisos[verKey] = true;
+      }
+
+      // Si se deselecciona "ver", deseleccionar todos los demás permisos del módulo
+      if (!isSelecting && nombrePermiso.includes("ver") || nombrePermiso.includes("leer")) {
+        Object.keys(newPermisos).forEach((k) => {
+          const [mod] = k.split("-");
+          if (mod === modulo && k !== key) {
+            newPermisos[k] = false;
+          }
+        });
+      }
+
+      return { ...prev, permisos: newPermisos };
+    });
   };
 
   const toggleSelectAll = () => {
