@@ -18,7 +18,7 @@ import { usePostReturnProducts } from "../../../../../shared/components/hooks/re
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
-
+import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -27,6 +27,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [openConfigProductId, setOpenConfigProductId] = useState(null); // dropdown por producto
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
   const [registrationMode, setRegistrationMode] = useState("create"); // 'create' | 'edit'
   const [detailToEdit, setDetailToEdit] = useState(null);
   // 🔹 NUEVOS estados para la factura
@@ -38,7 +39,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
-
+  const { payload:payloadId } = useAuth();
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
@@ -185,6 +186,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         p.id_producto === productId ? { ...p, returnReason: reasonValue } : p
       )
     );
+    setShowErrors(false); // Ocultar errores cuando se selecciona una razón
   };
 
   /**
@@ -211,6 +213,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           : p
       )
     );
+    setShowErrors(false); // Ocultar errores cuando se selecciona una acción
 
     // Si la acción es "registrar", abrimos el modal de registro
     if (actionValue === "registrar") {
@@ -284,14 +287,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     }
 
     if (selectedProducts.some((p) => !p.returnReason)) {
-      alert(
-        "Todos los productos deben tener una razón de devolución seleccionada."
-      );
+      setShowErrors(true);
       return;
     }
 
     if (selectedProducts.some((p) => !p.actionType)) {
-      alert("Todos los productos deben tener una acción seleccionada.");
+      setShowErrors(true);
       return;
     }
 
@@ -316,8 +317,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleAcceptAlert = async () => {
     console.log("👉 handleAcceptAlert DISPARADO");
     setShowConfirmAlert(false);
-
-    const id_responsable = 1; // TODO: reemplazar con el usuario logueado
+    console.log("📋 selectedProducts al confirmar:", payloadId.uid);
+    const id_responsable = payloadId.uid; // TODO: reemplazar con el usuario logueado
 
     try {
       console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
@@ -477,7 +478,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               transition={{ duration: 0.3 }}
             >
               <motion.div
-                className="bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh]"
+                className={`bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={{ y: 50 }}
                 animate={{ y: 0 }}
@@ -793,6 +794,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
+                                          {showErrors && !product.returnReason && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                              Selecciona una razón
+                                            </p>
+                                          )}
                                         </div>
 
                                         {/* Acción + detalle */}
@@ -950,6 +956,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
+                                          {showErrors && !product.actionType && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                              Selecciona una acción
+                                            </p>
+                                          )}
                                         </div>
                                       </motion.div>
                                     )}
@@ -993,8 +1004,21 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <CheckCircle size={20} />
-                    Confirmar Devolución
+                    {loading ? (
+                      <>
+                        <motion.div
+                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={20} />
+                        Confirmar Devolución
+                      </>
+                    )}
                   </motion.button>
                 </motion.div>
                 {/* 🔸 Alerta de confirmación */}
@@ -1027,11 +1051,25 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                         </button>
                         <motion.button
                           onClick={handleAcceptAlert}
-                          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+                          disabled={loading}
+                          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           whileHover={{ scale: 1.05 }}
                         >
-                          <CheckCircle size={18} />
-                          Confirmar
+                          {loading ? (
+                            <>
+                              <motion.div
+                                className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              />
+                              Procesando...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={18} />
+                              Confirmar
+                            </>
+                          )}
                         </motion.button>
                       </div>
                     </motion.div>

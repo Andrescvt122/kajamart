@@ -18,7 +18,7 @@ import UnitTransferProductModal from "./UnitTransferProductModal";
 import ProductRegisterModal from "../../../products/productRegisterModal";
 import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
 import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
-
+import { useAuth } from "../../../../context/useAtuh";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
@@ -30,13 +30,13 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const { postDetailProduct } = usePostDetailProduct();
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
-
+  const {payload : payloadId} = useAuth();
   const toggleConfigDropdown = (productId) => {
     setOpenConfigProductId((prev) => (prev === productId ? null : productId));
   };
 
   const { postLowProducts, loading } = usePostLowProducts();
-  const id_responsable = 8;
+  const id_responsable = payloadId.uid;
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -199,7 +199,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh]"
+              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -457,11 +457,24 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 <motion.button
                   onClick={handleConfirmLow}
                   disabled={loading}
-                  className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.02 }}
                 >
-                  <CheckCircle size={18} />
-                  Confirmar Baja
+                  {loading ? (
+                    <>
+                      <motion.div
+                        className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} />
+                      Confirmar Baja
+                    </>
+                  )}
                 </motion.button>
               </motion.div>
 
@@ -494,11 +507,25 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       </button>
                       <motion.button
                         onClick={handleAcceptAlert}
-                        className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+                        disabled={loading}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         whileHover={{ scale: 1.05 }}
                       >
-                        <CheckCircle size={18} />
-                        Confirmar
+                        {loading ? (
+                          <>
+                            <motion.div
+                              className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            />
+                            Procesando...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle size={18} />
+                            Confirmar
+                          </>
+                        )}
                       </motion.button>
                     </div>
                   </motion.div>

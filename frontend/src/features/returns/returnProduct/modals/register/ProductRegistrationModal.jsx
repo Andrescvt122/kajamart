@@ -5,7 +5,7 @@ import { X, Package, CheckCircle } from "lucide-react";
 import { Calendar } from "primereact/calendar";
 // ❌ YA NO usamos el hook aquí
 // import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
-
+import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
 const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const [formData, setFormData] = useState({
     barcode: "",
@@ -13,7 +13,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     expiryDate: "",
     isReturn: true,
   });
-
+  const {details}= useFetchAllDetails();
   const [errors, setErrors] = useState({});
 
   // Fecha mínima: 4 días después de hoy
@@ -36,17 +36,33 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Validación en tiempo real para barcode
+    if (field === "barcode") {
+      const barcode = String(value ?? "").trim();
+      let error = "";
+
+      if (barcode && !isExactly13Digits(barcode)) {
+        error = "El código debe tener exactamente 13 dígitos numéricos";
+      } else if (barcode && details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+        error = "Este código de barras ya está registrado en el sistema";
+      }
+
+      setErrors((prev) => ({ ...prev, barcode: error }));
+    }
   };
 
   const validate = () => {
     const errs = {};
 
-    // ✅ Código de barras: obligatorio, solo números, exactamente 13
+    // ✅ Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
     const barcode = String(formData.barcode ?? "").trim();
     if (!barcode) {
       errs.barcode = "Código de barras requerido";
     } else if (!isExactly13Digits(barcode)) {
       errs.barcode = "El código debe tener exactamente 13 dígitos numéricos";
+    } else if (details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+      errs.barcode = "Este código de barras ya está registrado en el sistema";
     }
 
     // ✅ Cantidad: obligatoria, solo números, no negativa (permito 0)
