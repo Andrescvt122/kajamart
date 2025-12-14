@@ -650,3 +650,9 @@ body, #root {
 textarea {
   resize: none;
 }
+
+html, body, #root {
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+}

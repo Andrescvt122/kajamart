@@ -1,78 +1,143 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useProducts } from "../../../shared/components/hooks/products/products.hooks";
+import { useCategories } from "../../../shared/components/hooks/categories/categories.hooks";
 
-const MemoriesBouncing = () => {
-  const testimonios = [
-    { nombre: "María López", texto: "Siempre encuentro lo que necesito y a muy buen precio.", img: "https://randomuser.me/api/portraits/women/65.jpg" },
-    { nombre: "Carlos Ramírez", texto: "Me gusta mucho la variedad de productos.", img: "https://randomuser.me/api/portraits/men/32.jpg" },
-    { nombre: "Ana Torres", texto: "La tienda es muy confiable.", img: "https://randomuser.me/api/portraits/women/12.jpg" },
-    { nombre: "José Martínez", texto: "Es mi lugar de confianza.", img: "https://randomuser.me/api/portraits/men/44.jpg" },
-    { nombre: "Laura Sánchez", texto: "La app es muy intuitiva.", img: "https://randomuser.me/api/portraits/women/23.jpg" },
-    { nombre: "David Herrera", texto: "Me sorprendió la rapidez de la entrega.", img: "https://randomuser.me/api/portraits/men/18.jpg" },
-    { nombre: "Camila Ríos", texto: "Los productos de aseo siempre vienen bien empacados.", img: "https://randomuser.me/api/portraits/women/47.jpg" },
-    { nombre: "Andrés Gómez", texto: "La atención al cliente es impecable.", img: "https://randomuser.me/api/portraits/men/9.jpg" },
-    { nombre: "Paola Méndez", texto: "Me encanta la frescura de las frutas y verduras.", img: "https://randomuser.me/api/portraits/women/33.jpg" },
-    { nombre: "Felipe Castro", texto: "Hacer mercado se volvió más fácil y rápido.", img: "https://randomuser.me/api/portraits/men/56.jpg" },
-    { nombre: "Valentina Ruiz", texto: "Siempre encuentro productos frescos y de calidad.", img: "https://randomuser.me/api/portraits/women/50.jpg" },
-    { nombre: "Sebastián Molina", texto: "El servicio es rápido y confiable.", img: "https://randomuser.me/api/portraits/men/51.jpg" },
-    { nombre: "Camila Fernández", texto: "Me encanta la variedad que tienen todos los días.", img: "https://randomuser.me/api/portraits/women/52.jpg" },
-    { nombre: "Juan Pérez", texto: "Muy buena atención al cliente y excelente calidad.", img: "https://randomuser.me/api/portraits/men/53.jpg" },
-    { nombre: "Natalia Gómez", texto: "Puedo hacer mis compras en minutos, ¡me encanta!", img: "https://randomuser.me/api/portraits/women/54.jpg" },
-    { nombre: "Mateo Rodríguez", texto: "Entrega rápida y productos bien empacados.", img: "https://randomuser.me/api/portraits/men/55.jpg" },
-    { nombre: "Isabella Torres", texto: "La app es fácil de usar y confiable.", img: "https://randomuser.me/api/portraits/women/56.jpg" },
-    { nombre: "Andrés Vargas", texto: "Siempre encuentro lo que busco, muy recomendado.", img: "https://randomuser.me/api/portraits/men/57.jpg" },
-    { nombre: "Daniela Castro", texto: "La frescura de las frutas y verduras es increíble.", img: "https://randomuser.me/api/portraits/women/58.jpg" },
-    { nombre: "Miguel Ramírez", texto: "Comprar aquí hace que mi semana sea mucho más fácil.", img: "https://randomuser.me/api/portraits/men/59.jpg" },
-  
-    // Aquí empiezan los nuevos
-    { nombre: "Lucía Ortega", texto: "Los precios son muy competitivos, ahorro bastante.", img: "https://randomuser.me/api/portraits/women/61.jpg" },
-    { nombre: "Hernán López", texto: "Nunca he tenido problemas con mis pedidos.", img: "https://randomuser.me/api/portraits/men/60.jpg" },
-    { nombre: "Sofía Morales", texto: "Excelente calidad, lo recomiendo a todos.", img: "https://randomuser.me/api/portraits/women/62.jpg" },
-    { nombre: "Ricardo Pardo", texto: "El servicio al cliente me resolvió todo en minutos.", img: "https://randomuser.me/api/portraits/men/63.jpg" },
-    { nombre: "Juliana Restrepo", texto: "Siempre cumplen con los tiempos de entrega.", img: "https://randomuser.me/api/portraits/women/64.jpg" },
-    { nombre: "Esteban Villa", texto: "Los combos de mercado son muy prácticos.", img: "https://randomuser.me/api/portraits/men/64.jpg" },
-    { nombre: "Fernanda Arias", texto: "Me encanta que puedo pagar con diferentes métodos.", img: "https://randomuser.me/api/portraits/women/66.jpg" },
-    { nombre: "Santiago Giraldo", texto: "Todo llega tal cual lo pedí, impecable.", img: "https://randomuser.me/api/portraits/men/65.jpg" },
-    { nombre: "Catalina Jaramillo", texto: "El sistema de puntos me parece genial.", img: "https://randomuser.me/api/portraits/women/67.jpg" },
-    { nombre: "Tomás Quintero", texto: "Siempre atentos a mis dudas, excelente servicio.", img: "https://randomuser.me/api/portraits/men/66.jpg" },
-    { nombre: "Mariana Patiño", texto: "La experiencia de compra es muy fluida.", img: "https://randomuser.me/api/portraits/women/68.jpg" },
-    { nombre: "Gabriel Suárez", texto: "Me gusta que tengan productos locales.", img: "https://randomuser.me/api/portraits/men/67.jpg" },
-    { nombre: "Diana Salazar", texto: "Todo se siente muy organizado y fácil.", img: "https://randomuser.me/api/portraits/women/69.jpg" },
-    { nombre: "Pablo Castaño", texto: "Nunca falta lo que busco, siempre disponible.", img: "https://randomuser.me/api/portraits/men/68.jpg" },
-    { nombre: "Mónica Cárdenas", texto: "Muy buena app, se nota que la actualizan seguido.", img: "https://randomuser.me/api/portraits/women/70.jpg" },
-    { nombre: "Andrés Cardona", texto: "Las promociones son muy buenas, aprovecho siempre.", img: "https://randomuser.me/api/portraits/men/69.jpg" },
-    { nombre: "Verónica Aguilar", texto: "La navegación en la app es sencilla y rápida.", img: "https://randomuser.me/api/portraits/women/71.jpg" },
-    { nombre: "Mauricio Ocampo", texto: "Nunca se me ha dañado un pedido, todo bien.", img: "https://randomuser.me/api/portraits/men/70.jpg" },
-    { nombre: "Sara Lozano", texto: "Es mi opción número uno para las compras.", img: "https://randomuser.me/api/portraits/women/72.jpg" },
-    { nombre: "Camilo López", texto: "Muy recomendada, nunca falla.", img: "https://randomuser.me/api/portraits/men/71.jpg" },
-    { nombre: "Elena Duque", texto: "Ahorro tiempo y dinero, increíble servicio.", img: "https://randomuser.me/api/portraits/women/73.jpg" },
-    { nombre: "Martín Restrepo", texto: "Me encanta lo organizado de la plataforma.", img: "https://randomuser.me/api/portraits/men/72.jpg" },
-    { nombre: "Alejandra Rueda", texto: "Los productos siempre llegan en perfectas condiciones.", img: "https://randomuser.me/api/portraits/women/74.jpg" },
-    { nombre: "Felipe Torres", texto: "Muy buena experiencia de compra.", img: "https://randomuser.me/api/portraits/men/73.jpg" },
-    { nombre: "Vanessa Morales", texto: "Todo llega fresco y a buen precio.", img: "https://randomuser.me/api/portraits/women/75.jpg" },
-    { nombre: "Julián Zapata", texto: "Puedo confiar en que siempre tendrán stock.", img: "https://randomuser.me/api/portraits/men/74.jpg" },
-    { nombre: "Manuela Gil", texto: "Recomiendo esta tienda a todos mis amigos.", img: "https://randomuser.me/api/portraits/women/76.jpg" },
-    { nombre: "Diego Mejía", texto: "Excelente servicio, muy puntual.", img: "https://randomuser.me/api/portraits/men/75.jpg" },
-    { nombre: "Carolina Osorio", texto: "La plataforma nunca se cae, confiable.", img: "https://randomuser.me/api/portraits/women/77.jpg" },
-    { nombre: "Fernando Vélez", texto: "Buen surtido y calidad en todo.", img: "https://randomuser.me/api/portraits/men/76.jpg" },
-    { nombre: "Adriana Montoya", texto: "Todo llega perfecto y a tiempo.", img: "https://randomuser.me/api/portraits/women/78.jpg" },
-    { nombre: "Oscar Ramírez", texto: "Muy buen servicio en general.", img: "https://randomuser.me/api/portraits/men/77.jpg" },
-    { nombre: "Liliana Cano", texto: "La interfaz es súper fácil de usar.", img: "https://randomuser.me/api/portraits/women/79.jpg" },
-    { nombre: "Mauricio Bedoya", texto: "Nunca me ha fallado la app, excelente.", img: "https://randomuser.me/api/portraits/men/78.jpg" },
-    { nombre: "Estefanía Peña", texto: "Los productos llegan siempre bien empacados.", img: "https://randomuser.me/api/portraits/women/80.jpg" },
-    { nombre: "Andrés Ramírez", texto: "Siempre tienen promociones atractivas.", img: "https://randomuser.me/api/portraits/men/79.jpg" },
-    { nombre: "Claudia Ortiz", texto: "Muy buena experiencia cada vez que compro.", img: "https://randomuser.me/api/portraits/women/81.jpg" },
-  ];
-  
+const pick = (...vals) => {
+  for (const v of vals) {
+    if (v === 0) return v;
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    return v;
+  }
+  return undefined;
+};
+
+const normalizeLeadingSlash = (p) => (p ? (p.startsWith("/") ? p : `/${p}`) : "");
+
+const resolveImageUrl = (img) => {
+  if (!img) return "";
+
+  if (typeof img === "object" && !Array.isArray(img)) {
+    img = pick(img.url, img.path, img.secure_url, img.location);
+  }
+
+  if (Array.isArray(img)) {
+    const first = img[0];
+    if (typeof first === "string") img = first;
+    else if (typeof first === "object") img = pick(first.url, first.path, first.secure_url);
+    else img = "";
+  }
+
+  if (!img || typeof img !== "string") return "";
+  if (/^https?:\/\//i.test(img)) return img;
+
+  const API_BASE =
+    import.meta.env.VITE_API_BASE ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://localhost:3000/kajamart/api";
+
+  const originGuess = API_BASE.replace(/\/kajamart\/api\/?$/i, "");
+  return `${originGuess}${normalizeLeadingSlash(img)}`;
+};
+
+const CategoryFallback = ({ name = "Categoría" }) => (
+  <div className="w-14 h-14 rounded-full bg-green-100 border-4 border-green-400 mx-auto mb-4 shadow-md flex items-center justify-center">
+    <span className="text-2xl">🧺</span>
+    <span className="sr-only">{name}</span>
+  </div>
+);
+
+export default function MemoriesBouncing() {
+  const { data: productsRaw, isLoading: loadingProducts, isError: errorProducts } = useProducts();
+  const { categories, loading: loadingCategories, error: errorCategories } = useCategories();
+
+  // ✅ cards finales (categorías + imagen aleatoria de productos de esa categoría)
+  const cards = useMemo(() => {
+    const prods = Array.isArray(productsRaw) ? productsRaw : [];
+    const cats = Array.isArray(categories) ? categories : [];
+
+    // indexar productos por id_categoria (con fallbacks)
+    const byCatId = new Map();
+
+    for (const p of prods) {
+      const idCat = pick(
+        p?.id_categoria,
+        p?.categoria_id,
+        p?.idCategoria,
+        p?.categoria?.id_categoria,
+        p?.categoria?.id,
+        p?.category_id
+      );
+
+      if (idCat === undefined || idCat === null) continue;
+
+      const key = String(idCat);
+      if (!byCatId.has(key)) byCatId.set(key, []);
+      byCatId.get(key).push(p);
+    }
+
+    // construir cards usando categorías del hook (ya mapeadas)
+    const out = cats
+      .filter((c) => c.estado === "Activo") // opcional
+      .map((c) => {
+        const key = String(c.id_categoria);
+        const list = byCatId.get(key) || [];
+
+        // buscar productos con imagen
+        const withImg = list
+          .map((p) => {
+            const img = pick(
+              p?.url_imagen,
+              p?.urlImagen,
+              p?.imagen,
+              p?.image,
+              p?.imageUrl,
+              p?.image_url,
+              p?.foto,
+              p?.thumbnail,
+              p?.images
+            );
+            return { img: resolveImageUrl(img), p };
+          })
+          .filter((x) => !!x.img);
+
+        const chosen = withImg.length
+          ? withImg[Math.floor(Math.random() * withImg.length)]
+          : null;
+
+        return {
+          id: c.id_categoria,
+          nombre: c.nombre || "Categoría",
+          texto: list.length
+            ? `${list.length} producto${list.length === 1 ? "" : "s"}`
+            : "Sin productos aún",
+          img: chosen?.img || "",
+        };
+      });
+
+    // orden: con productos primero
+    out.sort((a, b) => {
+      const aN = Number((a.texto.match(/\d+/) || [0])[0]);
+      const bN = Number((b.texto.match(/\d+/) || [0])[0]);
+      return bN - aN;
+    });
+
+    // limitar para que no se vuelva loco
+    return out.slice(0, 18);
+  }, [productsRaw, categories]);
 
   const [positions, setPositions] = useState([]);
   const [centerIndex, setCenterIndex] = useState(0);
 
+  // init posiciones cuando ya hay cards
   useEffect(() => {
+    if (!cards.length) return;
+
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    const init = testimonios.map(() => ({
+    const init = cards.map(() => ({
       x: Math.random() * (w - 200) + 100,
       y: Math.random() * (h - 200) + 100,
       vx: (Math.random() - 0.5) * 3,
@@ -82,13 +147,15 @@ const MemoriesBouncing = () => {
     setPositions(init);
 
     const interval = setInterval(() => {
-      setCenterIndex((prev) => (prev + 1) % testimonios.length);
+      setCenterIndex((prev) => (prev + 1) % cards.length);
     }, 7000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [cards.length]);
 
   useEffect(() => {
+    if (!cards.length) return;
+
     const move = () => {
       setPositions((prev) =>
         prev.map((p) => {
@@ -107,31 +174,40 @@ const MemoriesBouncing = () => {
 
     const id = setInterval(move, 30);
     return () => clearInterval(id);
-  }, []);
+  }, [cards.length]);
+
+  const loading = loadingProducts || loadingCategories;
+  const hasError = errorProducts || errorCategories;
 
   return (
     <section
-      id="testimonios"
+      id="categorias"
       className="relative py-20 bg-gradient-to-b from-white to-green-50 overflow-hidden h-[100vh]"
     >
-      <div className="text-center mb-10 relative z-20">
-        <h4 className="text-green-600 font-bold uppercase tracking-wide">
-          Testimonios
-        </h4>
+      <div className="text-center py-20 mb-10 relative z-20">
+        <h4 className="text-green-600 font-bold uppercase tracking-wide">Categorías</h4>
         <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 mt-2">
-          Recuerdos de nuestros clientes
+          Explora por categorías
         </h2>
+
+        {loading && <p className="text-sm text-gray-500 mt-3">Cargando categorías...</p>}
+        {hasError && (
+          <p className="text-sm text-red-600 mt-3">No se pudieron cargar categorías/productos</p>
+        )}
+        {!loading && !hasError && cards.length === 0 && (
+          <p className="text-sm text-gray-500 mt-3">No hay categorías para mostrar</p>
+        )}
       </div>
 
       <div className="absolute inset-0">
         <AnimatePresence>
-          {testimonios.map((t, i) => {
+          {cards.map((c, i) => {
             const pos = positions[i] || { x: 200, y: 200 };
             const isCenter = i === centerIndex;
 
             return (
               <motion.div
-                key={i}
+                key={c.id}
                 initial={{ opacity: 0 }}
                 animate={{
                   top: isCenter ? "50%" : pos.y,
@@ -149,15 +225,21 @@ const MemoriesBouncing = () => {
                   isCenter ? "ring-4 ring-green-400" : ""
                 }`}
               >
-                <img
-                  src={t.img}
-                  alt={t.nombre}
-                  className="w-14 h-14 rounded-full object-cover border-4 border-green-400 mx-auto mb-4 shadow-md"
-                />
-                <p className="text-gray-700 italic text-sm leading-relaxed mb-4">
-                  “{t.texto}”
-                </p>
-                <h5 className="font-bold text-green-600">— {t.nombre}</h5>
+                {c.img ? (
+                  <img
+                    src={c.img}
+                    alt={c.nombre}
+                    className="w-14 h-14 rounded-full object-cover border-4 border-green-400 mx-auto mb-4 shadow-md"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <CategoryFallback name={c.nombre} />
+                )}
+
+                <p className="text-gray-800 font-bold text-base mb-1">{c.nombre}</p>
+                <p className="text-gray-600 text-sm">{c.texto}</p>
               </motion.div>
             );
           })}
@@ -165,6 +247,4 @@ const MemoriesBouncing = () => {
       </div>
     </section>
   );
-};
-
-export default MemoriesBouncing;
+}

@@ -27,12 +27,10 @@ export const mapClientFromBackend = (c) => {
   const esCaja = c.nombre_cliente === CLIENTE_CAJA_NOMBRE;
 
   // Fallbacks por si tu backend cambia nombres o aún no tiene estado_cliente bien definido
-  const estadoBool =
-    typeof c.estado_cliente === "boolean"
-      ? c.estado_cliente
-      : typeof c.estado === "boolean"
-      ? c.estado
-      : true; // por defecto lo consideramos activo
+  const estadoRaw = c.estado_cliente ?? c.estado ?? "";
+  const estadoBool = typeof estadoRaw === "boolean"
+    ? estadoRaw
+    : String(estadoRaw).toLowerCase() === "activo" || String(estadoRaw).toLowerCase() === "true";
 
   // Cliente de Caja SIEMPRE ACTIVO en la UI
   const estadoTexto = esCaja

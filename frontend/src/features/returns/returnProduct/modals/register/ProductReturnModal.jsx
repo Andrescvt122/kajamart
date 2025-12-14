@@ -18,7 +18,7 @@ import { usePostReturnProducts } from "../../../../../shared/components/hooks/re
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
-
+import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -39,7 +39,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
-
+  const { payload:payloadId } = useAuth();
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
@@ -132,6 +132,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           returnQuantity: safeQuantity,
           returnReason: "",
           actionType: "",
+          id_detalle_producto: product.id_detalle_producto,
         },
       ]);
     }
@@ -317,28 +318,55 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleAcceptAlert = async () => {
     console.log("👉 handleAcceptAlert DISPARADO");
     setShowConfirmAlert(false);
-
-    const id_responsable = 1; // TODO: reemplazar con el usuario logueado
+    console.log("📋 selectedProducts al confirmar:", payloadId.uid);
+    const id_responsable = payloadId.uid; // TODO: reemplazar con el usuario logueado
 
     try {
       console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
       console.log("pendingDetails en handleAcceptAlert:", pendingDetails);
 
+      // 🔹 PRIMERO: Guardar todos los detalles pendientes en la BD
+      const savedDetails = [];
+      for (const detail of pendingDetails) {
+        console.log("Guardando detalle:", detail);
+        const saved = await postDetailProduct({
+          id_producto: detail.productKey,
+          registeredBarcode: detail.registeredBarcode,
+          registeredExpiry: detail.registeredExpiry,
+          registeredQuantity: detail.registeredQuantity,
+        });
+        if (saved && saved.id_detalle_producto) {
+          savedDetails.push({
+            productKey: detail.productKey,
+            id_detalle_producto: saved.id_detalle_producto,
+          });
+        } else {
+          throw new Error(`No se pudo guardar el detalle para el producto ${detail.productKey}`);
+        }
+      }
+
+      console.log("✅ Detalles guardados:", savedDetails);
+
+      // 🔹 SEGUNDO: Construir payload con los IDs de detalles guardados
       const productsPayload = selectedProducts
         .map((p) => {
-          const detail = getPendingDetailForProduct(p.id_producto);
+          let id_detalle;
 
-          const id_detalle =
-            p.actionType === "registrar"
-              ? detail?.id_detalle_producto
-              : p.id_detalle_producto;
+          if (p.actionType === "registrar") {
+            // Buscar el detalle guardado
+            const savedDetail = savedDetails.find((d) => d.productKey === p.id_producto);
+            id_detalle = savedDetail?.id_detalle_producto;
+          } else {
+            // Para descuento, usar el detalle existente
+            id_detalle = p.id_detalle_producto;
+          }
 
-          if (!id_detalle && p.actionType === "registrar") {
+          if (!id_detalle) {
             console.error(
-              "❌ Falta id_detalle_producto para este producto (registrar):",
+              "❌ Falta id_detalle_producto para este producto:",
               p,
-              "detail:",
-              detail
+              "savedDetails:",
+              savedDetails
             );
             alert(
               `El producto "${
@@ -561,7 +589,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
                         Buscar y agregar productos
                       </h3>
-                      <ProductSearch onAddProduct={handleAddProduct} />
+                      <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id_detalle_producto)} />
                     </motion.div>
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
