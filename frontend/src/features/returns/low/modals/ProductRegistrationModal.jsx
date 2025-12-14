@@ -183,11 +183,9 @@ const ProductRegistrationModal = ({
   // 3) Fecha de vencimiento
   const expiryStr = formData.expiryDate;
   let expiryError = "";
-  let isExpiryValid = false;
+  let isExpiryValid = true; // Por defecto válido si no se proporciona
 
-  if (!expiryStr) {
-    expiryError = "Fecha de vencimiento requerida";
-  } else {
+  if (expiryStr) {
     const selected = new Date(expiryStr);
     selected.setHours(0, 0, 0, 0);
     const min = new Date(minDate);
@@ -196,8 +194,7 @@ const ProductRegistrationModal = ({
     if (selected < min) {
       expiryError =
         "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
-    } else {
-      isExpiryValid = true;
+      isExpiryValid = false;
     }
   }
 
@@ -469,7 +466,7 @@ const ProductRegistrationModal = ({
                   {/* Fecha de vencimiento */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
-                      Fecha de vencimiento
+                      Fecha de vencimiento (opcional)
                     </label>
 
                     <div className="mt-1">
@@ -522,7 +519,7 @@ const ProductRegistrationModal = ({
                   </button>
                 </div>
               </form>
-            </motion.div>
+            </motion.div> 
           </motion.div>
         </>
       )}

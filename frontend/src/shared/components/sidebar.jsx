@@ -57,6 +57,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }) {
     returnProducts: hasPermission("Ver Gestión devolución productos"),
     low: hasPermission("Ver baja productos"),
   };
+  console.log("can view client", canView.clients);
   console.log("can view users", canView.users);
   const menuItems = [
     { name: "Inicio", icon: <Home size={20} />, path: "/app" },
