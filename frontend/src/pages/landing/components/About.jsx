@@ -1,32 +1,30 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import abarrotes from "../../../assets/abarrotes.avif";
-import licores from "../../../assets/licores.jpg";
-import dulceria from "../../../assets/dulces.jpg";
-import canastaFamiliar from "../../../assets/canasta.jpg";
 
 const options = [
   {
-    title: "Abarrotes",
+    title: "Cerca de ti",
     description:
-      "Encuentra lo que necesitas para tu hogar con precios accesibles.",
-    img: abarrotes,
+      "Somos tu tienda de barrio: compras rápidas, sin vueltas y a la mano.",
+    img: "https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&w=1600&q=80",
   },
   {
-    title: "Licores",
-    description: "Desde cervezas hasta vinos, contamos con las mejores marcas.",
-    img: licores,
-  },
-  {
-    title: "Dulcería y Snacks",
-    description: "Dulces y bebidas para niños y adultos en cualquier ocasión.",
-    img: dulceria,
-  },
-  {
-    title: "Productos de la Canasta Familiar",
+    title: "Precios justos",
     description:
-      "Todo en un solo lugar: productos frescos, de calidad y con atención cercana.",
-    img: canastaFamiliar,
+      "Ofrecemos precios accesibles y productos para el día a día.",
+    img: "https://images.unsplash.com/photo-1523206489230-c012c64b2b48?auto=format&fit=crop&w=1600&q=80",
+  },
+  {
+    title: "Variedad para tu hogar",
+    description:
+      "Abarrotes, snacks, bebidas y lo esencial para tu casa en un solo lugar.",
+    img: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1600&q=80",
+  },
+  {
+    title: "Atención cercana",
+    description:
+      "Te atendemos con amabilidad y confianza, como debe ser en el barrio.",
+    img: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80",
   },
 ];
 
@@ -55,12 +53,11 @@ const About = () => {
       {/* Título */}
       <div className="text-center relative z-30">
         <h4 className="text-white font-bold uppercase text-3xl">
-          Quiénes somos
+          ¿Por qué elegirnos?
         </h4>
         <p className="text-white/80 mt-3 max-w-2xl mx-auto px-6">
-          Somos un mercado integral que conecta tradición y calidad en cada
-          producto. Nuestro objetivo es brindarte confianza y cercanía,
-          ofreciendo una experiencia única de compra.
+          Somos una tienda de barrio pensada para tu día a día: cercana, confiable
+          y con lo esencial siempre disponible.
         </p>
       </div>
 
@@ -96,6 +93,7 @@ const About = () => {
         text-white text-3xl backdrop-blur-md bg-white/10 shadow-lg z-30"
         whileHover={{ scale: 1.15, rotate: -12 }}
         whileTap={{ scale: 0.9, rotate: 5 }}
+        aria-label="Rotar opciones"
       >
         ⟳
       </motion.button>
@@ -121,6 +119,8 @@ const About = () => {
                   src={option.img}
                   alt={option.title}
                   className="w-16 h-16 object-cover rounded-full mx-auto mb-3 border border-white/40"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
                 />
                 <h3 className="font-bold text-lg">{option.title}</h3>
               </motion.div>
@@ -140,11 +140,29 @@ const About = () => {
             src={bigOption.img}
             alt={bigOption.title}
             className="w-full h-40 object-cover rounded-lg mb-4"
+            loading="lazy"
+            referrerPolicy="no-referrer"
           />
           <h3 className="font-bold text-2xl mb-4 text-green-300">
             {bigOption.title}
           </h3>
           <p className="text-white/90">{bigOption.description}</p>
+
+          {/* Extra: mini lista de “por qué elegirnos” */}
+          <ul className="mt-5 space-y-2 text-sm text-white/85">
+            <li className="flex items-center gap-2">
+              <span className="text-green-300">✔</span> Atención cercana y confiable
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-green-300">✔</span> Precios justos para el día a día
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-green-300">✔</span> Variedad y productos esenciales
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-green-300">✔</span> Compra rápida, sin complicaciones
+            </li>
+          </ul>
         </motion.div>
       </div>
     </section>
