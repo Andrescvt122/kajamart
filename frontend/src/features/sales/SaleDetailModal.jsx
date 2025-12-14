@@ -128,7 +128,7 @@ const SaleDetailModal = ({ sale, onClose }) => {
   const totalBase = toNumber(pick(sale?.total, totalPorProductos));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 overflow-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 my-6">
         <h2 className="text-2xl font-bold text-green-800 mb-4 text-center">
           Detalles de la Venta

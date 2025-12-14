@@ -20,6 +20,7 @@ import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
 import { useAuth } from "../../context/useAtuh";
+import Loading from "../../features/onboarding/loading.jsx";
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -321,7 +322,13 @@ export default function IndexSales() {
               variants={tableVariants}
               animate="visible"
             >
-              {pageItems.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <Loading inline heightClass="h-28" />
+                  </td>
+                </tr>
+              ) : pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron ventas.
