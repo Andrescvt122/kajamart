@@ -14,6 +14,7 @@ import generateProductLowsPDF from "./helpers/exportToPdf";
 import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
 import { useAuth } from "../../../context/useAtuh";
+import Loading from "../../onboarding/loading";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -215,7 +216,7 @@ export default function IndexLow() {
           >
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loader2 size={24} className="animate-spin" />
+                <Loading inline heightClass="h-28" />
               </div>
             ) : error ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
@@ -354,10 +355,8 @@ export default function IndexLow() {
                 >
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12">
-                        <div className="flex items-center justify-center">
-                          <Loader2 size={24} className="animate-spin" />
-                        </div>
+                      <td colSpan={7} className="px-6 py-12 text-center">
+                        <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (

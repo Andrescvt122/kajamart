@@ -256,7 +256,7 @@ export default function SuplliersRegisterModal({
     // payload al backend (estado SIEMPRE activo, sin max_porcentaje_de_devolucion)
     const payload = {
       nombre: form.nombre.trim(),
-      nit: Number(form.nit.replace(/[^\d]/g, '')), // Extraer solo dígitos para el número
+      nit: form.nit.replace(/[^\d]/g, ''), // Enviar como string de dígitos
       tipo_persona: form.personaType,
       contacto: form.contacto.trim(),
       telefono: form.telefono.trim(),
@@ -364,6 +364,7 @@ export default function SuplliersRegisterModal({
               <div>
                 <label className="block text-sm text-gray-700 mb-1">NIT</label>
                 <input
+                  type="text"
                   name="nit"
                   value={form.nit}
                   onChange={handleFormChange}
