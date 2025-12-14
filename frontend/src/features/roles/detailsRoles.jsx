@@ -28,43 +28,57 @@ export default function DetailsRoles({ isOpen, onClose, role }) {
           .catch(error => console.error("Error cargando detalles del rol", error))
           .finally(() => setLoading(false));
       } else {
-        // No hay id ni permisos: no hay más que cargar
         setLoading(false);
       }
     } else if (!isOpen) {
-      setRolCompleto(null); // 💡 Limpiar el estado cuando el modal se cierra.
+      setRolCompleto(null);
       setLoading(false);
     }
   }, [isOpen, role]);
 
-  // 🧩 Agrupar permisos por módulo (usando texto del nombre del permiso)
-const permisosPorModulo = useMemo(() => {
-  if (!rolCompleto) return {};
+  // 🧩 Lógica mejorada para agrupar permisos
+  const permisosPorModulo = useMemo(() => {
+    if (!rolCompleto) return {};
 
-  // los permisos pueden venir en rol_completo.rol_permisos o directamente en rol_permisos
-  const lista = Array.isArray(rolCompleto.rol_permisos)
-    ? rolCompleto.rol_permisos
-    : Array.isArray(rolCompleto.permisos)
-    ? rolCompleto.permisos
-    : [];
+    const lista = Array.isArray(rolCompleto.rol_permisos)
+      ? rolCompleto.rol_permisos
+      : Array.isArray(rolCompleto.permisos)
+      ? rolCompleto.permisos
+      : [];
 
-  if (!Array.isArray(lista)) return {};
+    if (!Array.isArray(lista)) return {};
 
-  return lista.reduce((acc, p) => {
-    // p puede ser { permisos: {...} } o el objeto permiso directamente
-    const permisoObj = p.permisos || p.Permisos || p;
-    const nombre = permisoObj?.permiso_nombre || permisoObj?.nombre || "Permiso sin nombre";
+    return lista.reduce((acc, p) => {
+      // 1. Obtener el nombre limpio del permiso
+      const permisoObj = p.permisos || p.Permisos || p;
+      const nombre = permisoObj?.permiso_nombre || permisoObj?.nombre || "Permiso sin nombre";
+      
+      // 2. Determinar el módulo analizando el nombre (Keywords)
+      let modulo = "General";
+      const n = nombre.toLowerCase();
 
-    const match = String(nombre).match(/Gestión\s+\w+/);
-    const modulo = match ? match[0] : "General";
+      // Reglas de agrupación basadas en tus permisos actuales:
+      if (n.includes("cliente")) {
+        modulo = "Clientes";
+      } else if (n.includes("venta")) {
+        modulo = "Ventas";
+      } else if (n.includes("compra") || n.includes("proveedor")) {
+        modulo = "Compras";
+      } else if (n.includes("producto") || n.includes("categoría") || n.includes("baja")) {
+        modulo = "Inventario y Productos";
+      } else if (n.includes("rol") || n.includes("usuario") || n.includes("permiso")) {
+        modulo = "Seguridad y Usuarios";
+      } else if (n.includes("devolución") || n.includes("devolucion")) {
+        modulo = "Devoluciones";
+      }
 
-    if (!acc[modulo]) acc[modulo] = [];
-    acc[modulo].push(nombre);
+      // 3. Agrupar
+      if (!acc[modulo]) acc[modulo] = [];
+      acc[modulo].push(nombre);
 
-    return acc;
-  }, {});
-}, [rolCompleto]);
-
+      return acc;
+    }, {});
+  }, [rolCompleto]);
 
   return (
     <AnimatePresence>
@@ -112,11 +126,9 @@ const permisosPorModulo = useMemo(() => {
 
               {/* Contenido */}
               <div className="p-4 text-gray-800 flex-1 overflow-y-auto">
-                {!role ? ( // Mostrar "No encontrado" sólo si no hay objeto role
+                {!role ? (
                   <p>No se encontró el rol.</p>
                 ) : (
-                  // Mostramos la información básica del 'role' prop inmediatamente
-                  // Los permisos se cargarán con 'rolCompleto'
                   <>
                     {/* Información general */}
                     <section>
@@ -128,14 +140,12 @@ const permisosPorModulo = useMemo(() => {
                           <p className="text-xs text-gray-500">Nombre</p>
                           <p className="font-medium">{role.rol_nombre || "—"}</p>
                         </div>
-
                         <div>
                           <p className="text-xs text-gray-500">Descripción</p>
                           <p className="font-medium">
                             {role.descripcion || "Sin descripción"}
                           </p>
                         </div>
-
                         <div className="flex items-center gap-2">
                           <p className="text-xs text-gray-500">Estado</p>
                           <span
@@ -154,31 +164,40 @@ const permisosPorModulo = useMemo(() => {
                     {/* Permisos asignados */}
                     <section className="mt-4">
                       <h3 className="text-sm font-medium text-gray-700 mb-2">
-                        Permisos asignados
+                        Permisos asignados por módulo
                       </h3>
 
-                      {loading || !rolCompleto ? ( // Mostrar "Cargando permisos..." si estamos cargando o rolCompleto aún no está disponible
+                      {loading || !rolCompleto ? (
                         <p className="text-sm text-gray-500">Cargando permisos...</p>
                       ) : Object.keys(permisosPorModulo).length === 0 ? (
                         <p className="text-sm text-gray-500">
                           No hay permisos asignados.
                         </p>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {Object.entries(permisosPorModulo).map(
                             ([modulo, permisos]) => (
                               <div
                                 key={modulo}
-                                className="p-2 border rounded-md bg-gray-50"
+                                className="border rounded-lg overflow-hidden flex flex-col h-full shadow-sm"
                               >
-                                <p className="text-xs font-semibold text-green-700 mb-1">
-                                  {modulo}
-                                </p>
-                                <ul className="list-disc list-inside text-xs text-gray-700 space-y-0.5">
-                                  {permisos.map((perm, idx) => (
-                                    <li key={idx}>{perm}</li>
-                                  ))}
-                                </ul>
+                                {/* Encabezado de la tarjeta del Módulo */}
+                                <div className="bg-gray-100 px-3 py-2 border-b">
+                                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    {modulo}
+                                  </h4>
+                                </div>
+                                {/* Lista de permisos */}
+                                <div className="p-3 bg-white flex-1">
+                                  <ul className="space-y-1">
+                                    {permisos.map((perm, idx) => (
+                                      <li key={idx} className="flex items-start gap-2 text-xs text-gray-600">
+                                        <span className="text-green-500 mt-0.5">•</span>
+                                        {perm}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
                               </div>
                             )
                           )}
@@ -193,7 +212,7 @@ const permisosPorModulo = useMemo(() => {
               <div className="px-4 py-3 border-t bg-white">
                 <button
                   onClick={onClose}
-                  className="w-full px-3 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 text-sm"
+                  className="w-full px-3 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 text-sm font-medium transition-colors"
                 >
                   Volver a la lista de roles
                 </button>
