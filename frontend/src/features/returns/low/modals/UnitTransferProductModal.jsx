@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle, AlertTriangle } from "lucide-react";
 import ProductSearchSelect from "../../../../shared/components/searchBars/productSearchSelect";
-import ProductRegisterModal from "../../../products/productRegisterModal";
+import ProductRegisterModal from "../modals/productRegisterModal";
 import ProductRegistrationModal from "../modals/ProductRegistrationModal";
 import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 const UnitTransferProductModal = ({

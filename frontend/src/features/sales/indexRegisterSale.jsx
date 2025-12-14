@@ -1,17 +1,47 @@
-import React, { useEffect, useState, useRef } from "react";
+// src/features/sales/indexRegisterSale.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+
 import RegisterClientModal from "../clients/RegisterClientModal";
+
+import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
+import { useSearchDetailProduct } from "../../shared/components/hooks/sales/useSearchDetailProduct";
+import useCreateSale from "../../shared/components/hooks/sales/useCreateSale";
 
 export default function IndexRegisterSale() {
   const navigate = useNavigate();
 
-  // --- Estados de cliente ---
+  // =========================
+  // Hooks
+  // =========================
+  const {
+    clients: apiClients,
+    loading: loadingClients,
+    error: errorClients,
+    searchClient,
+  } = useSearchClient();
+  console.log("nuevo apiClients", apiClients)
+  const { productsFound, loadingProduct, errorProduct, searchByName } =
+    useSearchDetailProduct();
+
+  const { createSale, loading: creatingSale, error: errorCreate } =
+    useCreateSale();
+
+  // =========================
+  // Constantes
+  // =========================
+  const STORAGE_KEY = "clientes";
+  const CLIENTE_CAJA_ID = "C000";
+
+  // =========================
+  // Estado
+  // =========================
   const [clienteQuery, setClienteQuery] = useState("");
   const [clientes, setClientes] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [showClientModal, setShowClientModal] = useState(false);
 
-  // --- Props para modal de cliente ---
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
@@ -20,132 +50,253 @@ export default function IndexRegisterSale() {
     telefono: "",
     activo: true,
   });
-  const [tipoOpen, setTipoOpen] = useState(false);
 
-  // --- Productos / venta ---
-  const [codigo, setCodigo] = useState("");
+  const [nombreProducto, setNombreProducto] = useState("");
   const [productos, setProductos] = useState([]);
+  const [metodoPago, setMetodoPago] = useState("");
   const [mensaje, setMensaje] = useState(null);
-  const [metodoPago, setMetodoPago] = useState(null);
 
-  // Constantes
-  const STORAGE_KEY = "clientes";
-  const CLIENTE_CAJA_ID = "C000";
+  // Dropdowns
+  const [showDropdownCliente, setShowDropdownCliente] = useState(false);
+  const [showDropdownProducto, setShowDropdownProducto] = useState(false);
 
-  // --- Dropdown UI control ---
-  const [showDropdown, setShowDropdown] = useState(false);
   const sugRef = useRef(null);
   const inputRef = useRef(null);
+  const prodSugRef = useRef(null);
+  const prodInputRef = useRef(null);
 
-  // --- Carga inicial de clientes ---
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    if (!stored.find((c) => c.id === CLIENTE_CAJA_ID)) {
-      const caja = {
-        id: CLIENTE_CAJA_ID,
-        nombre: "Cliente de Caja",
-        tipoDocumento: "N/A",
-        numeroDocumento: "N/A",
-        correo: "caja@correo.com",
-        telefono: "N/A",
-        estado: "Activo",
-        fecha: new Date().toISOString().split("T")[0],
-      };
-      const withCaja = [caja, ...stored];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(withCaja));
-      setClientes(withCaja);
-      setClienteSeleccionado(caja);
-    } else {
-      setClientes(stored);
-      const caja = stored.find((c) => c.id === CLIENTE_CAJA_ID);
-      if (caja) setClienteSeleccionado(caja);
-    }
-  }, []);
-
-  // --- Normalizar texto ---
+  // =========================
+  // Utils
+  // =========================
   const normalize = (t) =>
     String(t ?? "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // --- Calcular sugerencias ---
-  const suggestions = clienteQuery.trim()
-    ? clientes.filter((c) =>
-        normalize(`${c.id} ${c.nombre} ${c.numeroDocumento} ${c.correo}`).includes(
-          normalize(clienteQuery)
-        )
-      )
-    : [];
+  const safeClienteQuery = (clienteQuery ?? "").trim();
 
-  // --- Cerrar dropdown al click fuera ---
+  // ✅ Determinar si un cliente está activo/inactivo (compat)
+  const isClienteActivo = (c) => {
+    if (!c) return false;
+    if (String(c.id) === String(CLIENTE_CAJA_ID)) return true;
+
+    if (typeof c.activo === "boolean") return c.activo;
+
+    const estadoRaw = c.estado_cliente
+    const estado = String(estadoRaw).toLowerCase().trim();
+    if (estado === "activo" || estado === "true") return true;
+    if (estado === "inactivo" || estado === "false") return false;
+    return true;
+  };
+
+  // ✅ Obtener stock desde cualquier forma en que venga el producto
+  const getStock = (prod) => {
+    const s =
+      prod?.stock_producto ??
+      prod?.detalle_productos?.stock_producto ??
+      prod?.productos?.stock_actual ??
+      prod?.detalle_productos?.productos?.stock_actual ??
+      0;
+
+    return Number(s || 0);
+  };
+
+  // ✅ Obtener ID “real” del producto detalle (para comparar duplicados)
+  const getProductoId = (prod) => String(prod?.id_detalle_producto ?? prod?.id ?? "");
+
+  const suggestionsClientes = useMemo(() => {
+    if (!safeClienteQuery) return [];
+    const q = normalize(safeClienteQuery);
+
+    return clientes.filter((c) =>
+      normalize(
+        `${c.id ?? ""} ${c.id_cliente ?? ""} ${c.nombre ?? ""} ${c.nombre_cliente ?? ""} ${
+          c.numeroDocumento ?? ""
+        } ${c.numero_documento ?? ""} ${c.correo ?? ""} ${c.email ?? ""}`
+      ).includes(q)
+    );
+  }, [clientes, safeClienteQuery]);
+
+  const total = useMemo(
+    () => productos.reduce((acc, p) => acc + Number(p.subtotal || 0), 0),
+    [productos]
+  );
+
+  // ✅ SET de ids ya seleccionados (para filtrar resultados en tiempo real)
+  const selectedProductIds = useMemo(() => {
+    return new Set(productos.map((p) => String(p.productoId)));
+  }, [productos]);
+
+  // ✅ Lista de resultados filtrados: no mostrar ya seleccionados
+  const filteredProductsFound = useMemo(() => {
+    const arr = Array.isArray(productsFound) ? productsFound : [];
+    return arr.filter((p) => {
+      const id = getProductoId(p);
+      if (!id) return true;
+      return !selectedProductIds.has(String(id));
+    });
+  }, [productsFound, selectedProductIds]);
+
+  // =========================
+  // Cliente de caja (local)
+  // =========================
   useEffect(() => {
-    function handleDocClick(e) {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    const caja = {
+      id: CLIENTE_CAJA_ID,
+      nombre: "Cliente de Caja",
+      tipoDocumento: "N/A",
+      numeroDocumento: "N/A",
+      correo: "caja@correo.com",
+      telefono: "N/A",
+      activo: true,
+      estado: "Activo",
+      fecha: new Date().toISOString().split("T")[0],
+    };
+
+    const exists = stored.find((c) => c.id === CLIENTE_CAJA_ID);
+
+    if (!exists) {
+      const withCaja = [caja, ...stored];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(withCaja));
+      setClientes(withCaja);
+      setClienteSeleccionado(caja);
+      setClienteQuery(caja.nombre);
+      return;
+    }
+
+    const fixed = stored.map((c) =>
+      c.id === CLIENTE_CAJA_ID ? { ...c, activo: true, estado: "Activo" } : c
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fixed));
+    setClientes(fixed);
+
+    const cajaFixed = fixed.find((c) => c.id === CLIENTE_CAJA_ID) || null;
+    setClienteSeleccionado(cajaFixed);
+    setClienteQuery(cajaFixed?.nombre || "");
+  }, []);
+
+  // =========================
+  // Merge clientes del backend
+  // =========================
+  useEffect(() => {
+    if (!apiClients || apiClients.length === 0) return;
+
+    setClientes((prev) => {
+      const caja = prev.find((x) => x.id === CLIENTE_CAJA_ID);
+      const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
+
+      const idsApi = new Set(apiClients.map((c) => String(c.id ?? c.id_cliente)));
+      const otros = sinCaja.filter(
+        (c) => !idsApi.has(String(c.id ?? c.id_cliente))
+      );
+
+      const base = caja ? [caja, ...otros] : otros;
+      return [...base, ...apiClients];
+    });
+  }, [apiClients]);
+
+  // =========================
+  // Click afuera (cerrar dropdown)
+  // =========================
+  useEffect(() => {
+    const onMouseDown = (e) => {
       if (
         sugRef.current &&
         !sugRef.current.contains(e.target) &&
         inputRef.current &&
         !inputRef.current.contains(e.target)
       ) {
-        setShowDropdown(false);
+        setShowDropdownCliente(false);
       }
-    }
-    document.addEventListener("mousedown", handleDocClick);
-    return () => document.removeEventListener("mousedown", handleDocClick);
+
+      if (
+        prodSugRef.current &&
+        !prodSugRef.current.contains(e.target) &&
+        prodInputRef.current &&
+        !prodInputRef.current.contains(e.target)
+      ) {
+        setShowDropdownProducto(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
   }, []);
 
-  // --- Cambios en input ---
-  const handleInputChange = (val) => {
-    setClienteQuery(val);
+  // =========================
+  // Cliente handlers
+  // =========================
+  const handleInputClienteChange = (val) => {
+    const value = val ?? "";
+    setClienteQuery(value);
     setClienteSeleccionado(null);
-    if (val.trim()) setShowDropdown(true);
-    else setShowDropdown(false);
-  };
 
-  // --- Seleccionar sugerencia ---
-  const handleSelectSuggestion = (c) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setShowDropdownCliente(false);
+      return;
+    }
+
+    setShowDropdownCliente(true);
+    if (trimmed.length >= 2) searchClient(trimmed);
+  };
+  console.log("clientes", clientes)
+  const handleSelectCliente = (c) => {
+    if (!isClienteActivo(c)) {
+      setMensaje({
+        tipo: "error",
+        texto:
+          "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
+      });
+      setClienteSeleccionado(null);
+      setClienteQuery("");
+      setShowDropdownCliente(false);
+      return;
+    }
+
+    setMensaje(null);
     setClienteSeleccionado(c);
-    setClienteQuery(c.nombre);
-    setShowDropdown(false);
+    setClienteQuery(c.nombre || c.nombre_cliente || "");
+    setShowDropdownCliente(false);
   };
 
-  // --- Blur del input ---
   const handleBlurCliente = () => {
-    const q = clienteQuery.trim();
+    const q = (clienteQuery ?? "").trim();
+
     if (!q) {
       const caja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
       setClienteSeleccionado(caja || null);
-      setShowDropdown(false);
+      setClienteQuery(caja?.nombre || "");
       return;
     }
-    const byId = clientes.find((c) => c.id.toLowerCase() === q.toLowerCase());
-    if (byId) {
-      setClienteSeleccionado(byId);
-      setClienteQuery(byId.nombre);
-      setShowDropdown(false);
-      return;
-    }
-    const byDoc = clientes.find((c) => String(c.numeroDocumento) === q);
-    if (byDoc) {
-      setClienteSeleccionado(byDoc);
-      setClienteQuery(byDoc.nombre);
-      setShowDropdown(false);
-      return;
-    }
+
     const byName = clientes.find((c) =>
-      normalize(c.nombre).includes(normalize(q))
+      normalize(c.nombre ?? c.nombre_cliente ?? "").includes(normalize(q))
     );
+
     if (byName) {
+      if (!isClienteActivo(byName)) {
+        setMensaje({
+          tipo: "error",
+          texto:
+            "⚠️ Este cliente está inactivo. Actívalo para poder asociarlo a una venta.",
+        });
+        setClienteSeleccionado(null);
+        setClienteQuery("");
+        return;
+      }
+
       setClienteSeleccionado(byName);
-      setClienteQuery(byName.nombre);
-      setShowDropdown(false);
+      setClienteQuery(byName.nombre || byName.nombre_cliente || "");
       return;
     }
+
     setClienteSeleccionado(null);
-    setShowDropdown(false);
   };
 
-  // --- Abrir modal ---
   const openRegisterModal = () => {
     setForm({
       nombre: clienteQuery || "",
@@ -155,179 +306,310 @@ export default function IndexRegisterSale() {
       telefono: "",
       activo: true,
     });
-    setTipoOpen(false);
     setShowClientModal(true);
   };
 
-  // --- Callback modal ---
-  const addClientFromModal = (newClient) => {
-    let clientCopy = { ...newClient };
-    if (!clientCopy.id) {
-      const maxNum = clientes.reduce((acc, c) => {
-        const n = parseInt((c.id || "").replace(/\D/g, "")) || 0;
-        return Math.max(acc, n);
-      }, 0);
-      clientCopy.id = "C" + String(maxNum + 1).padStart(3, "0");
+  // =========================
+  // Producto handlers
+  // =========================
+  const handleInputProductoChange = (val) => {
+    const value = val ?? "";
+    setNombreProducto(value);
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setShowDropdownProducto(false);
+      return;
     }
-    clientCopy.estado = clientCopy.activo ? "Activo" : "Inactivo";
-    clientCopy.fecha = clientCopy.fecha || new Date().toISOString().split("T")[0];
 
-    const updated = [clientCopy, ...clientes];
-    setClientes(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    setClienteSeleccionado(clientCopy);
-    setClienteQuery(clientCopy.nombre);
-    setShowClientModal(false);
-    setShowDropdown(false);
+    setShowDropdownProducto(true);
+    searchByName(trimmed);
   };
 
-  // --- Productos DB ---
-  const productosDB = [
-    { codigo: "P001", nombre: "Producto 1", precio: 10 },
-    { codigo: "P002", nombre: "Producto 2", precio: 20 },
-    { codigo: "P003", nombre: "Producto 3", precio: 30 },
-  ];
-
-  // --- Buscar producto ---
-  const handleSearchProduct = () => {
-    if (!codigo.trim()) return;
-    const producto = productosDB.find((p) => p.codigo === codigo.trim());
-    if (!producto) {
-      setMensaje({ tipo: "error", texto: "❌ Producto no encontrado" });
-      setCodigo("");
-      return;
-    }
-    if (productos.some((p) => p.codigo === producto.codigo)) {
-      setMensaje({ tipo: "error", texto: "⚠️ El producto ya está en la lista" });
-      setCodigo("");
-      return;
-    }
-    setProductos([
-      ...productos,
-      { ...producto, cantidad: 1, subtotal: producto.precio },
-    ]);
-    setMensaje({ tipo: "ok", texto: "✅ Producto agregado" });
-    setCodigo("");
-  };
-
-  // --- Validación inmediata de cliente inactivo ---
-  useEffect(() => {
-    if (clienteSeleccionado && clienteSeleccionado.estado === "Inactivo") {
+  const handleSelectProducto = (prod) => {
+    // ✅ Validación: stock 0 -> bloquear
+    const stock = getStock(prod);
+    if (stock <= 0) {
       setMensaje({
         tipo: "error",
-        texto: `⚠️ El cliente "${clienteSeleccionado.nombre}" está inactivo y no puede realizar esta venta.`,
+        texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
       });
-    } else {
-      setMensaje(null);
-    }
-  }, [clienteSeleccionado]);
-
-  // --- Finalizar venta ---
-  const handleFinalizarVenta = () => {
-    if (productos.length === 0) {
-      setMensaje({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
-      return;
-    }
-    if (!metodoPago) {
-      setMensaje({ tipo: "error", texto: "⚠️ Seleccione un método de pago" });
+      setNombreProducto("");
+      setShowDropdownProducto(false);
       return;
     }
 
-    const clienteFinal =
-      clienteSeleccionado ||
-      clientes.find((c) => c.id === CLIENTE_CAJA_ID) || {
-        id: CLIENTE_CAJA_ID,
-        nombre: "Cliente de Caja",
-        estado: "Activo",
-      };
-
-    if (clienteFinal.estado === "Inactivo") {
+    // ✅ Validación: ya seleccionado -> bloquear
+    const idDetalleProducto = prod.id_detalle_producto ?? prod.id ?? null;
+    if (idDetalleProducto != null && selectedProductIds.has(String(idDetalleProducto))) {
       setMensaje({
         tipo: "error",
-        texto: `⚠️ El cliente "${clienteFinal.nombre}" está inactivo y no puede realizar compras.`,
+        texto: "⚠️ Este producto ya fue agregado.",
       });
+      setNombreProducto("");
+      setShowDropdownProducto(false);
       return;
     }
 
-    const nuevaVenta = {
-      id: Date.now(),
-      cliente: clienteFinal.nombre,
-      clienteId: clienteFinal.id,
-      productos,
-      metodoPago,
-      total: productos.reduce((acc, p) => acc + p.subtotal, 0),
-      fecha: new Date().toLocaleString(),
+    const nombre =
+      prod.productos?.nombre ||
+      prod.nombre ||
+      prod.nombre_producto ||
+      "Sin nombre";
+
+    const precioUnitario = Number(
+      prod.precio_venta ??
+        prod.precio ??
+        prod.precio_unitario ??
+        prod.productos?.precio_venta ??
+        prod.productos?.precio ??
+        0
+    );
+
+    const producto = {
+      productoId: idDetalleProducto,
+      nombre,
+      precioUnitario,
     };
 
-    const ventas = JSON.parse(localStorage.getItem("ventas")) || [];
-    ventas.push(nuevaVenta);
-    localStorage.setItem("ventas", JSON.stringify(ventas));
+    setProductos((prev) => [
+      ...prev,
+      {
+        ...producto,
+        cantidad: 1,
+        subtotal: precioUnitario,
+      },
+    ]);
 
-    navigate("/app/sales");
+    setMensaje({ tipo: "ok", texto: "✅ Producto agregado" });
+    setNombreProducto("");
+    setShowDropdownProducto(false);
   };
 
+  const handleChangeCantidad = (index, value) => {
+    const cant = Math.max(1, parseInt(value || "1", 10));
+    setProductos((prev) => {
+      const arr = [...prev];
+      arr[index].cantidad = cant;
+      arr[index].subtotal = cant * Number(arr[index].precioUnitario || 0);
+      return arr;
+    });
+  };
+
+  const handleRemoveProducto = (index) => {
+    setProductos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // =========================
+  // Finalizar venta (POST) ✅
+  // =========================
+  const handleFinalizarVenta = async () => {
+    setMensaje(null);
+
+    if (productos.length === 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe agregar al menos un producto.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    if (!metodoPago) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Seleccione un método de pago.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    const clienteCaja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
+    const cliente = clienteSeleccionado || clienteCaja;
+
+    if (
+      cliente &&
+      String(cliente.id) !== String(CLIENTE_CAJA_ID) &&
+      !isClienteActivo(cliente)
+    ) {
+      await Swal.fire({
+        icon: "error",
+        title: "Cliente inactivo",
+        text: "No se puede registrar la venta: el cliente está inactivo. Actívalo para continuar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    const clienteIdReal =
+      cliente?.id_cliente ??
+      (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ??
+      null;
+
+    const payload = {
+      fecha_venta: new Date().toISOString(),
+      fecha: new Date().toISOString().slice(0, 10),
+
+      clienteId: clienteIdReal,
+      cliente: cliente?.nombre ?? cliente?.nombre_cliente ?? "Cliente de Caja",
+
+      medioPago: metodoPago === "efectivo" ? "Efectivo" : "Transferencia",
+      estado: "Completada",
+
+      productos: productos.map((p) => ({
+        productoId: p.productoId ?? null,
+        nombre: p.nombre ?? "Sin nombre",
+        cantidad: Number(p.cantidad || 1),
+        precioUnitario: Number(p.precioUnitario || 0),
+        subtotal: Number(
+          p.subtotal ?? Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
+        ),
+      })),
+    };
+
+    try {
+      // ✅ LOADING mientras se crea la venta
+      Swal.fire({
+        title: "Registrando venta...",
+        text: "Por favor espera",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      await createSale(payload);
+
+      Swal.close();
+
+// ✅ Se muestra y se redirige de inmediato (sin esperar confirmación)
+Swal.fire({
+  icon: "success",
+  title: "Venta registrada",
+  text: "✅ La venta se registró correctamente.",
+  timer: 1200,
+  showConfirmButton: false,
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  timerProgressBar: true,
+});
+
+// ✅ redirige apenas aparece
+navigate("/app/sales");
+    } catch (e) {
+      Swal.close();
+
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "Error registrando la venta";
+
+      await Swal.fire({
+        icon: "error",
+        title: "No se pudo registrar",
+        text: msg,
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensaje({
+        tipo: "error",
+        texto: `❌ No se pudo registrar: ${msg}`,
+      });
+    }
+  };
+
+  // =========================
+  // Render
+  // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
+      {/* ✅ Overlay Loading (extra visual) */}
+      {creatingSale && (
+        <div className="fixed inset-0 z-[9999] bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-lg px-6 py-4 text-black">
+            <p className="font-semibold">Registrando venta...</p>
+            <p className="text-sm text-gray-600">Por favor espera</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Ventas</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Completa la información para registrar una nueva venta
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Completa la información</p>
       </div>
 
       {/* Cliente */}
       <div className="mb-4">
         <label className="block text-sm text-gray-600 mb-1">Cliente</label>
+
         <div className="flex items-start gap-2 relative">
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <input
               ref={inputRef}
-              type="text"
               value={clienteQuery}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onBlur={() => setTimeout(() => handleBlurCliente(), 150)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleBlurCliente();
-                }
-              }}
-              placeholder="Ingrese el nombre o código del cliente (ej. C000)"
+              onChange={(e) => handleInputClienteChange(e.target.value)}
+              onBlur={() => setTimeout(handleBlurCliente, 150)}
+              placeholder="Nombre o documento"
               className="w-full border rounded px-3 py-2 bg-white text-black"
+              disabled={creatingSale}
             />
-            {/* Dropdown */}
+
             <div ref={sugRef}>
-              {showDropdown && suggestions.length > 0 && !clienteSeleccionado && (
-                <div className="absolute left-0 right-0 bg-white border rounded-md mt-1 shadow z-30 max-h-56 overflow-auto">
-                  {suggestions.slice(0, 7).map((s) => (
-                    <div
-                      key={s.id}
-                      onMouseDown={(ev) => {
-                        ev.preventDefault();
-                        handleSelectSuggestion(s);
-                      }}
-                      className="px-3 py-2 hover:bg-green-50 cursor-pointer text-black"
-                    >
-                      <div className="text-sm font-medium">{s.nombre}</div>
-                      <div className="text-xs text-gray-500">
-                        {s.numeroDocumento || "N/A"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {showDropdownCliente &&
+                suggestionsClientes.length > 0 &&
+                !clienteSeleccionado && (
+                  <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
+                    {suggestionsClientes.slice(0, 7).map((s) => {
+                      const activo = isClienteActivo(s);
+                      return (
+                        <div
+                          key={String(s.id ?? s.id_cliente)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if (creatingSale) return;
+                            if (!activo) return; // Deshabilitado, no hacer nada
+                            handleSelectCliente(s);
+                          }}
+                          className={`px-3 py-2 text-black ${
+                            activo
+                              ? "hover:bg-green-50 cursor-pointer"
+                              : "opacity-60 cursor-not-allowed bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>{s.nombre || s.nombre_cliente}</div>
+                            <span
+                              className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                                activo
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {activo ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-gray-500">
+                            {s.numeroDocumento || s.numero_documento || ""}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
             </div>
           </div>
 
-          {/* Botón Registrar cliente */}
-          {clienteQuery.trim() &&
+          {safeClienteQuery &&
             !clienteSeleccionado &&
-            suggestions.length === 0 && (
+            suggestionsClientes.length === 0 && (
               <button
                 onClick={openRegisterModal}
-                className="px-4 py-2 bg-green-600 text-white rounded-md"
+                className="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-60"
+                disabled={creatingSale}
               >
                 Registrar cliente
               </button>
@@ -335,46 +617,118 @@ export default function IndexRegisterSale() {
         </div>
 
         <div className="mt-2">
+          {loadingClients && <p className="text-sm text-gray-500">Buscando...</p>}
+          {errorClients && (
+            <p className="text-sm text-red-600">Error: {errorClients}</p>
+          )}
+
           {clienteSeleccionado ? (
-            <p
-              className={`text-sm ${
-                clienteSeleccionado.estado === "Activo"
-                  ? "text-green-600"
-                  : "text-red-600"
-              }`}
-            >
-              {clienteSeleccionado.estado === "Activo"
-                ? `✅ Cliente seleccionado: ${clienteSeleccionado.nombre}`
-                : `❌ Cliente inactivo: ${clienteSeleccionado.nombre}`}
+            <p className="text-sm text-green-600">
+              ✅ Cliente seleccionado:{" "}
+              {clienteSeleccionado.nombre || clienteSeleccionado.nombre_cliente}
             </p>
-          ) : clienteQuery.trim() === "" ? (
-            <p className="text-sm text-gray-600">Se usará el Cliente de Caja</p>
+          ) : safeClienteQuery === "" ? (
+            <p className="text-sm text-gray-600">Se usará Cliente de Caja</p>
           ) : (
             <p className="text-sm text-red-600">No se encontró cliente</p>
           )}
         </div>
       </div>
 
-      {/* Código de producto */}
+      {/* Producto */}
       <div className="mb-2">
-        <label className="block text-sm text-gray-600 mb-1">Código de barras</label>
-        <input
-          type="text"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          onBlur={handleSearchProduct}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSearchProduct();
-            }
-          }}
-          placeholder="Ingrese o escanee el código de barras"
-          className="w-full border rounded px-3 py-2 bg-white text-black"
-        />
+        <label className="block text-sm text-gray-600 mb-1">Producto</label>
+
+        <div className="relative">
+          <input
+            ref={prodInputRef}
+            type="text"
+            value={nombreProducto}
+            onChange={(e) => handleInputProductoChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (filteredProductsFound?.length) handleSelectProducto(filteredProductsFound[0]);
+              }
+            }}
+            placeholder="Ingrese el nombre del producto"
+            className="w-full border rounded px-3 py-2 bg-white text-black"
+            disabled={creatingSale}
+          />
+
+          <div ref={prodSugRef}>
+            {showDropdownProducto && filteredProductsFound?.length > 0 && (
+              <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 max-h-56 overflow-auto">
+                {filteredProductsFound.slice(0, 7).map((p) => {
+                  const stock = getStock(p);
+                  const sinStock = stock <= 0;
+
+                  return (
+                    <div
+                      key={String(
+                        p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra
+                      )}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (creatingSale) return;
+                        if (sinStock) {
+                          setMensaje({
+                            tipo: "error",
+                            texto:
+                              "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+                          });
+                          return;
+                        }
+                        handleSelectProducto(p);
+                      }}
+                      className={`px-3 py-2 text-black ${
+                        sinStock
+                          ? "opacity-60 cursor-not-allowed bg-gray-50"
+                          : "hover:bg-green-50 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>{p.productos?.nombre || p.nombre}</div>
+                        <span
+                          className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                            sinStock
+                              ? "bg-red-100 text-red-700"
+                              : "bg-green-50 text-green-700"
+                          }`}
+                        >
+                          Stock: {stock}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        Código: {p.codigo_barras ?? p.codigo_barras_producto_compra ?? "N/A"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {showDropdownProducto &&
+              Array.isArray(productsFound) &&
+              productsFound.length > 0 &&
+              filteredProductsFound.length === 0 && (
+                <div className="absolute left-0 right-0 bg-white border rounded mt-1 shadow z-30 px-3 py-2 text-sm text-gray-500">
+                  Todos esos productos ya fueron agregados.
+                </div>
+              )}
+          </div>
+        </div>
+
+        <div className="mt-1">
+          {loadingProduct && (
+            <p className="text-sm text-gray-500">Buscando producto...</p>
+          )}
+          {errorProduct && <p className="text-sm text-red-600">{errorProduct}</p>}
+        </div>
       </div>
 
-      {/* Mensaje */}
+      {/* Mensajes */}
       {mensaje && (
         <p
           className={`mb-4 text-sm ${
@@ -384,56 +738,56 @@ export default function IndexRegisterSale() {
           {mensaje.texto}
         </p>
       )}
+      {errorCreate && <p className="text-sm text-red-600 mb-3">{errorCreate}</p>}
 
-      {/* Tabla productos */}
+      {/* Tabla */}
       <table className="w-full border-collapse border border-gray-300 mb-4">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 px-3 py-2">Nombre</th>
-            <th className="border border-gray-300 px-3 py-2">Cantidad</th>
-            <th className="border border-gray-300 px-3 py-2">Precio</th>
-            <th className="border border-gray-300 px-3 py-2">Subtotal</th>
-            <th className="border border-gray-300 px-3 py-2">Acciones</th>
+            <th className="border px-3 py-2">Nombre</th>
+            <th className="border px-3 py-2">Cant.</th>
+            <th className="border px-3 py-2">Precio</th>
+            <th className="border px-3 py-2">Subtotal</th>
+            <th className="border px-3 py-2">Acciones</th>
           </tr>
         </thead>
+
         <tbody>
           {productos.length === 0 ? (
             <tr>
-              <td colSpan="5" className="text-center text-gray-400 py-4">
+              <td colSpan="5" className="text-center py-4 text-gray-400">
                 No hay productos
               </td>
             </tr>
           ) : (
-            productos.map((prod, i) => (
-              <tr key={i}>
-                <td className="border px-3 py-2 text-black">{prod.nombre}</td>
+            productos.map((p, i) => (
+              <tr key={`${p.productoId}-${i}`}>
+                <td className="border px-3 py-2 text-black">{p.nombre}</td>
+
                 <td className="border px-3 py-2 text-center text-black">
                   <input
                     type="number"
+                    value={p.cantidad}
                     min="1"
-                    value={prod.cantidad}
-                    onChange={(e) => {
-                      const nuevaCantidad = parseInt(e.target.value) || 1;
-                      const nuevos = [...productos];
-                      nuevos[i].cantidad = nuevaCantidad;
-                      nuevos[i].subtotal = nuevaCantidad * nuevos[i].precio;
-                      setProductos(nuevos);
-                    }}
-                    className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
+                    onChange={(e) => handleChangeCantidad(i, e.target.value)}
+                    className="w-16 text-center border rounded bg-white"
+                    disabled={creatingSale}
                   />
                 </td>
+
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.precio}
+                  ${Number(p.precioUnitario || 0).toLocaleString()}
                 </td>
+
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.subtotal}
+                  ${Number(p.subtotal || 0).toLocaleString()}
                 </td>
+
                 <td className="border px-3 py-2 text-center">
                   <button
-                    onClick={() =>
-                      setProductos(productos.filter((_, idx) => idx !== i))
-                    }
-                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    onClick={() => handleRemoveProducto(i)}
+                    className="px-2 py-1 bg-red-500 text-white rounded disabled:opacity-60"
+                    disabled={creatingSale}
                   >
                     Eliminar
                   </button>
@@ -444,77 +798,64 @@ export default function IndexRegisterSale() {
         </tbody>
       </table>
 
-      {/* Métodos de pago + Total */}
+      {/* Método de pago */}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="font-semibold mb-2">Método de Pago</p>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <button
               onClick={() => setMetodoPago("efectivo")}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "efectivo" ? "bg-green-600" : "bg-gray-500"
-              }`}
+              } disabled:opacity-60`}
+              disabled={creatingSale}
             >
               Efectivo
             </button>
+
             <button
               onClick={() => setMetodoPago("transferencia")}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
-              }`}
+              } disabled:opacity-60`}
+              disabled={creatingSale}
             >
               Transferencia
             </button>
           </div>
         </div>
-        <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
+
+        <div className="bg-gray-100 px-4 py-2 rounded shadow-md text-right">
           <p className="text-sm text-gray-600">Total a pagar</p>
           <p className="text-2xl font-bold text-green-700">
-            ${productos.reduce((acc, p) => acc + p.subtotal, 0).toLocaleString()}
+            ${total.toLocaleString()}
           </p>
         </div>
       </div>
 
-      {/* Acciones */}
-      <div className="flex justify-end items-center space-x-2">
+      {/* Botones */}
+      <div className="flex justify-end gap-2">
         <button
           onClick={() => navigate("/app/sales")}
-          className="px-4 py-2 rounded bg-gray-500 text-white"
+          className="px-4 py-2 rounded bg-gray-500 text-white disabled:opacity-60"
+          disabled={creatingSale}
         >
           Cancelar
         </button>
+
         <button
           onClick={handleFinalizarVenta}
-          className="px-4 py-2 rounded bg-green-600 text-white"
+          className="px-4 py-2 rounded bg-green-600 text-white disabled:opacity-60"
+          disabled={creatingSale}
         >
-          Finalizar Venta
+          {creatingSale ? "Registrando..." : "Finalizar Venta"}
         </button>
       </div>
 
       {/* Modal cliente */}
       <RegisterClientModal
         isModalOpen={showClientModal}
-        setIsModalOpen={(open) => {
-          setShowClientModal(open);
-          if (!open) {
-            const updated = JSON.parse(localStorage.getItem("clientes")) || [];
-            setClientes(updated);
-            if (clienteQuery.trim()) {
-              const encontrado = updated.find(
-                (c) =>
-                  c.nombre.toLowerCase().includes(clienteQuery.toLowerCase()) ||
-                  c.numeroDocumento === clienteQuery ||
-                  c.id.toLowerCase() === clienteQuery.toLowerCase()
-              );
-              if (encontrado) {
-                setClienteSeleccionado(encontrado);
-                setClienteQuery(encontrado.nombre);
-                setShowDropdown(false);
-              }
-            }
-          }
-        }}
-        addClient={addClientFromModal}
+        setIsModalOpen={setShowClientModal}
         form={form}
         setForm={setForm}
         tipoOptions={[
@@ -522,8 +863,44 @@ export default function IndexRegisterSale() {
           { value: "T.I", label: "Tarjeta de Identidad" },
           { value: "C.E", label: "Cédula de Extranjería" },
         ]}
-        tipoOpen={tipoOpen}
-        setTipoOpen={setTipoOpen}
+        title="Registrar cliente"
+        onClose={() => setShowClientModal(false)}
+        editingClientId={null}
+        onSuccess={(payload) => {
+          const raw = payload?.cliente || payload?.client || payload || {};
+
+          const nuevoCliente = {
+            id: raw.id ?? raw.codigo ?? Date.now(),
+            id_cliente: raw.id_cliente ?? raw.id ?? null,
+            nombre: raw.nombre ?? raw.nombre_cliente ?? "",
+            nombre_cliente: raw.nombre_cliente ?? raw.nombre ?? "",
+            tipoDocumento: raw.tipoDocumento ?? raw.tipo_documento ?? "",
+            numeroDocumento: raw.numeroDocumento ?? raw.numero_documento ?? "",
+            correo: raw.correo ?? raw.email ?? "",
+            telefono: raw.telefono ?? raw.celular ?? "",
+            estado: raw.estado ?? ((raw.activo ?? true) ? "Activo" : "Inactivo"),
+            activo: typeof raw.activo === "boolean" ? raw.activo : undefined,
+            fecha: raw.fecha || new Date().toISOString().split("T")[0],
+          };
+
+          setClientes((prev) => [...prev, nuevoCliente]);
+
+          if (!isClienteActivo(nuevoCliente)) {
+            setMensaje({
+              tipo: "error",
+              texto:
+                "⚠️ Cliente creado como inactivo. Actívalo para poder asociarlo a una venta.",
+            });
+            setClienteSeleccionado(null);
+            setClienteQuery("");
+          } else {
+            setClienteSeleccionado(nuevoCliente);
+            setClienteQuery(nuevoCliente.nombre || nuevoCliente.nombre_cliente || "");
+          }
+
+          setShowClientModal(false);
+          setShowDropdownCliente(false);
+        }}
       />
     </div>
   );

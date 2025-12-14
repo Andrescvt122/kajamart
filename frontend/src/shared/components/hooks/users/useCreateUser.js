@@ -22,6 +22,7 @@ export const useCreateUsuario = () => {
       email: nuevoUsuario.correo.trim(), // backend espera "email"
       rol_id: nuevoUsuario.rol_id, // backend espera el ID numérico del rol
       estado_usuario: nuevoUsuario.estado, // backend usa "estado_usuario"
+      password_hash: nuevoUsuario.contrasena,
     };
 
     // ⚠️ Validación básica antes de enviar
@@ -30,7 +31,8 @@ export const useCreateUsuario = () => {
       !payload.apellido ||
       !payload.documento ||
       !payload.email ||
-      !payload.rol_id
+      !payload.rol_id ||
+      !payload.password_hash
     ) {
       setError("Por favor completa todos los campos obligatorios.");
       setLoading(false);

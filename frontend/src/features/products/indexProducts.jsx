@@ -13,7 +13,7 @@ import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
 import { exportProductsToExcel } from "./helpers/exportToXls";
 import { exportProductsToPDF } from "./helpers/exportToPdf";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
   showErrorAlert,
@@ -103,7 +103,10 @@ export default function IndexProducts() {
 
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
-
+  const {hasPermission} = useAuth();
+  const canDelete = hasPermission("Eliminar productos");
+  const canEdit = hasPermission("Editar productos");
+  const canCreate = hasPermission("Crear productos");
   // Normalizar categorías
   const categories = useMemo(
     () =>
@@ -426,6 +429,7 @@ export default function IndexProducts() {
                 <button
                   onClick={handleOpenModal}
                   className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                  hidden={!canCreate}
                 >
                   Registrar Nuevo Producto
                 </button>
@@ -572,9 +576,10 @@ export default function IndexProducts() {
                                     })
                                   }
                                 />
-                                <EditButton event={() => handleEditClick(p)} />
+                                <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
                                 <DeleteButton
                                   event={() => handleDeleteClick(p)}
+                                  canDelete={canDelete} 
                                 />
                               </div>
                             </div>
@@ -699,8 +704,8 @@ export default function IndexProducts() {
                               })
                             }
                           />
-                          <EditButton event={() => handleEditClick(p)} />
-                          <DeleteButton event={() => handleDeleteClick(p)} />
+                          <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
+                          <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
                         </div>
                       </td>
                     </motion.tr>

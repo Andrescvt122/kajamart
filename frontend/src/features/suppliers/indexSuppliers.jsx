@@ -22,7 +22,7 @@ import { exportSuppliersToExcel } from "./helpers/exportToXls";
 import { exportSuppliersToPDF } from "./helpers/exportToPdf";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import Loading from "../../features/onboarding/loading.jsx";
-
+import { useAuth } from "../../context/useAtuh.jsx";
 // Hooks de proveedores (backend real)
 import {
   useSuppliers as useSuppliersQuery,
@@ -99,7 +99,10 @@ export default function IndexSuppliers() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedSupplierToDelete, setSelectedSupplierToDelete] =
     useState(null);
-
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission("Eliminar proveedores");
+  const canEdit = hasPermission("Editar proveedores");
+  const canCreate = hasPermission("Crear proveedores");
   const handleDeleteConfirm = (supplier) => {
     const id = supplier?.id_proveedor;
     if (!id) {
@@ -439,9 +442,11 @@ export default function IndexSuppliers() {
                                     setSelectedSupplier(s);
                                     setIsEditOpen(true);
                                   }}
+                                  canEdit={canEdit}
                                 />
                                 <DeleteButton
                                   event={() => handleDeleteClick(s)}
+                                  canDelete={canDelete}
                                 />
                               </div>
                             </div>
@@ -556,12 +561,14 @@ export default function IndexSuppliers() {
                                 }}
                               />
                               <EditButton
+                                canEdit={canEdit}
                                 event={() => {
                                   setSelectedSupplier(s);
                                   setIsEditOpen(true);
                                 }}
                               />
                               <DeleteButton
+                                canDelete={canDelete}
                                 event={() => handleDeleteClick(s)}
                               />
                             </div>

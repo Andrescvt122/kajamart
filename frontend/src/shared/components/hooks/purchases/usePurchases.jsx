@@ -1,48 +1,46 @@
-// usePurchases.js
-import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import { useEffect, useState } from "react";
 
-const PURCHASES_URL = "http://localhost:3000/kajamart/api/purchase";
-
-/**
- * Hook para obtener todas las compras.
- *
- * @returns {{
- *   purchases: Compra[] | null,
- *   loading: boolean,
- *   error: string | null,
- *   refetch: () => Promise<void>
- * }}
- */
-export function usePurchases() {
-  const [purchases, setPurchases] = useState(null);
+export function usePurchases({ search, page, perPage }) {
+  const [items, setItems] = useState([]);
+  const [meta, setMeta] = useState({ page: 1, perPage, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchPurchases = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await axios.get(PURCHASES_URL);
-      // El backend responde: { purchase: [...] }
-      setPurchases(response.data.purchase || []);
-    } catch (err) {
-      console.error("Error al obtener las compras", err);
-      setError("Error al obtener las compras");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases]);
+    let alive = true;
 
-  return {
-    purchases,
-    loading,
-    error,
-    refetch: fetchPurchases,
-  };
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams({
+          search: search || "",
+          page: String(page),
+          perPage: String(perPage),
+        });
+
+        const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/purchases?${params}`);
+        const data = await resp.json();
+
+        if (!resp.ok) throw new Error(data?.message || "Error cargando compras");
+
+        if (!alive) return;
+        setItems(data.items || []);
+        setMeta(data.meta || meta);
+      } catch (e) {
+        if (!alive) return;
+        setError(e.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page, perPage]);
+
+  return { items, meta, loading, error };
 }

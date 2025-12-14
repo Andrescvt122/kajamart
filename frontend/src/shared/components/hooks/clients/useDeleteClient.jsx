@@ -17,13 +17,17 @@ export const useClientDelete = () => {
     try {
       await axios.delete(`${API_URL}/${id}`);
       setSuccess(true);
-      return true;
+      return { success: true };
     } catch (err) {
       console.error("❌ Error al eliminar cliente:", err);
-      setError(
-        err.response?.data?.error || "Error al eliminar cliente."
-      );
-      return false;
+
+      const message =
+        err?.response?.data?.message || // ✅ recomendado que backend envíe "message"
+        err?.response?.data?.error ||   // fallback
+        "No se pudo eliminar el cliente";
+
+      setError(message);
+      return { success: false, message };
     } finally {
       setLoading(false);
     }

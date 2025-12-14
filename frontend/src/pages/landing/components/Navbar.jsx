@@ -4,9 +4,10 @@ import logo from "../../../assets/logo.png";
 export default function Navbar() {
   const navLinks = [
     { name: "Inicio", href: "#inicio" },
+    { name: "Caracteristicas", href: "#features" },
     { name: "Sobre nosotros", href: "#about" },
     { name: "Catálogo", href: "#productos" },
-    { name: "Testimonios", href: "#testimonios" },
+    { name: "Categorias", href: "#categorias" },
   ];
 
   return (

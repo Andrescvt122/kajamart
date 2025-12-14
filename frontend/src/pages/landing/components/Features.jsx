@@ -26,7 +26,7 @@ const Features = () => {
       id="features"
       className="py-20 relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg,rgba(224, 247, 224, 0.74) 0%,rgb(255, 255, 255) 100%)", // fondo minimalista
+        background: "linear-gradient(135deg,rgba(224, 247, 224, 0.74) 0%,rgb(255, 255, 255) 100%)", 
       }}
     >
       <h4 className="text-green-700 font-bold uppercase text-center drop-shadow-md">

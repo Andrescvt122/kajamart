@@ -15,6 +15,8 @@ import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleCompon
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
 import generateProductReturnsPDF from "./helpers/exportToPdf";
 import generateProductReturnsXLS from "./helpers/exportToXls";
+import { useAuth } from "../../../context/useAtuh";
+
 export default function IndexClientReturns() {
   const baseReturns = [];
   for (let i = 1; i <= 44; i++) {
@@ -26,7 +28,6 @@ export default function IndexClientReturns() {
       "Producto no requerido"
     ];
     const reason = reasons[i % reasons.length];
-
     // Selección ponderada para que 'a proveedor' y 'completado' sean más probables
     const pickStatus = (reason) => {
       // Solo N/A para productos dañados, el resto puede ir a proveedor
@@ -83,6 +84,8 @@ export default function IndexClientReturns() {
 
   const [activeStatusEditor, setActiveStatusEditor] = useState(null);
 
+  const {hasPermission} = useAuth();
+  const canCreate = hasPermission('Crear devolución clientes');
 
   // Función para abrir el modal de detalles
   const handleViewDetails = (rowData) => {
@@ -245,6 +248,7 @@ export default function IndexClientReturns() {
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              hidden={!canCreate}
             >
               Registrar nueva devolución
             </button>
