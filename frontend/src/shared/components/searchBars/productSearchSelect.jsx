@@ -240,13 +240,15 @@ const ProductSearchSelect = ({
               );
             })
           ) : (
-            <button
-              type="button"
-              onClick={() => onCreateProduct?.(searchTerm)}
-              className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
-            >
-              Crear producto
-            </button>
+            <div className="flex justify-center mt-3">
+              <button
+                type="button"
+                onClick={() => onCreateProduct?.(searchTerm)}
+                className="px-4 py-2 rounded-lg bg-green-400 text-white text-sm font-semibold hover:bg-green-500 transition"
+              >
+                Crear producto
+              </button>
+            </div>
           )}
         </motion.div>
       )}

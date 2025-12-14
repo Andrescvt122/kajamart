@@ -3,7 +3,7 @@ import { Search, Package, CheckCircle, AlertCircle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFetchProduct } from "../hooks/searchBars/useFetchProducts";
 
-const ProductSearch = ({ onAddProduct }) => {
+const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -274,7 +274,9 @@ const ProductSearch = ({ onAddProduct }) => {
             ) : error ? (
               <div className="p-4 text-center text-red-500">{error}</div>
             ) : products && products.length > 0 ? (
-              products.map((item) => {
+              products
+                .filter((item) => !excludedProducts.includes(item.id_detalle_producto))
+                .map((item) => {
                 const isOutOfStock = item.stock_producto <= 0;
 
                 return (
