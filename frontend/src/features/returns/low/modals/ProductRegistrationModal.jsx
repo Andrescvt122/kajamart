@@ -41,6 +41,15 @@ const ProductRegistrationModal = ({
     return d;
   }, []);
 
+  const parseYmdToDate = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setHours(0, 0, 0, 0);
+    return dateObj;
+  };
+
   // Resetear campos cuando se abre un producto nuevo
   useEffect(() => {
     if (isOpen) {
@@ -94,9 +103,11 @@ const ProductRegistrationModal = ({
       setFormData((prev) => ({ ...prev, expiryDate: "" }));
       return;
     }
-    const year = e.value.getFullYear();
-    const month = String(e.value.getMonth() + 1).padStart(2, '0');
-    const day = String(e.value.getDate()).padStart(2, '0');
+    const localDate = new Date(e.value);
+    localDate.setHours(0, 0, 0, 0);
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
     const dateVal = `${year}-${month}-${day}`;
     setFormData((prev) => ({ ...prev, expiryDate: dateVal }));
   };
@@ -193,15 +204,19 @@ const ProductRegistrationModal = ({
   let isExpiryValid = true; // Por defecto válido si no se proporciona
 
   if (expiryStr) {
-    const selected = new Date(expiryStr);
-    selected.setHours(0, 0, 0, 0);
-    const min = new Date(minDate);
-    min.setHours(0, 0, 0, 0);
-
-    if (selected < min) {
-      expiryError =
-        "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
+    const selected = parseYmdToDate(expiryStr);
+    if (!selected) {
+      expiryError = "Fecha inválida";
       isExpiryValid = false;
+    } else {
+      const min = new Date(minDate);
+      min.setHours(0, 0, 0, 0);
+
+      if (selected < min) {
+        expiryError =
+          "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
+        isExpiryValid = false;
+      }
     }
   }
 
@@ -480,7 +495,7 @@ const ProductRegistrationModal = ({
                       <Calendar
                         value={
                           formData.expiryDate
-                            ? new Date(formData.expiryDate)
+                            ? parseYmdToDate(formData.expiryDate)
                             : null
                         }
                         onChange={handleExpiryChange}
