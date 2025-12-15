@@ -90,7 +90,14 @@ const ProductRegistrationModal = ({
   };
 
   const handleExpiryChange = (e) => {
-    const dateVal = e.value ? e.value.toISOString().slice(0, 10) : "";
+    if (!e.value) {
+      setFormData((prev) => ({ ...prev, expiryDate: "" }));
+      return;
+    }
+    const year = e.value.getFullYear();
+    const month = String(e.value.getMonth() + 1).padStart(2, '0');
+    const day = String(e.value.getDate()).padStart(2, '0');
+    const dateVal = `${year}-${month}-${day}`;
     setFormData((prev) => ({ ...prev, expiryDate: dateVal }));
   };
 
