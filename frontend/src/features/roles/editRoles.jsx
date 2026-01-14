@@ -371,12 +371,29 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
                   <button
                     type="submit"
                     disabled={isUpdating}
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50 inline-flex items-center"
+                    aria-busy={isUpdating}
                   >
-                    Guardar cambios
+                    {isUpdating ? (
+                      <>
+                        <span className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                        Guardando...
+                      </>
+                    ) : (
+                      "Guardar cambios"
+                    )}
                   </button>
                 </div>
               </form>
+              {/* Overlay de carga mientras se actualiza el rol */}
+              {isUpdating && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-700 font-medium">Actualizando rol...</p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </>

@@ -56,7 +56,7 @@ export default function IndexSales() {
   const [updatingId, setUpdatingId] = useState(null);
   const { hasPermission } = useAuth();
   const canCreate= hasPermission("Crear venta");
-  const canAnnular= hasPermission('Anular una venta');
+  const canAnnular= hasPermission('Anular venta');
   console.log("poder anular venta", canAnnular);
   const normalizedSales = useMemo(() => {
     return (sales || []).map((v) => {
@@ -295,7 +295,7 @@ export default function IndexSales() {
             <button
               onClick={() => navigate("/app/sales/register")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              disabled={!canCreate}
+              hidden={!canCreate}
             >
               Registrar Nueva Venta
             </button>

@@ -85,7 +85,7 @@ export default function IndexClientReturns() {
   const [activeStatusEditor, setActiveStatusEditor] = useState(null);
 
   const {hasPermission} = useAuth();
-  const canCreate = hasPermission('Crear devolución clientes');
+  const canCreate = hasPermission('Crear devolucion clientes');
 
   // Función para abrir el modal de detalles
   const handleViewDetails = (rowData) => {

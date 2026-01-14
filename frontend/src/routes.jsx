@@ -57,10 +57,11 @@ export default function RoutesAdmin() {
     clients: hasPermission("Ver clientes"),
     purchases: hasPermission("Ver compras"),
     sales: hasPermission("Ver ventas"),
-    returnClients: hasPermission("Ver devolución clientes"),
-    returnProducts: hasPermission("Ver Gestión devolución productos"),
+    returnClients: hasPermission("Ver devolucion clientes"),
+    returnProducts: hasPermission("Ver devolucion productos"),
     low: hasPermission("Ver baja productos"),
   };
+  console.log("Permisos de vista:", canView);
 
   return (
     <Routes>
