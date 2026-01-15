@@ -431,6 +431,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           );
 
           return {
+            id_producto: p.id_producto,
             id_detalle_producto: id_detalle,
             cantidad: p.returnQuantity || 1,
             motivo: p.returnReason,
@@ -449,6 +450,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       const payload = {
         id_responsable,
+        id_compra: selectedPurchase?.id_compra,
         numero_factura: invoiceNumber.trim(),
         products: productsPayload,
       };
