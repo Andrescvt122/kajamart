@@ -59,6 +59,8 @@ const SalesSearch = ({ onSelectSale }) => {
                   className="px-4 py-3 hover:bg-gray-50 cursor-pointer rounded-lg mb-1 border border-gray-100"
                   onClick={() => {
                     onSelectSale?.(sale);
+                    // Aquí puedes agregar la lógica para seleccionar la venta
+                    console.log("Venta seleccionada:", sale);
                   }}
                 >
                   <div className="flex items-center gap-3">
