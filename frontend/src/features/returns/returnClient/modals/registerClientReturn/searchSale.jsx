@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Search, Receipt } from "lucide-react";
 import { useFetchSales } from "../../../../../shared/components/hooks/search/useFetchSales";
 
-const SalesSearch = () => {
+const SalesSearch = ({ onSelectSale }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const { data: sales, loading, error } = useFetchSales(searchTerm);
@@ -58,6 +58,7 @@ const SalesSearch = () => {
                   key={sale.id_venta}
                   className="px-4 py-3 hover:bg-gray-50 cursor-pointer rounded-lg mb-1 border border-gray-100"
                   onClick={() => {
+                    onSelectSale?.(sale);
                     // Aquí puedes agregar la lógica para seleccionar la venta
                     console.log("Venta seleccionada:", sale);
                   }}
