@@ -21,7 +21,8 @@ export default function IndexRegisterSale() {
     error: errorClients,
     searchClient,
   } = useSearchClient();
-  console.log("nuevo apiClients", apiClients)
+  console.log("nuevo apiClients", apiClients);
+
   const { productsFound, loadingProduct, errorProduct, searchByName } =
     useSearchDetailProduct();
 
@@ -53,7 +54,18 @@ export default function IndexRegisterSale() {
 
   const [nombreProducto, setNombreProducto] = useState("");
   const [productos, setProductos] = useState([]);
+
+  /**
+   * metodoPago:
+   * - "efectivo"
+   * - "transferencia"
+   * - "mixto"
+   */
   const [metodoPago, setMetodoPago] = useState("");
+
+  // ✅ NUEVO: desglose para pago mixto
+  const [pagoMixto, setPagoMixto] = useState(null); // { efectivo, transferencia }
+
   const [mensaje, setMensaje] = useState(null);
 
   // Dropdowns
@@ -76,6 +88,8 @@ export default function IndexRegisterSale() {
 
   const safeClienteQuery = (clienteQuery ?? "").trim();
 
+  const money = (n) => `$${Number(n || 0).toLocaleString("es-CO")}`;
+
   // ✅ Determinar si un cliente está activo/inactivo (compat)
   const isClienteActivo = (c) => {
     if (!c) return false;
@@ -83,7 +97,7 @@ export default function IndexRegisterSale() {
 
     if (typeof c.activo === "boolean") return c.activo;
 
-    const estadoRaw = c.estado_cliente
+    const estadoRaw = c.estado_cliente;
     const estado = String(estadoRaw).toLowerCase().trim();
     if (estado === "activo" || estado === "true") return true;
     if (estado === "inactivo" || estado === "false") return false;
@@ -103,7 +117,8 @@ export default function IndexRegisterSale() {
   };
 
   // ✅ Obtener ID “real” del producto detalle (para comparar duplicados)
-  const getProductoId = (prod) => String(prod?.id_detalle_producto ?? prod?.id ?? "");
+  const getProductoId = (prod) =>
+    String(prod?.id_detalle_producto ?? prod?.id ?? "");
 
   const suggestionsClientes = useMemo(() => {
     if (!safeClienteQuery) return [];
@@ -111,9 +126,11 @@ export default function IndexRegisterSale() {
 
     return clientes.filter((c) =>
       normalize(
-        `${c.id ?? ""} ${c.id_cliente ?? ""} ${c.nombre ?? ""} ${c.nombre_cliente ?? ""} ${
-          c.numeroDocumento ?? ""
-        } ${c.numero_documento ?? ""} ${c.correo ?? ""} ${c.email ?? ""}`
+        `${c.id ?? ""} ${c.id_cliente ?? ""} ${c.nombre ?? ""} ${
+          c.nombre_cliente ?? ""
+        } ${c.numeroDocumento ?? ""} ${c.numero_documento ?? ""} ${
+          c.correo ?? ""
+        } ${c.email ?? ""}`
       ).includes(q)
     );
   }, [clientes, safeClienteQuery]);
@@ -189,9 +206,7 @@ export default function IndexRegisterSale() {
       const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
 
       const idsApi = new Set(apiClients.map((c) => String(c.id ?? c.id_cliente)));
-      const otros = sinCaja.filter(
-        (c) => !idsApi.has(String(c.id ?? c.id_cliente))
-      );
+      const otros = sinCaja.filter((c) => !idsApi.has(String(c.id ?? c.id_cliente)));
 
       const base = caja ? [caja, ...otros] : otros;
       return [...base, ...apiClients];
@@ -243,7 +258,7 @@ export default function IndexRegisterSale() {
     setShowDropdownCliente(true);
     if (trimmed.length >= 2) searchClient(trimmed);
   };
-  console.log("clientes", clientes)
+
   const handleSelectCliente = (c) => {
     if (!isClienteActivo(c)) {
       setMensaje({
@@ -341,7 +356,10 @@ export default function IndexRegisterSale() {
 
     // ✅ Validación: ya seleccionado -> bloquear
     const idDetalleProducto = prod.id_detalle_producto ?? prod.id ?? null;
-    if (idDetalleProducto != null && selectedProductIds.has(String(idDetalleProducto))) {
+    if (
+      idDetalleProducto != null &&
+      selectedProductIds.has(String(idDetalleProducto))
+    ) {
       setMensaje({
         tipo: "error",
         texto: "⚠️ Este producto ya fue agregado.",
@@ -352,10 +370,7 @@ export default function IndexRegisterSale() {
     }
 
     const nombre =
-      prod.productos?.nombre ||
-      prod.nombre ||
-      prod.nombre_producto ||
-      "Sin nombre";
+      prod.productos?.nombre || prod.nombre || prod.nombre_producto || "Sin nombre";
 
     const precioUnitario = Number(
       prod.precio_venta ??
@@ -401,7 +416,7 @@ export default function IndexRegisterSale() {
           texto: `No hay suficiente stock. Cantidad ajustada a ${stockDisponible}.`,
         });
       } else {
-        setMensaje(null); // Limpiar mensaje si está bien
+        setMensaje(null);
       }
       arr[index].cantidad = cant;
       arr[index].subtotal = cant * Number(arr[index].precioUnitario || 0);
@@ -411,6 +426,89 @@ export default function IndexRegisterSale() {
 
   const handleRemoveProducto = (index) => {
     setProductos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // =========================
+  // Pago Mixto: formulario Swal ✅ (se abre al click en "Mixto")
+  // =========================
+  const askMixedPayment = async (totalVenta) => {
+  const result = await Swal.fire({
+    icon: "question",
+    title: "Pago mixto",
+    width: 520,          // 👈 más ancho para que quepa todo sin scroll
+    padding: "0.9rem",   // 👈 menos padding vertical
+    html: `
+      <div style="text-align:left; display:grid; gap:8px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:12px; color:#6b7280;">Efectivo</label>
+            <input
+              id="mix_efectivo"
+              class="swal2-input"
+              inputmode="numeric"
+              placeholder="0"
+              style="margin:6px 0 0 0; height:38px; font-size:14px;"
+            />
+          </div>
+
+          <div>
+            <label style="font-size:12px; color:#6b7280;">Transferencia</label>
+            <input
+              id="mix_transferencia"
+              class="swal2-input"
+              inputmode="numeric"
+              placeholder="0"
+              style="margin:6px 0 0 0; height:38px; font-size:14px;"
+            />
+          </div>
+        </div>
+
+        <p style="margin:0; font-size:12px; color:#6b7280;">
+          Total venta: <b>${money(totalVenta)}</b>
+        </p>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Aceptar",
+    cancelButtonText: "Cancelar",
+    confirmButtonColor: "#16a34a",
+    cancelButtonColor: "#6b7280",
+    focusConfirm: false,
+    preConfirm: () => {
+      const efectivoRaw = document.getElementById("mix_efectivo")?.value || "0";
+      const transfRaw =
+        document.getElementById("mix_transferencia")?.value || "0";
+
+      const efectivo = Number(String(efectivoRaw).replace(/[^\d]/g, "")) || 0;
+      const transferencia =
+        Number(String(transfRaw).replace(/[^\d]/g, "")) || 0;
+
+      if (efectivo < 0 || transferencia < 0) {
+        Swal.showValidationMessage("Los valores no pueden ser negativos.");
+        return;
+      }
+
+      const suma = efectivo + transferencia;
+      if (suma !== Number(totalVenta)) {
+        Swal.showValidationMessage(
+          `La suma debe ser igual al total (${money(totalVenta)}).`
+        );
+        return;
+      }
+
+      return { efectivo, transferencia };
+    },
+  });
+
+  if (!result.isConfirmed) return null;
+  return result.value;
+};
+
+  const getMedioPagoLabel = (mp) => {
+    if (mp === "efectivo") return "Efectivo";
+    if (mp === "transferencia") return "Transferencia";
+    if (mp === "mixto") return "Mixto";
+    return "";
   };
 
   // =========================
@@ -461,6 +559,17 @@ export default function IndexRegisterSale() {
       return;
     }
 
+    // ✅ Si es mixto, debe existir desglose (porque se abre al click)
+    if (metodoPago === "mixto" && !pagoMixto) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Pago mixto incompleto",
+        text: "Debes ingresar efectivo y transferencia.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
     const clienteCaja = clientes.find((c) => c.id === CLIENTE_CAJA_ID);
     const cliente = clienteSeleccionado || clienteCaja;
 
@@ -483,6 +592,8 @@ export default function IndexRegisterSale() {
       (cliente?.id === CLIENTE_CAJA_ID ? null : cliente?.id) ??
       null;
 
+    const medioPagoLabel = getMedioPagoLabel(metodoPago);
+
     const payload = {
       fecha_venta: new Date().toISOString(),
       fecha: new Date().toISOString().slice(0, 10),
@@ -490,8 +601,11 @@ export default function IndexRegisterSale() {
       clienteId: clienteIdReal,
       cliente: cliente?.nombre ?? cliente?.nombre_cliente ?? "Cliente de Caja",
 
-      medioPago: metodoPago === "efectivo" ? "Efectivo" : "Transferencia",
+      medioPago: medioPagoLabel, // "Efectivo" | "Transferencia" | "Mixto"
       estado: "Completada",
+
+      // ✅ extra para futuro backend
+      pagoMixto: metodoPago === "mixto" ? pagoMixto : null,
 
       productos: productos.map((p) => ({
         productoId: p.productoId ?? null,
@@ -505,7 +619,6 @@ export default function IndexRegisterSale() {
     };
 
     try {
-      // ✅ LOADING mientras se crea la venta
       Swal.fire({
         title: "Registrando venta...",
         text: "Por favor espera",
@@ -518,20 +631,18 @@ export default function IndexRegisterSale() {
 
       Swal.close();
 
-// ✅ Se muestra y se redirige de inmediato (sin esperar confirmación)
-Swal.fire({
-  icon: "success",
-  title: "Venta registrada",
-  text: "✅ La venta se registró correctamente.",
-  timer: 1200,
-  showConfirmButton: false,
-  allowOutsideClick: false,
-  allowEscapeKey: false,
-  timerProgressBar: true,
-});
+      Swal.fire({
+        icon: "success",
+        title: "Venta registrada",
+        text: "✅ La venta se registró correctamente.",
+        timer: 1200,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        timerProgressBar: true,
+      });
 
-// ✅ redirige apenas aparece
-navigate("/app/sales");
+      navigate("/app/sales");
     } catch (e) {
       Swal.close();
 
@@ -605,7 +716,7 @@ navigate("/app/sales");
                           onMouseDown={(e) => {
                             e.preventDefault();
                             if (creatingSale) return;
-                            if (!activo) return; // Deshabilitado, no hacer nada
+                            if (!activo) return;
                             handleSelectCliente(s);
                           }}
                           className={`px-3 py-2 text-black ${
@@ -683,7 +794,8 @@ navigate("/app/sales");
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                if (filteredProductsFound?.length) handleSelectProducto(filteredProductsFound[0]);
+                if (filteredProductsFound?.length)
+                  handleSelectProducto(filteredProductsFound[0]);
               }
             }}
             placeholder="Ingrese el nombre del producto"
@@ -736,7 +848,10 @@ navigate("/app/sales");
                       </div>
 
                       <div className="text-xs text-gray-500">
-                        Código: {p.codigo_barras ?? p.codigo_barras_producto_compra ?? "N/A"}
+                        Código:{" "}
+                        {p.codigo_barras ??
+                          p.codigo_barras_producto_compra ??
+                          "N/A"}
                       </div>
                     </div>
                   );
@@ -810,11 +925,11 @@ navigate("/app/sales");
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
-                  ${Number(p.precioUnitario || 0).toLocaleString()}
+                  {money(p.precioUnitario)}
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
-                  ${Number(p.subtotal || 0).toLocaleString()}
+                  {money(p.subtotal)}
                 </td>
 
                 <td className="border px-3 py-2 text-center">
@@ -836,9 +951,13 @@ navigate("/app/sales");
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="font-semibold mb-2">Método de Pago</p>
+
           <div className="flex gap-2">
             <button
-              onClick={() => setMetodoPago("efectivo")}
+              onClick={() => {
+                setMetodoPago("efectivo");
+                setPagoMixto(null);
+              }}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "efectivo" ? "bg-green-600" : "bg-gray-500"
               } disabled:opacity-60`}
@@ -848,7 +967,10 @@ navigate("/app/sales");
             </button>
 
             <button
-              onClick={() => setMetodoPago("transferencia")}
+              onClick={() => {
+                setMetodoPago("transferencia");
+                setPagoMixto(null);
+              }}
               className={`px-4 py-2 rounded text-white ${
                 metodoPago === "transferencia" ? "bg-green-600" : "bg-gray-500"
               } disabled:opacity-60`}
@@ -856,14 +978,60 @@ navigate("/app/sales");
             >
               Transferencia
             </button>
+
+            {/* ✅ NUEVO: Mixto abre formulario apenas haces click */}
+            <button
+              onClick={async () => {
+                if (creatingSale) return;
+
+                if (productos.length === 0) {
+                  await Swal.fire({
+                    icon: "warning",
+                    title: "Cuidado",
+                    text: "Agrega al menos un producto antes de elegir pago mixto.",
+                    confirmButtonColor: "#16a34a",
+                  });
+                  return;
+                }
+
+                if (total <= 0) {
+                  await Swal.fire({
+                    icon: "warning",
+                    title: "Total inválido",
+                    text: "El total debe ser mayor a 0.",
+                    confirmButtonColor: "#16a34a",
+                  });
+                  return;
+                }
+
+                const mix = await askMixedPayment(total);
+                if (!mix) return; // canceló -> no selecciona mixto
+
+                setPagoMixto(mix);
+                setMetodoPago("mixto");
+              }}
+              className={`px-4 py-2 rounded text-white ${
+                metodoPago === "mixto" ? "bg-green-600" : "bg-gray-500"
+              } disabled:opacity-60`}
+              disabled={creatingSale}
+              title="Efectivo + Transferencia"
+            >
+              Mixto
+            </button>
           </div>
+
+          {/* ✅ Resumen del mixto */}
+          {metodoPago === "mixto" && pagoMixto && (
+            <p className="mt-2 text-sm text-gray-700">
+              Mixto: Efectivo {money(pagoMixto.efectivo)} + Transferencia{" "}
+              {money(pagoMixto.transferencia)}
+            </p>
+          )}
         </div>
 
         <div className="bg-gray-100 px-4 py-2 rounded shadow-md text-right">
           <p className="text-sm text-gray-600">Total a pagar</p>
-          <p className="text-2xl font-bold text-green-700">
-            ${total.toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-green-700">{money(total)}</p>
         </div>
       </div>
 
