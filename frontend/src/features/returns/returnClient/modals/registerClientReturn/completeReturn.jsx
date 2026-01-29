@@ -14,7 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
 import axios from "axios";
-import { useAuth } from "../../../../../context/useAuth";
+import { useAuth } from "../../../../../context/useAtuh";
 // Componente ProductSearch optimizado integrado
 
 const CompleteReturn = ({

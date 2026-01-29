@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/kajamart/api/returnClient";
+const API_URL = "http://localhost:3000/kajamart/api/returnClients";
 
 const formatDate = (value) => {
   if (!value) return "";

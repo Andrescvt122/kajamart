@@ -57,15 +57,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
     totalDevolucionCliente >= totalDevolucionProducto
       ? "Total a devolver"
       : "Total a cobrar";
-
-  const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
-  const totalDevolucionProducto = Number(returnData.totalDevolucionProducto || 0);
-  const difference = Math.abs(totalDevolucionCliente - totalDevolucionProducto);
-  const balanceLabel =
-    totalDevolucionCliente >= totalDevolucionProducto
-      ? "Total a devolver"
-      : "Total a cobrar";
-
   return (
     <>
       {/* Estilos CSS para animaciones */}
