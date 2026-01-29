@@ -50,6 +50,12 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
     return product.totalValue / product.quantity;
   };
 
+  const calculateTableTotal = (products) => {
+    return products.reduce((total, product) => {
+      return total + (product.totalValue || 0);
+    }, 0);
+  };
+
   const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
   const totalDevolucionProducto = Number(returnData.totalDevolucionProducto || 0);
   const difference = Math.abs(totalDevolucionCliente - totalDevolucionProducto);
@@ -167,17 +173,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   {formatCurrency(totalDevolucionCliente)}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <DollarSign className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">
-                    Total devoluciones producto
-                  </span>
-                </div>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(totalDevolucionProducto)}
-                </p>
-              </div>
               <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
                 <div className="flex items-center gap-3 mb-2">
                   <DollarSign className="text-green-600" size={20} />
@@ -204,7 +199,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos devueltos
+                    Productos recibidos
                   </button>
                   <button
                     onClick={() => setCurrentCarouselStep(1)}
@@ -214,7 +209,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos cliente devueltos
+                    Productos devueltos
                   </button>
                 </div>
 
@@ -261,7 +256,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 {currentCarouselStep === 0 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos devueltos
+                      Productos recibidos
                     </h3>
                     <div className="bg-green-50 rounded-lg border border-green-200 overflow-hidden">
                       <table className="min-w-full">
@@ -298,6 +293,14 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                               </td>
                             </tr>
                           ))}
+                          <tr className="bg-green-100 font-bold">
+                            <td colSpan="3" className="px-4 py-3 text-sm text-green-700 text-right">
+                              Total:
+                            </td>
+                            <td className="px-4 py-3 text-sm text-green-700 font-bold">
+                              {formatCurrency(calculateTableTotal(saleProducts))}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
@@ -317,7 +320,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 {currentCarouselStep === 1 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos cliente devueltos
+                      Productos devueltos
                     </h3>
                     <div className="bg-red-50 rounded-lg border border-red-200 overflow-hidden">
                       <table className="min-w-full">
@@ -360,6 +363,14 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                               </td>
                             </tr>
                           ))}
+                          <tr className="bg-red-100 font-bold">
+                            <td colSpan="4" className="px-4 py-3 text-sm text-red-700 text-right">
+                              Total:
+                            </td>
+                            <td className="px-4 py-3 text-sm text-red-700 font-bold">
+                              {formatCurrency(calculateTableTotal(returnProducts))}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>

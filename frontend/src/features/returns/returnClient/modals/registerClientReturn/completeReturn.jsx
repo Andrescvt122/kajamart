@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
+import axios from "axios";
+import { useAuth } from "../../../../../context/useAuth";
 // Componente ProductSearch optimizado integrado
 
 const CompleteReturn = ({
@@ -22,6 +24,8 @@ const CompleteReturn = ({
   productsToReturn,
   returnTotal,
 }) => {
+  const { payload : payloaId } = useAuth();
+  const id_responsable = payloaId.id;
   const [newProducts, setNewProducts] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
