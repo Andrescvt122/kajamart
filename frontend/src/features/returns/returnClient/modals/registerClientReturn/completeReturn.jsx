@@ -48,15 +48,23 @@ const CompleteReturn = ({
 
   // Al añadir, nos aseguramos de no permitir requestedQuantity > stock
   const handleAddProduct = (product) => {
+    const normalized = {
+      id: product.id ?? product.id_detalle_producto,
+      name: product.name ?? product.productos?.nombre ?? "",
+      quantity: Number(product.quantity ?? product.stock_producto ?? 0),
+      salePrice: Number(product.salePrice ?? product.productos?.precio_venta ?? 0),
+      requestedQuantity: Number(product.requestedQuantity ?? 0),
+    };
+
     // normalize requestedQuantity
-    const requested = Math.max(0, product.requestedQuantity || 0);
-    const allowed = Math.min(requested, product.quantity || requested);
+    const requested = Math.max(0, normalized.requestedQuantity || 0);
+    const allowed = Math.min(requested, normalized.quantity || requested);
 
     if (requested > allowed) {
-      alert(`No hay suficiente stock. Stock disponible: ${product.quantity}`);
+      alert(`No hay suficiente stock. Stock disponible: ${normalized.quantity}`);
     }
 
-    const toAdd = { ...product, requestedQuantity: allowed };
+    const toAdd = { ...normalized, requestedQuantity: allowed };
 
     setNewProducts((prev) => {
       const existingProductIndex = prev.findIndex((p) => p.id === toAdd.id);

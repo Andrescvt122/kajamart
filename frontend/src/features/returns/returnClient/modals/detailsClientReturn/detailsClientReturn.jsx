@@ -50,11 +50,13 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
     return product.totalValue / product.quantity;
   };
 
-  const calculateTableTotal = (products) => {
-    return products.reduce((total, product) => {
-      return total + (product.totalValue || 0);
-    }, 0);
-  };
+  const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
+  const totalDevolucionProducto = Number(returnData.totalDevolucionProducto || 0);
+  const difference = Math.abs(totalDevolucionCliente - totalDevolucionProducto);
+  const balanceLabel =
+    totalDevolucionCliente >= totalDevolucionProducto
+      ? "Total a devolver"
+      : "Total a cobrar";
 
   const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
   const totalDevolucionProducto = Number(returnData.totalDevolucionProducto || 0);
@@ -171,6 +173,17 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 </div>
                 <p className="text-lg font-semibold text-gray-900">
                   {formatCurrency(totalDevolucionCliente)}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Total devoluciones producto
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {formatCurrency(totalDevolucionProducto)}
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
@@ -363,14 +376,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                               </td>
                             </tr>
                           ))}
-                          <tr className="bg-red-100 font-bold">
-                            <td colSpan="4" className="px-4 py-3 text-sm text-red-700 text-right">
-                              Total:
-                            </td>
-                            <td className="px-4 py-3 text-sm text-red-700 font-bold">
-                              {formatCurrency(calculateTableTotal(returnProducts))}
-                            </td>
-                          </tr>
                         </tbody>
                       </table>
                     </div>
