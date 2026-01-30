@@ -6,15 +6,28 @@ import { Calendar } from "primereact/calendar";
 // ❌ YA NO usamos el hook aquí
 // import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
-const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
+const ProductRegistrationModal = ({
+  isOpen,
+  onClose,
+  product,
+  onConfirm,
+  initialDetail,
+  existingBarcodes = [],
+  ignoreBarcode = null,
+}) => {
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: "",
     expiryDate: "",
     isReturn: true,
   });
-  const {details}= useFetchAllDetails();
+  const { details } = useFetchAllDetails();
   const [errors, setErrors] = useState({});
+  const normalizedExistingBarcodes = (Array.isArray(existingBarcodes)
+    ? existingBarcodes
+    : [])
+    .map((b) => String(b ?? "").trim())
+    .filter(Boolean);
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
@@ -24,15 +37,34 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   // Resetear campos cuando se abre un producto nuevo
   React.useEffect(() => {
     if (isOpen) {
-      setFormData({
-        barcode: "",
-        quantity: "",
-        expiryDate: "",
-        isReturn: true,
-      });
+      if (initialDetail) {
+        setFormData({
+          barcode:
+            initialDetail.registeredBarcode ||
+            initialDetail.codigo_barras_producto_compra ||
+            "",
+          quantity: String(
+            initialDetail.registeredQuantity ??
+              initialDetail.stock_producto ??
+              ""
+          ),
+          expiryDate:
+            initialDetail.registeredExpiry?.slice(0, 10) ||
+            initialDetail.fecha_vencimiento?.slice(0, 10) ||
+            "",
+          isReturn: true,
+        });
+      } else {
+        setFormData({
+          barcode: "",
+          quantity: "",
+          expiryDate: "",
+          isReturn: true,
+        });
+      }
       setErrors({});
     }
-  }, [isOpen, product]);
+  }, [isOpen, product, initialDetail]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -44,7 +76,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
       if (barcode && !isExactly13Digits(barcode)) {
         error = "El código debe tener exactamente 13 dígitos numéricos";
-      } else if (barcode && details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+      } else if (
+        barcode &&
+        barcode !== ignoreBarcode &&
+        (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
+          normalizedExistingBarcodes.includes(barcode))
+      ) {
         error = "Este código de barras ya está registrado en el sistema";
       }
 
@@ -61,7 +98,11 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       errs.barcode = "Código de barras requerido";
     } else if (!isExactly13Digits(barcode)) {
       errs.barcode = "El código debe tener exactamente 13 dígitos numéricos";
-    } else if (details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+    } else if (
+      barcode !== ignoreBarcode &&
+      (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
+        normalizedExistingBarcodes.includes(barcode))
+    ) {
       errs.barcode = "Este código de barras ya está registrado en el sistema";
     }
 
@@ -317,13 +358,20 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       <Calendar
                         value={
                           formData.expiryDate
-                            ? new Date(formData.expiryDate)
+                            ? ymdToDate(formData.expiryDate)
                             : null
                         }
                         onChange={(e) => {
-                          const dateVal = e.value
-                            ? e.value.toISOString().slice(0, 10)
-                            : "";
+                          if (!e.value) {
+                            handleChange("expiryDate", "");
+                            return;
+                          }
+                          const localDate = new Date(e.value);
+                          localDate.setHours(0, 0, 0, 0);
+                          const year = localDate.getFullYear();
+                          const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(localDate.getDate()).padStart(2, '0');
+                          const dateVal = `${year}-${month}-${day}`;
                           handleChange("expiryDate", dateVal);
                         }}
                         minDate={minDate}

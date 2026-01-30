@@ -64,10 +64,9 @@ export default function IndexSales() {
   const [selectedSale, setSelectedSale] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const { hasPermission } = useAuth();
-  const canCreate = hasPermission("Crear venta");
-  const canAnnular = hasPermission("Anular una venta");
-
-  // ✅ NORMALIZA + ORDENA POR FECHA (vieja -> nueva)
+  const canCreate= hasPermission("Crear venta");
+  const canAnnular= hasPermission('Anular venta');
+  console.log("poder anular venta", canAnnular);
   const normalizedSales = useMemo(() => {
     const arr = (sales || []).map((v) => {
       const idVenta = v.id_venta ?? v.id ?? "";
@@ -316,7 +315,7 @@ export default function IndexSales() {
             <button
               onClick={() => navigate("/app/sales/register")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              disabled={!canCreate}
+              hidden={!canCreate}
             >
               Registrar Nueva Venta
             </button>

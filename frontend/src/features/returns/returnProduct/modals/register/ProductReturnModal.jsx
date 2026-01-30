@@ -13,7 +13,7 @@ import {
   Pencil,
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
-import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
+import PurchaseSearchSelect from "../../../../../shared/components/searchBars/PurchaseSearchSelect";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
@@ -21,6 +21,8 @@ import { useFetchPurchases } from "../../../../../shared/components/hooks/purcha
 import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [purchaseProducts, setPurchaseProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
@@ -39,7 +41,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
-  const { payload:payloadId } = useAuth();
+  const { payload: payloadId } = useAuth();
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
@@ -76,6 +78,47 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
     return Array.from(new Set(all));
   }, [purchases, returns]);
+
+  const normalizePurchaseProducts = (purchase) => {
+    const detalles = Array.isArray(purchase?.detalle_compra)
+      ? purchase.detalle_compra
+      : [];
+
+    return detalles
+      .map((d) => {
+        const dp = d?.detalle_productos || {};
+        const prod = dp?.productos || {};
+
+        return {
+          // lo que tu flujo ya usa:
+          id_producto: prod?.id_producto,
+          productos: prod,
+
+          // muy importante para tu payload final:
+          id_detalle_producto: dp?.id_detalle_producto,
+
+          // límite de devolución (lo más coherente aquí es "cantidad comprada"):
+          quantity: Number(d?.cantidad ?? 0),
+
+          // por si tu UI lo usa en otros lados:
+          stock_producto: Number(dp?.stock_producto ?? 0),
+        };
+      })
+      .filter((p) => p?.id_producto != null && p?.id_detalle_producto != null);
+  };
+
+  const handleSelectPurchase = (purchase) => {
+    setSelectedPurchase(purchase);
+
+    // Cargamos productos disponibles de esa compra
+    const normalized = normalizePurchaseProducts(purchase);
+    setPurchaseProducts(normalized);
+
+    // Si cambiaste de compra, lo más seguro es reiniciar la devolución actual
+    setSelectedProducts([]);
+    setPendingDetails([]);
+    setOpenConfigProductId(null);
+  };
 
   const validateInvoiceNumber = (value) => {
     const v = value.trim();
@@ -341,7 +384,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             id_detalle_producto: saved.id_detalle_producto,
           });
         } else {
-          throw new Error(`No se pudo guardar el detalle para el producto ${detail.productKey}`);
+          throw new Error(
+            `No se pudo guardar el detalle para el producto ${detail.productKey}`
+          );
         }
       }
 
@@ -354,7 +399,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
           if (p.actionType === "registrar") {
             // Buscar el detalle guardado
-            const savedDetail = savedDetails.find((d) => d.productKey === p.id_producto);
+            const savedDetail = savedDetails.find(
+              (d) => d.productKey === p.id_producto
+            );
             id_detalle = savedDetail?.id_detalle_producto;
           } else {
             // Para descuento, usar el detalle existente
@@ -384,6 +431,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           );
 
           return {
+            id_producto: p.id_producto,
             id_detalle_producto: id_detalle,
             cantidad: p.returnQuantity || 1,
             motivo: p.returnReason,
@@ -402,6 +450,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       const payload = {
         id_responsable,
+        id_compra: selectedPurchase?.id_compra,
         numero_factura: invoiceNumber.trim(),
         products: productsPayload,
       };
@@ -506,7 +555,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               transition={{ duration: 0.3 }}
             >
               <motion.div
-                className={`bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                className={`bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh] ${
+                  loading ? "pointer-events-none opacity-50" : ""
+                }`}
                 onClick={(e) => e.stopPropagation()}
                 initial={{ y: 50 }}
                 animate={{ y: 0 }}
@@ -587,9 +638,118 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       transition={{ delay: 0.4, duration: 0.4 }}
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                        Buscar y agregar productos
+                        Seleccionar compra y productos a devolver
                       </h3>
-                      <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id_detalle_producto)} />
+
+                      {/* 1) Buscador de compras */}
+                      <PurchaseSearchSelect
+                        placeholder="Buscar compra por #, proveedor, fecha, producto..."
+                        onSelect={handleSelectPurchase}
+                      />
+
+                      {/* 2) Lista de productos de la compra seleccionada (como devolución de clientes) */}
+                      <AnimatePresence>
+                        {selectedPurchase && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="bg-white rounded-xl shadow-sm p-4 border border-gray-200"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  Productos de la compra #
+                                  {selectedPurchase?.id_compra}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Proveedor:{" "}
+                                  {selectedPurchase?.proveedores?.nombre || "—"}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPurchase(null);
+                                  setPurchaseProducts([]);
+                                  setSelectedProducts([]);
+                                  setPendingDetails([]);
+                                  setOpenConfigProductId(null);
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                              >
+                                Limpiar compra
+                              </button>
+                            </div>
+
+                            <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                              {purchaseProducts
+                                // evitar mostrar productos ya agregados por id_detalle_producto
+                                .filter(
+                                  (p) =>
+                                    !selectedProducts.some(
+                                      (sp) =>
+                                        sp.id_detalle_producto ===
+                                        p.id_detalle_producto
+                                    )
+                                )
+                                .map((p) => (
+                                  <motion.div
+                                    key={p.id_detalle_producto}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-800 truncate">
+                                        {p.productos?.nombre}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        Comprado: {p.quantity} • Detalle:{" "}
+                                        {p.id_detalle_producto}
+                                      </p>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAddProduct({
+                                          ...p,
+                                          returnQuantity: 1,
+                                        })
+                                      }
+                                      className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                    >
+                                      Agregar
+                                    </button>
+                                  </motion.div>
+                                ))}
+
+                              {purchaseProducts.length === 0 && (
+                                <div className="p-3 text-center text-sm text-gray-500">
+                                  Esta compra no tiene productos disponibles.
+                                </div>
+                              )}
+
+                              {purchaseProducts.length > 0 &&
+                                purchaseProducts.filter(
+                                  (p) =>
+                                    !selectedProducts.some(
+                                      (sp) =>
+                                        sp.id_detalle_producto ===
+                                        p.id_detalle_producto
+                                    )
+                                ).length === 0 && (
+                                  <div className="p-3 text-center text-sm text-gray-500">
+                                    Ya agregaste todos los productos de esta
+                                    compra.
+                                  </div>
+                                )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
@@ -822,11 +982,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
-                                          {showErrors && !product.returnReason && (
-                                            <p className="text-red-500 text-xs mt-1">
-                                              Selecciona una razón
-                                            </p>
-                                          )}
+                                          {showErrors &&
+                                            !product.returnReason && (
+                                              <p className="text-red-500 text-xs mt-1">
+                                                Selecciona una razón
+                                              </p>
+                                            )}
                                         </div>
 
                                         {/* Acción + detalle */}
@@ -984,11 +1145,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
-                                          {showErrors && !product.actionType && (
-                                            <p className="text-red-500 text-xs mt-1">
-                                              Selecciona una acción
-                                            </p>
-                                          )}
+                                          {showErrors &&
+                                            !product.actionType && (
+                                              <p className="text-red-500 text-xs mt-1">
+                                                Selecciona una acción
+                                              </p>
+                                            )}
                                         </div>
                                       </motion.div>
                                     )}
@@ -1037,7 +1199,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                         <motion.div
                           className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                           animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
                         />
                         Procesando...
                       </>
@@ -1088,7 +1254,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                               <motion.div
                                 className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                transition={{
+                                  duration: 1,
+                                  repeat: Infinity,
+                                  ease: "linear",
+                                }}
                               />
                               Procesando...
                             </>
