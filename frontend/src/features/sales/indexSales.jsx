@@ -21,6 +21,7 @@ import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
 import { useAuth } from "../../context/useAtuh";
 import Loading from "../../features/onboarding/loading.jsx";
+
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -45,6 +46,14 @@ const formatDate = (value) => {
   }
 };
 
+// ✅ para ordenar seguro por fecha (si falta fecha, lo manda al final)
+const getDateTs = (v) => {
+  const raw = v?.fecha_venta ?? v?.fecha ?? null;
+  const d = raw ? new Date(raw) : null;
+  const ts = d && !Number.isNaN(d.getTime()) ? d.getTime() : Number.POSITIVE_INFINITY;
+  return ts;
+};
+
 export default function IndexSales() {
   const navigate = useNavigate();
   const { sales, loading, error, refetch } = useSales();
@@ -59,7 +68,7 @@ export default function IndexSales() {
   const canAnnular= hasPermission('Anular venta');
   console.log("poder anular venta", canAnnular);
   const normalizedSales = useMemo(() => {
-    return (sales || []).map((v) => {
+    const arr = (sales || []).map((v) => {
       const idVenta = v.id_venta ?? v.id ?? "";
       const idCliente = v?.id_cliente ?? null;
 
@@ -78,8 +87,21 @@ export default function IndexSales() {
         estado_ui: v.estado_venta ?? v.estado ?? "",
         total_ui: Number(v.total || 0),
         productos_ui: v.detalle_venta ?? v.productos ?? [],
+        _ts: getDateTs(v), // 👈 timestamp para ordenar
       };
     });
+
+    // ✅ ordenar por fecha ASC (más vieja primero)
+    arr.sort((a, b) => {
+      if (a._ts !== b._ts) return a._ts - b._ts;
+      // desempate por id si hay misma fecha
+      const ia = Number(a.raw?.id_venta ?? a.raw?.id ?? 0);
+      const ib = Number(b.raw?.id_venta ?? b.raw?.id ?? 0);
+      return ia - ib;
+    });
+
+    // opcional: no exponer _ts fuera (limpieza)
+    return arr.map(({ _ts, ...rest }) => rest);
   }, [sales]);
 
   const filtered = useMemo(() => {
@@ -96,7 +118,6 @@ export default function IndexSales() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
 
-  // ✅ evita página inválida
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(1);
   }, [currentPage, totalPages]);
@@ -111,7 +132,6 @@ export default function IndexSales() {
     setCurrentPage(p);
   };
 
-  // ✅ IMPORTANTE: NO uses opacity:0 en el contenedor (causa filas invisibles)
   const tableVariants = {
     hidden: {},
     visible: { transition: { staggerChildren: 0.08 } },
@@ -306,7 +326,7 @@ export default function IndexSales() {
           <table key={currentPage} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">ID Venta</th>
+                <th className="px-6 py-4">#</th>
                 <th className="px-6 py-4">Fecha</th>
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Total</th>
@@ -316,7 +336,6 @@ export default function IndexSales() {
               </tr>
             </thead>
 
-            {/* ✅ tbody animado explícitamente (evita quedar invisible) */}
             <motion.tbody
               className="divide-y divide-gray-100"
               variants={tableVariants}
@@ -340,17 +359,22 @@ export default function IndexSales() {
                   const isUpdating = updatingId === rawId;
                   const isAnnulled = v.estado_ui === "Anulada";
 
+                  // ✅ # consecutivo (1..N) en el orden por FECHA (vieja->nueva)
+                  const rowNumber = (currentPage - 1) * perPage + i + 1;
+
                   return (
                     <motion.tr
                       key={`${v.id_ui}-${i}`}
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">{v.id_ui}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {rowNumber}
+                      </td>
+
                       <td className="px-6 py-4 text-sm text-gray-600">{v.fecha_ui}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {v.cliente_ui}
-                        
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {formatMoney(v.total_ui)}
@@ -365,7 +389,9 @@ export default function IndexSales() {
                           onClick={(event) => handleAnnulSale(event, v.raw)}
                           disabled={isUpdating || isAnnulled || !canAnnular}
                           title={
-                            isAnnulled ? "Esta venta ya está anulada" : "Click para anular"
+                            isAnnulled
+                              ? "Esta venta ya está anulada"
+                              : "Click para anular"
                           }
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
                             ${
@@ -405,7 +431,10 @@ export default function IndexSales() {
           goToPage={goToPage}
         />
 
-        <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSale(null)} />
+        <SaleDetailModal
+          sale={selectedSale}
+          onClose={() => setSelectedSale(null)}
+        />
       </div>
     </>
   );
