@@ -9,7 +9,7 @@ const API_URL = `${API_BASE}/products`;
 // 🔹 Obtener todos los productos
 export const useProducts = () =>
   useQuery({
-    queryKey: ["products"],
+    queryKey:["products"],
     queryFn: async () => {
       const { data } = await axios.get(API_URL);
       return Array.isArray(data) ? data : [];

@@ -41,6 +41,7 @@ export default function IndexRegisterPurchase() {
 
   // =========================
   // Filtros / buscadores
+  // (✅ proveedor queda como estaba)
   // =========================
   const [proveedorQuery, setProveedorQuery] = useState("");
   const [productoQuery, setProductoQuery] = useState("");
@@ -63,6 +64,41 @@ export default function IndexRegisterPurchase() {
       .trim();
 
   // =========================
+  // ✅ Stock + Código (estilo ventas: compat)
+  // =========================
+  const getStock = (p) => {
+    const s =
+      p?.stock_actual ?? // ✅ FIX: este es el campo real que trae tu backend de productos
+      p?.stock_producto ??
+      p?.stock ??
+      p?.existencias ??
+      p?.cantidad ??
+      p?.inventario ??
+      p?.inventario_actual ??
+      p?.productos?.stock_actual ??
+      p?.detalle_productos?.stock_producto ??
+      p?.detalle_productos?.productos?.stock_actual ??
+      0;
+
+    return Number(s || 0);
+  };
+
+  const getCodigoBarras = (p) => {
+    return (
+      p?.codigo_barras ??
+      p?.codigo_barras_producto_compra ??
+      p?.barcode ??
+      p?.codigoBarra ??
+      p?.codigo_barras_producto ??
+      p?.productos?.codigo_barras ??
+      p?.productos?.codigo_barras_producto_compra ??
+      p?.detalle_productos?.codigo_barras ??
+      p?.detalle_productos?.codigo_barras_producto_compra ??
+      ""
+    );
+  };
+
+  // =========================
   // Normalizar data REAL (backend) para el buscador
   // =========================
   const proveedoresDB = useMemo(() => {
@@ -79,19 +115,22 @@ export default function IndexRegisterPurchase() {
 
   const productosDB = useMemo(() => {
     if (!Array.isArray(productsRaw)) return [];
+
     return productsRaw.map((p) => {
-      // ⚠️ AJUSTE IMPORTANTE:
-      // aquí intentamos obtener el precio desde varios campos comunes.
-      // Si tu backend usa uno específico (ej: precio_compra), puedes dejar solo ese.
       const precio =
         Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
+
+      const stock = getStock(p);
+      const codigoBarras = getCodigoBarras(p);
 
       return {
         ...p,
         id_producto: p?.id_producto ?? p?.id ?? p?.ID ?? null,
         codigo: p?.codigo != null ? String(p.codigo) : "",
-        nombre: p?.nombre ?? "",
+        nombre: p?.nombre ?? p?.productos?.nombre ?? "",
         precio,
+        stock,
+        codigoBarras,
       };
     });
   }, [productsRaw]);
@@ -118,7 +157,8 @@ export default function IndexRegisterPurchase() {
       .filter(
         (p) =>
           normalizeText(p.codigo).includes(q) ||
-          normalizeText(p.nombre).includes(q)
+          normalizeText(p.nombre).includes(q) ||
+          normalizeText(p.codigoBarras).includes(q)
       )
       .slice(0, 10);
   }, [productoQuery, productosDB]);
@@ -147,6 +187,10 @@ export default function IndexRegisterPurchase() {
         ...prev,
         {
           ...productoEncontrado,
+          // asegurar stock/código en la fila
+          stock: Number(productoEncontrado.stock ?? 0),
+          codigoBarras: productoEncontrado.codigoBarras ?? "",
+
           cantidad: 1,
           subida: 0,
           descuento: 0,
@@ -257,7 +301,20 @@ export default function IndexRegisterPurchase() {
         productosFiltrados[prodActiveIndex]
       ) {
         e.preventDefault();
-        agregarProducto(productosFiltrados[prodActiveIndex]);
+        const p = productosFiltrados[prodActiveIndex];
+
+        // ✅ bloquear si stock 0 (como ventas)
+        if (Number(p.stock || 0) <= 0) {
+          setMensajeProducto({
+            tipo: "error",
+            texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+          });
+          setProductoQuery("");
+          setIsProdOpen(false);
+          return;
+        }
+
+        agregarProducto(p);
         return;
       }
 
@@ -266,10 +323,23 @@ export default function IndexRegisterPurchase() {
 
       const exacto = productosDB.find(
         (p) =>
-          normalizeText(p.codigo) === val || normalizeText(p.nombre) === val
+          normalizeText(p.codigo) === val ||
+          normalizeText(p.nombre) === val ||
+          normalizeText(p.codigoBarras) === val
       );
-      if (exacto) agregarProducto(exacto);
-      else {
+
+      if (exacto) {
+        if (Number(exacto.stock || 0) <= 0) {
+          setMensajeProducto({
+            tipo: "error",
+            texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+          });
+          setProductoQuery("");
+          setIsProdOpen(false);
+          return;
+        }
+        agregarProducto(exacto);
+      } else {
         setMensajeProducto({
           tipo: "error",
           texto: "❌ Producto no encontrado. Selecciónalo de la lista o créalo.",
@@ -378,7 +448,7 @@ export default function IndexRegisterPurchase() {
         </p>
       </div>
 
-      {/* Buscar proveedor */}
+      {/* Buscar proveedor (✅ como estaba) */}
       <div className="mb-4 relative" ref={provWrapRef}>
         <label className="block text-sm text-gray-600 mb-1">
           Buscar Proveedor
@@ -416,7 +486,9 @@ export default function IndexRegisterPurchase() {
             }}
             onKeyDown={onProveedorKeyDown}
             placeholder={
-              isSuppliersLoading ? "Cargando proveedores..." : "Ingrese NIT o nombre"
+              isSuppliersLoading
+                ? "Cargando proveedores..."
+                : "Ingrese NIT o nombre"
             }
             disabled={isSuppliersLoading}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
@@ -488,11 +560,23 @@ export default function IndexRegisterPurchase() {
               const exacto = productosDB.find(
                 (p) =>
                   normalizeText(p.codigo) === normalizeText(val) ||
-                  normalizeText(p.nombre) === normalizeText(val)
+                  normalizeText(p.nombre) === normalizeText(val) ||
+                  normalizeText(p.codigoBarras) === normalizeText(val)
               );
 
-              if (exacto) agregarProducto(exacto);
-              else {
+              if (exacto) {
+                if (Number(exacto.stock || 0) <= 0) {
+                  setMensajeProducto({
+                    tipo: "error",
+                    texto:
+                      "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+                  });
+                  setProductoQuery("");
+                  setIsProdOpen(false);
+                  return;
+                }
+                agregarProducto(exacto);
+              } else {
                 setMensajeProducto({
                   tipo: "error",
                   texto:
@@ -505,7 +589,9 @@ export default function IndexRegisterPurchase() {
             }}
             onKeyDown={onProductoKeyDown}
             placeholder={
-              isProductsLoading ? "Cargando productos..." : "Ingrese código o nombre"
+              isProductsLoading
+                ? "Cargando productos..."
+                : "Ingrese código o nombre"
             }
             disabled={isProductsLoading}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
@@ -525,23 +611,52 @@ export default function IndexRegisterPurchase() {
         {/* Dropdown producto */}
         {isProdOpen && productosFiltrados.length > 0 && (
           <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden">
-            {productosFiltrados.map((p, idx) => (
-              <button
-                key={p.id_producto ?? p.codigo ?? idx}
-                type="button"
-                onMouseEnter={() => setProdActiveIndex(idx)}
-                onClick={() => agregarProducto(p)}
-                className={`w-full text-left px-3 py-2 flex justify-between ${
-                  idx === prodActiveIndex ? "bg-gray-100" : "hover:bg-gray-100"
-                }`}
-              >
-                <div>
-                  <span className="font-medium text-gray-900">{p.nombre}</span>{" "}
-                  <span className="text-gray-500 text-sm">({p.codigo})</span>
+            {productosFiltrados.slice(0, 7).map((p, idx) => {
+              const stock = Number(p.stock ?? 0);
+              const sinStock = stock <= 0;
+              const codigoMostrar = p.codigoBarras || p.codigo || "N/A";
+
+              return (
+                <div
+                  key={p.id_producto ?? p.codigo ?? idx}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (sinStock) {
+                      setMensajeProducto({
+                        tipo: "error",
+                        texto:
+                          "⚠️ No hay stock disponible (0). No se puede seleccionar.",
+                      });
+                      return;
+                    }
+                    agregarProducto(p);
+                  }}
+                  className={`px-3 py-2 text-black ${
+                    sinStock
+                      ? "opacity-60 cursor-not-allowed bg-gray-50"
+                      : "hover:bg-green-50 cursor-pointer"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>{p.nombre}</div>
+
+                    <span
+                      className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                        sinStock
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-50 text-green-700"
+                      }`}
+                    >
+                      Stock: {stock}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-gray-500">
+                    Código: {codigoMostrar}
+                  </div>
                 </div>
-                <span className="text-gray-700 text-sm">${p.precio}</span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -561,6 +676,7 @@ export default function IndexRegisterPurchase() {
         <thead className="bg-gray-100">
           <tr>
             <th className="border px-3 py-2">Nombre</th>
+            <th className="border px-3 py-2">Stock</th>
             <th className="border px-3 py-2">Cantidad</th>
             <th className="border px-3 py-2">% Subida</th>
             <th className="border px-3 py-2">Descuento (%)</th>
@@ -570,10 +686,11 @@ export default function IndexRegisterPurchase() {
             <th className="border px-3 py-2">Acciones</th>
           </tr>
         </thead>
+
         <tbody>
           {productos.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center text-gray-400 py-4">
+              <td colSpan="9" className="text-center text-gray-400 py-4">
                 No hay productos agregados
               </td>
             </tr>
@@ -581,6 +698,10 @@ export default function IndexRegisterPurchase() {
             productos.map((prod, i) => (
               <tr key={prod.id_producto ?? prod.codigo ?? i}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
+
+                <td className="border px-3 py-2 text-center text-black">
+                  {Number(prod.stock ?? 0)}
+                </td>
 
                 <td className="border px-3 py-2 text-center">
                   <input
@@ -687,7 +808,7 @@ export default function IndexRegisterPurchase() {
         <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
           <p className="text-sm text-gray-600">Total a pagar</p>
           <p className="text-2xl font-bold text-green-700">
-            ${total.toLocaleString()}
+            ${total.toLocaleString("es-CO")}
           </p>
         </div>
       </div>
