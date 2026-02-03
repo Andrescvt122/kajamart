@@ -41,7 +41,6 @@ export default function IndexRegisterPurchase() {
 
   // =========================
   // Filtros / buscadores
-  // (✅ proveedor queda como estaba)
   // =========================
   const [proveedorQuery, setProveedorQuery] = useState("");
   const [productoQuery, setProductoQuery] = useState("");
@@ -54,6 +53,12 @@ export default function IndexRegisterPurchase() {
   const prodWrapRef = useRef(null);
 
   // =========================
+  // ✅ Quitar flechas (spinners) en inputs number (IVA/ICU)
+  // =========================
+  const noSpinNumber =
+    " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
+
+  // =========================
   // Normalizadores
   // =========================
   const normalizeText = (text) =>
@@ -64,11 +69,11 @@ export default function IndexRegisterPurchase() {
       .trim();
 
   // =========================
-  // ✅ Stock + Código (estilo ventas: compat)
+  // ✅ Stock + Código (compat)
   // =========================
   const getStock = (p) => {
     const s =
-      p?.stock_actual ?? // ✅ FIX: este es el campo real que trae tu backend de productos
+      p?.stock_actual ??
       p?.stock_producto ??
       p?.stock ??
       p?.existencias ??
@@ -98,6 +103,10 @@ export default function IndexRegisterPurchase() {
     );
   };
 
+  // ✅ ID “real” para comparar duplicados (como ventas)
+  const getProductoId = (p) =>
+    String(p?.id_producto ?? p?.id ?? p?.ID ?? p?.id_detalle_producto ?? "");
+
   // =========================
   // Normalizar data REAL (backend) para el buscador
   // =========================
@@ -120,15 +129,31 @@ export default function IndexRegisterPurchase() {
       const precio =
         Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
 
+      // ✅ Precio de venta desde backend (con fallbacks)
+      const precioVenta =
+        Number(
+          p?.precio_venta ??
+            p?.precioVenta ??
+            p?.precio_publico ??
+            p?.precio_lista ??
+            p?.valor_venta ??
+            0
+        ) || 0;
+
       const stock = getStock(p);
       const codigoBarras = getCodigoBarras(p);
 
+      const id_producto = p?.id_producto ?? p?.id ?? p?.ID ?? null;
+      const productoId = String(id_producto ?? p?.id_detalle_producto ?? p?.id ?? "");
+
       return {
         ...p,
-        id_producto: p?.id_producto ?? p?.id ?? p?.ID ?? null,
+        id_producto,
+        productoId,
         codigo: p?.codigo != null ? String(p.codigo) : "",
         nombre: p?.nombre ?? p?.productos?.nombre ?? "",
-        precio,
+        precio, // compra default
+        precioVenta, // venta backend
         stock,
         codigoBarras,
       };
@@ -136,7 +161,7 @@ export default function IndexRegisterPurchase() {
   }, [productsRaw]);
 
   // =========================
-  // Filtrados para dropdown
+  // Filtrados para dropdown (proveedor)
   // =========================
   const proveedoresFiltrados = useMemo(() => {
     const q = normalizeText(proveedorQuery);
@@ -150,18 +175,44 @@ export default function IndexRegisterPurchase() {
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
 
+  // =========================
+  // ✅ Productos: SET seleccionados (para NO repetir en dropdown)
+  // =========================
+  const selectedProductIds = useMemo(() => {
+    return new Set(productos.map((p) => String(p.productoId)));
+  }, [productos]);
+
+  // =========================
+  // ✅ Productos filtrados: NO mostrar ya agregados
+  // ✅ En COMPRAS: mostrar stock 0 (rojo) y permitir seleccionar
+  // =========================
   const productosFiltrados = useMemo(() => {
     const q = normalizeText(productoQuery);
     if (!q) return [];
+
     return productosDB
-      .filter(
-        (p) =>
+      .filter((p) => {
+        const match =
           normalizeText(p.codigo).includes(q) ||
           normalizeText(p.nombre).includes(q) ||
-          normalizeText(p.codigoBarras).includes(q)
-      )
+          normalizeText(p.codigoBarras).includes(q);
+
+        if (!match) return false;
+
+        const id = getProductoId(p);
+        if (!id) return true;
+        return !selectedProductIds.has(String(id));
+      })
       .slice(0, 10);
-  }, [productoQuery, productosDB]);
+  }, [productoQuery, productosDB, selectedProductIds]);
+
+  // ✅ Habilitar botón Registrar Producto SOLO si no encuentra coincidencias
+  const showRegisterProductoBtn = useMemo(() => {
+    const q = productoQuery.trim();
+    if (!q) return false;
+    // "como proveedor": si no hay coincidencias, habilita botón
+    return productosFiltrados.length === 0;
+  }, [productoQuery, productosFiltrados]);
 
   // =========================
   // Selección proveedor / producto
@@ -177,28 +228,60 @@ export default function IndexRegisterPurchase() {
     setProvActiveIndex(-1);
   };
 
+  // =========================
+  // Cálculos
+  // =========================
+  const calcularSubtotal = (prod) => {
+    const cantidad = Number(prod.cantidad || 0);
+    const precioCompra = Number(prod.precioCompra || 0);
+
+    const ivaPct = Number(prod.subida || 0); // IVA %
+    const icuPct = Number(prod.descuento || 0); // ICU %
+
+    const base = precioCompra * cantidad;
+    const iva = (base * ivaPct) / 100;
+    const icu = (base * icuPct) / 100;
+
+    return base + iva + icu;
+  };
+
+  const total = useMemo(
+    () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
+    [productos]
+  );
+
+  // =========================
+  // Agregar producto (COMPRAS: permite stock 0)
+  // =========================
   const agregarProducto = (productoEncontrado) => {
-    const yaExiste = productos.some(
-      (p) => p.codigo === productoEncontrado.codigo
-    );
+    const id = getProductoId(productoEncontrado);
 
-    if (!yaExiste) {
-      setProductos((prev) => [
-        ...prev,
-        {
-          ...productoEncontrado,
-          // asegurar stock/código en la fila
-          stock: Number(productoEncontrado.stock ?? 0),
-          codigoBarras: productoEncontrado.codigoBarras ?? "",
-
-          cantidad: 1,
-          subida: 0,
-          descuento: 0,
-          precioVenta: productoEncontrado.precio,
-          subtotal: productoEncontrado.precio,
-        },
-      ]);
+    if (id && selectedProductIds.has(String(id))) {
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Este producto ya fue agregado." });
+      setProductoQuery("");
+      setIsProdOpen(false);
+      setProdActiveIndex(-1);
+      return;
     }
+
+    setProductos((prev) => [
+      ...prev,
+      {
+        ...productoEncontrado,
+        productoId: String(
+          productoEncontrado.id_producto ?? productoEncontrado.id ?? id
+        ),
+
+        cantidad: "1",
+
+        // ✅ 0 visible pero borrable
+        subida: "0", // IVA %
+        descuento: "0", // ICU %
+
+        precioCompra: String(Number(productoEncontrado.precio ?? 0)),
+        precioVenta: Number(productoEncontrado.precioVenta ?? 0),
+      },
+    ]);
 
     setMensajeProducto({
       tipo: "ok",
@@ -229,7 +312,7 @@ export default function IndexRegisterPurchase() {
   }, []);
 
   // =========================
-  // Teclas (flechas / enter / escape)
+  // Teclas (proveedor)
   // =========================
   const onProveedorKeyDown = (e) => {
     if (e.key === "Escape") {
@@ -275,6 +358,9 @@ export default function IndexRegisterPurchase() {
     }
   };
 
+  // =========================
+  // Teclas (producto)
+  // =========================
   const onProductoKeyDown = (e) => {
     if (e.key === "Escape") {
       setIsProdOpen(false);
@@ -295,90 +381,40 @@ export default function IndexRegisterPurchase() {
       return;
     }
     if (e.key === "Enter") {
+      e.preventDefault();
+
       if (
         isProdOpen &&
         prodActiveIndex >= 0 &&
         productosFiltrados[prodActiveIndex]
       ) {
-        e.preventDefault();
-        const p = productosFiltrados[prodActiveIndex];
-
-        // ✅ bloquear si stock 0 (como ventas)
-        if (Number(p.stock || 0) <= 0) {
-          setMensajeProducto({
-            tipo: "error",
-            texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
-          });
-          setProductoQuery("");
-          setIsProdOpen(false);
-          return;
-        }
-
-        agregarProducto(p);
+        agregarProducto(productosFiltrados[prodActiveIndex]);
         return;
       }
 
-      const val = normalizeText(productoQuery);
-      if (!val) return;
-
-      const exacto = productosDB.find(
-        (p) =>
-          normalizeText(p.codigo) === val ||
-          normalizeText(p.nombre) === val ||
-          normalizeText(p.codigoBarras) === val
-      );
-
-      if (exacto) {
-        if (Number(exacto.stock || 0) <= 0) {
-          setMensajeProducto({
-            tipo: "error",
-            texto: "⚠️ No hay stock disponible (0). No se puede seleccionar.",
-          });
-          setProductoQuery("");
-          setIsProdOpen(false);
-          return;
-        }
-        agregarProducto(exacto);
+      if (productosFiltrados.length > 0) {
+        agregarProducto(productosFiltrados[0]);
       } else {
+        // "como proveedor": marcar error si no existe para activar botón
         setMensajeProducto({
           tipo: "error",
-          texto: "❌ Producto no encontrado. Selecciónalo de la lista o créalo.",
+          texto:
+            "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
         });
       }
     }
   };
 
   // =========================
-  // Cálculos
-  // =========================
-  const calcularSubtotal = (prod) => {
-    const precioBase = prod.precio + (prod.precio * prod.subida) / 100;
-    const precioConDescuento =
-      precioBase - (precioBase * prod.descuento) / 100;
-    return precioConDescuento * prod.cantidad;
-  };
-
-  const total = useMemo(
-    () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
-    [productos]
-  );
-
-  // =========================
   // Finalizar compra
   // =========================
   const handleFinalizarCompra = () => {
     if (!proveedor) {
-      setMensajeProveedor({
-        tipo: "error",
-        texto: "⚠️ Debe seleccionar un proveedor",
-      });
+      setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
       return;
     }
     if (productos.length === 0) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: "⚠️ Debe agregar al menos un producto",
-      });
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
       return;
     }
     if (!comprobante) {
@@ -448,7 +484,7 @@ export default function IndexRegisterPurchase() {
         </p>
       </div>
 
-      {/* Buscar proveedor (✅ como estaba) */}
+      {/* Buscar proveedor */}
       <div className="mb-4 relative" ref={provWrapRef}>
         <label className="block text-sm text-gray-600 mb-1">
           Buscar Proveedor
@@ -505,7 +541,6 @@ export default function IndexRegisterPurchase() {
           )}
         </div>
 
-        {/* Dropdown proveedor */}
         {isProvOpen && proveedoresFiltrados.length > 0 && !proveedor && (
           <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden">
             {proveedoresFiltrados.map((p, idx) => (
@@ -536,7 +571,7 @@ export default function IndexRegisterPurchase() {
         )}
       </div>
 
-      {/* Buscar producto */}
+      {/* Buscar producto (como proveedor: si NO lo encuentra -> botón registrar) */}
       <div className="mb-4 relative" ref={prodWrapRef}>
         <label className="block text-sm text-gray-600 mb-1">
           Buscar Producto
@@ -554,35 +589,35 @@ export default function IndexRegisterPurchase() {
               if (!val.trim()) {
                 setMensajeProducto(null);
                 setIsProdOpen(false);
+                setProdActiveIndex(-1);
                 return;
               }
 
-              const exacto = productosDB.find(
-                (p) =>
-                  normalizeText(p.codigo) === normalizeText(val) ||
-                  normalizeText(p.nombre) === normalizeText(val) ||
-                  normalizeText(p.codigoBarras) === normalizeText(val)
-              );
+              // ✅ si NO hay coincidencias (incluye "ya agregados" filtrados) -> error (como proveedor)
+              // Nota: productosFiltrados se calcula con el state actual, por eso evaluamos con val abajo:
+              const q = normalizeText(val);
+              const coincidenciasSinFiltrar = productosDB.some((p) => {
+                const match =
+                  normalizeText(p.codigo).includes(q) ||
+                  normalizeText(p.nombre).includes(q) ||
+                  normalizeText(p.codigoBarras).includes(q);
+                if (!match) return false;
+                const id = getProductoId(p);
+                if (!id) return true;
+                return !selectedProductIds.has(String(id));
+              });
 
-              if (exacto) {
-                if (Number(exacto.stock || 0) <= 0) {
-                  setMensajeProducto({
-                    tipo: "error",
-                    texto:
-                      "⚠️ No hay stock disponible (0). No se puede seleccionar.",
-                  });
-                  setProductoQuery("");
-                  setIsProdOpen(false);
-                  return;
-                }
-                agregarProducto(exacto);
-              } else {
+              if (!coincidenciasSinFiltrar) {
                 setMensajeProducto({
                   tipo: "error",
                   texto:
-                    "❌ Producto no encontrado. Selecciónalo de la lista o créalo.",
+                    "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
                 });
+              } else {
+                setMensajeProducto(null);
               }
+
+              setProdActiveIndex(-1);
             }}
             onFocus={() => {
               if (productoQuery.trim()) setIsProdOpen(true);
@@ -591,12 +626,13 @@ export default function IndexRegisterPurchase() {
             placeholder={
               isProductsLoading
                 ? "Cargando productos..."
-                : "Ingrese código o nombre"
+                : "Ingrese código, barras o nombre"
             }
             disabled={isProductsLoading}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
+          {/* ✅ SOLO se muestra si no lo encuentra (como proveedor) */}
           {mensajeProducto?.tipo === "error" && (
             <button
               onClick={() => setShowModalProducto(true)}
@@ -608,34 +644,25 @@ export default function IndexRegisterPurchase() {
           )}
         </div>
 
-        {/* Dropdown producto */}
+        {/* Dropdown */}
         {isProdOpen && productosFiltrados.length > 0 && (
-          <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden">
+          <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden max-h-56 overflow-auto">
             {productosFiltrados.slice(0, 7).map((p, idx) => {
               const stock = Number(p.stock ?? 0);
-              const sinStock = stock <= 0;
+              const sinStock = stock <= 0; // ✅ solo visual rojo
               const codigoMostrar = p.codigoBarras || p.codigo || "N/A";
 
               return (
                 <div
-                  key={p.id_producto ?? p.codigo ?? idx}
+                  key={String(getProductoId(p) || codigoMostrar || idx)}
+                  onMouseEnter={() => setProdActiveIndex(idx)}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    if (sinStock) {
-                      setMensajeProducto({
-                        tipo: "error",
-                        texto:
-                          "⚠️ No hay stock disponible (0). No se puede seleccionar.",
-                      });
-                      return;
-                    }
-                    agregarProducto(p);
+                    agregarProducto(p); // ✅ en compras permite seleccionar aunque sea stock 0
                   }}
                   className={`px-3 py-2 text-black ${
-                    sinStock
-                      ? "opacity-60 cursor-not-allowed bg-gray-50"
-                      : "hover:bg-green-50 cursor-pointer"
-                  }`}
+                    idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
+                  } cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div>{p.nombre}</div>
@@ -678,8 +705,8 @@ export default function IndexRegisterPurchase() {
             <th className="border px-3 py-2">Nombre</th>
             <th className="border px-3 py-2">Stock</th>
             <th className="border px-3 py-2">Cantidad</th>
-            <th className="border px-3 py-2">% Subida</th>
-            <th className="border px-3 py-2">Descuento (%)</th>
+            <th className="border px-3 py-2">Iva %</th>
+            <th className="border px-3 py-2">Icu %</th>
             <th className="border px-3 py-2">Precio Compra</th>
             <th className="border px-3 py-2">Precio Venta</th>
             <th className="border px-3 py-2">Subtotal</th>
@@ -696,13 +723,14 @@ export default function IndexRegisterPurchase() {
             </tr>
           ) : (
             productos.map((prod, i) => (
-              <tr key={prod.id_producto ?? prod.codigo ?? i}>
+              <tr key={`${prod.productoId ?? getProductoId(prod)}-${i}`}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
 
                 <td className="border px-3 py-2 text-center text-black">
                   {Number(prod.stock ?? 0)}
                 </td>
 
+                {/* Cantidad (permite borrar; vuelve a 1 al salir) */}
                 <td className="border px-3 py-2 text-center">
                   <input
                     type="number"
@@ -710,64 +738,115 @@ export default function IndexRegisterPurchase() {
                     value={prod.cantidad}
                     onChange={(e) => {
                       const nueva = [...productos];
-                      nueva[i].cantidad = parseInt(e.target.value) || 1;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
+                      nueva[i].cantidad = e.target.value; // permite ""
+                      setProductos(nueva);
+                    }}
+                    onBlur={() => {
+                      const nueva = [...productos];
+                      const v = nueva[i].cantidad;
+                      const n = Number(v);
+                      nueva[i].cantidad =
+                        v === "" || !Number.isFinite(n) || n < 1
+                          ? "1"
+                          : String(Math.floor(n));
                       setProductos(nueva);
                     }}
                     className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
                   />
                 </td>
 
+                {/* IVA % (0 visible pero borrable) */}
+                <td className="border px-3 py-2 text-center">
+                  <div className="inline-flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={prod.subida}
+                      onChange={(e) => {
+                        const nueva = [...productos];
+                        nueva[i].subida = e.target.value; // permite ""
+                        setProductos(nueva);
+                      }}
+                      onBlur={() => {
+                        const nueva = [...productos];
+                        if (nueva[i].subida === "") nueva[i].subida = "0";
+                        setProductos(nueva);
+                      }}
+                      inputMode="decimal"
+                      className={
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black" +
+                        noSpinNumber
+                      }
+                      style={{ MozAppearance: "textfield" }}
+                    />
+                    <span className="border border-l-0 rounded-r px-2 py-1 bg-gray-50 text-gray-700">
+                      %
+                    </span>
+                  </div>
+                </td>
+
+                {/* ICU % (0 visible pero borrable) */}
+                <td className="border px-3 py-2 text-center">
+                  <div className="inline-flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={prod.descuento}
+                      onChange={(e) => {
+                        const nueva = [...productos];
+                        nueva[i].descuento = e.target.value; // permite ""
+                        setProductos(nueva);
+                      }}
+                      onBlur={() => {
+                        const nueva = [...productos];
+                        if (nueva[i].descuento === "") nueva[i].descuento = "0";
+                        setProductos(nueva);
+                      }}
+                      inputMode="decimal"
+                      className={
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black" +
+                        noSpinNumber
+                      }
+                      style={{ MozAppearance: "textfield" }}
+                    />
+                    <span className="border border-l-0 rounded-r px-2 py-1 bg-gray-50 text-gray-700">
+                      %
+                    </span>
+                  </div>
+                </td>
+
+                {/* Precio Compra (0 visible pero borrable) */}
                 <td className="border px-3 py-2 text-center">
                   <input
                     type="number"
                     min="0"
-                    value={prod.subida}
+                    value={prod.precioCompra}
                     onChange={(e) => {
                       const nueva = [...productos];
-                      nueva[i].subida = parseFloat(e.target.value) || 0;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
+                      nueva[i].precioCompra = e.target.value; // permite ""
                       setProductos(nueva);
                     }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
+                    onBlur={() => {
+                      const nueva = [...productos];
+                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
+                      setProductos(nueva);
+                    }}
+                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black"
                   />
                 </td>
 
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.descuento}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].descuento = parseFloat(e.target.value) || 0;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
-                      setProductos(nueva);
-                    }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
-
+                {/* Precio Venta NO editable */}
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.precio}
+                  ${Number(prod.precioVenta ?? 0).toLocaleString("es-CO")}
                 </td>
 
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioVenta}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioVenta = parseFloat(e.target.value) || 0;
-                      setProductos(nueva);
-                    }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
-
+                {/* Subtotal */}
                 <td className="border px-3 py-2 text-center text-black">
-                  ${calcularSubtotal(prod).toFixed(2)}
+                  ${calcularSubtotal(prod).toLocaleString("es-CO")}
                 </td>
 
                 <td className="border px-3 py-2 text-center">
