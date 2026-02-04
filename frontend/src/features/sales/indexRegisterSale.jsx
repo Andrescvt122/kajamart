@@ -21,7 +21,6 @@ export default function IndexRegisterSale() {
     error: errorClients,
     searchClient,
   } = useSearchClient();
-  console.log("nuevo apiClients", apiClients);
 
   const { productsFound, loadingProduct, errorProduct, searchByName } =
     useSearchDetailProduct();
@@ -63,7 +62,7 @@ export default function IndexRegisterSale() {
    */
   const [metodoPago, setMetodoPago] = useState("");
 
-  // ✅ NUEVO: desglose para pago mixto
+  // ✅ desglose para pago mixto
   const [pagoMixto, setPagoMixto] = useState(null); // { efectivo, transferencia }
 
   const [mensaje, setMensaje] = useState(null);
@@ -205,8 +204,12 @@ export default function IndexRegisterSale() {
       const caja = prev.find((x) => x.id === CLIENTE_CAJA_ID);
       const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
 
-      const idsApi = new Set(apiClients.map((c) => String(c.id ?? c.id_cliente)));
-      const otros = sinCaja.filter((c) => !idsApi.has(String(c.id ?? c.id_cliente)));
+      const idsApi = new Set(
+        apiClients.map((c) => String(c.id ?? c.id_cliente))
+      );
+      const otros = sinCaja.filter(
+        (c) => !idsApi.has(String(c.id ?? c.id_cliente))
+      );
 
       const base = caja ? [caja, ...otros] : otros;
       return [...base, ...apiClients];
@@ -370,7 +373,10 @@ export default function IndexRegisterSale() {
     }
 
     const nombre =
-      prod.productos?.nombre || prod.nombre || prod.nombre_producto || "Sin nombre";
+      prod.productos?.nombre ||
+      prod.nombre ||
+      prod.nombre_producto ||
+      "Sin nombre";
 
     const precioUnitario = Number(
       prod.precio_venta ??
@@ -432,77 +438,78 @@ export default function IndexRegisterSale() {
   // Pago Mixto: formulario Swal ✅ (se abre al click en "Mixto")
   // =========================
   const askMixedPayment = async (totalVenta) => {
-  const result = await Swal.fire({
-    icon: "question",
-    title: "Pago mixto",
-    width: 520,          // 👈 más ancho para que quepa todo sin scroll
-    padding: "0.9rem",   // 👈 menos padding vertical
-    html: `
-      <div style="text-align:left; display:grid; gap:8px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div>
-            <label style="font-size:12px; color:#6b7280;">Efectivo</label>
-            <input
-              id="mix_efectivo"
-              class="swal2-input"
-              inputmode="numeric"
-              placeholder="0"
-              style="margin:6px 0 0 0; height:38px; font-size:14px;"
-            />
+    const result = await Swal.fire({
+      icon: "question",
+      title: "Pago mixto",
+      width: 520,
+      padding: "0.9rem",
+      html: `
+        <div style="text-align:left; display:grid; gap:8px;">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div>
+              <label style="font-size:12px; color:#6b7280;">Efectivo</label>
+              <input
+                id="mix_efectivo"
+                class="swal2-input"
+                inputmode="numeric"
+                placeholder="0"
+                style="margin:6px 0 0 0; height:38px; font-size:14px;"
+              />
+            </div>
+
+            <div>
+              <label style="font-size:12px; color:#6b7280;">Transferencia</label>
+              <input
+                id="mix_transferencia"
+                class="swal2-input"
+                inputmode="numeric"
+                placeholder="0"
+                style="margin:6px 0 0 0; height:38px; font-size:14px;"
+              />
+            </div>
           </div>
 
-          <div>
-            <label style="font-size:12px; color:#6b7280;">Transferencia</label>
-            <input
-              id="mix_transferencia"
-              class="swal2-input"
-              inputmode="numeric"
-              placeholder="0"
-              style="margin:6px 0 0 0; height:38px; font-size:14px;"
-            />
-          </div>
+          <p style="margin:0; font-size:12px; color:#6b7280;">
+            Total venta: <b>${money(totalVenta)}</b>
+          </p>
         </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Aceptar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#6b7280",
+      focusConfirm: false,
+      preConfirm: () => {
+        const efectivoRaw =
+          document.getElementById("mix_efectivo")?.value || "0";
+        const transfRaw =
+          document.getElementById("mix_transferencia")?.value || "0";
 
-        <p style="margin:0; font-size:12px; color:#6b7280;">
-          Total venta: <b>${money(totalVenta)}</b>
-        </p>
-      </div>
-    `,
-    showCancelButton: true,
-    confirmButtonText: "Aceptar",
-    cancelButtonText: "Cancelar",
-    confirmButtonColor: "#16a34a",
-    cancelButtonColor: "#6b7280",
-    focusConfirm: false,
-    preConfirm: () => {
-      const efectivoRaw = document.getElementById("mix_efectivo")?.value || "0";
-      const transfRaw =
-        document.getElementById("mix_transferencia")?.value || "0";
+        const efectivo = Number(String(efectivoRaw).replace(/[^\d]/g, "")) || 0;
+        const transferencia =
+          Number(String(transfRaw).replace(/[^\d]/g, "")) || 0;
 
-      const efectivo = Number(String(efectivoRaw).replace(/[^\d]/g, "")) || 0;
-      const transferencia =
-        Number(String(transfRaw).replace(/[^\d]/g, "")) || 0;
+        if (efectivo < 0 || transferencia < 0) {
+          Swal.showValidationMessage("Los valores no pueden ser negativos.");
+          return;
+        }
 
-      if (efectivo < 0 || transferencia < 0) {
-        Swal.showValidationMessage("Los valores no pueden ser negativos.");
-        return;
-      }
+        const suma = efectivo + transferencia;
+        if (suma !== Number(totalVenta)) {
+          Swal.showValidationMessage(
+            `La suma debe ser igual al total (${money(totalVenta)}).`
+          );
+          return;
+        }
 
-      const suma = efectivo + transferencia;
-      if (suma !== Number(totalVenta)) {
-        Swal.showValidationMessage(
-          `La suma debe ser igual al total (${money(totalVenta)}).`
-        );
-        return;
-      }
+        return { efectivo, transferencia };
+      },
+    });
 
-      return { efectivo, transferencia };
-    },
-  });
-
-  if (!result.isConfirmed) return null;
-  return result.value;
-};
+    if (!result.isConfirmed) return null;
+    return result.value;
+  };
 
   const getMedioPagoLabel = (mp) => {
     if (mp === "efectivo") return "Efectivo";
@@ -559,7 +566,7 @@ export default function IndexRegisterSale() {
       return;
     }
 
-    // ✅ Si es mixto, debe existir desglose (porque se abre al click)
+    // ✅ Si es mixto, debe existir desglose
     if (metodoPago === "mixto" && !pagoMixto) {
       await Swal.fire({
         icon: "warning",
@@ -594,6 +601,7 @@ export default function IndexRegisterSale() {
 
     const medioPagoLabel = getMedioPagoLabel(metodoPago);
 
+    // ✅ IMPORTANTE: enviar pagoMixto como números (backend lo usa)
     const payload = {
       fecha_venta: new Date().toISOString(),
       fecha: new Date().toISOString().slice(0, 10),
@@ -604,8 +612,13 @@ export default function IndexRegisterSale() {
       medioPago: medioPagoLabel, // "Efectivo" | "Transferencia" | "Mixto"
       estado: "Completada",
 
-      // ✅ extra para futuro backend
-      pagoMixto: metodoPago === "mixto" ? pagoMixto : null,
+      pagoMixto:
+        metodoPago === "mixto" && pagoMixto
+          ? {
+              efectivo: Number(pagoMixto.efectivo || 0),
+              transferencia: Number(pagoMixto.transferencia || 0),
+            }
+          : null,
 
       productos: productos.map((p) => ({
         productoId: p.productoId ?? null,
@@ -613,7 +626,8 @@ export default function IndexRegisterSale() {
         cantidad: Number(p.cantidad || 1),
         precioUnitario: Number(p.precioUnitario || 0),
         subtotal: Number(
-          p.subtotal ?? Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
+          p.subtotal ??
+            Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
         ),
       })),
     };
@@ -763,7 +777,9 @@ export default function IndexRegisterSale() {
         </div>
 
         <div className="mt-2">
-          {loadingClients && <p className="text-sm text-gray-500">Buscando...</p>}
+          {loadingClients && (
+            <p className="text-sm text-gray-500">Buscando...</p>
+          )}
           {errorClients && (
             <p className="text-sm text-red-600">Error: {errorClients}</p>
           )}
@@ -813,7 +829,9 @@ export default function IndexRegisterSale() {
                   return (
                     <div
                       key={String(
-                        p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra
+                        p.id_detalle_producto ??
+                          p.id ??
+                          p.codigo_barras_producto_compra
                       )}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -874,7 +892,9 @@ export default function IndexRegisterSale() {
           {loadingProduct && (
             <p className="text-sm text-gray-500">Buscando producto...</p>
           )}
-          {errorProduct && <p className="text-sm text-red-600">{errorProduct}</p>}
+          {errorProduct && (
+            <p className="text-sm text-red-600">{errorProduct}</p>
+          )}
         </div>
       </div>
 
@@ -979,7 +999,7 @@ export default function IndexRegisterSale() {
               Transferencia
             </button>
 
-            {/* ✅ NUEVO: Mixto abre formulario apenas haces click */}
+            {/* ✅ Mixto abre formulario al click */}
             <button
               onClick={async () => {
                 if (creatingSale) return;
@@ -1097,7 +1117,9 @@ export default function IndexRegisterSale() {
             setClienteQuery("");
           } else {
             setClienteSeleccionado(nuevoCliente);
-            setClienteQuery(nuevoCliente.nombre || nuevoCliente.nombre_cliente || "");
+            setClienteQuery(
+              nuevoCliente.nombre || nuevoCliente.nombre_cliente || ""
+            );
           }
 
           setShowClientModal(false);

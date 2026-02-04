@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import ProductRegisterModal from "../products/productRegisterModal";
 import SuplliersRegisterModal from "../suppliers/SuplliersRegisterModal";
 
+// ✅ Iconos (ver / eliminar)
+import { FiEye, FiTrash2 } from "react-icons/fi";
+
 // ✅ Hooks reales (NO modificar hooks)
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 import { useProducts as useProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
@@ -36,8 +39,31 @@ export default function IndexRegisterPurchase() {
   const [mensajeProveedor, setMensajeProveedor] = useState(null);
   const [mensajeProducto, setMensajeProducto] = useState(null);
   const [comprobante, setComprobante] = useState(null);
-  const [showModalProducto, setShowModalProducto] = useState(false);
-  const [showModalProveedor, setShowModalProveedor] = useState(false);
+
+  // ✅ Modales
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+
+  // ✅ Modal de datos extra antes de agregar a la tabla
+  const [isExtraProdModalOpen, setIsExtraProdModalOpen] = useState(false);
+  const [productoPendiente, setProductoPendiente] = useState(null);
+  const [extraProdForm, setExtraProdForm] = useState({
+    codigoBarrasIngreso: "",
+    lote: "",
+    marca: "",
+    fechaVencimiento: "",
+  });
+
+  // ✅ Modal "Ver detalles" (EDITABLE, solo nuevos datos)
+  const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false);
+  const [productoDetalles, setProductoDetalles] = useState(null);
+  const [detalleIndex, setDetalleIndex] = useState(null);
+  const [detalleEdit, setDetalleEdit] = useState({
+    codigoBarrasIngreso: "",
+    lote: "",
+    marca: "",
+    fechaVencimiento: "",
+  });
 
   // =========================
   // Filtros / buscadores
@@ -53,7 +79,36 @@ export default function IndexRegisterPurchase() {
   const prodWrapRef = useRef(null);
 
   // =========================
-  // ✅ Quitar flechas (spinners) en inputs number (IVA/ICU)
+  // ✅ Auto-seleccionar proveedor recién creado (SIN tocar modal)
+  // =========================
+  const prevSupplierIdsRef = useRef(new Set());
+  const pendingAutoSelectSupplierRef = useRef(false);
+
+  // =========================
+  // ✅ Bloquear scroll + sidebar detrás mientras modal abierto
+  // =========================
+  const anyModalOpen =
+    isProductModalOpen ||
+    isSupplierModalOpen ||
+    isExtraProdModalOpen ||
+    isViewDetailsOpen;
+
+  useEffect(() => {
+    document.body.style.overflow = anyModalOpen ? "hidden" : "auto";
+
+    const cls = "purchase-modal-open";
+    document.documentElement.classList.toggle(cls, anyModalOpen);
+    document.body.classList.toggle(cls, anyModalOpen);
+
+    return () => {
+      document.body.style.overflow = "auto";
+      document.documentElement.classList.remove(cls);
+      document.body.classList.remove(cls);
+    };
+  }, [anyModalOpen]);
+
+  // =========================
+  // ✅ Quitar flechas (spinners) en inputs number
   // =========================
   const noSpinNumber =
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
@@ -103,12 +158,11 @@ export default function IndexRegisterPurchase() {
     );
   };
 
-  // ✅ ID “real” para comparar duplicados (como ventas)
   const getProductoId = (p) =>
     String(p?.id_producto ?? p?.id ?? p?.ID ?? p?.id_detalle_producto ?? "");
 
   // =========================
-  // Normalizar data REAL (backend) para el buscador
+  // Normalizar data REAL (backend)
   // =========================
   const proveedoresDB = useMemo(() => {
     if (!Array.isArray(suppliersRaw)) return [];
@@ -129,7 +183,6 @@ export default function IndexRegisterPurchase() {
       const precio =
         Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
 
-      // ✅ Precio de venta desde backend (con fallbacks)
       const precioVenta =
         Number(
           p?.precio_venta ??
@@ -144,7 +197,9 @@ export default function IndexRegisterPurchase() {
       const codigoBarras = getCodigoBarras(p);
 
       const id_producto = p?.id_producto ?? p?.id ?? p?.ID ?? null;
-      const productoId = String(id_producto ?? p?.id_detalle_producto ?? p?.id ?? "");
+      const productoId = String(
+        id_producto ?? p?.id_detalle_producto ?? p?.id ?? ""
+      );
 
       return {
         ...p,
@@ -152,8 +207,8 @@ export default function IndexRegisterPurchase() {
         productoId,
         codigo: p?.codigo != null ? String(p.codigo) : "",
         nombre: p?.nombre ?? p?.productos?.nombre ?? "",
-        precio, // compra default
-        precioVenta, // venta backend
+        precio,
+        precioVenta,
         stock,
         codigoBarras,
       };
@@ -161,7 +216,7 @@ export default function IndexRegisterPurchase() {
   }, [productsRaw]);
 
   // =========================
-  // Filtrados para dropdown (proveedor)
+  // Filtrados (proveedor)
   // =========================
   const proveedoresFiltrados = useMemo(() => {
     const q = normalizeText(proveedorQuery);
@@ -169,22 +224,20 @@ export default function IndexRegisterPurchase() {
     return proveedoresDB
       .filter(
         (p) =>
-          normalizeText(p.nit).includes(q) ||
-          normalizeText(p.nombre).includes(q)
+          normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q)
       )
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
 
   // =========================
-  // ✅ Productos: SET seleccionados (para NO repetir en dropdown)
+  // ✅ Productos: SET seleccionados
   // =========================
   const selectedProductIds = useMemo(() => {
     return new Set(productos.map((p) => String(p.productoId)));
   }, [productos]);
 
   // =========================
-  // ✅ Productos filtrados: NO mostrar ya agregados
-  // ✅ En COMPRAS: mostrar stock 0 (rojo) y permitir seleccionar
+  // ✅ Productos filtrados
   // =========================
   const productosFiltrados = useMemo(() => {
     const q = normalizeText(productoQuery);
@@ -206,14 +259,6 @@ export default function IndexRegisterPurchase() {
       .slice(0, 10);
   }, [productoQuery, productosDB, selectedProductIds]);
 
-  // ✅ Habilitar botón Registrar Producto SOLO si no encuentra coincidencias
-  const showRegisterProductoBtn = useMemo(() => {
-    const q = productoQuery.trim();
-    if (!q) return false;
-    // "como proveedor": si no hay coincidencias, habilita botón
-    return productosFiltrados.length === 0;
-  }, [productoQuery, productosFiltrados]);
-
   // =========================
   // Selección proveedor / producto
   // =========================
@@ -228,6 +273,37 @@ export default function IndexRegisterPurchase() {
     setProvActiveIndex(-1);
   };
 
+  // Snapshot inicial IDs proveedores
+  useEffect(() => {
+    if (!prevSupplierIdsRef.current.size && proveedoresDB.length > 0) {
+      prevSupplierIdsRef.current = new Set(
+        proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
+      );
+    }
+  }, [proveedoresDB]);
+
+  // Auto-selección proveedor creado
+  useEffect(() => {
+    if (!pendingAutoSelectSupplierRef.current) return;
+    if (!proveedoresDB.length) return;
+
+    const prevIds = prevSupplierIdsRef.current;
+    const currentIds = new Set(
+      proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
+    );
+
+    const nuevo = proveedoresDB.find((p) => {
+      const id = String(p.id_proveedor ?? p.nit ?? "");
+      return id && !prevIds.has(id);
+    });
+
+    if (nuevo) {
+      seleccionarProveedor(nuevo);
+      pendingAutoSelectSupplierRef.current = false;
+      prevSupplierIdsRef.current = currentIds;
+    }
+  }, [proveedoresDB]);
+
   // =========================
   // Cálculos
   // =========================
@@ -235,8 +311,8 @@ export default function IndexRegisterPurchase() {
     const cantidad = Number(prod.cantidad || 0);
     const precioCompra = Number(prod.precioCompra || 0);
 
-    const ivaPct = Number(prod.subida || 0); // IVA %
-    const icuPct = Number(prod.descuento || 0); // ICU %
+    const ivaPct = Number(prod.subida || 0);
+    const icuPct = Number(prod.descuento || 0);
 
     const base = precioCompra * cantidad;
     const iva = (base * ivaPct) / 100;
@@ -251,13 +327,123 @@ export default function IndexRegisterPurchase() {
   );
 
   // =========================
-  // Agregar producto (COMPRAS: permite stock 0)
+  // ✅ Ver detalles (EDITABLE) - SOLO nuevos datos
+  // =========================
+  const verDetallesProducto = (producto, index) => {
+    setProductoDetalles(producto);
+    setDetalleIndex(index);
+
+    setDetalleEdit({
+      codigoBarrasIngreso: producto?.codigoBarrasIngreso ?? "",
+      lote: producto?.lote ?? "",
+      marca: producto?.marca ?? "",
+      fechaVencimiento: producto?.fechaVencimiento ?? "",
+    });
+
+    setIsViewDetailsOpen(true);
+  };
+
+  const guardarCambiosDetalles = () => {
+    if (detalleIndex == null) return;
+
+    setProductos((prev) => {
+      const copia = [...prev];
+      copia[detalleIndex] = {
+        ...copia[detalleIndex],
+        codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
+        lote: detalleEdit.lote,
+        marca: detalleEdit.marca,
+        fechaVencimiento: detalleEdit.fechaVencimiento,
+      };
+      return copia;
+    });
+
+    setProductoDetalles((prev) =>
+      prev
+        ? {
+            ...prev,
+            codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
+            lote: detalleEdit.lote,
+            marca: detalleEdit.marca,
+            fechaVencimiento: detalleEdit.fechaVencimiento,
+          }
+        : prev
+    );
+
+    setIsViewDetailsOpen(false);
+  };
+
+  // =========================
+  // ✅ Modal datos extra antes de agregar
+  // =========================
+  const abrirModalDatosExtra = (productoEncontrado) => {
+    setProductoPendiente(productoEncontrado);
+
+    const prefillBarcode =
+      productoEncontrado?.codigoBarras ??
+      getCodigoBarras(productoEncontrado) ??
+      "";
+
+    setExtraProdForm({
+      codigoBarrasIngreso: String(prefillBarcode || ""),
+      lote: "",
+      marca: "",
+      fechaVencimiento: "",
+    });
+
+    setIsExtraProdModalOpen(true);
+  };
+
+  const confirmarDatosExtraYAgregar = () => {
+    if (!productoPendiente) return;
+
+    if (!extraProdForm.codigoBarrasIngreso.trim()) {
+      alert("⚠️ Debes ingresar el código de barras.");
+      return;
+    }
+    if (!extraProdForm.lote.trim()) {
+      alert("⚠️ Debes ingresar el lote.");
+      return;
+    }
+    if (!extraProdForm.marca.trim()) {
+      alert("⚠️ Debes ingresar la marca.");
+      return;
+    }
+    if (!extraProdForm.fechaVencimiento) {
+      alert("⚠️ Debes seleccionar la fecha de vencimiento.");
+      return;
+    }
+
+    const enriched = {
+      ...productoPendiente,
+      codigoBarrasIngreso: extraProdForm.codigoBarrasIngreso.trim(),
+      lote: extraProdForm.lote.trim(),
+      marca: extraProdForm.marca.trim(),
+      fechaVencimiento: extraProdForm.fechaVencimiento,
+    };
+
+    setIsExtraProdModalOpen(false);
+    setProductoPendiente(null);
+
+    agregarProducto(enriched);
+  };
+
+  const cancelarDatosExtra = () => {
+    setIsExtraProdModalOpen(false);
+    setProductoPendiente(null);
+  };
+
+  // =========================
+  // Agregar producto (guarda nuevos campos)
   // =========================
   const agregarProducto = (productoEncontrado) => {
     const id = getProductoId(productoEncontrado);
 
     if (id && selectedProductIds.has(String(id))) {
-      setMensajeProducto({ tipo: "error", texto: "⚠️ Este producto ya fue agregado." });
+      setMensajeProducto({
+        tipo: "error",
+        texto: "⚠️ Este producto ya fue agregado.",
+      });
       setProductoQuery("");
       setIsProdOpen(false);
       setProdActiveIndex(-1);
@@ -271,15 +457,17 @@ export default function IndexRegisterPurchase() {
         productoId: String(
           productoEncontrado.id_producto ?? productoEncontrado.id ?? id
         ),
-
         cantidad: "1",
-
-        // ✅ 0 visible pero borrable
-        subida: "0", // IVA %
-        descuento: "0", // ICU %
-
+        subida: "0",
+        descuento: "0",
         precioCompra: String(Number(productoEncontrado.precio ?? 0)),
         precioVenta: Number(productoEncontrado.precioVenta ?? 0),
+
+        // ✅ nuevos campos
+        codigoBarrasIngreso: productoEncontrado.codigoBarrasIngreso ?? "",
+        lote: productoEncontrado.lote ?? "",
+        marca: productoEncontrado.marca ?? "",
+        fechaVencimiento: productoEncontrado.fechaVencimiento ?? "",
       },
     ]);
 
@@ -291,6 +479,40 @@ export default function IndexRegisterPurchase() {
     setProductoQuery("");
     setIsProdOpen(false);
     setProdActiveIndex(-1);
+  };
+
+  // =========================
+  // Producto creado desde modal => pedir datos extra
+  // =========================
+  const onProductoCreado = (created) => {
+    const id_producto = created?.id_producto ?? created?.id ?? created?.ID ?? null;
+
+    const mapped = {
+      ...created,
+      id_producto,
+      productoId: String(
+        id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""
+      ),
+      codigo: created?.codigo != null ? String(created.codigo) : "",
+      nombre: created?.nombre ?? created?.productos?.nombre ?? "",
+      precio:
+        Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) ||
+        0,
+      precioVenta:
+        Number(
+          created?.precio_venta ??
+            created?.precioVenta ??
+            created?.precio_publico ??
+            created?.precio_lista ??
+            created?.valor_venta ??
+            0
+        ) || 0,
+      stock: getStock(created),
+      codigoBarras: getCodigoBarras(created),
+    };
+
+    setIsProductModalOpen(false);
+    abrirModalDatosExtra(mapped);
   };
 
   // =========================
@@ -312,7 +534,7 @@ export default function IndexRegisterPurchase() {
   }, []);
 
   // =========================
-  // Teclas (proveedor)
+  // Teclas proveedor
   // =========================
   const onProveedorKeyDown = (e) => {
     if (e.key === "Escape") {
@@ -359,7 +581,7 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // Teclas (producto)
+  // Teclas producto
   // =========================
   const onProductoKeyDown = (e) => {
     if (e.key === "Escape") {
@@ -388,14 +610,13 @@ export default function IndexRegisterPurchase() {
         prodActiveIndex >= 0 &&
         productosFiltrados[prodActiveIndex]
       ) {
-        agregarProducto(productosFiltrados[prodActiveIndex]);
+        abrirModalDatosExtra(productosFiltrados[prodActiveIndex]);
         return;
       }
 
       if (productosFiltrados.length > 0) {
-        agregarProducto(productosFiltrados[0]);
+        abrirModalDatosExtra(productosFiltrados[0]);
       } else {
-        // "como proveedor": marcar error si no existe para activar botón
         setMensajeProducto({
           tipo: "error",
           texto:
@@ -410,11 +631,17 @@ export default function IndexRegisterPurchase() {
   // =========================
   const handleFinalizarCompra = () => {
     if (!proveedor) {
-      setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
+      setMensajeProveedor({
+        tipo: "error",
+        texto: "⚠️ Debe seleccionar un proveedor",
+      });
       return;
     }
     if (productos.length === 0) {
-      setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+      setMensajeProducto({
+        tipo: "error",
+        texto: "⚠️ Debe agregar al menos un producto",
+      });
       return;
     }
     if (!comprobante) {
@@ -476,6 +703,26 @@ export default function IndexRegisterPurchase() {
 
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
+      {/* ✅ Overrides SOLO desde este archivo */}
+      <style>{`
+        .purchase-modal-open .z-\\[55\\] { z-index: 9999 !important; }
+        .purchase-modal-open aside,
+        .purchase-modal-open #sidebar,
+        .purchase-modal-open .sidebar,
+        .purchase-modal-open [data-sidebar] {
+          opacity: 1 !important;
+          pointer-events: none !important;
+          z-index: 0 !important;
+        }
+        .purchase-supplier-open .z-\\[55\\] {
+          padding-top: 10px !important;
+          align-items: flex-start !important;
+        }
+        @media (min-width: 640px) {
+          .purchase-supplier-open .z-\\[55\\] { padding-top: 14px !important; }
+        }
+      `}</style>
+
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Compras</h2>
@@ -532,7 +779,14 @@ export default function IndexRegisterPurchase() {
 
           {mensajeProveedor?.tipo === "error" && (
             <button
-              onClick={() => setShowModalProveedor(true)}
+              onClick={() => {
+                prevSupplierIdsRef.current = new Set(
+                  proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
+                );
+                pendingAutoSelectSupplierRef.current = true;
+                window.scrollTo({ top: 0, behavior: "auto" });
+                setIsSupplierModalOpen(true);
+              }}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               type="button"
             >
@@ -571,7 +825,7 @@ export default function IndexRegisterPurchase() {
         )}
       </div>
 
-      {/* Buscar producto (como proveedor: si NO lo encuentra -> botón registrar) */}
+      {/* Buscar producto */}
       <div className="mb-4 relative" ref={prodWrapRef}>
         <label className="block text-sm text-gray-600 mb-1">
           Buscar Producto
@@ -593,10 +847,8 @@ export default function IndexRegisterPurchase() {
                 return;
               }
 
-              // ✅ si NO hay coincidencias (incluye "ya agregados" filtrados) -> error (como proveedor)
-              // Nota: productosFiltrados se calcula con el state actual, por eso evaluamos con val abajo:
               const q = normalizeText(val);
-              const coincidenciasSinFiltrar = productosDB.some((p) => {
+              const hay = productosDB.some((p) => {
                 const match =
                   normalizeText(p.codigo).includes(q) ||
                   normalizeText(p.nombre).includes(q) ||
@@ -607,7 +859,7 @@ export default function IndexRegisterPurchase() {
                 return !selectedProductIds.has(String(id));
               });
 
-              if (!coincidenciasSinFiltrar) {
+              if (!hay) {
                 setMensajeProducto({
                   tipo: "error",
                   texto:
@@ -632,10 +884,12 @@ export default function IndexRegisterPurchase() {
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
-          {/* ✅ SOLO se muestra si no lo encuentra (como proveedor) */}
           {mensajeProducto?.tipo === "error" && (
             <button
-              onClick={() => setShowModalProducto(true)}
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: "auto" });
+                setIsProductModalOpen(true);
+              }}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               type="button"
             >
@@ -649,7 +903,7 @@ export default function IndexRegisterPurchase() {
           <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden max-h-56 overflow-auto">
             {productosFiltrados.slice(0, 7).map((p, idx) => {
               const stock = Number(p.stock ?? 0);
-              const sinStock = stock <= 0; // ✅ solo visual rojo
+              const sinStock = stock <= 0;
               const codigoMostrar = p.codigoBarras || p.codigo || "N/A";
 
               return (
@@ -658,7 +912,7 @@ export default function IndexRegisterPurchase() {
                   onMouseEnter={() => setProdActiveIndex(idx)}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    agregarProducto(p); // ✅ en compras permite seleccionar aunque sea stock 0
+                    abrirModalDatosExtra(p);
                   }}
                   className={`px-3 py-2 text-black ${
                     idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
@@ -730,7 +984,6 @@ export default function IndexRegisterPurchase() {
                   {Number(prod.stock ?? 0)}
                 </td>
 
-                {/* Cantidad (permite borrar; vuelve a 1 al salir) */}
                 <td className="border px-3 py-2 text-center">
                   <input
                     type="number"
@@ -738,7 +991,7 @@ export default function IndexRegisterPurchase() {
                     value={prod.cantidad}
                     onChange={(e) => {
                       const nueva = [...productos];
-                      nueva[i].cantidad = e.target.value; // permite ""
+                      nueva[i].cantidad = e.target.value;
                       setProductos(nueva);
                     }}
                     onBlur={() => {
@@ -755,7 +1008,6 @@ export default function IndexRegisterPurchase() {
                   />
                 </td>
 
-                {/* IVA % (0 visible pero borrable) */}
                 <td className="border px-3 py-2 text-center">
                   <div className="inline-flex items-center">
                     <input
@@ -766,7 +1018,7 @@ export default function IndexRegisterPurchase() {
                       value={prod.subida}
                       onChange={(e) => {
                         const nueva = [...productos];
-                        nueva[i].subida = e.target.value; // permite ""
+                        nueva[i].subida = e.target.value;
                         setProductos(nueva);
                       }}
                       onBlur={() => {
@@ -787,7 +1039,6 @@ export default function IndexRegisterPurchase() {
                   </div>
                 </td>
 
-                {/* ICU % (0 visible pero borrable) */}
                 <td className="border px-3 py-2 text-center">
                   <div className="inline-flex items-center">
                     <input
@@ -798,7 +1049,7 @@ export default function IndexRegisterPurchase() {
                       value={prod.descuento}
                       onChange={(e) => {
                         const nueva = [...productos];
-                        nueva[i].descuento = e.target.value; // permite ""
+                        nueva[i].descuento = e.target.value;
                         setProductos(nueva);
                       }}
                       onBlur={() => {
@@ -819,7 +1070,6 @@ export default function IndexRegisterPurchase() {
                   </div>
                 </td>
 
-                {/* Precio Compra (0 visible pero borrable) */}
                 <td className="border px-3 py-2 text-center">
                   <input
                     type="number"
@@ -827,7 +1077,7 @@ export default function IndexRegisterPurchase() {
                     value={prod.precioCompra}
                     onChange={(e) => {
                       const nueva = [...productos];
-                      nueva[i].precioCompra = e.target.value; // permite ""
+                      nueva[i].precioCompra = e.target.value;
                       setProductos(nueva);
                     }}
                     onBlur={() => {
@@ -839,26 +1089,36 @@ export default function IndexRegisterPurchase() {
                   />
                 </td>
 
-                {/* Precio Venta NO editable */}
                 <td className="border px-3 py-2 text-center text-black">
                   ${Number(prod.precioVenta ?? 0).toLocaleString("es-CO")}
                 </td>
 
-                {/* Subtotal */}
                 <td className="border px-3 py-2 text-center text-black">
                   ${calcularSubtotal(prod).toLocaleString("es-CO")}
                 </td>
 
-                <td className="border px-3 py-2 text-center">
-                  <button
-                    onClick={() =>
-                      setProductos(productos.filter((_, idx) => idx !== i))
-                    }
-                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                    type="button"
-                  >
-                    Eliminar
-                  </button>
+                <td className="border px-3 py-2">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => verDetallesProducto(prod, i)}
+                      title="Ver / editar detalles"
+                      className="text-blue-600 hover:text-blue-800"
+                      type="button"
+                    >
+                      <FiEye size={18} />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setProductos(productos.filter((_, idx) => idx !== i))
+                      }
+                      title="Eliminar"
+                      className="text-red-600 hover:text-red-800"
+                      type="button"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -910,12 +1170,235 @@ export default function IndexRegisterPurchase() {
         </button>
       </div>
 
-      {/* Modales */}
-      {showModalProducto && (
-        <ProductRegisterModal onClose={() => setShowModalProducto(false)} />
+      {/* =========================
+          MODAL DATOS EXTRA ANTES DE AGREGAR
+         ========================= */}
+      {isExtraProdModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Datos del producto
+            </h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Completa la información antes de agregarlo a la compra
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Código de barras
+                </label>
+                <input
+                  type="text"
+                  value={extraProdForm.codigoBarrasIngreso}
+                  onChange={(e) =>
+                    setExtraProdForm((prev) => ({
+                      ...prev,
+                      codigoBarrasIngreso: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  placeholder="Ej: 7701234567890"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Lote</label>
+                <input
+                  type="text"
+                  value={extraProdForm.lote}
+                  onChange={(e) =>
+                    setExtraProdForm((prev) => ({
+                      ...prev,
+                      lote: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  placeholder="Ej: LOTE-001"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Marca</label>
+                <input
+                  type="text"
+                  value={extraProdForm.marca}
+                  onChange={(e) =>
+                    setExtraProdForm((prev) => ({
+                      ...prev,
+                      marca: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  placeholder="Ej: Colgate"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Fecha de vencimiento
+                </label>
+                <input
+                  type="date"
+                  value={extraProdForm.fechaVencimiento}
+                  onChange={(e) =>
+                    setExtraProdForm((prev) => ({
+                      ...prev,
+                      fechaVencimiento: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelarDatosExtra}
+                className="px-4 py-2 rounded bg-gray-500 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarDatosExtraYAgregar}
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              >
+                Agregar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      {showModalProveedor && (
-        <SuplliersRegisterModal onClose={() => setShowModalProveedor(false)} />
+
+      {/* =========================
+          MODAL VER / EDITAR DETALLES (SOLO NUEVOS DATOS)
+         ========================= */}
+      {isViewDetailsOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-lg border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Detalles del producto
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Edita la información adicional ingresada
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsViewDetailsOpen(false)}
+                className="px-2 py-1 rounded hover:bg-gray-200 text-gray-600"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Código de barras
+                </label>
+                <input
+                  type="text"
+                  value={detalleEdit.codigoBarrasIngreso}
+                  onChange={(e) =>
+                    setDetalleEdit((p) => ({
+                      ...p,
+                      codigoBarrasIngreso: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Lote</label>
+                <input
+                  type="text"
+                  value={detalleEdit.lote}
+                  onChange={(e) =>
+                    setDetalleEdit((p) => ({ ...p, lote: e.target.value }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Marca</label>
+                <input
+                  type="text"
+                  value={detalleEdit.marca}
+                  onChange={(e) =>
+                    setDetalleEdit((p) => ({ ...p, marca: e.target.value }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Fecha de vencimiento
+                </label>
+                <input
+                  type="date"
+                  value={detalleEdit.fechaVencimiento}
+                  onChange={(e) =>
+                    setDetalleEdit((p) => ({
+                      ...p,
+                      fechaVencimiento: e.target.value,
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t bg-white flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsViewDetailsOpen(false)}
+                className="px-4 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={guardarCambiosDetalles}
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          MODALES
+         ========================= */}
+      <ProductRegisterModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onCreated={onProductoCreado}
+      />
+
+      {/* ✅ aquí agregamos la clase purchase-supplier-open SOLO cuando proveedor está abierto */}
+      {isSupplierModalOpen && (
+        <div className="purchase-supplier-open">
+          <SuplliersRegisterModal
+            isOpen={isSupplierModalOpen}
+            onClose={() => setIsSupplierModalOpen(false)}
+          />
+        </div>
       )}
     </div>
   );

@@ -18,102 +18,32 @@ export default function IndexPurchases() {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission("Crear compra");
   const canAnnular = hasPermission("Anular compra");
+
   // =========================
-  // Mock (temporal) -> luego se reemplaza por hook/API
+  // ✅ DATA REAL: LocalStorage (sin compras quemadas)
+  // (Hasta que conectes hook/API)
   // =========================
-  const purchases = useMemo(
-    () => [
-      {
-        id: "C001",
-        factura: "FAC-0001",
-        proveedor: "Global Supplies Inc.",
-        nit: "900123456-1",
-        subtotal: 1200,
-        total: 1608,
-        fecha: "2024-07-26",
-        estado: "Completada",
-        productos: [
-          { nombre: "Papel A4", cantidad: 10, precio: 12 },
-          { nombre: "Tinta HP", cantidad: 3, precio: 45 },
-        ],
-      },
-      {
-        id: "C002",
-        factura: "FAC-0002",
-        proveedor: "Local Goods Co.",
-        nit: "900987654-2",
-        subtotal: 850,
-        total: 918,
-        fecha: "2024-07-25",
-        estado: "Anulada",
-        productos: [
-          { nombre: "Cajas de cartón", cantidad: 5, precio: 20 },
-          { nombre: "Cinta adhesiva", cantidad: 10, precio: 3 },
-        ],
-      },
-      {
-        id: "C003",
-        factura: "FAC-0003",
-        proveedor: "Tech Hardware Ltd.",
-        nit: "900112233-3",
-        subtotal: 2300,
-        total: 2777,
-        fecha: "2024-07-24",
-        estado: "Completada",
-        productos: [
-          { nombre: "Mouse inalámbrico", cantidad: 15, precio: 25 },
-          { nombre: "Teclado mecánico", cantidad: 10, precio: 75 },
-          { nombre: "USB 32GB", cantidad: 20, precio: 10 },
-        ],
-      },
-      {
-        id: "C004",
-        factura: "FAC-0004",
-        proveedor: "Office Essentials",
-        nit: "900445566-4",
-        subtotal: 1450,
-        total: 1705,
-        fecha: "2024-07-23",
-        estado: "Pendiente",
-        productos: [
-          { nombre: "Archivadores", cantidad: 12, precio: 15 },
-          { nombre: "Marcadores", cantidad: 30, precio: 2 },
-          { nombre: "Resmas de papel", cantidad: 8, precio: 14 },
-        ],
-      },
-      {
-        id: "C005",
-        factura: "FAC-0005",
-        proveedor: "Industrial Tools SA",
-        nit: "900667788-5",
-        subtotal: 3100,
-        total: 3725,
-        fecha: "2024-07-22",
-        estado: "Completada",
-        productos: [
-          { nombre: "Taladros eléctricos", cantidad: 5, precio: 200 },
-          { nombre: "Martillos", cantidad: 20, precio: 25 },
-          { nombre: "Destornilladores", cantidad: 50, precio: 5 },
-        ],
-      },
-      {
-        id: "C006",
-        factura: "FAC-0006",
-        proveedor: "Stationery World",
-        nit: "900998877-6",
-        subtotal: 600,
-        total: 708,
-        fecha: "2024-07-21",
-        estado: "Completada",
-        productos: [
-          { nombre: "Lápices", cantidad: 50, precio: 1 },
-          { nombre: "Gomas de borrar", cantidad: 20, precio: 2 },
-          { nombre: "Cuadernos", cantidad: 10, precio: 10 },
-        ],
-      },
-    ],
-    []
-  );
+  const purchases = useMemo(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("compras")) || [];
+      // Normalizar para que tu UI no se rompa si la data viene diferente
+      return (Array.isArray(raw) ? raw : []).map((c) => ({
+        id: c.id ?? c._id ?? "",
+        factura: c.factura ?? c.numero_factura ?? c.comprobante?.name ?? "—",
+        proveedor: c.proveedor?.nombre ?? c.proveedor ?? "—",
+        nit: c.proveedor?.nit ?? c.nit ?? "—",
+        subtotal: Number(c.subtotal ?? 0),
+        total: Number(c.total ?? 0),
+        fecha: c.fecha ?? c.created_at ?? new Date().toISOString().slice(0, 10),
+        estado: c.estado ?? "Completada",
+        productos: Array.isArray(c.productos) ? c.productos : [],
+        comprobante: c.comprobante ?? null,
+        raw: c,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
 
   // =========================
   // UI State
@@ -145,7 +75,6 @@ export default function IndexPurchases() {
     [filtered.length]
   );
 
-  // Asegura que currentPage no quede fuera de rango si cambia el filtro
   useEffect(() => {
     setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
   }, [totalPages]);
@@ -153,7 +82,7 @@ export default function IndexPurchases() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
   // =========================
   // Handlers
@@ -188,9 +117,9 @@ export default function IndexPurchases() {
       .map(
         (p) =>
           `<tr>
-            <td>${p.nombre}</td>
-            <td>${p.cantidad}</td>
-            <td>$${Number(p.precio || 0).toFixed(2)}</td>
+            <td>${p.nombre ?? "—"}</td>
+            <td>${p.cantidad ?? 0}</td>
+            <td>$${Number(p.precioCompra ?? p.precio ?? 0).toFixed(2)}</td>
           </tr>`
       )
       .join("");
@@ -355,13 +284,12 @@ export default function IndexPurchases() {
                         <td className="px-6 py-4">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              p.estado === "Completada"
+                              p.estado === "Completada" || p.estado === "Completado"
                                 ? "bg-green-50 text-green-700"
                                 : p.estado === "Pendiente"
                                 ? "bg-yellow-50 text-yellow-700"
                                 : "bg-red-100 text-red-700"
                             }`}
-                            disabled={!canAnnular}
                           >
                             {p.estado}
                           </span>
@@ -393,7 +321,10 @@ export default function IndexPurchases() {
 
       {/* Modal de detalle */}
       {isDetailOpen && (
-        <PurchaseDetailModal purchase={selectedPurchase} onClose={handleCloseModal} />
+        <PurchaseDetailModal
+          purchase={selectedPurchase}
+          onClose={handleCloseModal}
+        />
       )}
     </div>
   );
