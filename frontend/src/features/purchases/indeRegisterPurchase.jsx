@@ -5,7 +5,7 @@ import ProductRegisterModal from "../products/productRegisterModal";
 import SuplliersRegisterModal from "../suppliers/SuplliersRegisterModal";
 
 // ✅ Iconos (ver / eliminar)
-import { FiEye, FiTrash2 } from "react-icons/fi";
+import { FiEdit, FiTrash2 } from "react-icons/fi";
 
 // ✅ Hooks reales (NO modificar hooks)
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
@@ -40,11 +40,14 @@ export default function IndexRegisterPurchase() {
   const [mensajeProducto, setMensajeProducto] = useState(null);
   const [comprobante, setComprobante] = useState(null);
 
+  // ✅ Alertas (estilo como las otras)
+  const [mensajeComprobante, setMensajeComprobante] = useState(null);
+
   // ✅ Modales
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
 
-  // ✅ Modal de datos extra antes de agregar a la tabla
+  // ✅ Modal datos extra antes de agregar a la tabla
   const [isExtraProdModalOpen, setIsExtraProdModalOpen] = useState(false);
   const [productoPendiente, setProductoPendiente] = useState(null);
   const [extraProdForm, setExtraProdForm] = useState({
@@ -66,6 +69,12 @@ export default function IndexRegisterPurchase() {
   });
 
   // =========================
+  // Estados de factura
+  // =========================
+  const [numFactura, setNumFactura] = useState(null);
+  const [fechaFactura] = useState(() => new Date());
+
+  // =========================
   // Filtros / buscadores
   // =========================
   const [proveedorQuery, setProveedorQuery] = useState("");
@@ -85,7 +94,7 @@ export default function IndexRegisterPurchase() {
   const pendingAutoSelectSupplierRef = useRef(false);
 
   // =========================
-  // ✅ Bloquear scroll + sidebar detrás mientras modal abierto
+  // ✅ Bloquear scroll mientras modal abierto
   // =========================
   const anyModalOpen =
     isProductModalOpen ||
@@ -614,9 +623,8 @@ export default function IndexRegisterPurchase() {
         return;
       }
 
-      if (productosFiltrados.length > 0) {
-        abrirModalDatosExtra(productosFiltrados[0]);
-      } else {
+      if (productosFiltrados.length > 0) abrirModalDatosExtra(productosFiltrados[0]);
+      else {
         setMensajeProducto({
           tipo: "error",
           texto:
@@ -627,9 +635,99 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // Finalizar compra
+  // ✅ Generar número de factura: 001..999
+  // =========================
+  const generarNumeroFactura = () => {
+    const facturas = JSON.parse(localStorage.getItem("facturas")) || [];
+
+    const ultimoNumero = facturas.length
+      ? Math.max(...facturas.map((f) => Number(f.num_factura || 0)))
+      : 0;
+
+    const siguiente = ultimoNumero + 1;
+
+    if (siguiente > 999) {
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ Se alcanzó el límite de numeración de facturas (999)",
+      });
+      return null;
+    }
+
+    return String(siguiente).padStart(3, "0"); // ✅ 001, 002, 003...
+  };
+
+  // =========================
+  // ✅ Generar ID compra consecutivo: 1..n
+  // =========================
+  const generarIdCompra = () => {
+    const compras = JSON.parse(localStorage.getItem("compras")) || [];
+
+    const ultimoId = compras.length
+      ? Math.max(...compras.map((c) => Number(c.id || 0)))
+      : 0;
+
+    return ultimoId + 1; // ✅ 1, 2, 3...
+  };
+
+  // =========================
+  // ✅ Comprobante (validación + alerta estilo)
+  // =========================
+  const validarComprobante = (file) => {
+    if (!file) {
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ Debe subir el comprobante original de la compra",
+      });
+      return false;
+    }
+
+    const allowed = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "image/webp",
+    ];
+
+    if (!allowed.includes(file.type)) {
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ Formato no válido. Sube PDF o imagen (JPG/PNG/WebP).",
+      });
+      return false;
+    }
+
+    // (opcional) límite tamaño: 5MB
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ El archivo es muy grande. Máximo 5MB.",
+      });
+      return false;
+    }
+
+    setMensajeComprobante({
+      tipo: "ok",
+      texto: `✅ Comprobante cargado: ${file.name}`,
+    });
+    return true;
+  };
+
+  const handleComprobanteUpload = (e) => {
+    const file = e.target.files?.[0] || null;
+    setComprobante(file);
+    validarComprobante(file);
+  };
+
+  // =========================
+  // ✅ Finalizar compra (GUARDA FACTURA + GUARDA COMPRA)
   // =========================
   const handleFinalizarCompra = () => {
+    // limpiar alertas del comprobante para que no quede vieja
+    setMensajeComprobante(null);
+
     if (!proveedor) {
       setMensajeProveedor({
         tipo: "error",
@@ -637,6 +735,7 @@ export default function IndexRegisterPurchase() {
       });
       return;
     }
+
     if (productos.length === 0) {
       setMensajeProducto({
         tipo: "error",
@@ -644,34 +743,104 @@ export default function IndexRegisterPurchase() {
       });
       return;
     }
-    if (!comprobante) {
-      alert("⚠️ Debe subir el comprobante original de la compra");
+
+    if (!validarComprobante(comprobante)) {
+      // ✅ ya queda la alerta estilo
       return;
     }
 
-    const nuevaCompra = {
-      id: Date.now(),
-      proveedor,
-      productos,
-      comprobante: { name: comprobante.name, type: comprobante.type },
+    const num = generarNumeroFactura();
+    if (!num) return;
+    setNumFactura(num);
+
+    const idCompra = generarIdCompra();
+
+    // Totales fiscales
+    const ivaTotal = productos.reduce(
+      (acc, p) =>
+        acc +
+        (Number(p.precioCompra) * Number(p.cantidad) * Number(p.subida)) / 100,
+      0
+    );
+
+    const icuTotal = productos.reduce(
+      (acc, p) =>
+        acc +
+        (Number(p.precioCompra) * Number(p.cantidad) * Number(p.descuento)) / 100,
+      0
+    );
+
+    // =========================
+    // FACTURA (localStorage.facturas)
+    // =========================
+    const facturaId = Date.now(); // id temporal frontend
+
+    const factura = {
+      id_factura: facturaId,
+      num_factura: num,
+      fecha_registro: fechaFactura.toISOString(),
+      valor_factura: total,
+      iva: ivaTotal,
+      icu: icuTotal,
+      comprobante_pago: comprobante.name,
+      id_compra: idCompra,
+      detalles: productos.map((p) => ({
+        id_detalle_producto: p.id_detalle_producto ?? p.productoId,
+        id_producto: p.id_producto ?? p.productoId,
+        cantidad: Number(p.cantidad),
+        precio_unitario: Number(p.precioCompra),
+        subtotal: calcularSubtotal(p),
+        iva_aplicado: Number(p.subida),
+        icu_aplicado: Number(p.descuento),
+        lote: p.lote,
+        marca: p.marca,
+        fecha_vencimiento: p.fechaVencimiento,
+        codigo_barras: p.codigoBarrasIngreso,
+      })),
+    };
+
+    const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
+    facturasGuardadas.push(factura);
+    localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
+
+    // =========================
+    // COMPRA (localStorage.compras) ✅ ES LA QUE LISTAS EN COMPRAS
+    // =========================
+    const compra = {
+      id: idCompra, // ✅ 1,2,3...
+      facturaId,
+      numero_factura: num, // ✅ 001,002,003...
+      fecha: fechaFactura.toISOString(),
+      proveedor: {
+        id_proveedor: proveedor.id_proveedor ?? proveedor.id ?? null,
+        nombre: proveedor.nombre ?? "—",
+        nit: proveedor.nit ?? "—",
+      },
       total,
-      fecha: new Date().toLocaleString(),
-      estado: "Completado",
+      estado: "Completada",
+      comprobante: { name: comprobante.name, type: comprobante.type },
+      productos: productos.map((p) => ({
+        productoId: p.productoId ?? p.id_producto ?? p.id ?? null,
+        nombre: p.nombre ?? "—",
+        cantidad: Number(p.cantidad),
+        precioCompra: Number(p.precioCompra),
+        subida: Number(p.subida),
+        descuento: Number(p.descuento),
+        subtotal: calcularSubtotal(p),
+
+        // extras
+        codigoBarrasIngreso: p.codigoBarrasIngreso,
+        lote: p.lote,
+        marca: p.marca,
+        fechaVencimiento: p.fechaVencimiento,
+      })),
     };
 
     const comprasGuardadas = JSON.parse(localStorage.getItem("compras")) || [];
-    comprasGuardadas.push(nuevaCompra);
+    comprasGuardadas.push(compra);
     localStorage.setItem("compras", JSON.stringify(comprasGuardadas));
 
     navigate("/app/purchases");
-  };
-
-  // =========================
-  // Comprobante
-  // =========================
-  const handleComprobanteUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) setComprobante(file);
   };
 
   // =========================
@@ -701,6 +870,9 @@ export default function IndexRegisterPurchase() {
     );
   }
 
+  // =========================
+  // UI (tu render original)
+  // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
       {/* ✅ Overrides SOLO desde este archivo */}
@@ -729,6 +901,14 @@ export default function IndexRegisterPurchase() {
         <p className="text-sm text-gray-500 mt-1">
           Completa la información para registrar una nueva compra
         </p>
+
+        {/* opcional: mostrar número generado cuando existe */}
+        {numFactura && (
+          <p className="mt-2 text-sm">
+            N° Factura generado:{" "}
+            <span className="font-bold text-green-700">{numFactura}</span>
+          </p>
+        )}
       </div>
 
       {/* Buscar proveedor */}
@@ -915,7 +1095,9 @@ export default function IndexRegisterPurchase() {
                     abrirModalDatosExtra(p);
                   }}
                   className={`px-3 py-2 text-black ${
-                    idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
+                    idx === prodActiveIndex
+                      ? "bg-green-50"
+                      : "hover:bg-green-50"
                   } cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -1082,7 +1264,8 @@ export default function IndexRegisterPurchase() {
                     }}
                     onBlur={() => {
                       const nueva = [...productos];
-                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
+                      if (nueva[i].precioCompra === "")
+                        nueva[i].precioCompra = "0";
                       setProductos(nueva);
                     }}
                     className="w-24 border rounded px-2 py-1 text-center bg-white text-black"
@@ -1105,7 +1288,7 @@ export default function IndexRegisterPurchase() {
                       className="text-blue-600 hover:text-blue-800"
                       type="button"
                     >
-                      <FiEye size={18} />
+                      <FiEdit size={18} />
                     </button>
 
                     <button
@@ -1132,14 +1315,23 @@ export default function IndexRegisterPurchase() {
           <label className="font-semibold text-gray-700 mb-1">
             Subir comprobante original
           </label>
+
           <input
             type="file"
             accept="image/*,application/pdf"
             onChange={handleComprobanteUpload}
           />
-          {comprobante && (
-            <p className="text-sm text-green-600 mt-1">
-              Archivo cargado: {comprobante.name}
+
+          {/* ✅ Alerta estilo para comprobante */}
+          {mensajeComprobante && (
+            <p
+              className={`mt-1 text-sm ${
+                mensajeComprobante.tipo === "ok"
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}
+            >
+              {mensajeComprobante.texto}
             </p>
           )}
         </div>
@@ -1208,10 +1400,7 @@ export default function IndexRegisterPurchase() {
                   type="text"
                   value={extraProdForm.lote}
                   onChange={(e) =>
-                    setExtraProdForm((prev) => ({
-                      ...prev,
-                      lote: e.target.value,
-                    }))
+                    setExtraProdForm((prev) => ({ ...prev, lote: e.target.value }))
                   }
                   className="w-full border rounded px-3 py-2 bg-white text-black"
                   placeholder="Ej: LOTE-001"
@@ -1224,10 +1413,7 @@ export default function IndexRegisterPurchase() {
                   type="text"
                   value={extraProdForm.marca}
                   onChange={(e) =>
-                    setExtraProdForm((prev) => ({
-                      ...prev,
-                      marca: e.target.value,
-                    }))
+                    setExtraProdForm((prev) => ({ ...prev, marca: e.target.value }))
                   }
                   className="w-full border rounded px-3 py-2 bg-white text-black"
                   placeholder="Ej: Colgate"
@@ -1273,12 +1459,11 @@ export default function IndexRegisterPurchase() {
       )}
 
       {/* =========================
-          MODAL VER / EDITAR DETALLES (SOLO NUEVOS DATOS)
+          MODAL VER / EDITAR DETALLES
          ========================= */}
       {isViewDetailsOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-lg border border-gray-200 overflow-hidden">
-            {/* Header */}
             <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1299,7 +1484,6 @@ export default function IndexRegisterPurchase() {
               </button>
             </div>
 
-            {/* Body */}
             <div className="px-5 py-4 space-y-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
@@ -1323,9 +1507,7 @@ export default function IndexRegisterPurchase() {
                 <input
                   type="text"
                   value={detalleEdit.lote}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({ ...p, lote: e.target.value }))
-                  }
+                  onChange={(e) => setDetalleEdit((p) => ({ ...p, lote: e.target.value }))}
                   className="w-full border rounded px-3 py-2 bg-white text-black"
                 />
               </div>
@@ -1335,9 +1517,7 @@ export default function IndexRegisterPurchase() {
                 <input
                   type="text"
                   value={detalleEdit.marca}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({ ...p, marca: e.target.value }))
-                  }
+                  onChange={(e) => setDetalleEdit((p) => ({ ...p, marca: e.target.value }))}
                   className="w-full border rounded px-3 py-2 bg-white text-black"
                 />
               </div>
@@ -1360,7 +1540,6 @@ export default function IndexRegisterPurchase() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-5 py-4 border-t bg-white flex justify-end gap-2">
               <button
                 type="button"
@@ -1391,7 +1570,6 @@ export default function IndexRegisterPurchase() {
         onCreated={onProductoCreado}
       />
 
-      {/* ✅ aquí agregamos la clase purchase-supplier-open SOLO cuando proveedor está abierto */}
       {isSupplierModalOpen && (
         <div className="purchase-supplier-open">
           <SuplliersRegisterModal

@@ -4,6 +4,35 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
 
+// ✅ Formatea el ID de compra como "1", "2", "3"... (sin ceros)
+// - Si viene numérico: lo deja tal cual
+// - Si viene como string numérica: la convierte a número
+// - Si viene algo raro (uuid): muestra el valor original
+const formatPurchaseId = (val) => {
+  if (val == null) return "—";
+  const s = String(val).trim();
+  if (!s) return "—";
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 0) return String(Math.trunc(n));
+  return s; // fallback (por si viene _id tipo mongo/uuid)
+};
+
+const computeSubtotal = (p) => {
+  if (p?.subtotal != null) return Number(p.subtotal || 0);
+
+  const cantidad = Number(p?.cantidad || 0);
+  const precioCompra = Number(p?.precioCompra ?? p?.precio ?? 0);
+
+  const ivaPct = Number(p?.subida ?? 0); // IVA %
+  const icuPct = Number(p?.descuento ?? 0); // ICU %
+
+  const base = precioCompra * cantidad;
+  const iva = (base * ivaPct) / 100;
+  const icu = (base * icuPct) / 100;
+
+  return base + iva + icu;
+};
+
 export default function PurchaseDetailModal({ purchase, onClose }) {
   const productos = useMemo(() => {
     const arr = purchase?.productos;
@@ -11,23 +40,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
   }, [purchase]);
 
   const totalCompra = useMemo(() => {
-    return productos.reduce((acc, p) => {
-      // si tu compra ya trae subtotal, úsalo
-      if (p?.subtotal != null) return acc + Number(p.subtotal || 0);
-
-      // si no, calcula con tu lógica de compras (base + IVA + ICU)
-      const cantidad = Number(p?.cantidad || 0);
-      const precioCompra = Number(p?.precioCompra ?? p?.precio ?? 0);
-
-      const ivaPct = Number(p?.subida ?? 0); // IVA %
-      const icuPct = Number(p?.descuento ?? 0); // ICU %
-
-      const base = precioCompra * cantidad;
-      const iva = (base * ivaPct) / 100;
-      const icu = (base * icuPct) / 100;
-
-      return acc + (base + iva + icu);
-    }, 0);
+    return productos.reduce((acc, p) => acc + computeSubtotal(p), 0);
   }, [productos]);
 
   // ✅ bloquear scroll del body cuando el modal está abierto
@@ -42,16 +55,36 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
 
   if (!purchase) return null;
 
+  // =========================
+  // Normalización de datos (ordenado)
+  // =========================
+  const purchaseId = formatPurchaseId(purchase?.id ?? purchase?._id);
+
+  const fechaRaw = purchase?.fecha ?? purchase?.fecha_registro ?? purchase?.createdAt ?? null;
+  const fecha = fechaRaw
+    ? new Date(fechaRaw).toLocaleString("es-CO", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
+
   const proveedorNombre =
     purchase?.proveedor?.nombre ?? purchase?.proveedor ?? "—";
   const proveedorNit = purchase?.proveedor?.nit ?? purchase?.nit ?? "—";
-  const factura =
-    purchase?.factura ??
+
+  const numFactura =
     purchase?.numero_factura ??
-    purchase?.comprobante?.name ??
+    purchase?.num_factura ??
+    purchase?.factura?.num_factura ??
+    purchase?.factura ??
     "—";
+
   const comprobante =
     purchase?.comprobante?.name ??
+    purchase?.comprobante_pago ??
     purchase?.comprobante ??
     "—";
 
@@ -79,7 +112,9 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                 Detalles de la Compra
               </h3>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                {factura !== "—" ? `Factura: ${factura}` : "Factura no registrada"}
+                {numFactura !== "—"
+                  ? `Factura: ${numFactura}`
+                  : "Factura no registrada"}
               </p>
             </div>
 
@@ -102,7 +137,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                   ID compra
                 </p>
                 <p className="font-semibold text-gray-900 break-words">
-                  {purchase?.id ?? purchase?._id ?? "—"}
+                  {purchaseId}
                 </p>
               </div>
 
@@ -111,7 +146,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                   Fecha
                 </p>
                 <p className="font-semibold text-gray-900 break-words">
-                  {purchase?.fecha ?? "—"}
+                  {fecha}
                 </p>
               </div>
 
@@ -130,6 +165,24 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                 </p>
                 <p className="font-semibold text-gray-900 break-words">
                   {proveedorNit}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                  N° Factura
+                </p>
+                <p className="font-semibold text-gray-900 break-words">
+                  {numFactura}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                  Estado
+                </p>
+                <p className="font-semibold text-gray-900 break-words">
+                  {purchase?.estado ?? "—"}
                 </p>
               </div>
 
@@ -177,18 +230,11 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                     ) : (
                       productos.map((p, idx) => {
                         const cantidad = Number(p?.cantidad || 0);
-                        const precioCompra = Number(
-                          p?.precioCompra ?? p?.precio ?? 0
-                        );
+                        const precioCompra = Number(p?.precioCompra ?? p?.precio ?? 0);
                         const ivaPct = Number(p?.subida ?? 0);
                         const icuPct = Number(p?.descuento ?? 0);
 
-                        const base = precioCompra * cantidad;
-                        const iva = (base * ivaPct) / 100;
-                        const icu = (base * icuPct) / 100;
-
-                        const subtotal =
-                          p?.subtotal != null ? Number(p.subtotal || 0) : base + iva + icu;
+                        const subtotal = computeSubtotal(p);
 
                         return (
                           <tr key={`${p?.productoId ?? idx}`}>
