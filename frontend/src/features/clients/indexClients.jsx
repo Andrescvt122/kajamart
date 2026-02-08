@@ -49,7 +49,8 @@ const adaptClient = (client) => {
 
   const esCaja =
     String(idApi) === String(CAJA_ID) ||
-    (typeof nombre === "string" && nombre.toLowerCase().trim() === "cliente de caja");
+    (typeof nombre === "string" &&
+      nombre.toLowerCase().trim() === "cliente de caja");
 
   let activo;
   if (esCaja) {
@@ -102,13 +103,17 @@ export default function IndexClients() {
   // UI state
   const [selectedClient, setSelectedClient] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const {hasPermission} = useAuth(); 
+
+  const { hasPermission } = useAuth();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState(null);
+
   const canCreate = hasPermission("Crear cliente");
-  const canEdit = hasPermission('Editar cliente');
-  console.log("can edit cliente", canEdit);
-  const canDelte = hasPermission("Eliminar cliente");
+  // ✅ CORREGIDO: sin "un"
+  const canEdit = hasPermission("Editar cliente");
+  const canDelete = hasPermission("Eliminar cliente");
+
   const [form, setForm] = useState({
     nombre: "",
     tipoDocumento: "",
@@ -490,8 +495,19 @@ export default function IndexClients() {
 
                               <div className="pt-2 flex items-center gap-2">
                                 <ViewButton event={() => handleView(c)} />
-                                  {canEdit &&(<EditButton event={() => editClient(c)} />)}
-                                  {canDelte &&(<DeleteButton event={() => deleteClient(c)} />)}
+                                {/* ✅ CORREGIDO: pasa canEdit/canDelete igual que en desktop */}
+                                {canEdit && (
+                                  <EditButton
+                                    canEdit={canEdit}
+                                    event={() => editClient(c)}
+                                  />
+                                )}
+                                {canDelete && (
+                                  <DeleteButton
+                                    canDelete={canDelete}
+                                    event={() => deleteClient(c)}
+                                  />
+                                )}
                               </div>
                             </div>
                           </motion.div>
@@ -526,7 +542,10 @@ export default function IndexClients() {
                   </tr>
                 </thead>
 
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <motion.tbody
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                >
                   {pageItems.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
@@ -576,8 +595,14 @@ export default function IndexClients() {
                             <div className="inline-flex items-center gap-1">
                               <ViewButton event={() => handleView(c)} />
 
-                              <EditButton canEdit={canEdit} event={() => editClient(c)} />
-                              <DeleteButton canDelete={canDelte} event={() => deleteClient(c)} />
+                              <EditButton
+                                canEdit={canEdit}
+                                event={() => editClient(c)}
+                              />
+                              <DeleteButton
+                                canDelete={canDelete}
+                                event={() => deleteClient(c)}
+                              />
                             </div>
                           </td>
                         </motion.tr>
