@@ -152,7 +152,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
     const existingIndex = selectedProducts.findIndex(
-      (p) => p.id_producto === product.id_producto
+      (p) => p.id_producto === product.id_producto,
     );
 
     // aseguramos número
@@ -183,7 +183,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   const handleRemoveProduct = (productId) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p.id_producto !== productId)
+      prev.filter((p) => p.id_producto !== productId),
     );
     setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
     if (openConfigProductId === productId) setOpenConfigProductId(null);
@@ -205,8 +205,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         const maxAvailable = Number.isFinite(p.quantity)
           ? p.quantity
           : Number.isFinite(p.stock_producto)
-          ? p.stock_producto
-          : null;
+            ? p.stock_producto
+            : null;
 
         let newQuantity = candidate;
 
@@ -219,7 +219,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         newQuantity = Math.max(1, newQuantity);
 
         return { ...p, returnQuantity: newQuantity };
-      })
+      }),
     );
   };
 
@@ -227,8 +227,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleProductReasonChange = (productId, reasonValue) => {
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id_producto === productId ? { ...p, returnReason: reasonValue } : p
-      )
+        p.id_producto === productId ? { ...p, returnReason: reasonValue } : p,
+      ),
     );
     setShowErrors(false); // Ocultar errores cuando se selecciona una razón
   };
@@ -244,7 +244,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Si ya hay detalle y se intenta seleccionar "descuento", bloqueamos y avisamos
     if (actionValue === "descuento" && hasDetail) {
       alert(
-        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto."
+        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto.",
       );
       return;
     }
@@ -254,8 +254,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       prev.map((p) =>
         p.id_producto === product.id_producto
           ? { ...p, actionType: actionValue }
-          : p
-      )
+          : p,
+      ),
     );
     setShowErrors(false); // Ocultar errores cuando se selecciona una acción
 
@@ -281,7 +281,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
     setPendingDetails((prev) => {
       const filtered = prev.filter(
-        (d) => d.productKey !== registeredDetail.productKey
+        (d) => d.productKey !== registeredDetail.productKey,
       );
       return [...filtered, registeredDetail];
     });
@@ -302,8 +302,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Desmarcar acción "registrar" para dejar el producto libre de nuevo
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id_producto === productId ? { ...p, actionType: "" } : p
-      )
+        p.id_producto === productId ? { ...p, actionType: "" } : p,
+      ),
     );
   };
 
@@ -343,12 +343,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const missingDetail = selectedProducts.find(
       (p) =>
         p.actionType === "registrar" &&
-        !getPendingDetailForProduct(p.id_producto)
+        !getPendingDetailForProduct(p.id_producto),
     );
 
     if (missingDetail) {
       alert(
-        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
+        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`,
       );
       return;
     }
@@ -385,7 +385,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           });
         } else {
           throw new Error(
-            `No se pudo guardar el detalle para el producto ${detail.productKey}`
+            `No se pudo guardar el detalle para el producto ${detail.productKey}`,
           );
         }
       }
@@ -400,7 +400,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           if (p.actionType === "registrar") {
             // Buscar el detalle guardado
             const savedDetail = savedDetails.find(
-              (d) => d.productKey === p.id_producto
+              (d) => d.productKey === p.id_producto,
             );
             id_detalle = savedDetail?.id_detalle_producto;
           } else {
@@ -413,12 +413,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "❌ Falta id_detalle_producto para este producto:",
               p,
               "savedDetails:",
-              savedDetails
+              savedDetails,
             );
             alert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
-              }" no tiene id_detalle_producto. Revisa el origen de los datos.`
+              }" no tiene id_detalle_producto. Revisa el origen de los datos.`,
             );
             return null;
           }
@@ -427,7 +427,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             "✅ Producto listo para payload:",
             p.productos?.nombre ?? p.nombre_producto,
             " -> id_detalle_producto:",
-            id_detalle
+            id_detalle,
           );
 
           return {
@@ -443,7 +443,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       if (productsPayload.length === 0) {
         console.error(
-          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío)."
+          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío).",
         );
         return;
       }
@@ -513,8 +513,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         prev.map((p) =>
           p.id_producto === productToRegister.id_producto
             ? { ...p, actionType: "" }
-            : p
-        )
+            : p,
+        ),
       );
     }
 
@@ -597,7 +597,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                 </motion.div>
 
                 {/* Contenido */}
-                <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
+                <div className="flex flex-col p-6 space-y-4 flex-grow overflow-y-auto">
                   <motion.div
                     className="space-y-6"
                     initial={{ opacity: 0 }}
@@ -691,8 +691,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     !selectedProducts.some(
                                       (sp) =>
                                         sp.id_detalle_producto ===
-                                        p.id_detalle_producto
-                                    )
+                                        p.id_detalle_producto,
+                                    ),
                                 )
                                 .map((p) => (
                                   <motion.div
@@ -738,8 +738,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                     !selectedProducts.some(
                                       (sp) =>
                                         sp.id_detalle_producto ===
-                                        p.id_detalle_producto
-                                    )
+                                        p.id_detalle_producto,
+                                    ),
                                 ).length === 0 && (
                                   <div className="p-3 text-center text-sm text-gray-500">
                                     Ya agregaste todos los productos de esta
@@ -765,7 +765,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                             Productos a devolver
                           </h4>
                           <motion.div
-                            className="space-y-3 max-h-60 overflow-y-auto"
+                            className="space-y-3"
                             initial="hidden"
                             animate="visible"
                             variants={{
@@ -776,7 +776,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                           >
                             {selectedProducts.map((product) => {
                               const detail = getPendingDetailForProduct(
-                                product.id_producto
+                                product.id_producto,
                               );
                               return (
                                 <motion.div
@@ -809,7 +809,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       </p>
                                       <p className="text-xs text-gray-500">
                                         {formatPrice(
-                                          product.productos.precio_venta
+                                          product.productos.precio_venta,
                                         )}{" "}
                                         c/u
                                       </p>
@@ -819,7 +819,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         onClick={() =>
                                           handleUpdateQuantity(
                                             product.id_producto,
-                                            -1
+                                            -1,
                                           )
                                         }
                                         disabled={product.returnQuantity <= 1}
@@ -851,7 +851,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         onClick={() =>
                                           handleUpdateQuantity(
                                             product.id_producto,
-                                            1
+                                            1,
                                           )
                                         }
                                         disabled={
@@ -874,7 +874,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       type="button"
                                       onClick={() =>
                                         toggleConfigDropdown(
-                                          product.id_producto
+                                          product.id_producto,
                                         )
                                       }
                                       className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
@@ -941,7 +941,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                     onChange={() =>
                                                       handleProductReasonChange(
                                                         product.id_producto,
-                                                        reason.value
+                                                        reason.value,
                                                       )
                                                     }
                                                     className="hidden"
@@ -1020,7 +1020,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                     onClick={() =>
                                                       handleProductActionChange(
                                                         product,
-                                                        action.value
+                                                        action.value,
                                                       )
                                                     }
                                                   >
@@ -1101,9 +1101,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                                 Vencimiento:
                                                               </span>{" "}
                                                               {new Date(
-                                                                detail.registeredExpiry
+                                                                detail.registeredExpiry,
                                                               ).toLocaleDateString(
-                                                                "es-ES"
+                                                                "es-ES",
                                                               )}
                                                             </p>
                                                           )}
@@ -1115,7 +1115,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                             type="button"
                                                             onClick={() =>
                                                               handleDeleteDetail(
-                                                                product.id_producto
+                                                                product.id_producto,
                                                               )
                                                             }
                                                             className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
@@ -1130,7 +1130,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                             type="button"
                                                             onClick={() =>
                                                               handleEditDetail(
-                                                                product.id_producto
+                                                                product.id_producto,
                                                               )
                                                             }
                                                             className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
@@ -1321,7 +1321,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         existingBarcodes={pendingDetails
           .map(
             (d) =>
-              d.registeredBarcode || d.codigo_barras_producto_compra || null
+              d.registeredBarcode || d.codigo_barras_producto_compra || null,
           )
           .filter(Boolean)}
         initialDetail={detailToEdit}

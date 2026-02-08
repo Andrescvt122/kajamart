@@ -22,7 +22,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   const saleTotalPages = Math.ceil(saleProducts.length / salePerPage);
   const salePageProducts = saleProducts.slice(
     (salePage - 1) * salePerPage,
-    salePage * salePerPage
+    salePage * salePerPage,
   );
 
   // Estado para paginación de Productos cliente devueltos
@@ -32,7 +32,17 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   const returnTotalPages = Math.ceil(returnProducts.length / returnPerPage);
   const returnPageProducts = returnProducts.slice(
     (returnPage - 1) * returnPerPage,
-    returnPage * returnPerPage
+    returnPage * returnPerPage,
+  );
+
+  const totalSaleProducts = saleProducts.reduce(
+    (acc, product) => acc + (Number(product.totalValue) || 0),
+    0,
+  );
+
+  const totalReturnProducts = returnProducts.reduce(
+    (acc, product) => acc + (Number(product.totalValue) || 0),
+    0,
   );
 
   if (!isOpen || !returnData) return null;
@@ -51,7 +61,9 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   };
 
   const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
-  const totalDevolucionProducto = Number(returnData.totalDevolucionProducto || 0);
+  const totalDevolucionProducto = Number(
+    returnData.totalDevolucionProducto || 0,
+  );
   const difference = Math.abs(totalDevolucionCliente - totalDevolucionProducto);
   const balanceLabel =
     totalDevolucionCliente >= totalDevolucionProducto
@@ -221,7 +233,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   <button
                     onClick={() =>
                       setCurrentCarouselStep(
-                        Math.max(0, currentCarouselStep - 1)
+                        Math.max(0, currentCarouselStep - 1),
                       )
                     }
                     disabled={currentCarouselStep === 0}
@@ -239,7 +251,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   <button
                     onClick={() =>
                       setCurrentCarouselStep(
-                        Math.min(1, currentCarouselStep + 1)
+                        Math.min(1, currentCarouselStep + 1),
                       )
                     }
                     disabled={currentCarouselStep === 1}
@@ -298,11 +310,14 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                             </tr>
                           ))}
                           <tr className="bg-green-100 font-bold">
-                            <td colSpan="3" className="px-4 py-3 text-sm text-green-700 text-right">
+                            <td
+                              colSpan="3"
+                              className="px-4 py-3 text-sm text-green-700 text-right"
+                            >
                               Total:
                             </td>
                             <td className="px-4 py-3 text-sm text-green-700 font-bold">
-                              {formatCurrency(calculateTableTotal(saleProducts))}
+                              {formatCurrency(totalSaleProducts)}
                             </td>
                           </tr>
                         </tbody>
@@ -367,6 +382,17 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                               </td>
                             </tr>
                           ))}
+                          <tr className="bg-red-100 font-bold">
+                            <td
+                              colSpan="4"
+                              className="px-4 py-3 text-sm text-red-700 text-right"
+                            >
+                              Total:
+                            </td>
+                            <td className="px-4 py-3 text-sm text-red-700 font-bold">
+                              {formatCurrency(totalReturnProducts)}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
