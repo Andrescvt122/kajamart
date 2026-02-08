@@ -106,7 +106,7 @@ export default function IndexClients() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState(null);
   const canCreate = hasPermission("Crear cliente");
-  const canEdit = hasPermission('Editar un cliente');
+  const canEdit = hasPermission('Editar cliente');
   console.log("can edit cliente", canEdit);
   const canDelte = hasPermission("Eliminar cliente");
   const [form, setForm] = useState({
