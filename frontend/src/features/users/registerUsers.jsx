@@ -102,35 +102,62 @@ export default function RegisterUsers({ isOpen, onClose }) {
   // 🧩 Manejo de cambios
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    if (name === "telefono" || name === "documento") {
-      setForm((prev) => ({ ...prev, [name]: sanitizeNumeric(value) }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
+    const newValue = (name === "telefono" || name === "documento") ? sanitizeNumeric(value) : value;
+    setForm((prev) => ({ ...prev, [name]: newValue }));
 
-    // Validaciones en tiempo real
+    // Validaciones en tiempo real usando newValue
     if (name === "correo") {
-      const emailError = !isValidEmail(value) ? "Formato de correo inválido." : validateEmailUniqueness(value);
+      const emailError = !isValidEmail(newValue) ? "Formato de correo inválido." : validateEmailUniqueness(newValue);
       setErrors((prev) => ({ ...prev, correo: emailError }));
     }
+
     if (name === "documento") {
-      const docError = validateDocumentoUniqueness(value);
-      setErrors((prev) => ({ ...prev, documento: docError }));
+      const lenError = validateDocumentoLength(newValue);
+      const uniqError = validateDocumentoUniqueness(newValue);
+      setErrors((prev) => ({ ...prev, documento: lenError || uniqError }));
     }
+
     if (name === "contrasena") {
-      const passError = validatePassword(value);
+      const passError = validatePassword(newValue);
       setErrors((prev) => ({ ...prev, contrasena: passError }));
-      // Revalidar confirmar contraseña
       if (form.confirmarContrasena) {
-        const confirmError = validateConfirmPassword(form.confirmarContrasena, value);
+        const confirmError = validateConfirmPassword(form.confirmarContrasena, newValue);
         setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
       }
     }
+
     if (name === "confirmarContrasena") {
-      const confirmError = validateConfirmPassword(value, form.contrasena);
+      const confirmError = validateConfirmPassword(newValue, form.contrasena);
       setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
     }
+
+    // Nuevos casos en tiempo real (sin 'usuario')
+    if (name === "nombre") {
+      const nomErr = validateNombreApellido(newValue);
+      setErrors((prev) => ({ ...prev, nombre: nomErr }));
+    }
+    if (name === "apellido") {
+      const apeErr = validateNombreApellido(newValue);
+      setErrors((prev) => ({ ...prev, apellido: apeErr }));
+    }
+    if (name === "telefono") {
+      const telErr = validateTelefono(newValue);
+      setErrors((prev) => ({ ...prev, telefono: telErr }));
+    }
   };
+
+  // Revalidar cuando cambian usuarios/roles o campos clave (mantiene validación en tiempo real)
+  useEffect(() => {
+    setErrors((prev) => ({
+      // 'usuario' removido de la revalidación
+      nombre: form.nombre ? validateNombreApellido(form.nombre) : prev.nombre,
+      apellido: form.apellido ? validateNombreApellido(form.apellido) : prev.apellido,
+      telefono: form.telefono ? validateTelefono(form.telefono) : prev.telefono,
+      documento: form.documento ? (validateDocumentoLength(form.documento) || validateDocumentoUniqueness(form.documento)) : prev.documento,
+      correo: form.correo ? (!isValidEmail(form.correo) ? "Formato de correo inválido." : validateEmailUniqueness(form.correo)) : prev.correo,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuarios, roles, form.nombre, form.apellido, form.telefono, form.documento, form.correo]);
 
   // 📧 Validar formato email
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -152,6 +179,34 @@ export default function RegisterUsers({ isOpen, onClose }) {
     return "";
   };
 
+  // ------------------------
+  // Nuevas validaciones
+  // ------------------------
+
+  // Nombre / Apellido: solo letras, espacios y algunos caracteres válidos
+  const validateNombreApellido = (value) => {
+    if (!value) return "Requerido.";
+    const re = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s'-]+$/;
+    return re.test(value) ? "" : "Solo letras y espacios permitidos.";
+  };
+
+  // Teléfono: solo números (si existe) y rango de longitud
+  const validateTelefono = (tel) => {
+    if (!tel) return "";
+    const onlyDigits = tel.replace(/\D/g, "");
+    if (onlyDigits.length < 7) return "Teléfono muy corto.";
+    if (onlyDigits.length > 15) return "Teléfono muy largo.";
+    return "";
+  };
+
+  // Documento: longitud mínima/máxima + unicidad (ya existía unicidad)
+  const validateDocumentoLength = (doc) => {
+    if (!doc) return "Requerido.";
+    if (doc.length < 6) return "Documento muy corto.";
+    if (doc.length > 20) return "Documento muy largo.";
+    return "";
+  };
+
   // 📧 Validar unicidad de correo
   const validateEmailUniqueness = (email) => {
     if (!email) return "";
@@ -170,10 +225,39 @@ export default function RegisterUsers({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Verificar errores de validación
-    const hasErrors = Object.values(errors).some((err) => err);
+    // Revalidar todo antes de enviar (sin 'usuario')
+    const computedErrors = {
+      nombre: validateNombreApellido(form.nombre),
+      apellido: validateNombreApellido(form.apellido),
+      correo: !isValidEmail(form.correo) ? "Formato de correo inválido." : validateEmailUniqueness(form.correo),
+      documento: validateDocumentoLength(form.documento) || validateDocumentoUniqueness(form.documento),
+      contrasena: validatePassword(form.contrasena),
+      confirmarContrasena: validateConfirmPassword(form.confirmarContrasena, form.contrasena),
+      telefono: validateTelefono(form.telefono),
+      rol: form.rol_id ? "" : "Rol es requerido.",
+    };
+
+    setErrors((prev) => ({ ...prev, ...computedErrors }));
+
+    const hasErrors = Object.values(computedErrors).some((err) => err);
     if (hasErrors) {
-      showErrorAlert("Corrige los errores antes de enviar.");
+      const fieldLabels = {
+        nombre: "Nombre",
+        apellido: "Apellido",
+        correo: "Correo",
+        documento: "Documento",
+        contrasena: "Contraseña",
+        confirmarContrasena: "Confirmar contraseña",
+        telefono: "Teléfono",
+        rol: "Rol asignado",
+      };
+
+      const detalles = Object.entries(computedErrors)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${fieldLabels[k] || k}: ${v}`)
+        .join("\n");
+
+      showErrorAlert(`Corrige los siguientes errores:\n${detalles}`);
       return;
     }
 
@@ -257,6 +341,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.nombre && <p className="text-red-500 text-sm mt-1">{errors.nombre}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -269,7 +354,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.apellido && <p className="text-red-500 text-sm mt-1">{errors.apellido}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Documento *
@@ -286,6 +373,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                     />
                     {errors.documento && <p className="text-red-500 text-sm mt-1">{errors.documento}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Correo *
@@ -301,6 +389,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                     />
                     {errors.correo && <p className="text-red-500 text-sm mt-1">{errors.correo}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Contraseña *
@@ -318,6 +407,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                     />
                     {errors.contrasena && <p className="text-red-500 text-sm mt-1">{errors.contrasena}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Confirmar contraseña *
@@ -335,6 +425,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                     />
                     {errors.confirmarContrasena && <p className="text-red-500 text-sm mt-1">{errors.confirmarContrasena}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Teléfono (opcional)
@@ -348,7 +439,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       placeholder="e.g. +57 3XX XXX XXXX"
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                     />
+                    {errors.telefono && <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>}
                   </div>
+
                   {/* 🔽 Dropdown de roles */}
                   <div ref={rolRef}>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -391,6 +484,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                                     rol_id: opt.rol_id,
                                   }));
                                   setRolOpen(false);
+                                  setErrors((p)=>({...p, rol: ""}));
                                 }}
                                 className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
                               >
@@ -401,7 +495,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                         )}
                       </AnimatePresence>
                     </div>
+                    {errors.rol && <p className="text-red-500 text-sm mt-1">{errors.rol}</p>}
                   </div>
+
                   {/* 🔘 Estado del usuario */}
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
