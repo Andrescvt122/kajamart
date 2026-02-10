@@ -100,9 +100,9 @@ export default function IndexCategories() {
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
   const { hasPermission } = useAuth();
-  const canDelete = hasPermission("Eliminar categorías");
-  const canCreate = hasPermission("Crear categorías");
-  const canEdit = hasPermission("Editar categorías");
+  const canDelete = hasPermission("Eliminar categorias");
+  const canCreate = hasPermission("Crear categorias");
+  const canEdit = hasPermission("Editar categorias");
   // Acordeón (móvil/desktop)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
