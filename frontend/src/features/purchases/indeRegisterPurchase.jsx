@@ -52,9 +52,27 @@ export default function IndexRegisterPurchase() {
   const [productoPendiente, setProductoPendiente] = useState(null);
   const [extraProdForm, setExtraProdForm] = useState({
     codigoBarrasIngreso: "",
+    // ✅ sigue siendo "marca" internamente para no romper tu data
+    marca: "", // (UI: Nombre del producto)
     lote: "",
-    marca: "",
     fechaVencimiento: "",
+  });
+
+  // ✅ Validaciones TIEMPO REAL (modal datos extra)
+  // (Se muestran SOLO después de tocar el campo)
+  const [extraProdErrors, setExtraProdErrors] = useState({
+    codigoBarrasIngreso: "",
+    marca: "",
+    lote: "",
+    fechaVencimiento: "",
+  });
+
+  // ✅ Touched (para NO mostrar errores al abrir)
+  const [extraTouched, setExtraTouched] = useState({
+    codigoBarrasIngreso: false,
+    marca: false,
+    lote: false,
+    fechaVencimiento: false,
   });
 
   // ✅ Modal "Ver detalles" (EDITABLE, solo nuevos datos)
@@ -63,9 +81,27 @@ export default function IndexRegisterPurchase() {
   const [detalleIndex, setDetalleIndex] = useState(null);
   const [detalleEdit, setDetalleEdit] = useState({
     codigoBarrasIngreso: "",
+    // ✅ sigue siendo "marca" internamente para no romper tu data
+    marca: "", // (UI: Nombre del producto)
     lote: "",
-    marca: "",
     fechaVencimiento: "",
+  });
+
+  // ✅ Validaciones TIEMPO REAL (modal ver/editar)
+  // (Se muestran SOLO después de tocar el campo)
+  const [detalleErrors, setDetalleErrors] = useState({
+    codigoBarrasIngreso: "",
+    marca: "",
+    lote: "",
+    fechaVencimiento: "",
+  });
+
+  // ✅ Touched (para NO mostrar errores al abrir)
+  const [detalleTouched, setDetalleTouched] = useState({
+    codigoBarrasIngreso: false,
+    marca: false,
+    lote: false,
+    fechaVencimiento: false,
   });
 
   // =========================
@@ -131,6 +167,81 @@ export default function IndexRegisterPurchase() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
+
+  // =========================
+  // ✅ Helpers FECHA (vencimiento)
+  // =========================
+  const startOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const addDays = (d, days) => {
+    const x = startOfDay(d);
+    x.setDate(x.getDate() + days);
+    return x;
+  };
+  const toISODate = (d) => startOfDay(d).toISOString().slice(0, 10);
+
+  // ✅ mínimo permitido: hoy + 4 días
+  const minExpiryDateStr = useMemo(() => toISODate(addDays(new Date(), 4)), []);
+
+  // =========================
+  // ✅ Validación por campo (TIEMPO REAL)
+  // 1) codigoBarrasIngreso: numérico, 13 dígitos, obligatorio
+  // 2) marca (UI: Nombre del producto): obligatoria
+  // 3) lote: alfanumérico (sin espacios/símbolos), obligatorio
+  // 4) fechaVencimiento: NO obligatoria; si existe, >= hoy+4
+  // =========================
+  const validateOne = (field, form) => {
+    const v = String(form?.[field] ?? "").trim();
+
+    if (field === "codigoBarrasIngreso") {
+      if (!v) return "El código de barras es obligatorio.";
+      if (!/^\d+$/.test(v)) return "El código de barras debe ser solo numérico.";
+      if (v.length !== 13) return "Debe tener exactamente 13 dígitos.";
+      return "";
+    }
+
+    // ✅ ahora es "Nombre del producto" en UI
+    if (field === "marca") {
+      if (!v) return "El nombre del producto es obligatorio.";
+      return "";
+    }
+
+    if (field === "lote") {
+      if (!v) return "El lote es obligatorio.";
+      if (!/^[a-zA-Z0-9]+$/.test(v))
+        return "Debe ser alfanumérico (sin espacios ni caracteres especiales).";
+      return "";
+    }
+
+    if (field === "fechaVencimiento") {
+      if (!v) return ""; // ✅ NO obligatoria
+      const picked = startOfDay(new Date(v));
+      const minDate = startOfDay(addDays(new Date(), 4));
+      if (Number.isNaN(picked.getTime())) return "Fecha inválida.";
+      if (picked < minDate)
+        return `Debe ser igual o posterior a ${toISODate(minDate)} (mínimo 4 días).`;
+      return "";
+    }
+
+    return "";
+  };
+
+  const computeErrors = (form) => ({
+    codigoBarrasIngreso: validateOne("codigoBarrasIngreso", form),
+    marca: validateOne("marca", form),
+    lote: validateOne("lote", form),
+    fechaVencimiento: validateOne("fechaVencimiento", form),
+  });
+
+  const hasErrors = (errs) =>
+    Object.values(errs).some((msg) => String(msg || "").trim().length > 0);
+
+  // ✅ Botones deshabilitados según validación REAL (aunque no muestre errores todavía)
+  const extraDisabled = useMemo(() => hasErrors(computeErrors(extraProdForm)), [extraProdForm]);
+  const detalleDisabled = useMemo(() => hasErrors(computeErrors(detalleEdit)), [detalleEdit]);
 
   // =========================
   // ✅ Stock + Código (compat)
@@ -206,9 +317,7 @@ export default function IndexRegisterPurchase() {
       const codigoBarras = getCodigoBarras(p);
 
       const id_producto = p?.id_producto ?? p?.id ?? p?.ID ?? null;
-      const productoId = String(
-        id_producto ?? p?.id_detalle_producto ?? p?.id ?? ""
-      );
+      const productoId = String(id_producto ?? p?.id_detalle_producto ?? p?.id ?? "");
 
       return {
         ...p,
@@ -232,8 +341,7 @@ export default function IndexRegisterPurchase() {
     if (!q) return [];
     return proveedoresDB
       .filter(
-        (p) =>
-          normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q)
+        (p) => normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q)
       )
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
@@ -342,11 +450,27 @@ export default function IndexRegisterPurchase() {
     setProductoDetalles(producto);
     setDetalleIndex(index);
 
-    setDetalleEdit({
+    const initial = {
       codigoBarrasIngreso: producto?.codigoBarrasIngreso ?? "",
-      lote: producto?.lote ?? "",
       marca: producto?.marca ?? "",
+      lote: producto?.lote ?? "",
       fechaVencimiento: producto?.fechaVencimiento ?? "",
+    };
+
+    setDetalleEdit(initial);
+
+    // ✅ NO mostrar errores al abrir
+    setDetalleErrors({
+      codigoBarrasIngreso: "",
+      marca: "",
+      lote: "",
+      fechaVencimiento: "",
+    });
+    setDetalleTouched({
+      codigoBarrasIngreso: false,
+      marca: false,
+      lote: false,
+      fechaVencimiento: false,
     });
 
     setIsViewDetailsOpen(true);
@@ -355,13 +479,25 @@ export default function IndexRegisterPurchase() {
   const guardarCambiosDetalles = () => {
     if (detalleIndex == null) return;
 
+    // ✅ forzar mostrar errores si intentan guardar
+    setDetalleTouched({
+      codigoBarrasIngreso: true,
+      marca: true,
+      lote: true,
+      fechaVencimiento: true,
+    });
+
+    const errs = computeErrors(detalleEdit);
+    setDetalleErrors(errs);
+    if (hasErrors(errs)) return;
+
     setProductos((prev) => {
       const copia = [...prev];
       copia[detalleIndex] = {
         ...copia[detalleIndex],
         codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
-        lote: detalleEdit.lote,
         marca: detalleEdit.marca,
+        lote: detalleEdit.lote,
         fechaVencimiento: detalleEdit.fechaVencimiento,
       };
       return copia;
@@ -372,8 +508,8 @@ export default function IndexRegisterPurchase() {
         ? {
             ...prev,
             codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
-            lote: detalleEdit.lote,
             marca: detalleEdit.marca,
+            lote: detalleEdit.lote,
             fechaVencimiento: detalleEdit.fechaVencimiento,
           }
         : prev
@@ -389,15 +525,29 @@ export default function IndexRegisterPurchase() {
     setProductoPendiente(productoEncontrado);
 
     const prefillBarcode =
-      productoEncontrado?.codigoBarras ??
-      getCodigoBarras(productoEncontrado) ??
-      "";
+      productoEncontrado?.codigoBarras ?? getCodigoBarras(productoEncontrado) ?? "";
 
-    setExtraProdForm({
+    const initial = {
       codigoBarrasIngreso: String(prefillBarcode || ""),
-      lote: "",
       marca: "",
+      lote: "",
       fechaVencimiento: "",
+    };
+
+    setExtraProdForm(initial);
+
+    // ✅ NO mostrar errores al abrir
+    setExtraProdErrors({
+      codigoBarrasIngreso: "",
+      marca: "",
+      lote: "",
+      fechaVencimiento: "",
+    });
+    setExtraTouched({
+      codigoBarrasIngreso: false,
+      marca: false,
+      lote: false,
+      fechaVencimiento: false,
     });
 
     setIsExtraProdModalOpen(true);
@@ -406,29 +556,24 @@ export default function IndexRegisterPurchase() {
   const confirmarDatosExtraYAgregar = () => {
     if (!productoPendiente) return;
 
-    if (!extraProdForm.codigoBarrasIngreso.trim()) {
-      alert("⚠️ Debes ingresar el código de barras.");
-      return;
-    }
-    if (!extraProdForm.lote.trim()) {
-      alert("⚠️ Debes ingresar el lote.");
-      return;
-    }
-    if (!extraProdForm.marca.trim()) {
-      alert("⚠️ Debes ingresar la marca.");
-      return;
-    }
-    if (!extraProdForm.fechaVencimiento) {
-      alert("⚠️ Debes seleccionar la fecha de vencimiento.");
-      return;
-    }
+    // ✅ forzar mostrar errores si intentan agregar
+    setExtraTouched({
+      codigoBarrasIngreso: true,
+      marca: true,
+      lote: true,
+      fechaVencimiento: true,
+    });
+
+    const errs = computeErrors(extraProdForm);
+    setExtraProdErrors(errs);
+    if (hasErrors(errs)) return;
 
     const enriched = {
       ...productoPendiente,
       codigoBarrasIngreso: extraProdForm.codigoBarrasIngreso.trim(),
+      marca: extraProdForm.marca.trim(), // (UI: nombre)
       lote: extraProdForm.lote.trim(),
-      marca: extraProdForm.marca.trim(),
-      fechaVencimiento: extraProdForm.fechaVencimiento,
+      fechaVencimiento: extraProdForm.fechaVencimiento, // puede ser ""
     };
 
     setIsExtraProdModalOpen(false);
@@ -440,13 +585,29 @@ export default function IndexRegisterPurchase() {
   const cancelarDatosExtra = () => {
     setIsExtraProdModalOpen(false);
     setProductoPendiente(null);
+    setExtraProdErrors({
+      codigoBarrasIngreso: "",
+      marca: "",
+      lote: "",
+      fechaVencimiento: "",
+    });
+    setExtraTouched({
+      codigoBarrasIngreso: false,
+      marca: false,
+      lote: false,
+      fechaVencimiento: false,
+    });
   };
 
   // =========================
   // Agregar producto (guarda nuevos campos)
   // =========================
   const agregarProducto = (productoEncontrado) => {
-    const id = getProductoId(productoEncontrado);
+    const id = String(
+      productoEncontrado?.id_producto ??
+        productoEncontrado?.id ??
+        getProductoId(productoEncontrado)
+    );
 
     if (id && selectedProductIds.has(String(id))) {
       setMensajeProducto({
@@ -463,9 +624,7 @@ export default function IndexRegisterPurchase() {
       ...prev,
       {
         ...productoEncontrado,
-        productoId: String(
-          productoEncontrado.id_producto ?? productoEncontrado.id ?? id
-        ),
+        productoId: id,
         cantidad: "1",
         subida: "0",
         descuento: "0",
@@ -474,8 +633,8 @@ export default function IndexRegisterPurchase() {
 
         // ✅ nuevos campos
         codigoBarrasIngreso: productoEncontrado.codigoBarrasIngreso ?? "",
+        marca: productoEncontrado.marca ?? "", // (UI: nombre)
         lote: productoEncontrado.lote ?? "",
-        marca: productoEncontrado.marca ?? "",
         fechaVencimiento: productoEncontrado.fechaVencimiento ?? "",
       },
     ]);
@@ -499,14 +658,10 @@ export default function IndexRegisterPurchase() {
     const mapped = {
       ...created,
       id_producto,
-      productoId: String(
-        id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""
-      ),
+      productoId: String(id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""),
       codigo: created?.codigo != null ? String(created.codigo) : "",
       nombre: created?.nombre ?? created?.productos?.nombre ?? "",
-      precio:
-        Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) ||
-        0,
+      precio: Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) || 0,
       precioVenta:
         Number(
           created?.precio_venta ??
@@ -654,7 +809,7 @@ export default function IndexRegisterPurchase() {
       return null;
     }
 
-    return String(siguiente).padStart(3, "0"); // ✅ 001, 002, 003...
+    return String(siguiente).padStart(3, "0");
   };
 
   // =========================
@@ -667,7 +822,7 @@ export default function IndexRegisterPurchase() {
       ? Math.max(...compras.map((c) => Number(c.id || 0)))
       : 0;
 
-    return ultimoId + 1; // ✅ 1, 2, 3...
+    return ultimoId + 1;
   };
 
   // =========================
@@ -698,7 +853,6 @@ export default function IndexRegisterPurchase() {
       return false;
     }
 
-    // (opcional) límite tamaño: 5MB
     const maxBytes = 5 * 1024 * 1024;
     if (file.size > maxBytes) {
       setMensajeComprobante({
@@ -722,32 +876,39 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // ✅ Finalizar compra (GUARDA FACTURA + GUARDA COMPRA)
+  // ✅ Finalizar compra
   // =========================
   const handleFinalizarCompra = () => {
-    // limpiar alertas del comprobante para que no quede vieja
     setMensajeComprobante(null);
 
     if (!proveedor) {
-      setMensajeProveedor({
-        tipo: "error",
-        texto: "⚠️ Debe seleccionar un proveedor",
-      });
+      setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
       return;
     }
 
     if (productos.length === 0) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: "⚠️ Debe agregar al menos un producto",
-      });
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
       return;
     }
 
-    if (!validarComprobante(comprobante)) {
-      // ✅ ya queda la alerta estilo
-      return;
+    // ✅ validar que todos los productos cumplen reglas
+    for (const p of productos) {
+      const errs = computeErrors({
+        codigoBarrasIngreso: p.codigoBarrasIngreso,
+        marca: p.marca,
+        lote: p.lote,
+        fechaVencimiento: p.fechaVencimiento,
+      });
+      if (hasErrors(errs)) {
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa los detalles del producto "${p.nombre}". Hay datos inválidos.`,
+        });
+        return;
+      }
     }
+
+    if (!validarComprobante(comprobante)) return;
 
     const num = generarNumeroFactura();
     if (!num) return;
@@ -755,11 +916,9 @@ export default function IndexRegisterPurchase() {
 
     const idCompra = generarIdCompra();
 
-    // Totales fiscales
     const ivaTotal = productos.reduce(
       (acc, p) =>
-        acc +
-        (Number(p.precioCompra) * Number(p.cantidad) * Number(p.subida)) / 100,
+        acc + (Number(p.precioCompra) * Number(p.cantidad) * Number(p.subida)) / 100,
       0
     );
 
@@ -770,10 +929,7 @@ export default function IndexRegisterPurchase() {
       0
     );
 
-    // =========================
-    // FACTURA (localStorage.facturas)
-    // =========================
-    const facturaId = Date.now(); // id temporal frontend
+    const facturaId = Date.now();
 
     const factura = {
       id_factura: facturaId,
@@ -793,7 +949,7 @@ export default function IndexRegisterPurchase() {
         iva_aplicado: Number(p.subida),
         icu_aplicado: Number(p.descuento),
         lote: p.lote,
-        marca: p.marca,
+        marca: p.marca, // (UI: nombre del producto)
         fecha_vencimiento: p.fechaVencimiento,
         codigo_barras: p.codigoBarrasIngreso,
       })),
@@ -803,13 +959,10 @@ export default function IndexRegisterPurchase() {
     facturasGuardadas.push(factura);
     localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
 
-    // =========================
-    // COMPRA (localStorage.compras) ✅ ES LA QUE LISTAS EN COMPRAS
-    // =========================
     const compra = {
-      id: idCompra, // ✅ 1,2,3...
+      id: idCompra,
       facturaId,
-      numero_factura: num, // ✅ 001,002,003...
+      numero_factura: num,
       fecha: fechaFactura.toISOString(),
       proveedor: {
         id_proveedor: proveedor.id_proveedor ?? proveedor.id ?? null,
@@ -827,11 +980,9 @@ export default function IndexRegisterPurchase() {
         subida: Number(p.subida),
         descuento: Number(p.descuento),
         subtotal: calcularSubtotal(p),
-
-        // extras
         codigoBarrasIngreso: p.codigoBarrasIngreso,
+        marca: p.marca, // (UI: nombre del producto)
         lote: p.lote,
-        marca: p.marca,
         fechaVencimiento: p.fechaVencimiento,
       })),
     };
@@ -871,7 +1022,7 @@ export default function IndexRegisterPurchase() {
   }
 
   // =========================
-  // UI (tu render original)
+  // UI
   // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
@@ -902,7 +1053,6 @@ export default function IndexRegisterPurchase() {
           Completa la información para registrar una nueva compra
         </p>
 
-        {/* opcional: mostrar número generado cuando existe */}
         {numFactura && (
           <p className="mt-2 text-sm">
             N° Factura generado:{" "}
@@ -913,9 +1063,7 @@ export default function IndexRegisterPurchase() {
 
       {/* Buscar proveedor */}
       <div className="mb-4 relative" ref={provWrapRef}>
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Proveedor
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Proveedor</label>
 
         <div className="flex items-center gap-2">
           <input
@@ -949,9 +1097,7 @@ export default function IndexRegisterPurchase() {
             }}
             onKeyDown={onProveedorKeyDown}
             placeholder={
-              isSuppliersLoading
-                ? "Cargando proveedores..."
-                : "Ingrese NIT o nombre"
+              isSuppliersLoading ? "Cargando proveedores..." : "Ingrese NIT o nombre"
             }
             disabled={isSuppliersLoading}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
@@ -1007,9 +1153,7 @@ export default function IndexRegisterPurchase() {
 
       {/* Buscar producto */}
       <div className="mb-4 relative" ref={prodWrapRef}>
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Producto
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Producto</label>
 
         <div className="flex items-center gap-2">
           <input
@@ -1095,9 +1239,7 @@ export default function IndexRegisterPurchase() {
                     abrirModalDatosExtra(p);
                   }}
                   className={`px-3 py-2 text-black ${
-                    idx === prodActiveIndex
-                      ? "bg-green-50"
-                      : "hover:bg-green-50"
+                    idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
                   } cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -1114,9 +1256,7 @@ export default function IndexRegisterPurchase() {
                     </span>
                   </div>
 
-                  <div className="text-xs text-gray-500">
-                    Código: {codigoMostrar}
-                  </div>
+                  <div className="text-xs text-gray-500">Código: {codigoMostrar}</div>
                 </div>
               );
             })}
@@ -1264,8 +1404,7 @@ export default function IndexRegisterPurchase() {
                     }}
                     onBlur={() => {
                       const nueva = [...productos];
-                      if (nueva[i].precioCompra === "")
-                        nueva[i].precioCompra = "0";
+                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
                       setProductos(nueva);
                     }}
                     className="w-24 border rounded px-2 py-1 text-center bg-white text-black"
@@ -1316,19 +1455,12 @@ export default function IndexRegisterPurchase() {
             Subir comprobante original
           </label>
 
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={handleComprobanteUpload}
-          />
+          <input type="file" accept="image/*,application/pdf" onChange={handleComprobanteUpload} />
 
-          {/* ✅ Alerta estilo para comprobante */}
           {mensajeComprobante && (
             <p
               className={`mt-1 text-sm ${
-                mensajeComprobante.tipo === "ok"
-                  ? "text-green-600"
-                  : "text-red-600"
+                mensajeComprobante.tipo === "ok" ? "text-green-600" : "text-red-600"
               }`}
             >
               {mensajeComprobante.texto}
@@ -1368,73 +1500,172 @@ export default function IndexRegisterPurchase() {
       {isExtraProdModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Datos del producto
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Datos del producto</h3>
             <p className="text-sm text-gray-500 mb-3">
               Completa la información antes de agregarlo a la compra
             </p>
 
             <div className="space-y-3">
+              {/* Código de barras */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
                   Código de barras
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={13}
                   value={extraProdForm.codigoBarrasIngreso}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+                    const next = { ...extraProdForm, codigoBarrasIngreso: value };
+                    setExtraProdForm(next);
+
+                    if (extraTouched.codigoBarrasIngreso) {
+                      setExtraProdErrors((prev) => ({
+                        ...prev,
+                        codigoBarrasIngreso: validateOne("codigoBarrasIngreso", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setExtraTouched((t) => ({ ...t, codigoBarrasIngreso: true }));
+                    setExtraProdErrors((prev) => ({
                       ...prev,
-                      codigoBarrasIngreso: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                      codigoBarrasIngreso: validateOne("codigoBarrasIngreso", extraProdForm),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    extraTouched.codigoBarrasIngreso && extraProdErrors.codigoBarrasIngreso
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Ej: 7701234567890"
                 />
+                {extraTouched.codigoBarrasIngreso && extraProdErrors.codigoBarrasIngreso && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {extraProdErrors.codigoBarrasIngreso}
+                  </p>
+                )}
               </div>
 
+              {/* ✅ Nombre del producto (ANTES era Marca) */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Nombre del producto
+                </label>
+                <input
+                  type="text"
+                  value={extraProdForm.marca}
+                  onChange={(e) => {
+                    const next = { ...extraProdForm, marca: e.target.value };
+                    setExtraProdForm(next);
+
+                    if (extraTouched.marca) {
+                      setExtraProdErrors((prev) => ({
+                        ...prev,
+                        marca: validateOne("marca", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setExtraTouched((t) => ({ ...t, marca: true }));
+                    setExtraProdErrors((prev) => ({
+                      ...prev,
+                      marca: validateOne("marca", extraProdForm),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    extraTouched.marca && extraProdErrors.marca
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                  placeholder="Ej: Colgate Triple Acción"
+                />
+                {extraTouched.marca && extraProdErrors.marca && (
+                  <p className="mt-1 text-xs text-red-600">{extraProdErrors.marca}</p>
+                )}
+              </div>
+
+              {/* Lote */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Lote</label>
                 <input
                   type="text"
                   value={extraProdForm.lote}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({ ...prev, lote: e.target.value }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                  placeholder="Ej: LOTE-001"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\s/g, "");
+                    const next = { ...extraProdForm, lote: value };
+                    setExtraProdForm(next);
+
+                    if (extraTouched.lote) {
+                      setExtraProdErrors((prev) => ({
+                        ...prev,
+                        lote: validateOne("lote", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setExtraTouched((t) => ({ ...t, lote: true }));
+                    setExtraProdErrors((prev) => ({
+                      ...prev,
+                      lote: validateOne("lote", extraProdForm),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    extraTouched.lote && extraProdErrors.lote
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                  placeholder="Ej: LOTE001"
                 />
+                {extraTouched.lote && extraProdErrors.lote && (
+                  <p className="mt-1 text-xs text-red-600">{extraProdErrors.lote}</p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Marca</label>
-                <input
-                  type="text"
-                  value={extraProdForm.marca}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({ ...prev, marca: e.target.value }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                  placeholder="Ej: Colgate"
-                />
-              </div>
-
+              {/* Fecha vencimiento */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  Fecha de vencimiento
+                  Fecha de vencimiento{" "}
+                  <span className="text-xs text-gray-400">(opcional)</span>
                 </label>
                 <input
                   type="date"
+                  min={minExpiryDateStr}
                   value={extraProdForm.fechaVencimiento}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({
+                  onChange={(e) => {
+                    const next = { ...extraProdForm, fechaVencimiento: e.target.value };
+                    setExtraProdForm(next);
+
+                    if (extraTouched.fechaVencimiento) {
+                      setExtraProdErrors((prev) => ({
+                        ...prev,
+                        fechaVencimiento: validateOne("fechaVencimiento", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setExtraTouched((t) => ({ ...t, fechaVencimiento: true }));
+                    setExtraProdErrors((prev) => ({
                       ...prev,
-                      fechaVencimiento: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                      fechaVencimiento: validateOne("fechaVencimiento", extraProdForm),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    extraTouched.fechaVencimiento && extraProdErrors.fechaVencimiento
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
+                {extraTouched.fechaVencimiento && extraProdErrors.fechaVencimiento && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {extraProdErrors.fechaVencimiento}
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Permitido desde: <b>{minExpiryDateStr}</b>
+                </p>
               </div>
             </div>
 
@@ -1449,7 +1680,12 @@ export default function IndexRegisterPurchase() {
               <button
                 type="button"
                 onClick={confirmarDatosExtraYAgregar}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                disabled={extraDisabled}
+                className={`px-4 py-2 rounded text-white ${
+                  extraDisabled
+                    ? "bg-green-300 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
               >
                 Agregar
               </button>
@@ -1485,58 +1721,162 @@ export default function IndexRegisterPurchase() {
             </div>
 
             <div className="px-5 py-4 space-y-3">
+              {/* Código de barras */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
                   Código de barras
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={13}
                   value={detalleEdit.codigoBarrasIngreso}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({
-                      ...p,
-                      codigoBarrasIngreso: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+                    const next = { ...detalleEdit, codigoBarrasIngreso: value };
+                    setDetalleEdit(next);
+
+                    if (detalleTouched.codigoBarrasIngreso) {
+                      setDetalleErrors((prev) => ({
+                        ...prev,
+                        codigoBarrasIngreso: validateOne("codigoBarrasIngreso", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setDetalleTouched((t) => ({ ...t, codigoBarrasIngreso: true }));
+                    setDetalleErrors((prev) => ({
+                      ...prev,
+                      codigoBarrasIngreso: validateOne("codigoBarrasIngreso", detalleEdit),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    detalleTouched.codigoBarrasIngreso && detalleErrors.codigoBarrasIngreso
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
+                {detalleTouched.codigoBarrasIngreso && detalleErrors.codigoBarrasIngreso && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {detalleErrors.codigoBarrasIngreso}
+                  </p>
+                )}
               </div>
 
+              {/* ✅ Nombre del producto (ANTES era Marca) */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  Nombre del producto
+                </label>
+                <input
+                  type="text"
+                  value={detalleEdit.marca}
+                  onChange={(e) => {
+                    const next = { ...detalleEdit, marca: e.target.value };
+                    setDetalleEdit(next);
+
+                    if (detalleTouched.marca) {
+                      setDetalleErrors((prev) => ({
+                        ...prev,
+                        marca: validateOne("marca", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setDetalleTouched((t) => ({ ...t, marca: true }));
+                    setDetalleErrors((prev) => ({
+                      ...prev,
+                      marca: validateOne("marca", detalleEdit),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    detalleTouched.marca && detalleErrors.marca
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                  placeholder="Ej: Colgate Triple Acción"
+                />
+                {detalleTouched.marca && detalleErrors.marca && (
+                  <p className="mt-1 text-xs text-red-600">{detalleErrors.marca}</p>
+                )}
+              </div>
+
+              {/* Lote */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Lote</label>
                 <input
                   type="text"
                   value={detalleEdit.lote}
-                  onChange={(e) => setDetalleEdit((p) => ({ ...p, lote: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\s/g, "");
+                    const next = { ...detalleEdit, lote: value };
+                    setDetalleEdit(next);
+
+                    if (detalleTouched.lote) {
+                      setDetalleErrors((prev) => ({
+                        ...prev,
+                        lote: validateOne("lote", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setDetalleTouched((t) => ({ ...t, lote: true }));
+                    setDetalleErrors((prev) => ({
+                      ...prev,
+                      lote: validateOne("lote", detalleEdit),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    detalleTouched.lote && detalleErrors.lote ? "border-red-500" : "border-gray-300"
+                  }`}
                 />
+                {detalleTouched.lote && detalleErrors.lote && (
+                  <p className="mt-1 text-xs text-red-600">{detalleErrors.lote}</p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Marca</label>
-                <input
-                  type="text"
-                  value={detalleEdit.marca}
-                  onChange={(e) => setDetalleEdit((p) => ({ ...p, marca: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
-
+              {/* Fecha vencimiento */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  Fecha de vencimiento
+                  Fecha de vencimiento{" "}
+                  <span className="text-xs text-gray-400">(opcional)</span>
                 </label>
                 <input
                   type="date"
+                  min={minExpiryDateStr}
                   value={detalleEdit.fechaVencimiento}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({
-                      ...p,
-                      fechaVencimiento: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
+                  onChange={(e) => {
+                    const next = { ...detalleEdit, fechaVencimiento: e.target.value };
+                    setDetalleEdit(next);
+
+                    if (detalleTouched.fechaVencimiento) {
+                      setDetalleErrors((prev) => ({
+                        ...prev,
+                        fechaVencimiento: validateOne("fechaVencimiento", next),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setDetalleTouched((t) => ({ ...t, fechaVencimiento: true }));
+                    setDetalleErrors((prev) => ({
+                      ...prev,
+                      fechaVencimiento: validateOne("fechaVencimiento", detalleEdit),
+                    }));
+                  }}
+                  className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                    detalleTouched.fechaVencimiento && detalleErrors.fechaVencimiento
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
+                {detalleTouched.fechaVencimiento && detalleErrors.fechaVencimiento && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {detalleErrors.fechaVencimiento}
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Permitido desde: <b>{minExpiryDateStr}</b>
+                </p>
               </div>
             </div>
 
@@ -1552,7 +1892,12 @@ export default function IndexRegisterPurchase() {
               <button
                 type="button"
                 onClick={guardarCambiosDetalles}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                disabled={detalleDisabled}
+                className={`px-4 py-2 rounded text-white ${
+                  detalleDisabled
+                    ? "bg-green-300 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
               >
                 Guardar cambios
               </button>

@@ -2,8 +2,11 @@ import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAtuh";
+
 import ondas from "../../assets/ondasHorizontal.png";
+
 import Paginator from "../../shared/components/paginator";
 import {
   ViewButton,
@@ -11,18 +14,42 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
+
 import PurchaseDetailModal from "./PurchaseDetailModal";
 
-// Helpers
+// ✅ Helpers exportación
+import { exportPurchasesToExcel } from "./helper/exportPurchasesExcel";
+import { exportPurchasesToPdf } from "./helper/exportPurchasesPdf";
+
+// Helpers UI
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
+
+// ✅ Anulación (30 minutos)
+const MAX_MINUTES_ANNUL = 30;
+const diffMinutesFromNow = (isoDate) => {
+  const t = new Date(isoDate).getTime();
+  if (Number.isNaN(t)) return Infinity;
+  return (Date.now() - t) / 60000;
+};
+const canAnnulPurchase = (purchase) => {
+  const mins = diffMinutesFromNow(purchase?.fecha);
+  return mins >= 0 && mins < MAX_MINUTES_ANNUL;
+};
+const isAnulada = (estado) => {
+  const s = String(estado || "").toLowerCase();
+  return s === "anulada" || s === "anulado";
+};
 
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
   const canCreate = hasPermission("Crear compra");
-  // const canAnnular = hasPermission("Anular compra");
+  const canAnnular = hasPermission("Anular compra"); // ✅
+
+  // ✅ fuerza refresh de compras cuando se anula
+  const [comprasVersion, setComprasVersion] = useState(0);
 
   // =========================
   // Facturas (lookup por facturaId)
@@ -53,9 +80,7 @@ export default function IndexPurchases() {
       const arr = Array.isArray(raw) ? raw : [];
 
       return arr.map((c) => {
-        // =========================
-        // ✅ Número de factura (prioridad)
-        // =========================
+        // ✅ Número de factura
         const numeroDirecto =
           c?.numero_factura ??
           c?.num_factura ??
@@ -66,7 +91,7 @@ export default function IndexPurchases() {
           c?.factura?.num_factura ??
           (typeof c?.factura === "string" ? c.factura : null);
 
-        // Si solo trae facturaId, buscar en localStorage.facturas
+        // Lookup si solo viene facturaId
         const facturaId =
           c?.facturaId ??
           c?.id_factura ??
@@ -86,12 +111,9 @@ export default function IndexPurchases() {
           facturaLookup?.numero ??
           null;
 
-        // ✅ NO usar comprobante como fallback
         const numeroFacturaFinal = numeroDirecto ?? numeroDesdeLookup ?? "—";
 
-        // =========================
         // Proveedor / NIT
-        // =========================
         const proveedorNombre =
           c?.proveedor?.nombre ??
           (typeof c?.proveedor === "string" ? c.proveedor : null) ??
@@ -99,9 +121,7 @@ export default function IndexPurchases() {
 
         const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
 
-        // =========================
         // Fecha / Estado
-        // =========================
         const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
         const estado = c?.estado ?? "Completada";
 
@@ -121,7 +141,7 @@ export default function IndexPurchases() {
     } catch {
       return [];
     }
-  }, [facturasById]);
+  }, [facturasById, comprasVersion]);
 
   // =========================
   // UI State
@@ -130,12 +150,12 @@ export default function IndexPurchases() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Modal
+  // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // =========================
-  // Derived state (filtro + paginación)
+  // Filtro + Paginación
   // =========================
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
@@ -160,7 +180,7 @@ export default function IndexPurchases() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
+  }, [filtered, currentPage]);
 
   // =========================
   // Handlers
@@ -183,6 +203,94 @@ export default function IndexPurchases() {
     setSelectedPurchase(null);
   }, []);
 
+  // ✅ Anular compra (alertas estilo ventas)
+  const handleAnnulPurchase = useCallback(
+    async (purchase) => {
+      if (!purchase) return;
+
+      if (!canAnnular) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Sin permisos",
+          text: "No tienes permisos para anular compras.",
+          confirmButtonColor: "#16a34a",
+        });
+        return;
+      }
+
+      if (isAnulada(purchase.estado)) {
+        await Swal.fire({
+          icon: "info",
+          title: "Compra anulada",
+          text: "Esta compra ya fue anulada previamente.",
+          confirmButtonColor: "#16a34a",
+        });
+        return;
+      }
+
+      const mins = diffMinutesFromNow(purchase.fecha);
+      if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
+        await Swal.fire({
+          icon: "error",
+          title: "Tiempo agotado",
+          html: `
+            <p>No se puede anular esta compra.</p>
+            <p>El tiempo máximo para anular es de <b>${MAX_MINUTES_ANNUL} minutos</b>.</p>
+          `,
+          confirmButtonColor: "#16a34a",
+        });
+        return;
+      }
+
+      const { isConfirmed } = await Swal.fire({
+        icon: "warning",
+        title: "¿Anular compra?",
+        html: `
+          <p>¿Está seguro de anular la compra:</p>
+          <p><b>${purchase.factura}</b>?</p>
+          <p style="font-size:12px;color:#6b7280;margin-top:6px;">
+            Esta acción no se puede deshacer.
+          </p>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Sí, anular",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#dc2626",
+        cancelButtonColor: "#6b7280",
+      });
+
+      if (!isConfirmed) return;
+
+      const raw = JSON.parse(localStorage.getItem("compras")) || [];
+      const arr = Array.isArray(raw) ? raw : [];
+
+      const updated = arr.map((c) => {
+        const id = c?.id ?? c?._id ?? "";
+        if (String(id) !== String(purchase.id)) return c;
+
+        return {
+          ...c,
+          estado: "Anulada",
+          anulada_at: new Date().toISOString(),
+        };
+      });
+
+      localStorage.setItem("compras", JSON.stringify(updated));
+      setComprasVersion((v) => v + 1);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Compra anulada",
+        text: "La compra fue anulada correctamente.",
+        confirmButtonColor: "#16a34a",
+      });
+    },
+    [canAnnular]
+  );
+
+  // =========================
+  // Print Compra
+  // =========================
   const handlePrint = useCallback((purchase) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
@@ -201,7 +309,7 @@ export default function IndexPurchases() {
           <tr>
             <td>${nombre}</td>
             <td>${cantidad}</td>
-            <td>$${precio.toFixed(2)}</td>
+            <td>$${precio.toFixed(0)}</td>
           </tr>
         `;
       })
@@ -215,7 +323,7 @@ export default function IndexPurchases() {
             body { font-family: Arial; padding: 20px; }
             h2 { text-align: center; color: #16a34a; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
             th { background-color: #f4f4f4; }
           </style>
         </head>
@@ -225,9 +333,14 @@ export default function IndexPurchases() {
           <p><b>Proveedor:</b> ${purchase.proveedor}</p>
           <p><b>NIT:</b> ${purchase.nit}</p>
           <p><b>Total:</b> ${money(purchase.total)}</p>
+
           <table>
             <thead>
-              <tr><th>Producto</th><th>Cantidad</th><th>Precio</th></tr>
+              <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+              </tr>
             </thead>
             <tbody>${productosHtml}</tbody>
           </table>
@@ -267,7 +380,6 @@ export default function IndexPurchases() {
         }}
       />
 
-      {/* Contenedor principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
         <div className="relative z-10">
           {/* Header */}
@@ -300,8 +412,20 @@ export default function IndexPurchases() {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
+              <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
+                Excel
+              </ExportExcelButton>
+
+              <ExportPDFButton
+                event={() =>
+                  exportPurchasesToPdf({
+                    rows: filtered,
+                    filename: "compras.pdf",
+                  })
+                }
+              >
+                PDF
+              </ExportPDFButton>
 
               <button
                 onClick={() => navigate("/app/purchases/register")}
@@ -318,13 +442,13 @@ export default function IndexPurchases() {
             <div className="overflow-x-auto">
               <table className="min-w-full table-fixed">
                 <colgroup>
-                  <col className="w-[160px]" /> {/* Factura */}
-                  <col className="w-[260px]" /> {/* Proveedor */}
-                  <col className="w-[160px]" /> {/* NIT */}
-                  <col className="w-[140px]" /> {/* Total */}
-                  <col className="w-[160px]" /> {/* Fecha */}
-                  <col className="w-[140px]" /> {/* Estado */}
-                  <col className="w-[120px]" /> {/* Acciones */}
+                  <col className="w-[160px]" />
+                  <col className="w-[260px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[120px]" />
                 </colgroup>
 
                 <thead>
@@ -348,7 +472,10 @@ export default function IndexPurchases() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                       >
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
                           No se encontraron compras.
                         </td>
                       </motion.tr>
@@ -381,18 +508,40 @@ export default function IndexPurchases() {
                             {onlyDate(p.fecha)}
                           </td>
 
+                          {/* ✅ Estado clickeable: si es Anulada => rojo */}
                           <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
-                                p.estado === "Completada" || p.estado === "Completado"
-                                  ? "bg-green-50 text-green-700"
-                                  : p.estado === "Pendiente"
-                                  ? "bg-yellow-50 text-yellow-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
+                            <button
+                              type="button"
+                              onClick={() => handleAnnulPurchase(p)}
+                              disabled={!canAnnular || isAnulada(p.estado)}
+                              title={
+                                !canAnnular
+                                  ? "No tienes permiso para anular"
+                                  : isAnulada(p.estado)
+                                  ? "Esta compra ya está anulada"
+                                  : canAnnulPurchase(p)
+                                  ? "Click para anular (menos de 30 min)"
+                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                              }
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
+                                ${
+                                  !canAnnular || isAnulada(p.estado)
+                                    ? "opacity-70 cursor-not-allowed"
+                                    : "cursor-pointer hover:opacity-90"
+                                }
+                                ${
+                                  isAnulada(p.estado)
+                                    ? "bg-red-100 text-red-700" // ✅ rojo como ventas
+                                    : p.estado === "Completada" ||
+                                      p.estado === "Completado"
+                                    ? "bg-green-50 text-green-700"
+                                    : p.estado === "Pendiente"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
                             >
                               {p.estado}
-                            </span>
+                            </button>
                           </td>
 
                           <td className="px-4 py-3 text-right">
@@ -421,9 +570,12 @@ export default function IndexPurchases() {
         </div>
       </div>
 
-      {/* Modal de detalle */}
+      {/* Modal */}
       {isDetailOpen && (
-        <PurchaseDetailModal purchase={selectedPurchase} onClose={handleCloseModal} />
+        <PurchaseDetailModal
+          purchase={selectedPurchase}
+          onClose={handleCloseModal}
+        />
       )}
     </div>
   );
