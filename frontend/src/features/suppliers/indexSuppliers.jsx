@@ -309,6 +309,7 @@ export default function IndexSuppliers() {
                 <button
                   onClick={() => setIsModalOpen(true)}
                   className="h-10 px-4 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                  disabled={!canCreate}
                 >
                   Registrar Nuevo Proveedor
                 </button>

@@ -496,6 +496,15 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
                   </button>
                 </div>
               </form>
+              {/* Overlay de carga mientras se actualiza el rol */}
+              {isUpdating && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-700 font-medium">Actualizando rol...</p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </>

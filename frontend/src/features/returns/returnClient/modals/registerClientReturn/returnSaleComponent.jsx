@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from "react";
-import { Search, Receipt, X, Minus, Plus, ChevronDown } from "lucide-react";
+import React, { useState } from "react";
+import { X, Minus, Plus, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CompleteReturn from "./completeReturn";
+import SalesSearch from "./searchSale";
 
 const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
   const [returnProducts, setReturnProducts] = useState([]);
   const [isCompleteReturnOpen, setIsCompleteReturnOpen] = useState(false);
@@ -18,46 +17,6 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
     { value: "producto_no_requerido", label: "Producto no requerido" },
   ];
 
-  const sales = [
-    {
-      id: "V001",
-      fecha: "2023-12-05",
-      cliente: "Carlos López",
-      total: 150000,
-      medioPago: "Efectivo",
-      estado: "Completada",
-      codigoBarras: "987654321098",
-      products: [
-        { id: 1, name: "Producto Premium A", quantity: 2, salePrice: 35500 },
-        { id: 2, name: "Producto Básico B", quantity: 3, salePrice: 22999 },
-      ],
-    },
-    {
-      id: "V002",
-      fecha: "2023-12-10",
-      cliente: "María García",
-      total: 220000,
-      medioPago: "Tarjeta",
-      estado: "Completada",
-      codigoBarras: "123456789012",
-      products: [
-        { id: 3, name: "Producto Económico D", quantity: 4, salePrice: 15000 },
-        { id: 4, name: "Producto Premium E", quantity: 2, salePrice: 80000 },
-      ],
-    },
-  ];
-
-  const filteredSales = useMemo(() => {
-    if (!searchTerm) return [];
-    return sales.filter(
-      (sale) =>
-        sale.estado.toLowerCase() === "completada" &&
-        (sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sale.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sale.codigoBarras.includes(searchTerm))
-    );
-  }, [searchTerm]);
-
   const formatPrice = (price) =>
     new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -67,16 +26,20 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
 
   const handleSelectSale = (sale) => {
     setSelectedSale(sale);
+    const products = Array.isArray(sale?.detalle_venta) ? sale.detalle_venta : [];
     setReturnProducts(
-      sale.products.map((product) => ({
-        ...product,
+      products.map((product) => ({
+        id: product?.id_detalle,
+        name:
+          product?.detalle_productos?.productos?.nombre?.trim() ||
+          "Producto sin nombre",
+        quantity: product?.cantidad || 0,
+        salePrice: Number(product?.precio_unitario) || 0,
         returnQuantity: 0,
         selected: false,
         reason: "",
       }))
     );
-    setSearchTerm("");
-    setShowDropdown(false);
     setProductReasonDropdowns({});
   };
 
@@ -165,55 +128,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
 
                 {/* Buscador */}
                 <div className="mb-4 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por ID de venta o cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onFocus={() => setShowDropdown(true)}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base"
-                  />
-                  <AnimatePresence>
-                    {showDropdown && searchTerm && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute left-0 right-0 top-full z-50 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 max-h-64 overflow-y-auto overscroll-contain"
-                      >
-                        {filteredSales.map((sale) => (
-                          <motion.div
-                            key={sale.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="flex items-center justify-between p-3 hover:bg-emerald-50 cursor-pointer"
-                            onClick={() => handleSelectSale(sale)}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center">
-                                <Receipt className="w-5 h-5 text-emerald-600" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-semibold text-gray-800">
-                                  {sale.cliente}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  ID: {sale.id} • {sale.fecha}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="font-semibold text-gray-800 text-sm">
-                              {formatPrice(sale.total)}
-                            </span>
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <SalesSearch onSelectSale={handleSelectSale} />
                 </div>
 
                 {/* Productos */}
@@ -227,7 +142,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
                       className="space-y-4 mt-6"
                     >
                       <h2 className="text-base font-bold text-gray-800">
-                        Productos de la venta {selectedSale.id}
+                        Productos de la venta {selectedSale.id_venta}
                       </h2>
                       <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
                         {returnProducts.map((p) => (

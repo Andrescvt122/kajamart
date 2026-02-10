@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
+import { useAuth } from "../../../../../context/useAtuh";
+import { usePostReturnClients } from "../../../../../shared/components/hooks/returnClients/usePostReturnClients";
 // Componente ProductSearch optimizado integrado
 
 const CompleteReturn = ({
@@ -22,6 +24,8 @@ const CompleteReturn = ({
   productsToReturn,
   returnTotal,
 }) => {
+  const { payload: payloadId } = useAuth();
+  const { postReturnClients } = usePostReturnClients();
   const [newProducts, setNewProducts] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -44,15 +48,23 @@ const CompleteReturn = ({
 
   // Al añadir, nos aseguramos de no permitir requestedQuantity > stock
   const handleAddProduct = (product) => {
+    const normalized = {
+      id: product.id ?? product.id_detalle_producto,
+      name: product.name ?? product.productos?.nombre ?? "",
+      quantity: Number(product.quantity ?? product.stock_producto ?? 0),
+      salePrice: Number(product.salePrice ?? product.productos?.precio_venta ?? 0),
+      requestedQuantity: Number(product.requestedQuantity ?? 0),
+    };
+
     // normalize requestedQuantity
-    const requested = Math.max(0, product.requestedQuantity || 0);
-    const allowed = Math.min(requested, product.quantity || requested);
+    const requested = Math.max(0, normalized.requestedQuantity || 0);
+    const allowed = Math.min(requested, normalized.quantity || requested);
 
     if (requested > allowed) {
-      alert(`No hay suficiente stock. Stock disponible: ${product.quantity}`);
+      alert(`No hay suficiente stock. Stock disponible: ${normalized.quantity}`);
     }
 
-    const toAdd = { ...product, requestedQuantity: allowed };
+    const toAdd = { ...normalized, requestedQuantity: allowed };
 
     setNewProducts((prev) => {
       const existingProductIndex = prev.findIndex((p) => p.id === toAdd.id);
@@ -94,18 +106,92 @@ const CompleteReturn = ({
     );
   };
 
-  const handleConfirmReturn = () => {
-    // Simulación de una llamada a la API
+  const getReturnReasonLabel = (reason) => {
+    switch (reason) {
+      case "producto_dañado":
+        return "Producto dañado";
+      case "producto_vencido":
+        return "Producto vencido";
+      case "producto_incorrecto":
+        return "Producto incorrecto";
+      case "producto_no_requerido":
+        return "Producto no requerido";
+      default:
+        return "No especificado";
+    }
+  };
+
+  const getReturnCondition = (reason) => {
+    switch (reason) {
+      case "producto_dañado":
+        return "dañado";
+      case "producto_vencido":
+        return "vencido";
+      case "producto_incorrecto":
+      case "producto_no_requerido":
+        return "bueno";
+      default:
+        return "bueno";
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!selectedSale?.id_venta) {
+      alert("Debe seleccionar una venta antes de continuar.");
+      return;
+    }
+
+    const id_responsable = payloadId?.uid;
+    if (!id_responsable) {
+      alert("No se encontró el responsable para registrar la devolución.");
+      return;
+    }
+
+    const productosVenta = productsToReturn
+      .filter((product) => product.returnQuantity > 0)
+      .map((product) => ({
+        id_detalle_venta: product.id,
+        cantidad: product.returnQuantity,
+        motivo: getReturnReasonLabel(product.reason),
+        valor_unitario: product.salePrice * product.returnQuantity,
+        condicion: getReturnCondition(product.reason),
+      }));
+
+    const productosEntrega = newProducts
+      .filter((product) => product.requestedQuantity > 0)
+      .map((product) => ({
+        id_detalle_producto: product.id,
+        cantidad: product.requestedQuantity,
+        valor_unitario: product.salePrice * product.requestedQuantity,
+      }));
+
+    const payload = {
+      id_responsable,
+      id_venta: selectedSale.id_venta,
+      total_devolucion_cliente: returnTotal,
+      total_devolucion_producto: newProductsTotal,
+      productosVenta,
+      productosEntrega,
+    };
+
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      const response = await postReturnClients(payload);
+      if (response) {
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setIsOpen(false);
+        }, 3000);
+      } else {
+        alert("No fue posible registrar la devolución.");
+      }
+    } catch (error) {
+      console.error("❌ Error al registrar devolución:", error);
+      alert("No fue posible registrar la devolución.");
+    } finally {
       setIsProcessing(false);
-      setShowSuccessMessage(true);
-      console.log("Devolución procesada con éxito.");
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        setIsOpen(false);
-      }, 3000);
-    }, 2000);
+    }
   };
   const validationReason = (rason) =>{
     switch (rason) {

@@ -13,107 +13,115 @@ import {
 } from "../../shared/components/buttons";
 import PurchaseDetailModal from "./PurchaseDetailModal";
 
+// Helpers
+const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
+const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
+
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+
   const canCreate = hasPermission("Crear compra");
-  const canAnnular = hasPermission("Anular compra");
+  // const canAnnular = hasPermission("Anular compra");
+
   // =========================
-  // Mock (temporal) -> luego se reemplaza por hook/API
+  // Facturas (lookup por facturaId)
   // =========================
-  const purchases = useMemo(
-    () => [
-      {
-        id: "C001",
-        factura: "FAC-0001",
-        proveedor: "Global Supplies Inc.",
-        nit: "900123456-1",
-        subtotal: 1200,
-        total: 1608,
-        fecha: "2024-07-26",
-        estado: "Completada",
-        productos: [
-          { nombre: "Papel A4", cantidad: 10, precio: 12 },
-          { nombre: "Tinta HP", cantidad: 3, precio: 45 },
-        ],
-      },
-      {
-        id: "C002",
-        factura: "FAC-0002",
-        proveedor: "Local Goods Co.",
-        nit: "900987654-2",
-        subtotal: 850,
-        total: 918,
-        fecha: "2024-07-25",
-        estado: "Anulada",
-        productos: [
-          { nombre: "Cajas de cartón", cantidad: 5, precio: 20 },
-          { nombre: "Cinta adhesiva", cantidad: 10, precio: 3 },
-        ],
-      },
-      {
-        id: "C003",
-        factura: "FAC-0003",
-        proveedor: "Tech Hardware Ltd.",
-        nit: "900112233-3",
-        subtotal: 2300,
-        total: 2777,
-        fecha: "2024-07-24",
-        estado: "Completada",
-        productos: [
-          { nombre: "Mouse inalámbrico", cantidad: 15, precio: 25 },
-          { nombre: "Teclado mecánico", cantidad: 10, precio: 75 },
-          { nombre: "USB 32GB", cantidad: 20, precio: 10 },
-        ],
-      },
-      {
-        id: "C004",
-        factura: "FAC-0004",
-        proveedor: "Office Essentials",
-        nit: "900445566-4",
-        subtotal: 1450,
-        total: 1705,
-        fecha: "2024-07-23",
-        estado: "Pendiente",
-        productos: [
-          { nombre: "Archivadores", cantidad: 12, precio: 15 },
-          { nombre: "Marcadores", cantidad: 30, precio: 2 },
-          { nombre: "Resmas de papel", cantidad: 8, precio: 14 },
-        ],
-      },
-      {
-        id: "C005",
-        factura: "FAC-0005",
-        proveedor: "Industrial Tools SA",
-        nit: "900667788-5",
-        subtotal: 3100,
-        total: 3725,
-        fecha: "2024-07-22",
-        estado: "Completada",
-        productos: [
-          { nombre: "Taladros eléctricos", cantidad: 5, precio: 200 },
-          { nombre: "Martillos", cantidad: 20, precio: 25 },
-          { nombre: "Destornilladores", cantidad: 50, precio: 5 },
-        ],
-      },
-      {
-        id: "C006",
-        factura: "FAC-0006",
-        proveedor: "Stationery World",
-        nit: "900998877-6",
-        subtotal: 600,
-        total: 708,
-        fecha: "2024-07-21",
-        estado: "Completada",
-        productos: [
-          { nombre: "Lápices", cantidad: 50, precio: 1 },
-          { nombre: "Gomas de borrar", cantidad: 20, precio: 2 },
-          { nombre: "Cuadernos", cantidad: 10, precio: 10 },
-        ],
-      },
-    ],
-    []
-  );
+  const [facturas, setFacturas] = useState([]);
+
+  useEffect(() => {
+    const data = JSON.parse(localStorage.getItem("facturas")) || [];
+    setFacturas(Array.isArray(data) ? data : []);
+  }, []);
+
+  const facturasById = useMemo(() => {
+    const map = new Map();
+    for (const f of facturas) {
+      const id = f?.id_factura ?? f?.id ?? f?._id;
+      if (!id) continue;
+      map.set(String(id), f);
+    }
+    return map;
+  }, [facturas]);
+
+  // =========================
+  // Purchases (localStorage)
+  // =========================
+  const purchases = useMemo(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("compras")) || [];
+      const arr = Array.isArray(raw) ? raw : [];
+
+      return arr.map((c) => {
+        // =========================
+        // ✅ Número de factura (prioridad)
+        // =========================
+        const numeroDirecto =
+          c?.numero_factura ??
+          c?.num_factura ??
+          c?.numeroFactura ??
+          c?.factura_numero ??
+          c?.facturaNumero ??
+          c?.factura?.numero_factura ??
+          c?.factura?.num_factura ??
+          (typeof c?.factura === "string" ? c.factura : null);
+
+        // Si solo trae facturaId, buscar en localStorage.facturas
+        const facturaId =
+          c?.facturaId ??
+          c?.id_factura ??
+          c?.factura_id ??
+          c?.factura?.id_factura ??
+          c?.factura?.id ??
+          c?.factura?._id;
+
+        const facturaLookup = facturaId
+          ? facturasById.get(String(facturaId))
+          : null;
+
+        const numeroDesdeLookup =
+          facturaLookup?.numero_factura ??
+          facturaLookup?.num_factura ??
+          facturaLookup?.numeroFactura ??
+          facturaLookup?.numero ??
+          null;
+
+        // ✅ NO usar comprobante como fallback
+        const numeroFacturaFinal = numeroDirecto ?? numeroDesdeLookup ?? "—";
+
+        // =========================
+        // Proveedor / NIT
+        // =========================
+        const proveedorNombre =
+          c?.proveedor?.nombre ??
+          (typeof c?.proveedor === "string" ? c.proveedor : null) ??
+          "—";
+
+        const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
+
+        // =========================
+        // Fecha / Estado
+        // =========================
+        const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+        const estado = c?.estado ?? "Completada";
+
+        return {
+          id: c?.id ?? c?._id ?? "",
+          factura: String(numeroFacturaFinal),
+          proveedor: proveedorNombre,
+          nit: String(proveedorNit ?? "—"),
+          total: Number(c?.total ?? 0),
+          fecha,
+          estado,
+          productos: Array.isArray(c?.productos) ? c.productos : [],
+          comprobante: c?.comprobante ?? null,
+          raw: c,
+        };
+      });
+    } catch {
+      return [];
+    }
+  }, [facturasById]);
 
   // =========================
   // UI State
@@ -134,7 +142,7 @@ export default function IndexPurchases() {
     if (!s) return purchases;
 
     return purchases.filter((p) =>
-      `${p.proveedor} ${p.estado} ${p.fecha} ${p.factura} ${p.nit}`
+      `${p.proveedor} ${p.estado} ${onlyDate(p.fecha)} ${p.factura} ${p.nit}`
         .toLowerCase()
         .includes(s)
     );
@@ -145,7 +153,6 @@ export default function IndexPurchases() {
     [filtered.length]
   );
 
-  // Asegura que currentPage no quede fuera de rango si cambia el filtro
   useEffect(() => {
     setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
   }, [totalPages]);
@@ -153,7 +160,7 @@ export default function IndexPurchases() {
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage]);
 
   // =========================
   // Handlers
@@ -185,14 +192,19 @@ export default function IndexPurchases() {
     document.body.appendChild(iframe);
 
     const productosHtml = (purchase.productos || [])
-      .map(
-        (p) =>
-          `<tr>
-            <td>${p.nombre}</td>
-            <td>${p.cantidad}</td>
-            <td>$${Number(p.precio || 0).toFixed(2)}</td>
-          </tr>`
-      )
+      .map((p) => {
+        const nombre = p?.nombre ?? "—";
+        const cantidad = Number(p?.cantidad ?? 0);
+        const precio = Number(p?.precioCompra ?? p?.precio ?? 0);
+
+        return `
+          <tr>
+            <td>${nombre}</td>
+            <td>${cantidad}</td>
+            <td>$${precio.toFixed(2)}</td>
+          </tr>
+        `;
+      })
       .join("");
 
     const contenido = `
@@ -209,10 +221,10 @@ export default function IndexPurchases() {
         </head>
         <body>
           <h2>Detalle de Compra - ${purchase.factura}</h2>
-          <p><b>Fecha:</b> ${purchase.fecha}</p>
+          <p><b>Fecha:</b> ${onlyDate(purchase.fecha)}</p>
           <p><b>Proveedor:</b> ${purchase.proveedor}</p>
           <p><b>NIT:</b> ${purchase.nit}</p>
-          <p><b>Total:</b> $${Number(purchase.total || 0).toFixed(2)}</p>
+          <p><b>Total:</b> ${money(purchase.total)}</p>
           <table>
             <thead>
               <tr><th>Producto</th><th>Cantidad</th><th>Precio</th></tr>
@@ -303,81 +315,99 @@ export default function IndexPurchases() {
 
           {/* Tabla */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
-                  <th className="px-6 py-4">Fecha</th>
-                  <th className="px-6 py-4">N° Factura</th>
-                  <th className="px-6 py-4">Proveedor</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
+                <colgroup>
+                  <col className="w-[160px]" /> {/* Factura */}
+                  <col className="w-[260px]" /> {/* Proveedor */}
+                  <col className="w-[160px]" /> {/* NIT */}
+                  <col className="w-[140px]" /> {/* Total */}
+                  <col className="w-[160px]" /> {/* Fecha */}
+                  <col className="w-[140px]" /> {/* Estado */}
+                  <col className="w-[120px]" /> {/* Acciones */}
+                </colgroup>
 
-              <tbody className="divide-y divide-gray-100">
-                <AnimatePresence>
-                  {pageItems.length === 0 ? (
-                    <motion.tr
-                      key="empty"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <td
-                        colSpan={6}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
-                        No se encontraron compras.
-                      </td>
-                    </motion.tr>
-                  ) : (
-                    pageItems.map((p) => (
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                    <th className="px-4 py-4">N° Factura</th>
+                    <th className="px-4 py-4">Proveedor</th>
+                    <th className="px-4 py-4">NIT</th>
+                    <th className="px-4 py-4 text-right">Total</th>
+                    <th className="px-4 py-4">Fecha</th>
+                    <th className="px-4 py-4">Estado</th>
+                    <th className="px-4 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+                  <AnimatePresence>
+                    {pageItems.length === 0 ? (
                       <motion.tr
-                        key={p.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="hover:bg-gray-50"
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {p.fecha}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                          {p.factura}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {p.proveedor}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          ${Number(p.total || 0).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              p.estado === "Completada"
-                                ? "bg-green-50 text-green-700"
-                                : p.estado === "Pendiente"
-                                ? "bg-yellow-50 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                            disabled={!canAnnular}
-                          >
-                            {p.estado}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <ViewButton event={() => handleViewDetails(p)} />
-                            <PrinterButton alert={() => handlePrint(p)} />
-                          </div>
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                          No se encontraron compras.
                         </td>
                       </motion.tr>
-                    ))
-                  )}
-                </AnimatePresence>
-              </tbody>
-            </table>
+                    ) : (
+                      pageItems.map((p) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
+                            {p.factura}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 truncate">
+                            {p.proveedor}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
+                            {p.nit}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                            {money(p.total)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {onlyDate(p.fecha)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                p.estado === "Completada" || p.estado === "Completado"
+                                  ? "bg-green-50 text-green-700"
+                                  : p.estado === "Pendiente"
+                                  ? "bg-yellow-50 text-yellow-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {p.estado}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <ViewButton event={() => handleViewDetails(p)} />
+                              <PrinterButton alert={() => handlePrint(p)} />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Paginación */}
