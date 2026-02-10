@@ -52,7 +52,7 @@ export default function RoutesAdmin() {
     users: hasPermission("Ver usuarios"),
     roles: hasPermission("Ver roles"),
     products: hasPermission("Ver productos"),
-    categories: hasPermission("Ver categorías"),
+    categories: hasPermission("Ver categorias"),
     suppliers: hasPermission("Ver proveedores"),
     clients: hasPermission("Ver clientes"),
     purchases: hasPermission("Ver compras"),
