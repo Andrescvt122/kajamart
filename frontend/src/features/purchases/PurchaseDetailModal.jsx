@@ -1,20 +1,17 @@
 // PurchaseDetailModal.jsx
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
 
-// ✅ Formatea el ID de compra como "1", "2", "3"... (sin ceros)
-// - Si viene numérico: lo deja tal cual
-// - Si viene como string numérica: la convierte a número
-// - Si viene algo raro (uuid): muestra el valor original
+// ID compra sin ceros
 const formatPurchaseId = (val) => {
   if (val == null) return "—";
   const s = String(val).trim();
   if (!s) return "—";
   const n = Number(s);
   if (Number.isFinite(n) && n > 0) return String(Math.trunc(n));
-  return s; // fallback (por si viene _id tipo mongo/uuid)
+  return s;
 };
 
 const computeSubtotal = (p) => {
@@ -33,7 +30,18 @@ const computeSubtotal = (p) => {
   return base + iva + icu;
 };
 
+// ✅ Detecta imagen por extensión (jpg, png, etc.) y/o mimetype si existe
+const isImageLike = (url = "", mime = "") => {
+  const m = String(mime || "").toLowerCase();
+  if (m.startsWith("image/")) return true;
+
+  const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
+  return /\.(jpg|jpeg|png|gif|webp|bmp|svg|tif|tiff|ico|avif)$/i.test(clean);
+};
+
 export default function PurchaseDetailModal({ purchase, onClose }) {
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
+
   const productos = useMemo(() => {
     const arr = purchase?.productos;
     return Array.isArray(arr) ? arr : [];
@@ -53,14 +61,21 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     };
   }, [purchase]);
 
+  // ✅ reset visor si cambia la compra
+  useEffect(() => {
+    if (!purchase) return;
+    setShowReceiptViewer(false);
+  }, [purchase]);
+
   if (!purchase) return null;
 
   // =========================
-  // Normalización de datos (ordenado)
+  // Normalización de datos
   // =========================
   const purchaseId = formatPurchaseId(purchase?.id ?? purchase?._id);
 
-  const fechaRaw = purchase?.fecha ?? purchase?.fecha_registro ?? purchase?.createdAt ?? null;
+  const fechaRaw =
+    purchase?.fecha ?? purchase?.fecha_registro ?? purchase?.createdAt ?? null;
   const fecha = fechaRaw
     ? new Date(fechaRaw).toLocaleString("es-CO", {
         year: "numeric",
@@ -71,8 +86,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
       })
     : "—";
 
-  const proveedorNombre =
-    purchase?.proveedor?.nombre ?? purchase?.proveedor ?? "—";
+  const proveedorNombre = purchase?.proveedor?.nombre ?? purchase?.proveedor ?? "—";
   const proveedorNit = purchase?.proveedor?.nit ?? purchase?.nit ?? "—";
 
   const numFactura =
@@ -82,11 +96,34 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     purchase?.factura ??
     "—";
 
-  const comprobante =
-    purchase?.comprobante?.name ??
+  // =========================
+  // ✅ Comprobante: admite url string u objeto {url,name,mimetype}
+  // =========================
+  const receiptObj =
+    typeof purchase?.comprobante === "object" && purchase?.comprobante
+      ? purchase.comprobante
+      : null;
+
+  const receiptUrl =
+    receiptObj?.url ??
+    purchase?.comprobante_pago?.url ??
     purchase?.comprobante_pago ??
-    purchase?.comprobante ??
-    "—";
+    (typeof purchase?.comprobante === "string" ? purchase.comprobante : null) ??
+    purchase?.comprobante?.path ??
+    null;
+
+  const receiptName =
+    receiptObj?.name ??
+    receiptObj?.nombre ??
+    purchase?.comprobante?.name ??
+    purchase?.comprobante?.nombre ??
+    "Comprobante";
+
+  const receiptMime =
+    receiptObj?.mimetype ?? receiptObj?.mime ?? purchase?.comprobante?.mimetype ?? "";
+
+  const hasReceipt = Boolean(receiptUrl);
+  const receiptIsImage = hasReceipt ? isImageLike(receiptUrl, receiptMime) : false;
 
   return (
     <AnimatePresence>
@@ -112,9 +149,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                 Detalles de la Compra
               </h3>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                {numFactura !== "—"
-                  ? `Factura: ${numFactura}`
-                  : "Factura no registrada"}
+                {numFactura !== "—" ? `Factura: ${numFactura}` : "Factura no registrada"}
               </p>
             </div>
 
@@ -133,66 +168,122 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
             {/* Info general */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  ID compra
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {purchaseId}
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">ID compra</p>
+                <p className="font-semibold text-gray-900 break-words">{purchaseId}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  Fecha
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {fecha}
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">Fecha</p>
+                <p className="font-semibold text-gray-900 break-words">{fecha}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  Proveedor
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {proveedorNombre}
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">Proveedor</p>
+                <p className="font-semibold text-gray-900 break-words">{proveedorNombre}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  NIT
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {proveedorNit}
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">NIT</p>
+                <p className="font-semibold text-gray-900 break-words">{proveedorNit}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  N° Factura
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {numFactura}
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">N° Factura</p>
+                <p className="font-semibold text-gray-900 break-words">{numFactura}</p>
               </div>
 
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  Estado
-                </p>
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">Estado</p>
                 <p className="font-semibold text-gray-900 break-words">
                   {purchase?.estado ?? "—"}
                 </p>
               </div>
 
+              {/* ✅ Comprobante + botón */}
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 sm:col-span-2">
-                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                  Comprobante
-                </p>
-                <p className="font-semibold text-gray-900 break-words">
-                  {comprobante}
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                      Comprobante
+                    </p>
+                    <p className="font-semibold text-gray-900 break-words">
+                      {hasReceipt ? receiptName : "—"}
+                    </p>
+                    {hasReceipt && (
+                      <p className="text-xs text-gray-500 mt-1 break-all">{receiptUrl}</p>
+                    )}
+                  </div>
+
+                  <div className="shrink-0 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!hasReceipt}
+                      onClick={() => setShowReceiptViewer((v) => !v)}
+                      className={[
+                        "px-3 py-2 rounded-lg text-sm font-semibold",
+                        hasReceipt
+                          ? "bg-white border border-gray-200 hover:bg-gray-100 text-gray-800"
+                          : "bg-gray-100 text-gray-400 cursor-not-allowed",
+                      ].join(" ")}
+                    >
+                      {showReceiptViewer ? "Ocultar" : "Ver comprobante"}
+                    </button>
+
+                    {hasReceipt && (
+                      <a
+                        href={receiptUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-gray-900 text-white hover:bg-gray-800"
+                      >
+                        Abrir
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* ✅ Visor embebido */}
+                <AnimatePresence>
+                  {showReceiptViewer && hasReceipt && (
+                    <motion.div
+                      className="mt-3 border border-gray-200 bg-white rounded-xl overflow-hidden"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                        <p className="text-xs font-semibold text-gray-700">
+                          {receiptIsImage ? "Vista previa (imagen)" : "Vista previa (documento)"}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowReceiptViewer(false)}
+                          className="text-xs px-2 py-1 rounded-md hover:bg-gray-200 text-gray-700"
+                        >
+                          Cerrar vista
+                        </button>
+                      </div>
+
+                      <div className="p-3">
+                        {receiptIsImage ? (
+                          <img
+                            src={receiptUrl}
+                            alt="Comprobante de pago"
+                            className="w-full max-h-[520px] object-contain rounded-lg"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <iframe
+                            title="Comprobante"
+                            src={receiptUrl}
+                            className="w-full h-[520px] rounded-lg"
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -220,10 +311,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                   <tbody className="divide-y divide-gray-100">
                     {productos.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-4 py-8 text-center text-gray-400"
-                        >
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                           Esta compra no tiene productos registrados.
                         </td>
                       </tr>
@@ -244,9 +332,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                               </div>
                             </td>
 
-                            <td className="px-4 py-3 text-center text-gray-700">
-                              {cantidad}
-                            </td>
+                            <td className="px-4 py-3 text-center text-gray-700">{cantidad}</td>
 
                             <td className="px-4 py-3 text-right text-gray-700 whitespace-nowrap">
                               {money(precioCompra)}
@@ -276,9 +362,7 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
             <div className="flex justify-end">
               <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-xl shadow-sm">
                 <p className="text-xs text-green-800">Total a pagar</p>
-                <p className="text-xl font-extrabold text-green-800">
-                  {money(totalCompra)}
-                </p>
+                <p className="text-xl font-extrabold text-green-800">{money(totalCompra)}</p>
               </div>
             </div>
           </div>
