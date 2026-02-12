@@ -5,6 +5,10 @@ export default function ProtectedRoute() {
   const {isAuthenticated, loading} = useAuth();
   const location = useLocation();
 
+  if (loading) {
+    return null;
+  }
+
   if (!isAuthenticated) {
     // manda a /auth y guarda a qué ruta quería entrar
     return <Navigate to="/auth" replace state={{ from: location }} />;
