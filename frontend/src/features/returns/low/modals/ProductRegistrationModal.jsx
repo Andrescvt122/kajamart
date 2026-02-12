@@ -16,7 +16,7 @@ const ProductRegistrationModal = ({
   initialDetail,
   ignoreBarcode,
   isReturnProduct,
-  transferQuantity
+  transferQuantity,
 }) => {
   const {
     details,
@@ -62,7 +62,7 @@ const ProductRegistrationModal = ({
           quantity: String(
             initialDetail.registeredQuantity ??
               initialDetail.stock_producto ??
-              ""
+              "",
           ),
           expiryDate:
             initialDetail.registeredExpiry?.slice(0, 10) ||
@@ -73,7 +73,7 @@ const ProductRegistrationModal = ({
       } else {
         setFormData({
           barcode: "",
-          quantity: isReturnProduct ? "" : "0",
+          quantity: isReturnProduct ? "" : String(transferQuantity || 0),
           expiryDate: "",
           isReturn: true,
         });
@@ -106,8 +106,8 @@ const ProductRegistrationModal = ({
     const localDate = new Date(e.value);
     localDate.setHours(0, 0, 0, 0);
     const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
+    const month = String(localDate.getMonth() + 1).padStart(2, "0");
+    const day = String(localDate.getDate()).padStart(2, "0");
     const dateVal = `${year}-${month}-${day}`;
     setFormData((prev) => ({ ...prev, expiryDate: dateVal }));
   };
@@ -453,7 +453,9 @@ const ProductRegistrationModal = ({
                       type="number"
                       min={isReturnProduct ? 1 : 0}
                       inputMode="numeric"
-                      value={isReturnProduct ? formData.quantity : transferQuantity}
+                      value={
+                        isReturnProduct ? formData.quantity : transferQuantity
+                      }
                       onChange={
                         isReturnProduct
                           ? (e) => handleQuantityChange(e.target.value)
@@ -541,7 +543,7 @@ const ProductRegistrationModal = ({
                   </button>
                 </div>
               </form>
-            </motion.div> 
+            </motion.div>
           </motion.div>
         </>
       )}

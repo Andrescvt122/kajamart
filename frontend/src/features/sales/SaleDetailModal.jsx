@@ -38,6 +38,15 @@ const SaleDetailModal = ({ sale, onClose }) => {
   const estado = pick(sale?.estado_venta, sale?.estado) ?? "";
   const medioPago = pick(sale?.metodo_pago, sale?.medioPago, sale?.metodoPago) ?? "";
 
+  // detectar mixto (case-insensitive)
+  const esMixto = String(medioPago).trim().toLowerCase() === "mixto";
+
+  // montos mixtos (si no vienen, quedan en 0)
+  const montoEfectivo = toNumber(pick(sale?.monto_efectivo, sale?.montoEfectivo));
+  const montoTransferencia = toNumber(
+    pick(sale?.monto_transferencia, sale?.montoTransferencia)
+  );
+
   // Cliente puede venir por relación "clientes" o ya mapeado
   const clienteNombre =
     pick(
@@ -51,19 +60,17 @@ const SaleDetailModal = ({ sale, onClose }) => {
   // Detalle (productos)
   // =========================
   const productos = useMemo(() => {
-    // 1) Prisma: detalle_venta
     const det = Array.isArray(sale?.detalle_venta) ? sale.detalle_venta : null;
 
     if (det && det.length > 0) {
       return det.map((d, idx) => {
-        // ✅ TU JOIN real: detalle_venta -> detalle_productos -> productos
         const nombre =
           pick(
-            d?.detalle_productos?.productos?.nombre, // ✅ FULL JOIN
-            d?.detalle_productos?.nombre,            // por si existe nombre en detalle_productos
-            d?.productos?.nombre,                    // si algun día la relación cambia
-            d?.producto?.nombre,                     // idem
-            d?.nombre,                               // si por algún motivo viene directo
+            d?.detalle_productos?.productos?.nombre,
+            d?.detalle_productos?.nombre,
+            d?.productos?.nombre,
+            d?.producto?.nombre,
+            d?.nombre,
             d?.nombre_producto,
             d?.producto_nombre,
             d?.descripcion
@@ -77,7 +84,7 @@ const SaleDetailModal = ({ sale, onClose }) => {
             d?.precioUnitario,
             d?.precio,
             d?.valor_unitario,
-            d?.detalle_productos?.precio_venta,       // opcional si existe en detalle_productos
+            d?.detalle_productos?.precio_venta,
             d?.detalle_productos?.productos?.precio_venta
           )
         );
@@ -96,7 +103,6 @@ const SaleDetailModal = ({ sale, onClose }) => {
       });
     }
 
-    // 2) fallback: si viene en sale.productos (JSON)
     const prods = Array.isArray(sale?.productos) ? sale.productos : null;
     if (prods && prods.length > 0) {
       return prods.map((p, idx) => {
@@ -151,9 +157,21 @@ const SaleDetailModal = ({ sale, onClose }) => {
           <p>
             <strong>Estado:</strong> {estado}
           </p>
-          <p>
-            <strong>Total:</strong> {formatMoney(totalBase)}
-          </p>
+
+          {/* ✅ Si es mixto, mostramos SOLO el desglose (sin repetir "Mixto") */}
+          {esMixto ? (
+            <p>
+              <strong>Desglose:</strong>{" "}
+              <span className="text-gray-600">
+                Efectivo {formatMoney(montoEfectivo)} • Transferencia{" "}
+                {formatMoney(montoTransferencia)}
+              </span>
+            </p>
+          ) : (
+            <p>
+              <strong>Total:</strong> {formatMoney(totalBase)}
+            </p>
+          )}
         </div>
 
         {/* Tabla de productos */}
@@ -194,7 +212,7 @@ const SaleDetailModal = ({ sale, onClose }) => {
           </table>
         </div>
 
-        {/* Total general */}
+        {/* Total general (siempre visible abajo) */}
         <div className="flex justify-end mt-4">
           <div className="bg-green-100 border border-green-400 px-4 py-2 rounded-lg shadow-md">
             <p className="text-sm font-semibold text-green-800">

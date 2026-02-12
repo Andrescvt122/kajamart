@@ -48,13 +48,13 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }) {
     users: hasPermission("Ver usuarios"),
     roles: hasPermission("Ver roles"),
     products: hasPermission("Ver productos"),
-    categories: hasPermission("Ver categorías"),
+    categories: hasPermission("Ver categorias"),
     suppliers: hasPermission("Ver proveedores"),
     clients: hasPermission("Ver clientes"),
     purchases: hasPermission("Ver compras"),
     sales: hasPermission("Ver ventas"),
-    returnClients: hasPermission("Ver devolución clientes"),
-    returnProducts: hasPermission("Ver Gestión devolución productos"),
+    returnClients: hasPermission("Ver devolucion clientes"),
+    returnProducts: hasPermission("Ver devolucion productos"),
     low: hasPermission("Ver baja productos"),
   };
   console.log("can view client", canView.clients);

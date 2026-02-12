@@ -13,7 +13,7 @@ import {
   Pencil,
 } from "lucide-react";
 import ProductRegistrationModal from "./ProductRegistrationModal";
-import ProductSearch from "../../../../../shared/components/searchBars/productSearch";
+import PurchaseSearchSelect from "../../../../../shared/components/searchBars/PurchaseSearchSelect";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
@@ -21,6 +21,8 @@ import { useFetchPurchases } from "../../../../../shared/components/hooks/purcha
 import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [purchaseProducts, setPurchaseProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [productToRegister, setProductToRegister] = useState(null);
@@ -39,7 +41,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { refetch, returns } = useFetchReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
-  const { payload:payloadId } = useAuth();
+  const { payload: payloadId } = useAuth();
   const returnReasons = [
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
@@ -77,6 +79,47 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     return Array.from(new Set(all));
   }, [purchases, returns]);
 
+  const normalizePurchaseProducts = (purchase) => {
+    const detalles = Array.isArray(purchase?.detalle_compra)
+      ? purchase.detalle_compra
+      : [];
+
+    return detalles
+      .map((d) => {
+        const dp = d?.detalle_productos || {};
+        const prod = dp?.productos || {};
+
+        return {
+          // lo que tu flujo ya usa:
+          id_producto: prod?.id_producto,
+          productos: prod,
+
+          // muy importante para tu payload final:
+          id_detalle_producto: dp?.id_detalle_producto,
+
+          // límite de devolución (lo más coherente aquí es "cantidad comprada"):
+          quantity: Number(d?.cantidad ?? 0),
+
+          // por si tu UI lo usa en otros lados:
+          stock_producto: Number(dp?.stock_producto ?? 0),
+        };
+      })
+      .filter((p) => p?.id_producto != null && p?.id_detalle_producto != null);
+  };
+
+  const handleSelectPurchase = (purchase) => {
+    setSelectedPurchase(purchase);
+
+    // Cargamos productos disponibles de esa compra
+    const normalized = normalizePurchaseProducts(purchase);
+    setPurchaseProducts(normalized);
+
+    // Si cambiaste de compra, lo más seguro es reiniciar la devolución actual
+    setSelectedProducts([]);
+    setPendingDetails([]);
+    setOpenConfigProductId(null);
+  };
+
   const validateInvoiceNumber = (value) => {
     const v = value.trim();
 
@@ -109,7 +152,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
     const existingIndex = selectedProducts.findIndex(
-      (p) => p.id_producto === product.id_producto
+      (p) => p.id_producto === product.id_producto,
     );
 
     // aseguramos número
@@ -140,7 +183,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   const handleRemoveProduct = (productId) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p.id_producto !== productId)
+      prev.filter((p) => p.id_producto !== productId),
     );
     setPendingDetails((prev) => prev.filter((d) => d.productKey !== productId));
     if (openConfigProductId === productId) setOpenConfigProductId(null);
@@ -162,8 +205,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         const maxAvailable = Number.isFinite(p.quantity)
           ? p.quantity
           : Number.isFinite(p.stock_producto)
-          ? p.stock_producto
-          : null;
+            ? p.stock_producto
+            : null;
 
         let newQuantity = candidate;
 
@@ -176,7 +219,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         newQuantity = Math.max(1, newQuantity);
 
         return { ...p, returnQuantity: newQuantity };
-      })
+      }),
     );
   };
 
@@ -184,8 +227,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleProductReasonChange = (productId, reasonValue) => {
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id_producto === productId ? { ...p, returnReason: reasonValue } : p
-      )
+        p.id_producto === productId ? { ...p, returnReason: reasonValue } : p,
+      ),
     );
     setShowErrors(false); // Ocultar errores cuando se selecciona una razón
   };
@@ -201,7 +244,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Si ya hay detalle y se intenta seleccionar "descuento", bloqueamos y avisamos
     if (actionValue === "descuento" && hasDetail) {
       alert(
-        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto."
+        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto.",
       );
       return;
     }
@@ -211,8 +254,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       prev.map((p) =>
         p.id_producto === product.id_producto
           ? { ...p, actionType: actionValue }
-          : p
-      )
+          : p,
+      ),
     );
     setShowErrors(false); // Ocultar errores cuando se selecciona una acción
 
@@ -238,7 +281,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
     setPendingDetails((prev) => {
       const filtered = prev.filter(
-        (d) => d.productKey !== registeredDetail.productKey
+        (d) => d.productKey !== registeredDetail.productKey,
       );
       return [...filtered, registeredDetail];
     });
@@ -259,8 +302,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     // Desmarcar acción "registrar" para dejar el producto libre de nuevo
     setSelectedProducts((prev) =>
       prev.map((p) =>
-        p.id_producto === productId ? { ...p, actionType: "" } : p
-      )
+        p.id_producto === productId ? { ...p, actionType: "" } : p,
+      ),
     );
   };
 
@@ -300,12 +343,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const missingDetail = selectedProducts.find(
       (p) =>
         p.actionType === "registrar" &&
-        !getPendingDetailForProduct(p.id_producto)
+        !getPendingDetailForProduct(p.id_producto),
     );
 
     if (missingDetail) {
       alert(
-        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
+        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`,
       );
       return;
     }
@@ -341,7 +384,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             id_detalle_producto: saved.id_detalle_producto,
           });
         } else {
-          throw new Error(`No se pudo guardar el detalle para el producto ${detail.productKey}`);
+          throw new Error(
+            `No se pudo guardar el detalle para el producto ${detail.productKey}`,
+          );
         }
       }
 
@@ -354,7 +399,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
           if (p.actionType === "registrar") {
             // Buscar el detalle guardado
-            const savedDetail = savedDetails.find((d) => d.productKey === p.id_producto);
+            const savedDetail = savedDetails.find(
+              (d) => d.productKey === p.id_producto,
+            );
             id_detalle = savedDetail?.id_detalle_producto;
           } else {
             // Para descuento, usar el detalle existente
@@ -366,12 +413,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "❌ Falta id_detalle_producto para este producto:",
               p,
               "savedDetails:",
-              savedDetails
+              savedDetails,
             );
             alert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
-              }" no tiene id_detalle_producto. Revisa el origen de los datos.`
+              }" no tiene id_detalle_producto. Revisa el origen de los datos.`,
             );
             return null;
           }
@@ -380,10 +427,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             "✅ Producto listo para payload:",
             p.productos?.nombre ?? p.nombre_producto,
             " -> id_detalle_producto:",
-            id_detalle
+            id_detalle,
           );
 
           return {
+            id_producto: p.id_producto,
             id_detalle_producto: id_detalle,
             cantidad: p.returnQuantity || 1,
             motivo: p.returnReason,
@@ -395,13 +443,14 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       if (productsPayload.length === 0) {
         console.error(
-          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío)."
+          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío).",
         );
         return;
       }
 
       const payload = {
         id_responsable,
+        id_compra: selectedPurchase?.id_compra,
         numero_factura: invoiceNumber.trim(),
         products: productsPayload,
       };
@@ -464,8 +513,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         prev.map((p) =>
           p.id_producto === productToRegister.id_producto
             ? { ...p, actionType: "" }
-            : p
-        )
+            : p,
+        ),
       );
     }
 
@@ -506,7 +555,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               transition={{ duration: 0.3 }}
             >
               <motion.div
-                className={`bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                className={`bg-gray-50 rounded-2xl shadow-xl w-full max-w-4xl relative flex flex-col max-h-[90vh] ${
+                  loading ? "pointer-events-none opacity-50" : ""
+                }`}
                 onClick={(e) => e.stopPropagation()}
                 initial={{ y: 50 }}
                 animate={{ y: 0 }}
@@ -546,7 +597,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                 </motion.div>
 
                 {/* Contenido */}
-                <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
+                <div className="flex flex-col p-6 space-y-4 flex-grow overflow-y-auto">
                   <motion.div
                     className="space-y-6"
                     initial={{ opacity: 0 }}
@@ -587,9 +638,118 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       transition={{ delay: 0.4, duration: 0.4 }}
                     >
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                        Buscar y agregar productos
+                        Seleccionar compra y productos a devolver
                       </h3>
-                      <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id_detalle_producto)} />
+
+                      {/* 1) Buscador de compras */}
+                      <PurchaseSearchSelect
+                        placeholder="Buscar compra por #, proveedor, fecha, producto..."
+                        onSelect={handleSelectPurchase}
+                      />
+
+                      {/* 2) Lista de productos de la compra seleccionada (como devolución de clientes) */}
+                      <AnimatePresence>
+                        {selectedPurchase && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="bg-white rounded-xl shadow-sm p-4 border border-gray-200"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  Productos de la compra #
+                                  {selectedPurchase?.id_compra}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Proveedor:{" "}
+                                  {selectedPurchase?.proveedores?.nombre || "—"}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPurchase(null);
+                                  setPurchaseProducts([]);
+                                  setSelectedProducts([]);
+                                  setPendingDetails([]);
+                                  setOpenConfigProductId(null);
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                              >
+                                Limpiar compra
+                              </button>
+                            </div>
+
+                            <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                              {purchaseProducts
+                                // evitar mostrar productos ya agregados por id_detalle_producto
+                                .filter(
+                                  (p) =>
+                                    !selectedProducts.some(
+                                      (sp) =>
+                                        sp.id_detalle_producto ===
+                                        p.id_detalle_producto,
+                                    ),
+                                )
+                                .map((p) => (
+                                  <motion.div
+                                    key={p.id_detalle_producto}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-800 truncate">
+                                        {p.productos?.nombre}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        Comprado: {p.quantity} • Detalle:{" "}
+                                        {p.id_detalle_producto}
+                                      </p>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleAddProduct({
+                                          ...p,
+                                          returnQuantity: 1,
+                                        })
+                                      }
+                                      className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                    >
+                                      Agregar
+                                    </button>
+                                  </motion.div>
+                                ))}
+
+                              {purchaseProducts.length === 0 && (
+                                <div className="p-3 text-center text-sm text-gray-500">
+                                  Esta compra no tiene productos disponibles.
+                                </div>
+                              )}
+
+                              {purchaseProducts.length > 0 &&
+                                purchaseProducts.filter(
+                                  (p) =>
+                                    !selectedProducts.some(
+                                      (sp) =>
+                                        sp.id_detalle_producto ===
+                                        p.id_detalle_producto,
+                                    ),
+                                ).length === 0 && (
+                                  <div className="p-3 text-center text-sm text-gray-500">
+                                    Ya agregaste todos los productos de esta
+                                    compra.
+                                  </div>
+                                )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
@@ -605,7 +765,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                             Productos a devolver
                           </h4>
                           <motion.div
-                            className="space-y-3 max-h-60 overflow-y-auto"
+                            className="space-y-3"
                             initial="hidden"
                             animate="visible"
                             variants={{
@@ -616,7 +776,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                           >
                             {selectedProducts.map((product) => {
                               const detail = getPendingDetailForProduct(
-                                product.id_producto
+                                product.id_producto,
                               );
                               return (
                                 <motion.div
@@ -649,7 +809,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       </p>
                                       <p className="text-xs text-gray-500">
                                         {formatPrice(
-                                          product.productos.precio_venta
+                                          product.productos.precio_venta,
                                         )}{" "}
                                         c/u
                                       </p>
@@ -659,7 +819,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         onClick={() =>
                                           handleUpdateQuantity(
                                             product.id_producto,
-                                            -1
+                                            -1,
                                           )
                                         }
                                         disabled={product.returnQuantity <= 1}
@@ -691,7 +851,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         onClick={() =>
                                           handleUpdateQuantity(
                                             product.id_producto,
-                                            1
+                                            1,
                                           )
                                         }
                                         disabled={
@@ -714,7 +874,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                       type="button"
                                       onClick={() =>
                                         toggleConfigDropdown(
-                                          product.id_producto
+                                          product.id_producto,
                                         )
                                       }
                                       className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
@@ -781,7 +941,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                     onChange={() =>
                                                       handleProductReasonChange(
                                                         product.id_producto,
-                                                        reason.value
+                                                        reason.value,
                                                       )
                                                     }
                                                     className="hidden"
@@ -822,11 +982,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
-                                          {showErrors && !product.returnReason && (
-                                            <p className="text-red-500 text-xs mt-1">
-                                              Selecciona una razón
-                                            </p>
-                                          )}
+                                          {showErrors &&
+                                            !product.returnReason && (
+                                              <p className="text-red-500 text-xs mt-1">
+                                                Selecciona una razón
+                                              </p>
+                                            )}
                                         </div>
 
                                         {/* Acción + detalle */}
@@ -859,7 +1020,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                     onClick={() =>
                                                       handleProductActionChange(
                                                         product,
-                                                        action.value
+                                                        action.value,
                                                       )
                                                     }
                                                   >
@@ -940,9 +1101,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                                 Vencimiento:
                                                               </span>{" "}
                                                               {new Date(
-                                                                detail.registeredExpiry
+                                                                detail.registeredExpiry,
                                                               ).toLocaleDateString(
-                                                                "es-ES"
+                                                                "es-ES",
                                                               )}
                                                             </p>
                                                           )}
@@ -954,7 +1115,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                             type="button"
                                                             onClick={() =>
                                                               handleDeleteDetail(
-                                                                product.id_producto
+                                                                product.id_producto,
                                                               )
                                                             }
                                                             className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
@@ -969,7 +1130,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                                             type="button"
                                                             onClick={() =>
                                                               handleEditDetail(
-                                                                product.id_producto
+                                                                product.id_producto,
                                                               )
                                                             }
                                                             className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
@@ -984,11 +1145,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                               );
                                             })}
                                           </div>
-                                          {showErrors && !product.actionType && (
-                                            <p className="text-red-500 text-xs mt-1">
-                                              Selecciona una acción
-                                            </p>
-                                          )}
+                                          {showErrors &&
+                                            !product.actionType && (
+                                              <p className="text-red-500 text-xs mt-1">
+                                                Selecciona una acción
+                                              </p>
+                                            )}
                                         </div>
                                       </motion.div>
                                     )}
@@ -1037,7 +1199,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                         <motion.div
                           className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                           animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
                         />
                         Procesando...
                       </>
@@ -1088,7 +1254,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                               <motion.div
                                 className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                transition={{
+                                  duration: 1,
+                                  repeat: Infinity,
+                                  ease: "linear",
+                                }}
                               />
                               Procesando...
                             </>
@@ -1151,7 +1321,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         existingBarcodes={pendingDetails
           .map(
             (d) =>
-              d.registeredBarcode || d.codigo_barras_producto_compra || null
+              d.registeredBarcode || d.codigo_barras_producto_compra || null,
           )
           .filter(Boolean)}
         initialDetail={detailToEdit}

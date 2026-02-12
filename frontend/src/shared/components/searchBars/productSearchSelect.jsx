@@ -71,7 +71,7 @@ const ProductSearchSelect = ({
     // Ajuste si no cabe hacia abajo (evitar que se salga de pantalla)
     const approxHeight = Math.min(
       320,
-      56 + (filteredProducts?.length || 0) * 64
+      56 + (filteredProducts?.length || 0) * 64,
     ); // aprox max-h-80
     const viewportH = window.innerHeight;
     if (top + approxHeight > viewportH - 8) {
@@ -95,7 +95,7 @@ const ProductSearchSelect = ({
       showTemporaryAlert(
         `El producto "${
           product.productos?.nombre || "sin nombre"
-        }" no tiene stock disponible.`
+        }" no tiene stock disponible.`,
       );
       return;
     }
@@ -243,7 +243,10 @@ const ProductSearchSelect = ({
             <div className="flex justify-center mt-3">
               <button
                 type="button"
-                onClick={() => onCreateProduct?.(searchTerm)}
+                onClick={() => {
+                  onCreateProduct?.(searchTerm);
+                  setShowDropdown(false);
+                }}
                 className="px-4 py-2 rounded-lg bg-green-400 text-white text-sm font-semibold hover:bg-green-500 transition"
               >
                 Crear producto

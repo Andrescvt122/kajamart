@@ -1,15 +1,14 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/kajamart/api/returnProducts";
+const API_URL = "http://localhost:3000/kajamart/api/returnClients";
 
-export const usePostReturnProducts = () => {
+export const usePostReturnClients = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Ahora recibe el payload completo ya armado en el modal
-  const postReturnProducts = async (payload) => {
+  const postReturnClients = async (payload) => {
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -20,12 +19,13 @@ export const usePostReturnProducts = () => {
       setSuccess(true);
       return response.data;
     } catch (err) {
-      console.error("❌ Error al registrar devolución:", err);
+      console.error("❌ Error al registrar devolución de cliente:", err);
+      setError("No se pudo registrar la devolución de cliente");
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  return { postReturnProducts, loading, error, success };
+  return { postReturnClients, loading, error, success };
 };

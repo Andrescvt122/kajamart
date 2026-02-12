@@ -73,7 +73,7 @@ export default function IndexProductReturns() {
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const perPage = 6;
   const {hasPermission} = useAuth();
-  const canCreate = hasPermission('Crear devolución productos');
+  const canCreate = hasPermission('Crear devolucion productos');
   // Normalización de texto
   const normalizeText = (text) =>
     (text ?? "")
