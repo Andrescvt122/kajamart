@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
+import api from "../../../../api/axiosConfig";
 
-const API_URL = "http://localhost:3000/kajamart/api/roles";
+const API_URL = "/roles";
 
 export const useRoleById = () => {
   const [rol, setRol] = useState(null);
@@ -13,7 +13,7 @@ export const useRoleById = () => {
     setError(null);
     try {
       console.log("🔍 Obteniendo rol con ID:", id);
-      const { data } = await axios.get(`${API_URL}/${id}`);
+      const { data } = await api.get(`${API_URL}/${id}`);
       setRol(data);
       return data;
     } catch (err) {
