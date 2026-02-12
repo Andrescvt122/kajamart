@@ -641,11 +641,14 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 setIsUnitTransferModalOpen(false);
                 setActiveUnitTransferProductId(null);
               }}
-              transferQuantity={
-                selectedProducts.find(
+              transferQuantity={(() => {
+                const p = selectedProducts.find(
                   (p) => p.id === activeUnitTransferProductId,
-                )?.cantidad_unitaria ?? null
-              }
+                );
+                return p && p.cantidad_unitaria
+                  ? p.cantidad_unitaria * (p.requestedQuantity || 1)
+                  : null;
+              })()}
             />
           </motion.div>
         </>
