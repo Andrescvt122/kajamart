@@ -5,6 +5,14 @@ export default function PrivatedRoute({permission}) {
   const {isAuthenticated, loading} = useAuth();
   const location = useLocation();
 
+  if (loading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
   if (!permission) {
     // manda a /auth y guarda a qué ruta quería entrar
     return <Navigate to="/403" replace state={{ from: location }} />;

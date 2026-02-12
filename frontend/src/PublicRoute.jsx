@@ -2,7 +2,11 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./context/useAtuh.jsx";
 export default function PublicRoute() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
 
   if (isAuthenticated) return <Navigate to="/app" replace />;
 
