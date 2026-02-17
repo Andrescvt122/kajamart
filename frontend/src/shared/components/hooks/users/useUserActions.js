@@ -5,7 +5,7 @@ import axios from "axios";
 import { showErrorAlert } from "../../alerts.jsx"; // Asegúrate de que esta ruta sea correcta
 
 // URL base para Creación y Eliminación (POST /users, DELETE /users/:id)
-const API_URL_BASE = "http://localhost:3000/users"; 
+const API_URL_BASE = "http://localhost:3000/kajamart/api/users";
 // URL base para Edición de datos personales y estado (PUT /kajamart/api/users/:id, PUT /kajamart/api/users/:id/status)
 const API_URL_EDITION = "http://localhost:3000/kajamart/api/users";
 
@@ -25,14 +25,14 @@ export const useUserActions = () => {
       const errorMessage = err.response?.data?.error || "Error al crear usuario. El correo o documento ya existe.";
       setError(errorMessage);
       showErrorAlert(errorMessage);
-      throw new Error(errorMessage); 
+      throw new Error(errorMessage);
     } finally {
       if (!error) setLoading(false);
     }
   };
 
   // --- 2. ACCIONES DE EDICIÓN (PUT) ---
-  
+
   const updatePersonalData = async (userId, personalData) => {
     setLoading(true);
     setError(null);
@@ -42,7 +42,7 @@ export const useUserActions = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.error || `Error al actualizar datos personales del usuario ${userId}`;
       setError(errorMessage);
-      throw new Error(errorMessage); 
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export const useUserActions = () => {
   };
 
   // --- 3. ACCIÓN DE ELIMINACIÓN (DELETE) ---
-  
+
   const deleteUser = async (userId) => {
     setLoading(true);
     setError(null);
@@ -82,12 +82,12 @@ export const useUserActions = () => {
     }
   };
 
-  return { 
+  return {
     createUser,
-    updatePersonalData, 
-    toggleUserStatus, 
-    deleteUser, 
-    loading, 
-    error 
+    updatePersonalData,
+    toggleUserStatus,
+    deleteUser,
+    loading,
+    error
   };
 };

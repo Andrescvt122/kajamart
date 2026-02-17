@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
 
@@ -36,7 +36,6 @@ import DashboardLows from "./features/dashboard/returns/dashboardLows";
 
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
-import Welcome from "./pages/dashboard/Welcome";
 
 import PublicRoute from "./PublicRoute.jsx";
 import ProtectedRoute from "./protectedRoute.jsx";
@@ -52,7 +51,7 @@ export default function RoutesAdmin() {
     users: hasPermission("Ver usuarios"),
     roles: hasPermission("Ver roles"),
     products: hasPermission("Ver productos"),
-    categories: hasPermission("Ver categorías"),
+    categories: hasPermission("Ver categorias"),
     suppliers: hasPermission("Ver proveedores"),
     clients: hasPermission("Ver clientes"),
     purchases: hasPermission("Ver compras"),
@@ -152,7 +151,7 @@ export default function RoutesAdmin() {
 
           {/* Dashboard */}
           <Route element={<DashboardLayout />}>
-            <Route index element={<Welcome />} />
+            <Route index element={<Navigate to="dashboard/sales" replace />} />
 
             <Route element={<PrivatedRoute permission={canView.suppliers} />}>
               <Route

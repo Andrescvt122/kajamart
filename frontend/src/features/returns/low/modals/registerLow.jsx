@@ -30,7 +30,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const { postDetailProduct } = usePostDetailProduct();
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
-  const {payload : payloadId} = useAuth();
+  const { payload: payloadId } = useAuth();
   const toggleConfigDropdown = (productId) => {
     setOpenConfigProductId((prev) => (prev === productId ? null : productId));
   };
@@ -63,8 +63,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               cantidad_traslado: null,
               nombre_producto_traslado: "",
             }
-          : p
-      )
+          : p,
+      ),
     );
   };
 
@@ -89,17 +89,29 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
   const handleUpdateProductQuantity = (id, delta) =>
     setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              requestedQuantity: Math.max(
-                1,
-                Math.min(p.quantity, (p.requestedQuantity || 1) + delta)
-              ),
-            }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const newQuantity = Math.max(
+          1,
+          Math.min(p.quantity, (p.requestedQuantity || 1) + delta),
+        );
+
+        let newTransferQuantity = p.cantidad_traslado;
+        // Si es venta unitaria y tiene destino, actualizamos la cantidad a trasladar
+        if (
+          p.reason === "venta unitaria" &&
+          p.id_producto_traslado != null &&
+          p.cantidad_unitaria
+        ) {
+          newTransferQuantity = p.cantidad_unitaria * newQuantity;
+        }
+
+        return {
+          ...p,
+          requestedQuantity: newQuantity,
+          cantidad_traslado: newTransferQuantity,
+        };
+      }),
     );
 
   const handleProductReasonSelect = (productId, reason) => {
@@ -114,7 +126,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       return;
     }
     setSelectedProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, reason } : p))
+      prev.map((p) => (p.id === productId ? { ...p, reason } : p)),
     );
 
     // Si el motivo es venta unitaria, abre modal para elegir producto destino
@@ -127,8 +139,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
         prev.map((p) =>
           p.id === productId
             ? { ...p, id_producto_traslado: null, cantidad_traslado: null }
-            : p
-        )
+            : p,
+        ),
       );
     }
   };
@@ -149,12 +161,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
-        (p.id_producto_traslado == null || p.cantidad_traslado == null)
+        (p.id_producto_traslado == null || p.cantidad_traslado == null),
     );
 
     if (invalidUnitSale) {
       alert(
-        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria."
+        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria.",
       );
       return;
     }
@@ -199,7 +211,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <motion.div
-              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
+              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? "pointer-events-none opacity-50" : ""}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -218,7 +230,10 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
               {/* Contenido */}
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
-                <ProductSearch onAddProduct={handleAddProduct} excludedProducts={selectedProducts.map(p => p.id)} />
+                <ProductSearch
+                  onAddProduct={handleAddProduct}
+                  excludedProducts={selectedProducts.map((p) => p.id)}
+                />
 
                 {selectedProducts.length > 0 && (
                   <div
@@ -309,6 +324,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
                               <div className="space-y-2">
                                 {reasonOptions.map((r) => {
+                                  if (
+                                    r.value === "venta unitaria" &&
+                                    !p.cantidad_unitaria
+                                  )
+                                    return null;
                                   const isSelected = p.reason === r.value;
                                   const hasTransferConfigured =
                                     p.reason === "venta unitaria" &&
@@ -323,8 +343,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                         isLockedOption
                                           ? "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
                                           : isSelected
-                                          ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
-                                          : "border-gray-200 hover:bg-gray-50 cursor-pointer"
+                                            ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
+                                            : "border-gray-200 hover:bg-gray-50 cursor-pointer"
                                       }`}
                                     >
                                       <input
@@ -342,7 +362,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           }
                                           handleProductReasonSelect(
                                             p.id,
-                                            r.value
+                                            r.value,
                                           );
                                         }}
                                         className="hidden"
@@ -465,7 +485,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       <motion.div
                         className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
                       />
                       Procesando...
                     </>
@@ -516,7 +540,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                               animate={{ rotate: 360 }}
-                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
                             />
                             Procesando...
                           </>
@@ -578,8 +606,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             id_producto_traslado: null,
                             cantidad_traslado: null,
                           }
-                        : p
-                    )
+                        : p,
+                    ),
                   );
                 }
 
@@ -588,7 +616,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               }}
               currentBoxProductName={
                 selectedProducts.find(
-                  (p) => p.id === activeUnitTransferProductId
+                  (p) => p.id === activeUnitTransferProductId,
                 )?.name
               }
               onConfirmDestination={(detalleDestino) => {
@@ -600,22 +628,27 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                     return {
                       ...p,
                       id_producto_traslado: detalleDestino.id_detalle_producto,
-                      // ✅ cantidad_traslado = cantidad_unitaria de la caja
-                      cantidad_traslado: p.cantidad_unitaria ?? null,
+                      // ✅ cantidad_traslado = cantidad_unitaria * requestedQuantity
+                      cantidad_traslado: p.cantidad_unitaria
+                        ? p.cantidad_unitaria * p.requestedQuantity
+                        : null,
                       nombre_producto_traslado:
                         detalleDestino?.productos?.nombre ?? "",
                     };
-                  })
+                  }),
                 );
 
                 setIsUnitTransferModalOpen(false);
                 setActiveUnitTransferProductId(null);
               }}
-              transferQuantity={
-                selectedProducts.find(
-                  (p) => p.id === activeUnitTransferProductId
-                )?.cantidad_unitaria ?? null
-              }
+              transferQuantity={(() => {
+                const p = selectedProducts.find(
+                  (p) => p.id === activeUnitTransferProductId,
+                );
+                return p && p.cantidad_unitaria
+                  ? p.cantidad_unitaria * (p.requestedQuantity || 1)
+                  : null;
+              })()}
             />
           </motion.div>
         </>
