@@ -21,11 +21,14 @@ import PurchaseDetailModal from "./PurchaseDetailModal";
 import { exportPurchasesToExcel } from "./helper/exportPurchasesExcel";
 import { exportPurchasesToPdf } from "./helper/exportPurchasesPdf";
 
+// ✅ API
+import api from "../../api/axiosConfig";
+
 // Helpers UI
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
 
-// ✅ Anulación (30 minutos)
+// ✅ Anulación (30 minutos) — solo UI por ahora
 const MAX_MINUTES_ANNUL = 30;
 const diffMinutesFromNow = (isoDate) => {
   const t = new Date(isoDate).getTime();
@@ -41,107 +44,287 @@ const isAnulada = (estado) => {
   return s === "anulada" || s === "anulado";
 };
 
+// ✅ util: unique conservando orden
+const uniqueKeepOrder = (arr) => {
+  const out = [];
+  const seen = new Set();
+  for (const x of arr) {
+    const v = String(x || "").trim();
+    if (!v) continue;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+};
+
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
   const canCreate = hasPermission("Crear compra");
-  const canAnnular = hasPermission("Anular compra"); // ✅
+  const canAnnular = hasPermission("Anular compra");
 
-  // ✅ fuerza refresh de compras cuando se anula
+  // ✅ fuerza refresh compras
   const [comprasVersion, setComprasVersion] = useState(0);
 
   // =========================
-  // Facturas (lookup por facturaId)
+  // Purchases desde BACKEND
   // =========================
-  const [facturas, setFacturas] = useState([]);
+  const [purchasesApi, setPurchasesApi] = useState([]);
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
+  const [apiError, setApiError] = useState("");
 
-  useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("facturas")) || [];
-    setFacturas(Array.isArray(data) ? data : []);
+  const fetchPurchases = useCallback(async () => {
+    try {
+      setIsLoadingApi(true);
+      setApiError("");
+
+      const { data } = await api.get("/purchase");
+      const arr = Array.isArray(data) ? data : [];
+      setPurchasesApi(arr);
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Error cargando compras desde el servidor.";
+      setApiError(msg);
+      setPurchasesApi([]);
+    } finally {
+      setIsLoadingApi(false);
+    }
   }, []);
 
-  const facturasById = useMemo(() => {
-    const map = new Map();
-    for (const f of facturas) {
-      const id = f?.id_factura ?? f?.id ?? f?._id;
-      if (!id) continue;
-      map.set(String(id), f);
-    }
-    return map;
-  }, [facturas]);
+  useEffect(() => {
+    fetchPurchases();
+  }, [fetchPurchases, comprasVersion]);
 
   // =========================
-  // Purchases (localStorage)
+  // (Opcional) LocalStorage legacy
   // =========================
-  const purchases = useMemo(() => {
+  const purchasesLocal = useMemo(() => {
     try {
       const raw = JSON.parse(localStorage.getItem("compras")) || [];
-      const arr = Array.isArray(raw) ? raw : [];
-
-      return arr.map((c) => {
-        // ✅ Número de factura
-        const numeroDirecto =
-          c?.numero_factura ??
-          c?.num_factura ??
-          c?.numeroFactura ??
-          c?.factura_numero ??
-          c?.facturaNumero ??
-          c?.factura?.numero_factura ??
-          c?.factura?.num_factura ??
-          (typeof c?.factura === "string" ? c.factura : null);
-
-        // Lookup si solo viene facturaId
-        const facturaId =
-          c?.facturaId ??
-          c?.id_factura ??
-          c?.factura_id ??
-          c?.factura?.id_factura ??
-          c?.factura?.id ??
-          c?.factura?._id;
-
-        const facturaLookup = facturaId
-          ? facturasById.get(String(facturaId))
-          : null;
-
-        const numeroDesdeLookup =
-          facturaLookup?.numero_factura ??
-          facturaLookup?.num_factura ??
-          facturaLookup?.numeroFactura ??
-          facturaLookup?.numero ??
-          null;
-
-        const numeroFacturaFinal = numeroDirecto ?? numeroDesdeLookup ?? "—";
-
-        // Proveedor / NIT
-        const proveedorNombre =
-          c?.proveedor?.nombre ??
-          (typeof c?.proveedor === "string" ? c.proveedor : null) ??
-          "—";
-
-        const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
-
-        // Fecha / Estado
-        const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
-        const estado = c?.estado ?? "Completada";
-
-        return {
-          id: c?.id ?? c?._id ?? "",
-          factura: String(numeroFacturaFinal),
-          proveedor: proveedorNombre,
-          nit: String(proveedorNit ?? "—"),
-          total: Number(c?.total ?? 0),
-          fecha,
-          estado,
-          productos: Array.isArray(c?.productos) ? c.productos : [],
-          comprobante: c?.comprobante ?? null,
-          raw: c,
-        };
-      });
+      return Array.isArray(raw) ? raw : [];
     } catch {
       return [];
     }
-  }, [facturasById, comprasVersion]);
+  }, [comprasVersion]);
+
+  // =========================
+  // Normalizar compras API => UI shape
+  // ✅ AGRUPA detalle_compra por producto (sin duplicar)
+  // ✅ GUARDA vencimientos/códigos por paquete (arrays)
+  // =========================
+  const normalizedApiPurchases = useMemo(() => {
+    return purchasesApi.map((c) => {
+      const id = c?.id_compra ?? c?.id ?? c?._id ?? "";
+
+      // factura fallback: id_compra => 003 etc.
+      const factura =
+        c?.numero_factura ??
+        c?.num_factura ??
+        c?.factura ??
+        (id ? String(id).padStart(3, "0") : "—");
+
+      const proveedorNombre =
+        c?.proveedores?.nombre ??
+        c?.proveedor?.nombre ??
+        c?.proveedor_nombre ??
+        "—";
+
+      const proveedorNit =
+        c?.proveedores?.nit ??
+        c?.proveedor?.nit ??
+        c?.proveedor_nit ??
+        "—";
+
+      const fecha =
+        c?.fecha_compra ??
+        c?.fecha ??
+        c?.created_at ??
+        new Date().toISOString();
+
+      const estado = c?.estado_compra ?? c?.estado ?? "Completada";
+      const total = Number(c?.total ?? 0);
+
+      // ✅ AGRUPAR detalle_compra por producto
+      const productos = (() => {
+        const det = Array.isArray(c?.detalle_compra) ? c.detalle_compra : [];
+        const map = new Map();
+
+        for (const d of det) {
+          // id producto (si existe)
+          const idProducto =
+            d?.detalle_productos?.productos?.id_producto ??
+            d?.detalle_productos?.id_producto ??
+            d?.id_producto ??
+            d?.productoId ??
+            null;
+
+          const nombre =
+            d?.detalle_productos?.productos?.nombre ??
+            d?.productos?.nombre ??
+            d?.nombre ??
+            "—";
+
+          // key estable para agrupar
+          const key = idProducto ?? nombre;
+
+          // cantidades de este detalle
+          const paquetes = Number(d?.cantidad_paquetes ?? d?.cantidad ?? 1) || 1;
+          const unidPorPaq = Number(d?.unidades_por_paquete ?? 0) || 0;
+
+          const totalUnid =
+            Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
+
+          // impuestos
+          const iva = Number(d?.iva_porcentaje ?? 0) || 0;
+          const icu = Number(d?.icu_porcentaje ?? 0) || 0;
+
+          // precios
+          const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
+          const precioVenta = Number(d?.precio_venta ?? 0) || 0;
+
+          // vencimiento y codigo (por paquete)
+          const fechaVenc =
+            d?.detalle_productos?.fecha_vencimiento ??
+            d?.fecha_vencimiento ??
+            "";
+
+          const codigo =
+            d?.detalle_productos?.codigo_barras_producto_compra ??
+            d?.codigo_barras_producto_compra ??
+            "";
+
+          if (!map.has(key)) {
+            map.set(key, {
+              productoId: idProducto,
+              nombre,
+
+              // ✅ cantidades agregadas
+              cantidad_paquetes: 0,
+              unidades_por_paquete: unidPorPaq,
+              cantidad_total_unidades: 0,
+
+              precioCompra,
+              precioVenta,
+              iva_porcentaje: iva,
+              icu_porcentaje: icu,
+
+              // ✅ arrays por paquete
+              vencimientos: [],
+              codigosBarras: [],
+            });
+          }
+
+          const acc = map.get(key);
+
+          // acumuladores
+          acc.cantidad_paquetes += paquetes;
+          acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
+          acc.cantidad_total_unidades += totalUnid;
+
+          // últimos valores “actuales”
+          acc.precioCompra = precioCompra;
+          acc.precioVenta = precioVenta;
+          acc.iva_porcentaje = iva;
+          acc.icu_porcentaje = icu;
+
+          // push vencimientos/códigos (1 por cada detalle/paquete)
+          if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
+          if (codigo) acc.codigosBarras.push(String(codigo));
+        }
+
+        // ✅ IMPORTANTE:
+        // - vencimientos NO se deduplican (para que salgan 2 fechas aunque sean iguales)
+        // - codigos sí se puede deduplicar si quieres
+        return Array.from(map.values()).map((p) => ({
+          ...p,
+          vencimientos: (p.vencimientos || []).filter(Boolean),
+          codigosBarras: uniqueKeepOrder(p.codigosBarras),
+        }));
+      })();
+
+      // comprobante
+      const comprobante = {
+        name: c?.comprobante_nombre ?? null,
+        type: c?.comprobante_mime ?? null,
+        url: c?.comprobante_url ?? null,
+        size: c?.comprobante_size ?? null,
+      };
+
+      return {
+        id: String(id),
+        factura: String(factura),
+        proveedor: proveedorNombre,
+        nit: String(proveedorNit),
+        total,
+        fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+        estado,
+
+        // ✅ lo que consume el modal
+        productos,
+
+        comprobante,
+        raw: c,
+      };
+    });
+  }, [purchasesApi]);
+
+  // =========================
+  // Normalizar Local => UI shape (legacy)
+  // =========================
+  const normalizedLocalPurchases = useMemo(() => {
+    return purchasesLocal.map((c) => {
+      const id = c?.id ?? c?._id ?? "";
+      const factura = c?.numero_factura ?? c?.num_factura ?? c?.factura ?? "—";
+
+      const proveedorNombre =
+        c?.proveedor?.nombre ??
+        (typeof c?.proveedor === "string" ? c.proveedor : null) ??
+        "—";
+
+      const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
+      const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+      const estado = c?.estado ?? "Completada";
+
+      return {
+        id: String(id),
+        factura: String(factura),
+        proveedor: proveedorNombre,
+        nit: String(proveedorNit ?? "—"),
+        total: Number(c?.total ?? 0),
+        fecha,
+        estado,
+        productos: Array.isArray(c?.productos) ? c.productos : [],
+        comprobante: c?.comprobante ?? null,
+        raw: c,
+      };
+    });
+  }, [purchasesLocal]);
+
+  // =========================
+  // Lista final (API + Local sin duplicar)
+  // =========================
+  const purchases = useMemo(() => {
+  const apiIds = new Set(normalizedApiPurchases.map((p) => String(p.id)));
+
+  const localNoDup = normalizedLocalPurchases.filter(
+    (p) => !apiIds.has(String(p.id))
+  );
+
+  const merged = [...normalizedApiPurchases, ...localNoDup];
+
+  // ✅ Ordenar por número de factura ASC (001 → último)
+  return merged.sort((a, b) => {
+    const fa = Number(a.factura) || 0;
+    const fb = Number(b.factura) || 0;
+    return fa - fb;
+  });
+
+}, [normalizedApiPurchases, normalizedLocalPurchases]);
+
 
   // =========================
   // UI State
@@ -203,7 +386,7 @@ export default function IndexPurchases() {
     setSelectedPurchase(null);
   }, []);
 
-  // ✅ Anular compra (alertas estilo ventas)
+  // ✅ Anular compra (solo UI por ahora)
   const handleAnnulPurchase = useCallback(
     async (purchase) => {
       if (!purchase) return;
@@ -261,27 +444,12 @@ export default function IndexPurchases() {
 
       if (!isConfirmed) return;
 
-      const raw = JSON.parse(localStorage.getItem("compras")) || [];
-      const arr = Array.isArray(raw) ? raw : [];
-
-      const updated = arr.map((c) => {
-        const id = c?.id ?? c?._id ?? "";
-        if (String(id) !== String(purchase.id)) return c;
-
-        return {
-          ...c,
-          estado: "Anulada",
-          anulada_at: new Date().toISOString(),
-        };
-      });
-
-      localStorage.setItem("compras", JSON.stringify(updated));
       setComprasVersion((v) => v + 1);
 
       await Swal.fire({
         icon: "success",
         title: "Compra anulada",
-        text: "La compra fue anulada correctamente.",
+        text: "La compra fue anulada correctamente (UI).",
         confirmButtonColor: "#16a34a",
       });
     },
@@ -302,13 +470,13 @@ export default function IndexPurchases() {
     const productosHtml = (purchase.productos || [])
       .map((p) => {
         const nombre = p?.nombre ?? "—";
-        const cantidad = Number(p?.cantidad ?? 0);
-        const precio = Number(p?.precioCompra ?? p?.precio ?? 0);
+        const paq = Number(p?.cantidad_paquetes ?? 0);
+        const precio = Number(p?.precioCompra ?? 0);
 
         return `
           <tr>
             <td>${nombre}</td>
-            <td>${cantidad}</td>
+            <td>${paq}</td>
             <td>$${precio.toFixed(0)}</td>
           </tr>
         `;
@@ -338,7 +506,7 @@ export default function IndexPurchases() {
             <thead>
               <tr>
                 <th>Producto</th>
-                <th>Cantidad</th>
+                <th>Paquetes</th>
                 <th>Precio</th>
               </tr>
             </thead>
@@ -389,6 +557,9 @@ export default function IndexPurchases() {
               <p className="text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
+              {apiError ? (
+                <p className="text-sm text-red-600 mt-2">{apiError}</p>
+              ) : null}
             </div>
           </div>
 
@@ -465,7 +636,21 @@ export default function IndexPurchases() {
 
                 <tbody className="divide-y divide-gray-100">
                   <AnimatePresence>
-                    {pageItems.length === 0 ? (
+                    {isLoadingApi ? (
+                      <motion.tr
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          Cargando compras...
+                        </td>
+                      </motion.tr>
+                    ) : pageItems.length === 0 ? (
                       <motion.tr
                         key="empty"
                         initial={{ opacity: 0 }}
@@ -508,7 +693,6 @@ export default function IndexPurchases() {
                             {onlyDate(p.fecha)}
                           </td>
 
-                          {/* ✅ Estado clickeable: si es Anulada => rojo */}
                           <td className="px-4 py-3">
                             <button
                               type="button"
@@ -531,7 +715,7 @@ export default function IndexPurchases() {
                                 }
                                 ${
                                   isAnulada(p.estado)
-                                    ? "bg-red-100 text-red-700" // ✅ rojo como ventas
+                                    ? "bg-red-100 text-red-700"
                                     : p.estado === "Completada" ||
                                       p.estado === "Completado"
                                     ? "bg-green-50 text-green-700"
