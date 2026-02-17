@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import ProductRegisterModal from "../products/productRegisterModal";
 import SuplliersRegisterModal from "../suppliers/SuplliersRegisterModal";
 
-// ✅ Iconos (ver / eliminar)
+// ✅ Iconos
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 
 // ✅ Hooks reales (NO modificar hooks)
@@ -43,30 +43,37 @@ export default function IndexRegisterPurchase() {
   // ✅ Alertas (estilo como las otras)
   const [mensajeComprobante, setMensajeComprobante] = useState(null);
 
+  // ✅ NUEVO: loading registrar compra
+  const [isRegistrandoCompra, setIsRegistrandoCompra] = useState(false);
+
   // ✅ Modales
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
 
-  // ✅ Modal datos extra antes de agregar a la tabla
-  const [isExtraProdModalOpen, setIsExtraProdModalOpen] = useState(false);
-  const [productoPendiente, setProductoPendiente] = useState(null);
-  const [extraProdForm, setExtraProdForm] = useState({
-    codigoBarrasIngreso: "",
-    lote: "",
-    marca: "",
-    fechaVencimiento: "",
+  // =========================
+  // ✅ MODAL PAQUETES + unidades/paq
+  // ✅ SIN CAMPO "MARCA"
+  // - cantidad (paquetes) inicia vacío (se puede borrar)
+  // - unidadesPorPaquete inicia vacío (se puede borrar)
+  // - CÁLCULO (subtotal/total) SE HACE POR PAQUETES, NO POR UNIDADES
+  // =========================
+  const [isPackModalOpen, setIsPackModalOpen] = useState(false);
+  const [productoPackPendiente, setProductoPackPendiente] = useState(null);
+
+  // ✅ CAMBIO: iniciar en "" para que NO aparezca "1" y se pueda borrar sin pelear con el input
+  const [packForm, setPackForm] = useState({
+    cantidad: "", // paquetes
+    unidadesPorPaquete: "", // informativo
+    selectedIndex: 0,
+    paquetes: [],
   });
 
-  // ✅ Modal "Ver detalles" (EDITABLE, solo nuevos datos)
-  const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false);
-  const [productoDetalles, setProductoDetalles] = useState(null);
-  const [detalleIndex, setDetalleIndex] = useState(null);
-  const [detalleEdit, setDetalleEdit] = useState({
-    codigoBarrasIngreso: "",
-    lote: "",
-    marca: "",
-    fechaVencimiento: "",
-  });
+  const [packTouched, setPackTouched] = useState({});
+  const [packErrors, setPackErrors] = useState({});
+
+  // ✅ Modal editar desde tabla (mismo formulario)
+  const [isPackEditOpen, setIsPackEditOpen] = useState(false);
+  const [packEditIndex, setPackEditIndex] = useState(null);
 
   // =========================
   // Estados de factura
@@ -97,10 +104,7 @@ export default function IndexRegisterPurchase() {
   // ✅ Bloquear scroll mientras modal abierto
   // =========================
   const anyModalOpen =
-    isProductModalOpen ||
-    isSupplierModalOpen ||
-    isExtraProdModalOpen ||
-    isViewDetailsOpen;
+    isProductModalOpen || isSupplierModalOpen || isPackModalOpen || isPackEditOpen;
 
   useEffect(() => {
     document.body.style.overflow = anyModalOpen ? "hidden" : "auto";
@@ -131,6 +135,164 @@ export default function IndexRegisterPurchase() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
+
+  // =========================
+  // ✅ Helpers FECHA (vencimiento)
+  // =========================
+  const startOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const addDays = (d, days) => {
+    const x = startOfDay(d);
+    x.setDate(x.getDate() + days);
+    return x;
+  };
+  const toISODate = (d) => startOfDay(d).toISOString().slice(0, 10);
+
+  // ✅ mínimo permitido: hoy + 4 días
+  const minExpiryDateStr = useMemo(() => toISODate(addDays(new Date(), 4)), []);
+
+  // =========================
+  // ✅ Helpers cantidad (paquetes x unidades) (SOLO INFORMATIVO)
+  // =========================
+  // ✅ CAMBIO: si está vacío => 0 (para cálculo informativo y validación)
+  const toNonNegIntFromString = (s) => {
+    if (s === "" || s == null) return 0;
+    const n = Number(s);
+    if (Number.isNaN(n)) return 0;
+    return Math.max(0, Math.floor(n));
+  };
+
+  const getTotalUnidadesFromForm = (form) => {
+    const paquetes = toNonNegIntFromString(form?.cantidad);
+    const unid = toNonNegIntFromString(form?.unidadesPorPaquete);
+    return paquetes * unid;
+  };
+
+  // =========================
+  // ✅ Validación por campo (paquete)
+  // SOLO:
+  // - codigoBarrasIngreso: numérico, 13 dígitos, obligatorio
+  // - fechaVencimiento: NO obligatoria; si existe, >= hoy+4
+  // =========================
+  const validateOne = (field, form) => {
+    const v = String(form?.[field] ?? "").trim();
+
+    if (field === "codigoBarrasIngreso") {
+      if (!v) return "El código de barras es obligatorio.";
+      if (!/^\d+$/.test(v)) return "El código de barras debe ser solo numérico.";
+      if (v.length !== 13) return "Debe tener exactamente 13 dígitos.";
+      return "";
+    }
+
+    if (field === "fechaVencimiento") {
+      if (!v) return ""; // ✅ NO obligatoria
+      const picked = startOfDay(new Date(v));
+      const minDate = startOfDay(addDays(new Date(), 4));
+      if (Number.isNaN(picked.getTime())) return "Fecha inválida.";
+      if (picked < minDate)
+        return `Debe ser igual o posterior a ${toISODate(minDate)} (mínimo 4 días).`;
+      return "";
+    }
+
+    return "";
+  };
+
+  const computeErrors = (form) => ({
+    codigoBarrasIngreso: validateOne("codigoBarrasIngreso", form),
+    fechaVencimiento: validateOne("fechaVencimiento", form),
+  });
+
+  // =========================
+  // ✅ Paquetes (array) helpers
+  // =========================
+  const makeEmptyPack = () => ({
+    codigoBarrasIngreso: "",
+    fechaVencimiento: "",
+  });
+
+  // ✅ ahora soporta n=0
+  const syncPaquetesLength = (prevPaquetes, n, fallbackBarcode = "") => {
+    const N = Math.max(0, Number(n || 0));
+    const next = [...(prevPaquetes || [])];
+
+    if (N === 0) return [];
+
+    if (N > next.length) {
+      while (next.length < N) {
+        next.push({
+          ...makeEmptyPack(),
+          codigoBarrasIngreso: next.length === 0 ? String(fallbackBarcode || "") : "",
+        });
+      }
+    } else {
+      next.length = N;
+    }
+    return next;
+  };
+
+  const computePackErrors = (form) => {
+    const errs = {};
+    const paquetesCount = toNonNegIntFromString(form?.cantidad);
+    const unidCount = toNonNegIntFromString(form?.unidadesPorPaquete);
+    const paquetes = form?.paquetes || [];
+
+    if (paquetesCount <= 0) errs["cantidad"] = "Debes ingresar una cantidad de paquetes mayor a 0.";
+    if (unidCount <= 0)
+      errs["unidadesPorPaquete"] = "Debes ingresar unidades por paquete mayor a 0.";
+
+    if (paquetesCount <= 0) return errs;
+
+    if (paquetes.length !== paquetesCount) {
+      errs["req"] = "La cantidad de paquetes no coincide con los paquetes generados.";
+      return errs;
+    }
+
+    paquetes.forEach((p, idx) => {
+      const e = computeErrors(p);
+      Object.entries(e).forEach(([k, msg]) => {
+        if (msg) errs[`${idx}.${k}`] = msg;
+      });
+    });
+
+    const codes = paquetes.map((p) => String(p.codigoBarrasIngreso || "").trim());
+    const seen = new Set();
+    for (const c of codes) {
+      if (!c) continue;
+      if (seen.has(c)) {
+        errs["dup"] = "Hay códigos de barras repetidos. Cada paquete debe ser único.";
+        break;
+      }
+      seen.add(c);
+    }
+
+    const filled = codes.filter(Boolean).length;
+    if (paquetes.length > 0 && filled !== paquetes.length) {
+      errs["req"] = "Debes ingresar un código de barras por cada paquete.";
+    }
+
+    return errs;
+  };
+
+  const packHasErrors = (errs) => Object.keys(errs || {}).length > 0;
+
+  // =========================
+  // ✅ Helpers select paquetes
+  // =========================
+  const makePackLabel = (p, idx) => {
+    const code = String(p?.codigoBarrasIngreso || "").trim();
+    return code ? `Paquete ${idx + 1} — ${code}` : `Paquete ${idx + 1} — (sin código)`;
+  };
+
+  const onSelectPaquete = (idx) => {
+    setPackForm((prev) => {
+      const len = prev.paquetes.length;
+      const nextIdx = Math.max(0, Math.min(Number(idx || 0), Math.max(0, len - 1)));
+      return { ...prev, selectedIndex: nextIdx };
+    });
+  };
 
   // =========================
   // ✅ Stock + Código (compat)
@@ -206,9 +368,7 @@ export default function IndexRegisterPurchase() {
       const codigoBarras = getCodigoBarras(p);
 
       const id_producto = p?.id_producto ?? p?.id ?? p?.ID ?? null;
-      const productoId = String(
-        id_producto ?? p?.id_detalle_producto ?? p?.id ?? ""
-      );
+      const productoId = String(id_producto ?? p?.id_detalle_producto ?? p?.id ?? "");
 
       return {
         ...p,
@@ -231,10 +391,7 @@ export default function IndexRegisterPurchase() {
     const q = normalizeText(proveedorQuery);
     if (!q) return [];
     return proveedoresDB
-      .filter(
-        (p) =>
-          normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q)
-      )
+      .filter((p) => normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q))
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
 
@@ -269,15 +426,12 @@ export default function IndexRegisterPurchase() {
   }, [productoQuery, productosDB, selectedProductIds]);
 
   // =========================
-  // Selección proveedor / producto
+  // Selección proveedor
   // =========================
   const seleccionarProveedor = (prov) => {
     setProveedor(prov);
     setProveedorQuery(`${prov.nombre} (${prov.nit})`);
-    setMensajeProveedor({
-      tipo: "ok",
-      texto: `✅ Proveedor seleccionado: ${prov.nombre}`,
-    });
+    setMensajeProveedor({ tipo: "ok", texto: `✅ Proveedor seleccionado: ${prov.nombre}` });
     setIsProvOpen(false);
     setProvActiveIndex(-1);
   };
@@ -314,16 +468,16 @@ export default function IndexRegisterPurchase() {
   }, [proveedoresDB]);
 
   // =========================
-  // Cálculos
+  // ✅ Cálculos (POR PAQUETES)
   // =========================
   const calcularSubtotal = (prod) => {
-    const cantidad = Number(prod.cantidad || 0);
+    const paquetes = Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0); // ✅ PAQUETES
     const precioCompra = Number(prod.precioCompra || 0);
 
     const ivaPct = Number(prod.subida || 0);
     const icuPct = Number(prod.descuento || 0);
 
-    const base = precioCompra * cantidad;
+    const base = precioCompra * paquetes;
     const iva = (base * ivaPct) / 100;
     const icu = (base * icuPct) / 100;
 
@@ -336,154 +490,272 @@ export default function IndexRegisterPurchase() {
   );
 
   // =========================
-  // ✅ Ver detalles (EDITABLE) - SOLO nuevos datos
+  // ✅ Modal paquetes: abrir al seleccionar producto
   // =========================
-  const verDetallesProducto = (producto, index) => {
-    setProductoDetalles(producto);
-    setDetalleIndex(index);
+  const abrirModalPaquetesProducto = (productoEncontrado) => {
+    setProductoPackPendiente(productoEncontrado);
 
-    setDetalleEdit({
-      codigoBarrasIngreso: producto?.codigoBarrasIngreso ?? "",
-      lote: producto?.lote ?? "",
-      marca: producto?.marca ?? "",
-      fechaVencimiento: producto?.fechaVencimiento ?? "",
+    // ✅ iniciar vacío (0 lógico, pero el input queda en blanco para poder borrar)
+    setPackForm({
+      cantidad: "",
+      unidadesPorPaquete: "",
+      selectedIndex: 0,
+      paquetes: [],
     });
 
-    setIsViewDetailsOpen(true);
+    setPackTouched({});
+    setPackErrors({});
+    setIsPackModalOpen(true);
   };
 
-  const guardarCambiosDetalles = () => {
-    if (detalleIndex == null) return;
-
-    setProductos((prev) => {
-      const copia = [...prev];
-      copia[detalleIndex] = {
-        ...copia[detalleIndex],
-        codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
-        lote: detalleEdit.lote,
-        marca: detalleEdit.marca,
-        fechaVencimiento: detalleEdit.fechaVencimiento,
-      };
-      return copia;
-    });
-
-    setProductoDetalles((prev) =>
-      prev
-        ? {
-            ...prev,
-            codigoBarrasIngreso: detalleEdit.codigoBarrasIngreso,
-            lote: detalleEdit.lote,
-            marca: detalleEdit.marca,
-            fechaVencimiento: detalleEdit.fechaVencimiento,
-          }
-        : prev
-    );
-
-    setIsViewDetailsOpen(false);
+  const cancelarModalPaquetes = () => {
+    setIsPackModalOpen(false);
+    setProductoPackPendiente(null);
+    setPackTouched({});
+    setPackErrors({});
   };
 
-  // =========================
-  // ✅ Modal datos extra antes de agregar
-  // =========================
-  const abrirModalDatosExtra = (productoEncontrado) => {
-    setProductoPendiente(productoEncontrado);
+  const guardarModalPaquetesYAgregar = () => {
+    if (!productoPackPendiente) return;
 
-    const prefillBarcode =
-      productoEncontrado?.codigoBarras ??
-      getCodigoBarras(productoEncontrado) ??
-      "";
+    setPackTouched((prev) => ({
+      ...prev,
+      cantidad: true,
+      unidadesPorPaquete: true,
+      ...packForm.paquetes.reduce((acc, _p, idx) => {
+        acc[`${idx}.codigoBarrasIngreso`] = true;
+        acc[`${idx}.fechaVencimiento`] = true;
+        return acc;
+      }, {}),
+    }));
 
-    setExtraProdForm({
-      codigoBarrasIngreso: String(prefillBarcode || ""),
-      lote: "",
-      marca: "",
-      fechaVencimiento: "",
-    });
-
-    setIsExtraProdModalOpen(true);
-  };
-
-  const confirmarDatosExtraYAgregar = () => {
-    if (!productoPendiente) return;
-
-    if (!extraProdForm.codigoBarrasIngreso.trim()) {
-      alert("⚠️ Debes ingresar el código de barras.");
-      return;
-    }
-    if (!extraProdForm.lote.trim()) {
-      alert("⚠️ Debes ingresar el lote.");
-      return;
-    }
-    if (!extraProdForm.marca.trim()) {
-      alert("⚠️ Debes ingresar la marca.");
-      return;
-    }
-    if (!extraProdForm.fechaVencimiento) {
-      alert("⚠️ Debes seleccionar la fecha de vencimiento.");
-      return;
-    }
-
-    const enriched = {
-      ...productoPendiente,
-      codigoBarrasIngreso: extraProdForm.codigoBarrasIngreso.trim(),
-      lote: extraProdForm.lote.trim(),
-      marca: extraProdForm.marca.trim(),
-      fechaVencimiento: extraProdForm.fechaVencimiento,
+    // ✅ IMPORTANTE: validar con un form "normalizado" ("" => "0") para no romper UX
+    const normalized = {
+      ...packForm,
+      cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+      unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
     };
 
-    setIsExtraProdModalOpen(false);
-    setProductoPendiente(null);
+    const errs = computePackErrors(normalized);
+    setPackErrors(errs);
+    if (packHasErrors(errs)) return;
 
+    const cantidadPaquetesNum = toNonNegIntFromString(normalized.cantidad);
+    const unidadesPorPaqueteNum = toNonNegIntFromString(normalized.unidadesPorPaquete);
+    const totalUnidades = cantidadPaquetesNum * unidadesPorPaqueteNum;
+
+    const paquetesNormalized = normalized.paquetes.map((p) => ({
+      codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
+      fechaVencimiento: p.fechaVencimiento || "",
+    }));
+
+    const enriched = {
+      ...productoPackPendiente,
+
+      // ✅ NUEVO: guardo ambos para backend/tabla/modal detalle
+      cantidadPaquetes: String(cantidadPaquetesNum),
+      unidadesPorPaquete: String(unidadesPorPaqueteNum),
+      cantidadTotalUnidades: String(totalUnidades),
+
+      // ✅ LO PRINCIPAL (para cálculos): PAQUETES
+      cantidad: String(cantidadPaquetesNum),
+
+      // ✅ IMPORTANTÍSIMO: mandar paquetes[] al backend
+      paquetes: paquetesNormalized,
+
+      // compat: paquete “principal” (si backend aún lo usa)
+      codigoBarrasIngreso: String(
+        paquetesNormalized[normalized.selectedIndex]?.codigoBarrasIngreso ||
+          paquetesNormalized[0]?.codigoBarrasIngreso ||
+          ""
+      ).trim(),
+      fechaVencimiento:
+        paquetesNormalized[normalized.selectedIndex]?.fechaVencimiento ||
+        paquetesNormalized[0]?.fechaVencimiento ||
+        "",
+    };
+
+    setIsPackModalOpen(false);
+    setProductoPackPendiente(null);
     agregarProducto(enriched);
   };
 
-  const cancelarDatosExtra = () => {
-    setIsExtraProdModalOpen(false);
-    setProductoPendiente(null);
+  // =========================
+  // ✅ Editar desde tabla
+  // =========================
+  const abrirPackEditDesdeTabla = (prod, index) => {
+    const cantPaquetes = Math.max(
+      0,
+      Number(prod?.cantidadPaquetes ?? prod?.cantidad ?? 0)
+    );
+    const unid = Math.max(0, Number(prod?.unidadesPorPaquete ?? 0));
+
+    const base =
+      Array.isArray(prod?.paquetes) && prod.paquetes.length
+        ? prod.paquetes.map((p) => ({
+            codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
+            fechaVencimiento: p?.fechaVencimiento || "",
+          }))
+        : [];
+
+    setPackEditIndex(index);
+
+    // ✅ iniciar con valores reales (edit)
+    setPackForm({
+      cantidad: String(cantPaquetes),
+      unidadesPorPaquete: String(unid),
+      selectedIndex: 0,
+      paquetes: syncPaquetesLength(base, cantPaquetes, ""),
+    });
+
+    setPackTouched({});
+    setPackErrors({});
+    setIsPackEditOpen(true);
+  };
+
+  const cancelarPackEdit = () => {
+    setIsPackEditOpen(false);
+    setPackEditIndex(null);
+    setPackTouched({});
+    setPackErrors({});
+  };
+
+  const guardarPackEdit = () => {
+    if (packEditIndex == null) return;
+
+    setPackTouched((prev) => ({
+      ...prev,
+      cantidad: true,
+      unidadesPorPaquete: true,
+      ...packForm.paquetes.reduce((acc, _p, idx) => {
+        acc[`${idx}.codigoBarrasIngreso`] = true;
+        acc[`${idx}.fechaVencimiento`] = true;
+        return acc;
+      }, {}),
+    }));
+
+    const normalized = {
+      ...packForm,
+      cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+      unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+    };
+
+    const errs = computePackErrors(normalized);
+    setPackErrors(errs);
+    if (packHasErrors(errs)) return;
+
+    const cantidadPaquetesNum = toNonNegIntFromString(normalized.cantidad);
+    const unidadesPorPaqueteNum = toNonNegIntFromString(normalized.unidadesPorPaquete);
+    const totalUnidades = cantidadPaquetesNum * unidadesPorPaqueteNum;
+
+    setProductos((prev) => {
+      const copia = [...prev];
+      const actual = copia[packEditIndex];
+
+      const paquetesNormalized = normalized.paquetes.map((p) => ({
+        codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
+        fechaVencimiento: p.fechaVencimiento || "",
+      }));
+
+      const paquetes = syncPaquetesLength(paquetesNormalized, cantidadPaquetesNum, "");
+
+      copia[packEditIndex] = {
+        ...actual,
+
+        cantidadPaquetes: String(cantidadPaquetesNum),
+        unidadesPorPaquete: String(unidadesPorPaqueteNum),
+        cantidadTotalUnidades: String(totalUnidades),
+
+        // ✅ principal
+        cantidad: String(cantidadPaquetesNum),
+
+        // ✅ IMPORTANTÍSIMO: mantener paquetes[]
+        paquetes,
+
+        codigoBarrasIngreso:
+          paquetes[normalized.selectedIndex]?.codigoBarrasIngreso ||
+          paquetes[0]?.codigoBarrasIngreso ||
+          "",
+        fechaVencimiento:
+          paquetes[normalized.selectedIndex]?.fechaVencimiento ||
+          paquetes[0]?.fechaVencimiento ||
+          "",
+      };
+
+      return copia;
+    });
+
+    setIsPackEditOpen(false);
+    setPackEditIndex(null);
   };
 
   // =========================
-  // Agregar producto (guarda nuevos campos)
+  // Agregar producto
   // =========================
   const agregarProducto = (productoEncontrado) => {
-    const id = getProductoId(productoEncontrado);
+    const id = String(
+      productoEncontrado?.id_producto ??
+        productoEncontrado?.id ??
+        getProductoId(productoEncontrado)
+    );
 
     if (id && selectedProductIds.has(String(id))) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: "⚠️ Este producto ya fue agregado.",
-      });
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Este producto ya fue agregado." });
       setProductoQuery("");
       setIsProdOpen(false);
       setProdActiveIndex(-1);
       return;
     }
 
+    const cantPaquetesNum = Math.max(
+      0,
+      Number(productoEncontrado?.cantidadPaquetes ?? productoEncontrado?.cantidad ?? 0)
+    );
+    const unidNum = Math.max(0, Number(productoEncontrado?.unidadesPorPaquete ?? 0));
+    const totalUnidades = cantPaquetesNum * unidNum;
+
+    const paquetesSafe = Array.isArray(productoEncontrado?.paquetes)
+      ? syncPaquetesLength(
+          productoEncontrado.paquetes.map((p) => ({
+            codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
+            fechaVencimiento: p?.fechaVencimiento || "",
+          })),
+          cantPaquetesNum,
+          ""
+        )
+      : syncPaquetesLength([], cantPaquetesNum, "");
+
     setProductos((prev) => [
       ...prev,
       {
         ...productoEncontrado,
-        productoId: String(
-          productoEncontrado.id_producto ?? productoEncontrado.id ?? id
-        ),
-        cantidad: "1",
+        productoId: id,
+
+        // ✅ lo principal: PAQUETES
+        cantidad: String(cantPaquetesNum),
+        cantidadPaquetes: String(cantPaquetesNum),
+
+        // ✅ NUEVO
+        unidadesPorPaquete: String(unidNum),
+        cantidadTotalUnidades: String(totalUnidades),
+
         subida: "0",
         descuento: "0",
         precioCompra: String(Number(productoEncontrado.precio ?? 0)),
-        precioVenta: Number(productoEncontrado.precioVenta ?? 0),
 
-        // ✅ nuevos campos
+        // ✅ precio venta editable
+        precioVenta: String(Number(productoEncontrado.precioVenta ?? 0)),
+
+        // compat
         codigoBarrasIngreso: productoEncontrado.codigoBarrasIngreso ?? "",
-        lote: productoEncontrado.lote ?? "",
-        marca: productoEncontrado.marca ?? "",
         fechaVencimiento: productoEncontrado.fechaVencimiento ?? "",
+
+        // ✅ paquetes
+        paquetes: paquetesSafe,
       },
     ]);
 
-    setMensajeProducto({
-      tipo: "ok",
-      texto: `✅ Producto agregado: ${productoEncontrado.nombre}`,
-    });
+    setMensajeProducto({ tipo: "ok", texto: `✅ Producto agregado: ${productoEncontrado.nombre}` });
 
     setProductoQuery("");
     setIsProdOpen(false);
@@ -491,7 +763,7 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // Producto creado desde modal => pedir datos extra
+  // Producto creado desde modal => abrir formulario paquetes
   // =========================
   const onProductoCreado = (created) => {
     const id_producto = created?.id_producto ?? created?.id ?? created?.ID ?? null;
@@ -499,14 +771,10 @@ export default function IndexRegisterPurchase() {
     const mapped = {
       ...created,
       id_producto,
-      productoId: String(
-        id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""
-      ),
+      productoId: String(id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""),
       codigo: created?.codigo != null ? String(created.codigo) : "",
       nombre: created?.nombre ?? created?.productos?.nombre ?? "",
-      precio:
-        Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) ||
-        0,
+      precio: Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) || 0,
       precioVenta:
         Number(
           created?.precio_venta ??
@@ -521,7 +789,7 @@ export default function IndexRegisterPurchase() {
     };
 
     setIsProductModalOpen(false);
-    abrirModalDatosExtra(mapped);
+    abrirModalPaquetesProducto(mapped);
   };
 
   // =========================
@@ -554,9 +822,7 @@ export default function IndexRegisterPurchase() {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setIsProvOpen(true);
-      setProvActiveIndex((prev) =>
-        Math.min(prev + 1, proveedoresFiltrados.length - 1)
-      );
+      setProvActiveIndex((prev) => Math.min(prev + 1, proveedoresFiltrados.length - 1));
       return;
     }
     if (e.key === "ArrowUp") {
@@ -565,11 +831,7 @@ export default function IndexRegisterPurchase() {
       return;
     }
     if (e.key === "Enter") {
-      if (
-        isProvOpen &&
-        provActiveIndex >= 0 &&
-        proveedoresFiltrados[provActiveIndex]
-      ) {
+      if (isProvOpen && provActiveIndex >= 0 && proveedoresFiltrados[provActiveIndex]) {
         e.preventDefault();
         seleccionarProveedor(proveedoresFiltrados[provActiveIndex]);
         return;
@@ -601,9 +863,7 @@ export default function IndexRegisterPurchase() {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setIsProdOpen(true);
-      setProdActiveIndex((prev) =>
-        Math.min(prev + 1, productosFiltrados.length - 1)
-      );
+      setProdActiveIndex((prev) => Math.min(prev + 1, productosFiltrados.length - 1));
       return;
     }
     if (e.key === "ArrowUp") {
@@ -614,28 +874,23 @@ export default function IndexRegisterPurchase() {
     if (e.key === "Enter") {
       e.preventDefault();
 
-      if (
-        isProdOpen &&
-        prodActiveIndex >= 0 &&
-        productosFiltrados[prodActiveIndex]
-      ) {
-        abrirModalDatosExtra(productosFiltrados[prodActiveIndex]);
+      if (isProdOpen && prodActiveIndex >= 0 && productosFiltrados[prodActiveIndex]) {
+        abrirModalPaquetesProducto(productosFiltrados[prodActiveIndex]);
         return;
       }
 
-      if (productosFiltrados.length > 0) abrirModalDatosExtra(productosFiltrados[0]);
+      if (productosFiltrados.length > 0) abrirModalPaquetesProducto(productosFiltrados[0]);
       else {
         setMensajeProducto({
           tipo: "error",
-          texto:
-            "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
+          texto: "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
         });
       }
     }
   };
 
   // =========================
-  // ✅ Generar número de factura: 001..999
+  // ✅ Generar número de factura: 001..999 (solo UI local)
   // =========================
   const generarNumeroFactura = () => {
     const facturas = JSON.parse(localStorage.getItem("facturas")) || [];
@@ -654,20 +909,7 @@ export default function IndexRegisterPurchase() {
       return null;
     }
 
-    return String(siguiente).padStart(3, "0"); // ✅ 001, 002, 003...
-  };
-
-  // =========================
-  // ✅ Generar ID compra consecutivo: 1..n
-  // =========================
-  const generarIdCompra = () => {
-    const compras = JSON.parse(localStorage.getItem("compras")) || [];
-
-    const ultimoId = compras.length
-      ? Math.max(...compras.map((c) => Number(c.id || 0)))
-      : 0;
-
-    return ultimoId + 1; // ✅ 1, 2, 3...
+    return String(siguiente).padStart(3, "0");
   };
 
   // =========================
@@ -682,13 +924,7 @@ export default function IndexRegisterPurchase() {
       return false;
     }
 
-    const allowed = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/jpg",
-      "image/webp",
-    ];
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "image/webp"];
 
     if (!allowed.includes(file.type)) {
       setMensajeComprobante({
@@ -698,7 +934,6 @@ export default function IndexRegisterPurchase() {
       return false;
     }
 
-    // (opcional) límite tamaño: 5MB
     const maxBytes = 5 * 1024 * 1024;
     if (file.size > maxBytes) {
       setMensajeComprobante({
@@ -716,132 +951,166 @@ export default function IndexRegisterPurchase() {
   };
 
   const handleComprobanteUpload = (e) => {
-    const file = e.target.files?.[0] || null;
-    setComprobante(file);
-    validarComprobante(file);
+  const file = e.target.files?.[0] || null;
+  setComprobante(file);
+  validarComprobante(file);
   };
 
   // =========================
-  // ✅ Finalizar compra (GUARDA FACTURA + GUARDA COMPRA)
+  // ✅ Finalizar compra (FRONT)
   // =========================
-  const handleFinalizarCompra = () => {
-    // limpiar alertas del comprobante para que no quede vieja
-    setMensajeComprobante(null);
+ // ✅ Finalizar compra (FRONT)
+const handleFinalizarCompra = async () => {
+  if (isRegistrandoCompra) return;
 
-    if (!proveedor) {
-      setMensajeProveedor({
-        tipo: "error",
-        texto: "⚠️ Debe seleccionar un proveedor",
-      });
-      return;
-    }
+  setMensajeComprobante(null);
 
-    if (productos.length === 0) {
+  if (!proveedor) {
+    setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
+    return;
+  }
+
+  if (productos.length === 0) {
+    setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+    return;
+  }
+
+  // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq (para que no vuelva a llegar 0 al backend)
+  for (const p of productos) {
+    const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
+    const unid = Number(p.unidadesPorPaquete ?? 0);
+    const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
+
+    if (!cantPaquetes || cantPaquetes <= 0) {
       setMensajeProducto({
         tipo: "error",
-        texto: "⚠️ Debe agregar al menos un producto",
+        texto: `⚠️ Revisa "${p.nombre}": faltan paquetes.`,
       });
       return;
     }
+    if (!unid || unid <= 0) {
+      setMensajeProducto({
+        tipo: "error",
+        texto: `⚠️ Revisa "${p.nombre}": faltan unidades por paquete.`,
+      });
+      return;
+    }
+    if (packs.length !== cantPaquetes) {
+      setMensajeProducto({
+        tipo: "error",
+        texto: `⚠️ Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
+      });
+      return;
+    }
+  }
 
-    if (!validarComprobante(comprobante)) {
-      // ✅ ya queda la alerta estilo
+  // ✅ IMPORTANTE: comprobante debe ser File real (para FormData)
+  if (!validarComprobante(comprobante)) return;
+
+  const num = generarNumeroFactura();
+  if (!num) return;
+  setNumFactura(num);
+
+  // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
+  const payload = {
+    fecha_compra: fechaFactura.toISOString(),
+    id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
+
+    // ✅ este objeto puede quedarse (no estorba), pero NO es lo que guarda el backend;
+    // lo que manda el archivo de verdad es FormData.append("comprobante", comprobante)
+    comprobante: comprobante
+      ? {
+          url: null,
+          nombre: comprobante.name,
+          mime: comprobante.type,
+          size: comprobante.size,
+        }
+      : null,
+
+    items: productos.map((p) => {
+      const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
+      const unid = Number(p.unidadesPorPaquete ?? 0);
+      const totalUnid = cantPaquetes * unid;
+
+      return {
+        id_producto: Number(p.id_producto ?? p.productoId),
+
+        // ✅ paquetes
+        cantidad: cantPaquetes,
+
+        // ✅ NUEVO (para guardar en detalle_compra)
+        cantidad_paquetes: cantPaquetes,
+        unidades_por_paquete: unid,
+        cantidad_total_unidades: totalUnid,
+
+        precio_unitario: Number(p.precioCompra),
+        precio_venta: Number(p.precioVenta ?? 0),
+        iva_porcentaje: Number(p.subida ?? 0),
+        icu_porcentaje: Number(p.descuento ?? 0),
+
+        // ✅ lista paquetes
+        paquetes: Array.isArray(p.paquetes)
+          ? p.paquetes.map((x) => ({
+              codigoBarrasIngreso: String(x.codigoBarrasIngreso || "").trim(),
+              fechaVencimiento: x.fechaVencimiento ? x.fechaVencimiento : null,
+            }))
+          : [],
+
+        // ✅ compat
+        codigo_barras_producto_compra: String(p.codigoBarrasIngreso ?? "").trim(),
+        fecha_vencimiento: p.fechaVencimiento ? p.fechaVencimiento : null,
+      };
+    }),
+  };
+
+  setIsRegistrandoCompra(true);
+  setMensajeComprobante({ tipo: "info", texto: "⏳ Registrando compra..." });
+
+  try {
+    // ✅ FormData compatible con multer
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(payload)); // backend lee req.body.data
+
+    if (comprobante) {
+      // multer espera exactamente el field name "comprobante"
+      formData.append("comprobante", comprobante);
+    }
+
+    const resp = await fetch("http://localhost:3000/kajamart/api/purchase", {
+      method: "POST",
+      body: formData, // ✅ NO pongas Content-Type
+    });
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok) {
+      const msg = data?.message || data?.error || "Error al registrar la compra (backend).";
+      setMensajeComprobante({ tipo: "error", texto: `❌ ${msg}` });
       return;
     }
 
-    const num = generarNumeroFactura();
-    if (!num) return;
-    setNumFactura(num);
+    setMensajeComprobante({ tipo: "ok", texto: "✅ Compra registrada correctamente en el sistema" });
 
-    const idCompra = generarIdCompra();
-
-    // Totales fiscales
-    const ivaTotal = productos.reduce(
-      (acc, p) =>
-        acc +
-        (Number(p.precioCompra) * Number(p.cantidad) * Number(p.subida)) / 100,
-      0
-    );
-
-    const icuTotal = productos.reduce(
-      (acc, p) =>
-        acc +
-        (Number(p.precioCompra) * Number(p.cantidad) * Number(p.descuento)) / 100,
-      0
-    );
-
-    // =========================
-    // FACTURA (localStorage.facturas)
-    // =========================
-    const facturaId = Date.now(); // id temporal frontend
-
-    const factura = {
-      id_factura: facturaId,
+    const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
+    facturasGuardadas.push({
       num_factura: num,
       fecha_registro: fechaFactura.toISOString(),
       valor_factura: total,
-      iva: ivaTotal,
-      icu: icuTotal,
-      comprobante_pago: comprobante.name,
-      id_compra: idCompra,
-      detalles: productos.map((p) => ({
-        id_detalle_producto: p.id_detalle_producto ?? p.productoId,
-        id_producto: p.id_producto ?? p.productoId,
-        cantidad: Number(p.cantidad),
-        precio_unitario: Number(p.precioCompra),
-        subtotal: calcularSubtotal(p),
-        iva_aplicado: Number(p.subida),
-        icu_aplicado: Number(p.descuento),
-        lote: p.lote,
-        marca: p.marca,
-        fecha_vencimiento: p.fechaVencimiento,
-        codigo_barras: p.codigoBarrasIngreso,
-      })),
-    };
-
-    const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
-    facturasGuardadas.push(factura);
+      id_compra: data?.compra?.id_compra ?? null,
+    });
     localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
 
-    // =========================
-    // COMPRA (localStorage.compras) ✅ ES LA QUE LISTAS EN COMPRAS
-    // =========================
-    const compra = {
-      id: idCompra, // ✅ 1,2,3...
-      facturaId,
-      numero_factura: num, // ✅ 001,002,003...
-      fecha: fechaFactura.toISOString(),
-      proveedor: {
-        id_proveedor: proveedor.id_proveedor ?? proveedor.id ?? null,
-        nombre: proveedor.nombre ?? "—",
-        nit: proveedor.nit ?? "—",
-      },
-      total,
-      estado: "Completada",
-      comprobante: { name: comprobante.name, type: comprobante.type },
-      productos: productos.map((p) => ({
-        productoId: p.productoId ?? p.id_producto ?? p.id ?? null,
-        nombre: p.nombre ?? "—",
-        cantidad: Number(p.cantidad),
-        precioCompra: Number(p.precioCompra),
-        subida: Number(p.subida),
-        descuento: Number(p.descuento),
-        subtotal: calcularSubtotal(p),
-
-        // extras
-        codigoBarrasIngreso: p.codigoBarrasIngreso,
-        lote: p.lote,
-        marca: p.marca,
-        fechaVencimiento: p.fechaVencimiento,
-      })),
-    };
-
-    const comprasGuardadas = JSON.parse(localStorage.getItem("compras")) || [];
-    comprasGuardadas.push(compra);
-    localStorage.setItem("compras", JSON.stringify(comprasGuardadas));
-
     navigate("/app/purchases");
-  };
+  } catch (err) {
+    setMensajeComprobante({
+      tipo: "error",
+      texto: "❌ No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+    });
+  } finally {
+    setIsRegistrandoCompra(false);
+  }
+};
+
 
   // =========================
   // Errores de carga
@@ -871,7 +1140,7 @@ export default function IndexRegisterPurchase() {
   }
 
   // =========================
-  // UI (tu render original)
+  // UI
   // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
@@ -895,6 +1164,21 @@ export default function IndexRegisterPurchase() {
         }
       `}</style>
 
+      {/* ✅ Overlay mientras registra compra */}
+      {isRegistrandoCompra && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-600" />
+              <div>
+                <p className="font-semibold text-gray-900">Registrando compra...</p>
+                <p className="text-sm text-gray-500">Por favor espera un momento.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Compras</h2>
@@ -902,7 +1186,6 @@ export default function IndexRegisterPurchase() {
           Completa la información para registrar una nueva compra
         </p>
 
-        {/* opcional: mostrar número generado cuando existe */}
         {numFactura && (
           <p className="mt-2 text-sm">
             N° Factura generado:{" "}
@@ -913,9 +1196,7 @@ export default function IndexRegisterPurchase() {
 
       {/* Buscar proveedor */}
       <div className="mb-4 relative" ref={provWrapRef}>
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Proveedor
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Proveedor</label>
 
         <div className="flex items-center gap-2">
           <input
@@ -939,8 +1220,7 @@ export default function IndexRegisterPurchase() {
                 setProveedor(null);
                 setMensajeProveedor({
                   tipo: "error",
-                  texto:
-                    "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
+                  texto: "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
                 });
               }
             }}
@@ -948,12 +1228,8 @@ export default function IndexRegisterPurchase() {
               if (proveedorQuery.trim()) setIsProvOpen(true);
             }}
             onKeyDown={onProveedorKeyDown}
-            placeholder={
-              isSuppliersLoading
-                ? "Cargando proveedores..."
-                : "Ingrese NIT o nombre"
-            }
-            disabled={isSuppliersLoading}
+            placeholder={isSuppliersLoading ? "Cargando proveedores..." : "Ingrese NIT o nombre"}
+            disabled={isSuppliersLoading || isRegistrandoCompra}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
@@ -967,7 +1243,8 @@ export default function IndexRegisterPurchase() {
                 window.scrollTo({ top: 0, behavior: "auto" });
                 setIsSupplierModalOpen(true);
               }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              disabled={isRegistrandoCompra}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
               type="button"
             >
               Registrar Proveedor
@@ -1007,9 +1284,7 @@ export default function IndexRegisterPurchase() {
 
       {/* Buscar producto */}
       <div className="mb-4 relative" ref={prodWrapRef}>
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Producto
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Producto</label>
 
         <div className="flex items-center gap-2">
           <input
@@ -1042,8 +1317,7 @@ export default function IndexRegisterPurchase() {
               if (!hay) {
                 setMensajeProducto({
                   tipo: "error",
-                  texto:
-                    "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
+                  texto: "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
                 });
               } else {
                 setMensajeProducto(null);
@@ -1056,11 +1330,9 @@ export default function IndexRegisterPurchase() {
             }}
             onKeyDown={onProductoKeyDown}
             placeholder={
-              isProductsLoading
-                ? "Cargando productos..."
-                : "Ingrese código, barras o nombre"
+              isProductsLoading ? "Cargando productos..." : "Ingrese código, barras o nombre"
             }
-            disabled={isProductsLoading}
+            disabled={isProductsLoading || isRegistrandoCompra}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
@@ -1070,7 +1342,8 @@ export default function IndexRegisterPurchase() {
                 window.scrollTo({ top: 0, behavior: "auto" });
                 setIsProductModalOpen(true);
               }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              disabled={isRegistrandoCompra}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
               type="button"
             >
               Registrar Producto
@@ -1092,12 +1365,10 @@ export default function IndexRegisterPurchase() {
                   onMouseEnter={() => setProdActiveIndex(idx)}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    abrirModalDatosExtra(p);
+                    abrirModalPaquetesProducto(p);
                   }}
                   className={`px-3 py-2 text-black ${
-                    idx === prodActiveIndex
-                      ? "bg-green-50"
-                      : "hover:bg-green-50"
+                    idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
                   } cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -1105,18 +1376,14 @@ export default function IndexRegisterPurchase() {
 
                     <span
                       className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
-                        sinStock
-                          ? "bg-red-100 text-red-700"
-                          : "bg-green-50 text-green-700"
+                        sinStock ? "bg-red-100 text-red-700" : "bg-green-50 text-green-700"
                       }`}
                     >
                       Stock: {stock}
                     </span>
                   </div>
 
-                  <div className="text-xs text-gray-500">
-                    Código: {codigoMostrar}
-                  </div>
+                  <div className="text-xs text-gray-500">Código: {codigoMostrar}</div>
                 </div>
               );
             })}
@@ -1166,28 +1433,16 @@ export default function IndexRegisterPurchase() {
                   {Number(prod.stock ?? 0)}
                 </td>
 
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="1"
-                    value={prod.cantidad}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].cantidad = e.target.value;
-                      setProductos(nueva);
-                    }}
-                    onBlur={() => {
-                      const nueva = [...productos];
-                      const v = nueva[i].cantidad;
-                      const n = Number(v);
-                      nueva[i].cantidad =
-                        v === "" || !Number.isFinite(n) || n < 1
-                          ? "1"
-                          : String(Math.floor(n));
-                      setProductos(nueva);
-                    }}
-                    className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
+                {/* ✅ Cantidad principal = PAQUETES */}
+                <td className="border px-3 py-2 text-center text-black">
+                  <div className="leading-tight">
+                    <div className="font-semibold">
+                      {Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {Number(prod.unidadesPorPaquete ?? 0)} unid/paq
+                    </div>
+                  </div>
                 </td>
 
                 <td className="border px-3 py-2 text-center">
@@ -1209,8 +1464,9 @@ export default function IndexRegisterPurchase() {
                         setProductos(nueva);
                       }}
                       inputMode="decimal"
+                      disabled={isRegistrandoCompra}
                       className={
-                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black" +
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black disabled:opacity-60" +
                         noSpinNumber
                       }
                       style={{ MozAppearance: "textfield" }}
@@ -1240,8 +1496,9 @@ export default function IndexRegisterPurchase() {
                         setProductos(nueva);
                       }}
                       inputMode="decimal"
+                      disabled={isRegistrandoCompra}
                       className={
-                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black" +
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black disabled:opacity-60" +
                         noSpinNumber
                       }
                       style={{ MozAppearance: "textfield" }}
@@ -1264,16 +1521,32 @@ export default function IndexRegisterPurchase() {
                     }}
                     onBlur={() => {
                       const nueva = [...productos];
-                      if (nueva[i].precioCompra === "")
-                        nueva[i].precioCompra = "0";
+                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
                       setProductos(nueva);
                     }}
-                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black"
+                    disabled={isRegistrandoCompra}
+                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
                   />
                 </td>
 
-                <td className="border px-3 py-2 text-center text-black">
-                  ${Number(prod.precioVenta ?? 0).toLocaleString("es-CO")}
+                <td className="border px-3 py-2 text-center">
+                  <input
+                    type="number"
+                    min="0"
+                    value={prod.precioVenta}
+                    onChange={(e) => {
+                      const nueva = [...productos];
+                      nueva[i].precioVenta = e.target.value;
+                      setProductos(nueva);
+                    }}
+                    onBlur={() => {
+                      const nueva = [...productos];
+                      if (nueva[i].precioVenta === "") nueva[i].precioVenta = "0";
+                      setProductos(nueva);
+                    }}
+                    disabled={isRegistrandoCompra}
+                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
+                  />
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
@@ -1283,21 +1556,21 @@ export default function IndexRegisterPurchase() {
                 <td className="border px-3 py-2">
                   <div className="flex items-center justify-center gap-3">
                     <button
-                      onClick={() => verDetallesProducto(prod, i)}
-                      title="Ver / editar detalles"
-                      className="text-blue-600 hover:text-blue-800"
+                      onClick={() => abrirPackEditDesdeTabla(prod, i)}
+                      title="Ver / editar paquetes"
+                      className="text-blue-600 hover:text-blue-800 disabled:opacity-60"
                       type="button"
+                      disabled={isRegistrandoCompra}
                     >
                       <FiEdit size={18} />
                     </button>
 
                     <button
-                      onClick={() =>
-                        setProductos(productos.filter((_, idx) => idx !== i))
-                      }
+                      onClick={() => setProductos(productos.filter((_, idx) => idx !== i))}
                       title="Eliminar"
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 disabled:opacity-60"
                       type="button"
+                      disabled={isRegistrandoCompra}
                     >
                       <FiTrash2 size={18} />
                     </button>
@@ -1312,22 +1585,22 @@ export default function IndexRegisterPurchase() {
       {/* Comprobante + total */}
       <div className="flex justify-between items-center">
         <div className="flex flex-col">
-          <label className="font-semibold text-gray-700 mb-1">
-            Subir comprobante original
-          </label>
+          <label className="font-semibold text-gray-700 mb-1">Subir comprobante original</label>
 
           <input
             type="file"
             accept="image/*,application/pdf"
             onChange={handleComprobanteUpload}
+            disabled={isRegistrandoCompra}
           />
 
-          {/* ✅ Alerta estilo para comprobante */}
           {mensajeComprobante && (
             <p
               className={`mt-1 text-sm ${
                 mensajeComprobante.tipo === "ok"
                   ? "text-green-600"
+                  : mensajeComprobante.tipo === "info"
+                  ? "text-blue-600"
                   : "text-red-600"
               }`}
             >
@@ -1338,9 +1611,7 @@ export default function IndexRegisterPurchase() {
 
         <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
           <p className="text-sm text-gray-600">Total a pagar</p>
-          <p className="text-2xl font-bold text-green-700">
-            ${total.toLocaleString("es-CO")}
-          </p>
+          <p className="text-2xl font-bold text-green-700">${total.toLocaleString("es-CO")}</p>
         </div>
       </div>
 
@@ -1348,110 +1619,278 @@ export default function IndexRegisterPurchase() {
       <div className="flex justify-end mt-4 space-x-2">
         <button
           onClick={() => navigate("/app/purchases")}
-          className="px-4 py-2 rounded bg-gray-500 text-white"
+          className="px-4 py-2 rounded bg-gray-500 text-white disabled:opacity-60"
           type="button"
+          disabled={isRegistrandoCompra}
         >
           Cancelar
         </button>
+
         <button
           onClick={handleFinalizarCompra}
-          className="px-4 py-2 rounded bg-green-600 text-white"
+          disabled={isRegistrandoCompra}
+          className={`px-4 py-2 rounded text-white ${
+            isRegistrandoCompra ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+          }`}
           type="button"
         >
-          Finalizar Compra
+          {isRegistrandoCompra ? "Registrando..." : "Finalizar Compra"}
         </button>
       </div>
 
       {/* =========================
-          MODAL DATOS EXTRA ANTES DE AGREGAR
+          MODAL PAQUETES (AGREGAR)
          ========================= */}
-      {isExtraProdModalOpen && (
+      {isPackModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Datos del producto
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Datos del producto</h3>
             <p className="text-sm text-gray-500 mb-3">
               Completa la información antes de agregarlo a la compra
             </p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Código de barras
-                </label>
-                <input
-                  type="text"
-                  value={extraProdForm.codigoBarrasIngreso}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({
-                      ...prev,
-                      codigoBarrasIngreso: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                  placeholder="Ej: 7701234567890"
-                />
+            {/* Paquetes + Unid/paq */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">Cantidad</label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Paquetes */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packForm.cantidad}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+
+                      setPackForm((prev) => {
+                        // ✅ permitir borrar (queda vacío)
+                        if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
+
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+
+                        const fallbackBarcode =
+                          productoPackPendiente?.codigoBarras ??
+                          getCodigoBarras(productoPackPendiente) ??
+                          "";
+
+                        const paquetes = syncPaquetesLength(prev.paquetes, n, fallbackBarcode);
+                        const sel = Math.max(
+                          0,
+                          Math.min(prev.selectedIndex, Math.max(0, paquetes.length - 1))
+                        );
+
+                        return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
+                      });
+
+                      setPackErrors({});
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      // valida con normalizado
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.cantidad && packErrors.cantidad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.cantidad && packErrors.cantidad && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.cantidad}</p>
+                  )}
+                </div>
+
+                {/* Unid/paq (informativo) */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packForm.unidadesPorPaquete}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, unidadesPorPaquete: "" };
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        return { ...prev, unidadesPorPaquete: String(n) };
+                      });
+                      setPackErrors({});
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.unidadesPorPaquete}</p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Lote</label>
-                <input
-                  type="text"
-                  value={extraProdForm.lote}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({ ...prev, lote: e.target.value }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                  placeholder="Ej: LOTE-001"
-                />
+              <p className="mt-1 text-xs text-gray-500">
+                Total unidades (informativo): <b>{getTotalUnidadesFromForm(packForm)}</b>
+              </p>
+            </div>
+
+            {/* Códigos de barras (SELECT + 1 input) */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm text-gray-600 mb-1">Códigos de barras</label>
+                <span className="text-xs text-gray-500">
+                  Editando:{" "}
+                  <b>Paquete {packForm.paquetes.length ? packForm.selectedIndex + 1 : 0}</b> de{" "}
+                  <b>{packForm.paquetes.length}</b>
+                </span>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Marca</label>
-                <input
-                  type="text"
-                  value={extraProdForm.marca}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({ ...prev, marca: e.target.value }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                  placeholder="Ej: Colgate"
-                />
-              </div>
+              <select
+                value={packForm.selectedIndex}
+                onChange={(e) => onSelectPaquete(e.target.value)}
+                disabled={packForm.paquetes.length === 0}
+                className="w-full border rounded px-3 py-2 bg-white text-black mb-2 disabled:opacity-60"
+              >
+                {packForm.paquetes.map((p, idx) => (
+                  <option key={`sel-add-${idx}`} value={idx}>
+                    {makePackLabel(p, idx)}
+                  </option>
+                ))}
+              </select>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Fecha de vencimiento
-                </label>
-                <input
-                  type="date"
-                  value={extraProdForm.fechaVencimiento}
-                  onChange={(e) =>
-                    setExtraProdForm((prev) => ({
-                      ...prev,
-                      fechaVencimiento: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={13}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      codigoBarrasIngreso: value,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                  packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                placeholder={
+                  packForm.paquetes.length ? "Ej: 7701234567890" : "Primero ingresa cantidad de paquetes"
+                }
+              />
+
+              {packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`] && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]}
+                  </p>
+                )}
+
+              {(packErrors.req || packErrors.dup) && (
+                <p className="mt-2 text-xs text-red-600">{packErrors.req || packErrors.dup}</p>
+              )}
+            </div>
+
+            {/* Fecha vencimiento */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                min={minExpiryDateStr}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      fechaVencimiento: v,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              {packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                packErrors[`${packForm.selectedIndex}.fechaVencimiento`] && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {packErrors[`${packForm.selectedIndex}.fechaVencimiento`]}
+                  </p>
+                )}
+              <p className="mt-1 text-[11px] text-gray-400">
+                Permitido desde: <b>{minExpiryDateStr}</b>
+              </p>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={cancelarDatosExtra}
+                onClick={cancelarModalPaquetes}
                 className="px-4 py-2 rounded bg-gray-500 text-white"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={confirmarDatosExtraYAgregar}
+                onClick={guardarModalPaquetesYAgregar}
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               >
-                Agregar
+                Guardar
               </button>
             </div>
           </div>
@@ -1459,102 +1898,230 @@ export default function IndexRegisterPurchase() {
       )}
 
       {/* =========================
-          MODAL VER / EDITAR DETALLES
+          MODAL PAQUETES (EDITAR)
          ========================= */}
-      {isViewDetailsOpen && (
+      {isPackEditOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-lg border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Detalles del producto
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Edita la información adicional ingresada
-                </p>
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900">Editar datos del producto</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Ajusta paquetes, unid/paq, códigos y vencimiento
+            </p>
+
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">Cantidad</label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packForm.cantidad}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
+
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        const paquetes = syncPaquetesLength(prev.paquetes, n, "");
+                        const sel = Math.max(
+                          0,
+                          Math.min(prev.selectedIndex, Math.max(0, paquetes.length - 1))
+                        );
+                        return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
+                      });
+
+                      setPackErrors({});
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.cantidad && packErrors.cantidad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.cantidad && packErrors.cantidad && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.cantidad}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packForm.unidadesPorPaquete}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, unidadesPorPaquete: "" };
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        return { ...prev, unidadesPorPaquete: String(n) };
+                      });
+                      setPackErrors({});
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.unidadesPorPaquete}</p>
+                  )}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsViewDetailsOpen(false)}
-                className="px-2 py-1 rounded hover:bg-gray-200 text-gray-600"
-                title="Cerrar"
+              <p className="mt-1 text-xs text-gray-500">
+                Total unidades (informativo): <b>{getTotalUnidadesFromForm(packForm)}</b>
+              </p>
+            </div>
+
+            {/* Códigos de barras */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm text-gray-600 mb-1">Códigos de barras</label>
+                <span className="text-xs text-gray-500">
+                  Editando:{" "}
+                  <b>Paquete {packForm.paquetes.length ? packForm.selectedIndex + 1 : 0}</b> de{" "}
+                  <b>{packForm.paquetes.length}</b>
+                </span>
+              </div>
+
+              <select
+                value={packForm.selectedIndex}
+                onChange={(e) => onSelectPaquete(e.target.value)}
+                disabled={packForm.paquetes.length === 0}
+                className="w-full border rounded px-3 py-2 bg-white text-black mb-2 disabled:opacity-60"
               >
-                ✕
-              </button>
+                {packForm.paquetes.map((p, idx) => (
+                  <option key={`sel-edit-${idx}`} value={idx}>
+                    {makePackLabel(p, idx)}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={13}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      codigoBarrasIngreso: value,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                  packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+
+              {(packErrors.req || packErrors.dup) && (
+                <p className="mt-2 text-xs text-red-600">{packErrors.req || packErrors.dup}</p>
+              )}
             </div>
 
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Código de barras
-                </label>
-                <input
-                  type="text"
-                  value={detalleEdit.codigoBarrasIngreso}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({
-                      ...p,
-                      codigoBarrasIngreso: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Lote</label>
-                <input
-                  type="text"
-                  value={detalleEdit.lote}
-                  onChange={(e) => setDetalleEdit((p) => ({ ...p, lote: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Marca</label>
-                <input
-                  type="text"
-                  value={detalleEdit.marca}
-                  onChange={(e) => setDetalleEdit((p) => ({ ...p, marca: e.target.value }))}
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Fecha de vencimiento
-                </label>
-                <input
-                  type="date"
-                  value={detalleEdit.fechaVencimiento}
-                  onChange={(e) =>
-                    setDetalleEdit((p) => ({
-                      ...p,
-                      fechaVencimiento: e.target.value,
-                    }))
-                  }
-                  className="w-full border rounded px-3 py-2 bg-white text-black"
-                />
-              </div>
+            {/* Fecha vencimiento */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                min={minExpiryDateStr}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      fechaVencimiento: v,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Permitido desde: <b>{minExpiryDateStr}</b>
+              </p>
             </div>
 
-            <div className="px-5 py-4 border-t bg-white flex justify-end gap-2">
+            <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsViewDetailsOpen(false)}
-                className="px-4 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
+                onClick={cancelarPackEdit}
+                className="px-4 py-2 rounded bg-gray-500 text-white"
               >
                 Cancelar
               </button>
-
               <button
                 type="button"
-                onClick={guardarCambiosDetalles}
+                onClick={guardarPackEdit}
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               >
-                Guardar cambios
+                Guardar
               </button>
             </div>
           </div>
