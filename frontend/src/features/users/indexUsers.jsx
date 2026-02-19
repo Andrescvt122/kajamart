@@ -22,6 +22,7 @@ import DeleteUserModal from "./deleteUsers";
 
 import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
 import { useAuth } from "../../context/useAtuh.jsx";
+import { useUserActions } from "../../shared/components/hooks/users/useUserActions.js";
 
 // Clases utilitarias
 const ONE_LINE_SAFE =
@@ -54,6 +55,7 @@ function ChevronIcon({ open }) {
 
 export default function IndexUsers() {
   const { usuarios, setUsuarios, loading, error } = useUsuariosList();
+  const { deleteUser } = useUserActions();
   const users = usuarios || [];
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,17 +163,27 @@ export default function IndexUsers() {
     setIsDeleteOpen(true);
   };
 
-  const handleDelete = (userToDelete) => {
-    setUsuarios((prev) =>
-      (prev || []).filter((user) => user.id !== userToDelete.id)
-    );
-    showSuccessAlert("Usuario eliminado correctamente");
-    setIsDeleteOpen(false);
-    setUserToDelete(null);
-    // ajustar página si hace falta
-    const affects = filtered.some((u) => u.id === userToDelete.id);
-    if (affects && pageItems.length === 1 && currentPage > 1) {
-      setCurrentPage((p) => p - 1);
+  const handleDelete = async (userToDelete) => {
+    try {
+      await deleteUser(userToDelete.id);
+      
+      setUsuarios((prev) =>
+        (prev || []).filter((user) => user.id !== userToDelete.id)
+      );
+      
+      showSuccessAlert("Usuario eliminado correctamente");
+      setIsDeleteOpen(false);
+      setUserToDelete(null);
+      
+      // ajustar página si hace falta
+      const affects = filtered.some((u) => u.id === userToDelete.id);
+      if (affects && pageItems.length === 1 && currentPage > 1) {
+        setCurrentPage((p) => p - 1);
+      }
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+      // El error ya es manejado por el hook (muestra alerta), 
+      // pero si quisieras manejo adicional va aquí.
     }
   };
 
