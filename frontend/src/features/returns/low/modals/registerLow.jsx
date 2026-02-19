@@ -102,7 +102,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
         // Si es venta unitaria y tiene destino, actualizamos la cantidad a trasladar
         if (
           p.reason === "venta unitaria" &&
-          p.id_producto_traslado != null &&
+          (p.id_producto_traslado != null || p.pending_transfer_registration) &&
           p.cantidad_unitaria
         ) {
           newTransferQuantity = p.cantidad_unitaria * newQuantity;
@@ -120,7 +120,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     const current = selectedProducts.find((p) => p.id === productId);
     const hasUnitTransferConfigured =
       current?.reason === "venta unitaria" &&
-      current?.id_producto_traslado != null;
+      (current?.id_producto_traslado != null ||
+        current?.pending_transfer_registration);
 
     // Si ya configuró traslado (destino confirmado), no permitimos cambiar a otro motivo
     if (hasUnitTransferConfigured && reason !== "venta unitaria") {
@@ -163,7 +164,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
-        (p.id_producto_traslado == null || p.cantidad_traslado == null),
+        ((p.id_producto_traslado == null && !p.pending_transfer_registration) ||
+          p.cantidad_traslado == null),
     );
 
     if (invalidUnitSale) {
@@ -413,7 +415,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                   const isSelected = p.reason === r.value;
                                   const hasTransferConfigured =
                                     p.reason === "venta unitaria" &&
-                                    p.id_producto_traslado != null;
+                                    (p.id_producto_traslado != null ||
+                                      p.pending_transfer_registration);
                                   const isLockedOption =
                                     hasTransferConfigured &&
                                     r.value !== "venta unitaria";
@@ -503,7 +506,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
                                 {/* Resumen de traslado (solo venta unitaria) */}
                                 {p.reason === "venta unitaria" &&
-                                  p.id_producto_traslado != null && (
+                                  (p.id_producto_traslado != null ||
+                                    p.pending_transfer_registration) && (
                                     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-start justify-between gap-3">
                                       <div className="min-w-0">
                                         <p className="text-xs font-semibold text-emerald-800">
@@ -513,7 +517,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           Destino:{" "}
                                           <span className="text-emerald-800">
                                             {p.nombre_producto_traslado ||
-                                              `ID ${p.id_producto_traslado}`}
+                                              (p.id_producto_traslado
+                                                ? `ID ${p.id_producto_traslado}`
+                                                : "Destino pendiente de registro")}
                                           </span>
                                         </p>
                                         <p className="text-xs text-gray-600 mt-1">
@@ -686,6 +692,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             reason: "", // <- deselecciona venta unitaria
                             id_producto_traslado: null,
                             cantidad_traslado: null,
+                            pending_transfer_registration: null,
                           }
                         : p,
                     ),
