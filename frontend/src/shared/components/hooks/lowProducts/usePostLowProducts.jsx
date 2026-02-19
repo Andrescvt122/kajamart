@@ -17,14 +17,28 @@ export const usePostLowProducts = () => {
 
     try {
       // 🧮 Calcular total_producto_baja por cada producto
-      const productsWithTotals = products.map((p) => ({
-        id_detalle_productos: p.id,
-        cantidad: p.requestedQuantity,
-        motivo: p.reason,
-        id_producto_traslado: p.id_producto_traslado ?? null,
-        cantidad_traslado: p.cantidad_traslado ?? null,
-        total_producto_baja: p.unitCost * p.requestedQuantity,
-      }));
+      const productsWithTotals = products.map((p) => {
+        const cantidadOrigen = Number(p.requestedQuantity) || 0;
+        const cantidadTraslado = Number(p.cantidad_traslado) || 0;
+        const factorConversion =
+          cantidadOrigen > 0 ? cantidadTraslado / cantidadOrigen : null;
+
+        const lowProduct = {
+          id_detalle_productos: p.id,
+          cantidad: cantidadOrigen,
+          motivo: p.reason,
+          total_producto_baja: p.unitCost * cantidadOrigen,
+        };
+
+        if (p.reason === "venta unitaria") {
+          lowProduct.id_detalle_destino = p.id_producto_traslado ?? null;
+          lowProduct.cantidad_traslado = cantidadTraslado;
+          lowProduct.factor_conversion =
+            factorConversion && factorConversion > 0 ? factorConversion : null;
+        }
+
+        return lowProduct;
+      });
 
       const body = {
         id_responsable,
