@@ -15,19 +15,19 @@ import {
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
-import ProductRegisterModal from "../../../products/productRegisterModal";
-import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
 import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
+import { useCreateProduct } from "../../../../shared/components/hooks/products/products.hooks";
 import { useAuth } from "../../../../context/useAtuh";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
   const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
   const { postDetailProduct } = usePostDetailProduct();
+  const createProductMutation = useCreateProduct();
+  const [isSubmittingLow, setIsSubmittingLow] = useState(false);
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
   const { payload: payloadId } = useAuth();
@@ -37,6 +37,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = payloadId.uid;
+  const isBusy = loading || isSubmittingLow;
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -62,6 +63,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               id_producto_traslado: null,
               cantidad_traslado: null,
               nombre_producto_traslado: "",
+              pending_transfer_registration: null,
             }
           : p,
       ),
@@ -138,7 +140,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       setSelectedProducts((prev) =>
         prev.map((p) =>
           p.id === productId
-            ? { ...p, id_producto_traslado: null, cantidad_traslado: null }
+            ? { ...p, id_producto_traslado: null, cantidad_traslado: null, pending_transfer_registration: null }
             : p,
         ),
       );
@@ -177,17 +179,96 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const handleCancelAlert = () => setShowConfirmAlert(false);
 
   // 🔹 Paso 3: Confirmar alerta → Enviar POST y mostrar éxito
+  const buildProductFormData = (draftPayload) => {
+    const fd = new FormData();
+    Object.entries(draftPayload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        fd.append(key, value);
+      }
+    });
+    return fd;
+  };
+
+  const resolveTransferDestination = async (product) => {
+    if (!product.pending_transfer_registration) {
+      return product;
+    }
+
+    const { pendingProduct, pendingDetail } = product.pending_transfer_registration;
+    const draftPayload = pendingProduct?.draftPayload;
+
+    if (!draftPayload || !pendingDetail) {
+      throw new Error("Faltan datos del traslado para registrar el producto destino.");
+    }
+
+    const createdProductResp = await createProductMutation.mutateAsync(
+      buildProductFormData(draftPayload),
+    );
+    const createdProduct = createdProductResp?.newProduct ?? createdProductResp;
+    const id_producto = createdProduct?.id_producto ?? createdProduct?.productos?.id_producto;
+
+    if (!id_producto) {
+      throw new Error("No se pudo obtener el id del producto destino creado.");
+    }
+
+    const createdDetailResp = await postDetailProduct({
+      id_producto,
+      registeredBarcode: pendingDetail.registeredBarcode,
+      registeredExpiry: pendingDetail.registeredExpiry,
+      registeredQuantity: pendingDetail.registeredQuantity,
+    });
+
+    const createdDetail =
+      createdDetailResp?.newDetail ??
+      createdDetailResp?.newProductDetail ??
+      createdDetailResp?.detail ??
+      createdDetailResp;
+
+    const idDetalleDestino = createdDetail?.id_detalle_producto;
+    if (!idDetalleDestino) {
+      throw new Error("No se pudo obtener el detalle destino del traslado.");
+    }
+
+    return {
+      ...product,
+      id_producto_traslado: idDetalleDestino,
+      nombre_producto_traslado:
+        createdDetail?.productos?.nombre ??
+        createdProduct?.nombre ??
+        pendingProduct?.nombre ??
+        product.nombre_producto_traslado,
+      pending_transfer_registration: null,
+    };
+  };
+
   const handleAcceptAlert = async () => {
     setShowConfirmAlert(false);
-    const response = await postLowProducts(id_responsable, selectedProducts);
-    if (response) {
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        setSelectedProducts([]);
-        // onClose();
-        onConfirm();
-      }, 2500);
+    setIsSubmittingLow(true);
+
+    try {
+      const resolvedProducts = [];
+
+      for (const product of selectedProducts) {
+        if (product.reason === "venta unitaria") {
+          resolvedProducts.push(await resolveTransferDestination(product));
+        } else {
+          resolvedProducts.push(product);
+        }
+      }
+
+      const response = await postLowProducts(id_responsable, resolvedProducts);
+      if (response) {
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setSelectedProducts([]);
+          onConfirm();
+        }, 2500);
+      }
+    } catch (error) {
+      alert(error?.message || "No fue posible completar la baja.");
+    } finally {
+      setIsSubmittingLow(false);
     }
   };
   console.log("selectedProducts:", selectedProducts);
@@ -211,7 +292,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <motion.div
-              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? "pointer-events-none opacity-50" : ""}`}
+              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${isBusy ? "pointer-events-none opacity-50" : ""}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -476,11 +557,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
                 <motion.button
                   onClick={handleConfirmLow}
-                  disabled={loading}
+                  disabled={isBusy}
                   className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.02 }}
                 >
-                  {loading ? (
+                  {isBusy ? (
                     <>
                       <motion.div
                         className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
@@ -531,11 +612,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       </button>
                       <motion.button
                         onClick={handleAcceptAlert}
-                        disabled={loading}
+                        disabled={isBusy}
                         className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         whileHover={{ scale: 1.05 }}
                       >
-                        {loading ? (
+                        {isBusy ? (
                           <>
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
@@ -620,20 +701,28 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 )?.name
               }
               onConfirmDestination={(detalleDestino) => {
-                console.log("DESTINO RECIBIDO EN REGISTERLOW:", detalleDestino);
                 setSelectedProducts((prev) =>
                   prev.map((p) => {
                     if (p.id !== activeUnitTransferProductId) return p;
 
                     return {
                       ...p,
-                      id_producto_traslado: detalleDestino.id_detalle_producto,
-                      // ✅ cantidad_traslado = cantidad_unitaria * requestedQuantity
+                      id_producto_traslado:
+                        detalleDestino?.id_detalle_producto ?? null,
                       cantidad_traslado: p.cantidad_unitaria
                         ? p.cantidad_unitaria * p.requestedQuantity
                         : null,
                       nombre_producto_traslado:
-                        detalleDestino?.productos?.nombre ?? "",
+                        detalleDestino?.productos?.nombre ??
+                        detalleDestino?.pendingProduct?.nombre ??
+                        "",
+                      pending_transfer_registration:
+                        detalleDestino?.isPendingRegistration
+                          ? {
+                              pendingProduct: detalleDestino.pendingProduct,
+                              pendingDetail: detalleDestino.pendingDetail,
+                            }
+                          : null,
                     };
                   }),
                 );

@@ -17,6 +17,7 @@ const ProductRegistrationModal = ({
   ignoreBarcode,
   isReturnProduct,
   transferQuantity,
+  deferSubmit = false,
 }) => {
   const {
     details,
@@ -242,6 +243,21 @@ const ProductRegistrationModal = ({
         registeredExpiry: formData.expiryDate || null,
         isReturn: true,
       };
+
+      if (deferSubmit) {
+        await onConfirm?.({
+          ...registeredDetail,
+          isDraft: true,
+        });
+        setFormData({
+          barcode: "",
+          quantity: transferQuantity,
+          expiryDate: "",
+          isReturn: true,
+        });
+        onClose();
+        return;
+      }
 
       if (isReturnProduct) {
         // ✅ modo devolución: NO postea aquí, solo devuelve al padre
