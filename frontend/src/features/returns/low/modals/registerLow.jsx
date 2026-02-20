@@ -15,8 +15,6 @@ import {
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
-import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
-import { useCreateProduct } from "../../../../shared/components/hooks/products/products.hooks";
 import { useAuth } from "../../../../context/useAtuh";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -25,8 +23,6 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
   const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
-  const { postDetailProduct } = usePostDetailProduct();
-  const createProductMutation = useCreateProduct();
   const [isSubmittingLow, setIsSubmittingLow] = useState(false);
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
@@ -61,6 +57,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               ...p,
               reason: "", // ✅ deselecciona "venta unitaria"
               id_producto_traslado: null,
+              id_producto_destino: null,
               cantidad_traslado: null,
               nombre_producto_traslado: "",
               pending_transfer_registration: null,
@@ -141,7 +138,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       setSelectedProducts((prev) =>
         prev.map((p) =>
           p.id === productId
-            ? { ...p, id_producto_traslado: null, cantidad_traslado: null, pending_transfer_registration: null }
+            ? { ...p, id_producto_traslado: null, id_producto_destino: null, cantidad_traslado: null, pending_transfer_registration: null }
             : p,
         ),
       );
@@ -181,84 +178,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const handleCancelAlert = () => setShowConfirmAlert(false);
 
   // 🔹 Paso 3: Confirmar alerta → Enviar POST y mostrar éxito
-  const buildProductFormData = (draftPayload) => {
-    const fd = new FormData();
-    Object.entries(draftPayload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        fd.append(key, value);
-      }
-    });
-    return fd;
-  };
-
-  const resolveTransferDestination = async (product) => {
-    if (!product.pending_transfer_registration) {
-      return product;
-    }
-
-    const { pendingProduct, pendingDetail } = product.pending_transfer_registration;
-    const draftPayload = pendingProduct?.draftPayload;
-
-    if (!draftPayload || !pendingDetail) {
-      throw new Error("Faltan datos del traslado para registrar el producto destino.");
-    }
-
-    const createdProductResp = await createProductMutation.mutateAsync(
-      buildProductFormData(draftPayload),
-    );
-    const createdProduct = createdProductResp?.newProduct ?? createdProductResp;
-    const id_producto = createdProduct?.id_producto ?? createdProduct?.productos?.id_producto;
-
-    if (!id_producto) {
-      throw new Error("No se pudo obtener el id del producto destino creado.");
-    }
-
-    const createdDetailResp = await postDetailProduct({
-      id_producto,
-      registeredBarcode: pendingDetail.registeredBarcode,
-      registeredExpiry: pendingDetail.registeredExpiry,
-      registeredQuantity: pendingDetail.registeredQuantity,
-    });
-
-    const createdDetail =
-      createdDetailResp?.newDetail ??
-      createdDetailResp?.newProductDetail ??
-      createdDetailResp?.detail ??
-      createdDetailResp;
-
-    const idDetalleDestino = createdDetail?.id_detalle_producto;
-    if (!idDetalleDestino) {
-      throw new Error("No se pudo obtener el detalle destino del traslado.");
-    }
-
-    return {
-      ...product,
-      id_producto_traslado: idDetalleDestino,
-      nombre_producto_traslado:
-        createdDetail?.productos?.nombre ??
-        createdProduct?.nombre ??
-        pendingProduct?.nombre ??
-        product.nombre_producto_traslado,
-      pending_transfer_registration: null,
-    };
-  };
-
   const handleAcceptAlert = async () => {
     setShowConfirmAlert(false);
     setIsSubmittingLow(true);
 
     try {
-      const resolvedProducts = [];
-
-      for (const product of selectedProducts) {
-        if (product.reason === "venta unitaria") {
-          resolvedProducts.push(await resolveTransferDestination(product));
-        } else {
-          resolvedProducts.push(product);
-        }
-      }
-
-      const response = await postLowProducts(id_responsable, resolvedProducts);
+      const response = await postLowProducts(id_responsable, selectedProducts);
       if (response) {
         setShowSuccessMessage(true);
         setTimeout(() => {
@@ -691,6 +616,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             ...p,
                             reason: "", // <- deselecciona venta unitaria
                             id_producto_traslado: null,
+                            id_producto_destino: null,
                             cantidad_traslado: null,
                             pending_transfer_registration: null,
                           }
@@ -716,6 +642,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       ...p,
                       id_producto_traslado:
                         detalleDestino?.id_detalle_producto ?? null,
+                      id_producto_destino:
+                        detalleDestino?.id_producto ??
+                        detalleDestino?.productos?.id_producto ??
+                        detalleDestino?.pendingProduct?.id_producto ??
+                        null,
                       cantidad_traslado: p.cantidad_unitaria
                         ? p.cantidad_unitaria * p.requestedQuantity
                         : null,
