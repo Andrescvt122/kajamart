@@ -1,13 +1,10 @@
 import React, { useMemo, useState } from "react";
 import {
-  ViewButton,
-  EditButton,
-  DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
   ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search, Check, XCircle, Loader2 } from "lucide-react";
+import { Search, Check, XCircle } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +15,9 @@ import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../../features/onboarding/loading.jsx";
+import Swal from "sweetalert2";
+import { useAnnulReturnProduct } from "../../../shared/hooks/useAnnulReturnProduct";
+import { useAnnulmentWindow } from "../../../shared/hooks/useAnnulmentWindow";
 // ===== Helpers de responsive (tomados de IndexLow) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -71,9 +71,12 @@ export default function IndexProductReturns() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedReturnData, setSelectedReturnData] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
+  const [annulledMap, setAnnulledMap] = useState({});
   const perPage = 6;
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
+  const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
   // Normalización de texto
   const normalizeText = (text) =>
     (text ?? "")
@@ -89,6 +92,9 @@ export default function IndexProductReturns() {
         idReturn: returnItem.idReturn,
         dateReturn: returnItem.dateReturn,
         responsable: returnItem.responsable,
+        createdAt: returnItem.createdAt,
+        dateISO: returnItem.dateISO,
+        isActive: returnItem.isActive,
         _rowId:
           `${returnItem.idReturn}-` +
           (product.idProduct ?? product.id ?? product.name ?? idx),
@@ -144,6 +150,51 @@ export default function IndexProductReturns() {
     setIsDetailsModalOpen(false);
     setSelectedReturnData(null);
   };
+
+  const handleAnnulReturn = async (item) => {
+    const status = annulledMap[item.idReturn] ?? item.isActive;
+    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateISO, status);
+    if (isDisabled) return;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await annulReturnProduct(item.idReturn);
+      setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
+      await refetch?.();
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+    } catch (err) {
+      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
@@ -308,10 +359,18 @@ export default function IndexProductReturns() {
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="mt-4 flex items-center justify-between gap-2">
                                 <ViewDetailsButton
                                   event={() => handleOpenDetailsModal(item)}
                                 />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Anular</span>
+                                  <ToggleSwitch
+                                    checked={annulledMap[item.idReturn] ?? item.isActive}
+                                    disabled={getAnnulmentMeta(item.createdAt || item.dateISO, annulledMap[item.idReturn] ?? item.isActive).isDisabled}
+                                    onChange={() => handleAnnulReturn(item)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -341,25 +400,26 @@ export default function IndexProductReturns() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Descuento</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Razón</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Responsable</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center">
+                      <td colSpan={8} className="px-6 py-12 text-center">
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-red-500">
+                      <td colSpan={8} className="px-6 py-12 text-center text-red-500">
                         Error al cargar las devoluciones
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                         No se encontraron productos en devoluciones.
                       </td>
                     </tr>
@@ -452,6 +512,18 @@ export default function IndexProductReturns() {
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsable}
                             </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <ToggleSwitch
+                                checked={annulledMap[item.idReturn] ?? item.isActive}
+                                disabled={getAnnulmentMeta(item.createdAt || item.dateISO, annulledMap[item.idReturn] ?? item.isActive).isDisabled}
+                                onChange={() => handleAnnulReturn(item)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {(annulledMap[item.idReturn] ?? item.isActive) ? "Activo" : "Anulado"}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-right">
                             <div className="inline-flex items-center gap-2">

@@ -14,18 +14,24 @@ import generateProductReturnsPDF from "./helpers/exportToPdf";
 import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
+import Swal from "sweetalert2";
+import { useAnnulReturnClient } from "../../../shared/hooks/useAnnulReturnClient";
+import { useAnnulmentWindow } from "../../../shared/hooks/useAnnulmentWindow";
 
 export default function IndexClientReturns() {
-  const { returns, loading, error } = useFetchReturnClients();
+  const { returns, loading, error, refetch } = useFetchReturnClients();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
   const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [annulledMap, setAnnulledMap] = useState({});
   const perPage = 6;
 
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
+  const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
 
   // Función para abrir el modal de detalles
   const handleViewDetails = (rowData) => {
@@ -102,6 +108,50 @@ export default function IndexClientReturns() {
     }).format(amount);
   };
 
+  const handleAnnulReturn = async (row) => {
+    const status = annulledMap[row.idReturn] ?? row.isActive;
+    const { isDisabled } = getAnnulmentMeta(row.createdAt || row.dateISO, status);
+    if (isDisabled) return;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await annulReturnClient(row.idReturn);
+      setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
+      await refetch?.();
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+    } catch {
+      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   // Animaciones
   const tableVariants = {
@@ -191,6 +241,7 @@ export default function IndexClientReturns() {
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Razón</th>
                 <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -201,7 +252,7 @@ export default function IndexClientReturns() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     Cargando devoluciones...
@@ -210,7 +261,7 @@ export default function IndexClientReturns() {
               ) : pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     {error || "No se encontraron devoluciones."}
@@ -256,6 +307,18 @@ export default function IndexClientReturns() {
                           )}{" "}
                           c/u
                         </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <ToggleSwitch
+                          checked={annulledMap[s.idReturn] ?? s.isActive}
+                          disabled={getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
+                          onChange={() => handleAnnulReturn(s)}
+                        />
+                        <span className="text-xs text-gray-500">
+                          {(annulledMap[s.idReturn] ?? s.isActive) ? "Activo" : "Anulado"}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
