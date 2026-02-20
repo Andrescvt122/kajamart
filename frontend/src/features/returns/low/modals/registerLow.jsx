@@ -15,19 +15,15 @@ import {
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
-import ProductRegisterModal from "../../../products/productRegisterModal";
-import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
-import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../context/useAtuh";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
   const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
-  const { postDetailProduct } = usePostDetailProduct();
+  const [isSubmittingLow, setIsSubmittingLow] = useState(false);
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
   const { payload: payloadId } = useAuth();
@@ -37,6 +33,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = payloadId.uid;
+  const isBusy = loading || isSubmittingLow;
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -62,6 +59,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               id_producto_traslado: null,
               cantidad_traslado: null,
               nombre_producto_traslado: "",
+              pending_transfer_registration: null,
             }
           : p,
       ),
@@ -100,7 +98,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
         // Si es venta unitaria y tiene destino, actualizamos la cantidad a trasladar
         if (
           p.reason === "venta unitaria" &&
-          p.id_producto_traslado != null &&
+          (p.id_producto_traslado != null || p.pending_transfer_registration) &&
           p.cantidad_unitaria
         ) {
           newTransferQuantity = p.cantidad_unitaria * newQuantity;
@@ -118,7 +116,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     const current = selectedProducts.find((p) => p.id === productId);
     const hasUnitTransferConfigured =
       current?.reason === "venta unitaria" &&
-      current?.id_producto_traslado != null;
+      (current?.id_producto_traslado != null ||
+        current?.pending_transfer_registration);
 
     // Si ya configuró traslado (destino confirmado), no permitimos cambiar a otro motivo
     if (hasUnitTransferConfigured && reason !== "venta unitaria") {
@@ -138,7 +137,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       setSelectedProducts((prev) =>
         prev.map((p) =>
           p.id === productId
-            ? { ...p, id_producto_traslado: null, cantidad_traslado: null }
+            ? { ...p, id_producto_traslado: null, cantidad_traslado: null, pending_transfer_registration: null }
             : p,
         ),
       );
@@ -161,7 +160,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
-        (p.id_producto_traslado == null || p.cantidad_traslado == null),
+        ((p.id_producto_traslado == null && !p.pending_transfer_registration) ||
+          p.cantidad_traslado == null),
     );
 
     if (invalidUnitSale) {
@@ -176,18 +176,24 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   // 🔹 Paso 2: Cancelar alerta
   const handleCancelAlert = () => setShowConfirmAlert(false);
 
-  // 🔹 Paso 3: Confirmar alerta → Enviar POST y mostrar éxito
   const handleAcceptAlert = async () => {
     setShowConfirmAlert(false);
-    const response = await postLowProducts(id_responsable, selectedProducts);
-    if (response) {
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        setSelectedProducts([]);
-        // onClose();
-        onConfirm();
-      }, 2500);
+    setIsSubmittingLow(true);
+
+    try {
+      const response = await postLowProducts(id_responsable, selectedProducts);
+      if (response) {
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setSelectedProducts([]);
+          onConfirm();
+        }, 2500);
+      }
+    } catch (error) {
+      alert(error?.message || "No fue posible completar la baja.");
+    } finally {
+      setIsSubmittingLow(false);
     }
   };
   console.log("selectedProducts:", selectedProducts);
@@ -211,7 +217,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <motion.div
-              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? "pointer-events-none opacity-50" : ""}`}
+              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${isBusy ? "pointer-events-none opacity-50" : ""}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -332,7 +338,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                   const isSelected = p.reason === r.value;
                                   const hasTransferConfigured =
                                     p.reason === "venta unitaria" &&
-                                    p.id_producto_traslado != null;
+                                    (p.id_producto_traslado != null ||
+                                      p.pending_transfer_registration);
                                   const isLockedOption =
                                     hasTransferConfigured &&
                                     r.value !== "venta unitaria";
@@ -422,7 +429,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
                                 {/* Resumen de traslado (solo venta unitaria) */}
                                 {p.reason === "venta unitaria" &&
-                                  p.id_producto_traslado != null && (
+                                  (p.id_producto_traslado != null ||
+                                    p.pending_transfer_registration) && (
                                     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-start justify-between gap-3">
                                       <div className="min-w-0">
                                         <p className="text-xs font-semibold text-emerald-800">
@@ -432,7 +440,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           Destino:{" "}
                                           <span className="text-emerald-800">
                                             {p.nombre_producto_traslado ||
-                                              `ID ${p.id_producto_traslado}`}
+                                              (p.id_producto_traslado
+                                                ? `ID ${p.id_producto_traslado}`
+                                                : "Destino pendiente de registro")}
                                           </span>
                                         </p>
                                         <p className="text-xs text-gray-600 mt-1">
@@ -476,11 +486,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
                 <motion.button
                   onClick={handleConfirmLow}
-                  disabled={loading}
+                  disabled={isBusy}
                   className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.02 }}
                 >
-                  {loading ? (
+                  {isBusy ? (
                     <>
                       <motion.div
                         className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
@@ -531,11 +541,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       </button>
                       <motion.button
                         onClick={handleAcceptAlert}
-                        disabled={loading}
+                        disabled={isBusy}
                         className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         whileHover={{ scale: 1.05 }}
                       >
-                        {loading ? (
+                        {isBusy ? (
                           <>
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
@@ -605,6 +615,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             reason: "", // <- deselecciona venta unitaria
                             id_producto_traslado: null,
                             cantidad_traslado: null,
+                            pending_transfer_registration: null,
                           }
                         : p,
                     ),
@@ -620,20 +631,28 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 )?.name
               }
               onConfirmDestination={(detalleDestino) => {
-                console.log("DESTINO RECIBIDO EN REGISTERLOW:", detalleDestino);
                 setSelectedProducts((prev) =>
                   prev.map((p) => {
                     if (p.id !== activeUnitTransferProductId) return p;
 
                     return {
                       ...p,
-                      id_producto_traslado: detalleDestino.id_detalle_producto,
-                      // ✅ cantidad_traslado = cantidad_unitaria * requestedQuantity
+                      id_producto_traslado:
+                        detalleDestino?.id_detalle_producto ?? null,
                       cantidad_traslado: p.cantidad_unitaria
                         ? p.cantidad_unitaria * p.requestedQuantity
                         : null,
                       nombre_producto_traslado:
-                        detalleDestino?.productos?.nombre ?? "",
+                        detalleDestino?.productos?.nombre ??
+                        detalleDestino?.pendingProduct?.nombre ??
+                        "",
+                      pending_transfer_registration:
+                        detalleDestino?.isPendingRegistration
+                          ? {
+                              pendingProduct: detalleDestino.pendingProduct,
+                              pendingDetail: detalleDestino.pendingDetail,
+                            }
+                          : null,
                     };
                   }),
                 );

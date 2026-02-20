@@ -430,13 +430,27 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             id_detalle,
           );
 
+          const pendingDetail = getPendingDetailForProduct(p.id_producto);
+
           return {
             id_producto: p.id_producto,
             id_detalle_producto: id_detalle,
+            nombre_producto: p.productos?.nombre ?? p.nombre_producto,
             cantidad: p.returnQuantity || 1,
             motivo: p.returnReason,
-            nombre_producto: p.productos?.nombre ?? p.nombre_producto,
             es_descuento: p.actionType === "descuento",
+            codigo_barras_producto_compra_nuevo:
+              p.actionType === "registrar"
+                ? pendingDetail?.registeredBarcode ?? null
+                : null,
+            lote_nuevo:
+              p.actionType === "registrar"
+                ? pendingDetail?.lote_nuevo ?? null
+                : null,
+            fecha_vencimiento_nueva:
+              p.actionType === "registrar"
+                ? pendingDetail?.registeredExpiry ?? null
+                : null,
           };
         })
         .filter(Boolean); // quitamos los null
@@ -1318,6 +1332,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         onCancelRegistration={handleRegistrationModalCancel}
         product={productToRegister}
         onConfirm={handleConfirmRegistration}
+        fixedQuantity={productToRegister?.returnQuantity ?? null}
         existingBarcodes={pendingDetails
           .map(
             (d) =>

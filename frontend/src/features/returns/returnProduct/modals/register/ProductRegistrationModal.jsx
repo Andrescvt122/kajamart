@@ -14,10 +14,12 @@ const ProductRegistrationModal = ({
   initialDetail,
   existingBarcodes = [],
   ignoreBarcode = null,
+  fixedQuantity = null,
 }) => {
   const [formData, setFormData] = useState({
     barcode: "",
-    quantity: "",
+    quantity: fixedQuantity != null ? String(fixedQuantity) : "",
+    batch: "",
     expiryDate: "",
     isReturn: true,
   });
@@ -46,8 +48,10 @@ const ProductRegistrationModal = ({
           quantity: String(
             initialDetail.registeredQuantity ??
               initialDetail.stock_producto ??
+              fixedQuantity ??
               ""
           ),
+          batch: initialDetail.lote_nuevo || "",
           expiryDate:
             initialDetail.registeredExpiry?.slice(0, 10) ||
             initialDetail.fecha_vencimiento?.slice(0, 10) ||
@@ -57,14 +61,15 @@ const ProductRegistrationModal = ({
       } else {
         setFormData({
           barcode: "",
-          quantity: "",
+          quantity: fixedQuantity != null ? String(fixedQuantity) : "",
+          batch: "",
           expiryDate: "",
           isReturn: true,
         });
       }
       setErrors({});
     }
-  }, [isOpen, product, initialDetail]);
+  }, [isOpen, product, initialDetail, fixedQuantity]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -117,6 +122,9 @@ const ProductRegistrationModal = ({
       if (!Number.isFinite(qtyNum) || qtyNum < 0) {
         errs.quantity = "La cantidad no puede ser negativa";
       }
+      if (fixedQuantity != null && qtyNum !== Number(fixedQuantity)) {
+        errs.quantity = `La cantidad debe ser ${fixedQuantity}`;
+      }
     }
 
     // ✅ Fecha: opcional; si se llena => debe ser >= hoy + 4 días
@@ -143,15 +151,13 @@ const ProductRegistrationModal = ({
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     console.log("product", product);
-    const cleanBarcode = String(formData.barcode).trim();
-    const cleanQty = Number(String(formData.quantity).trim());
-
     // 🔹 Detalle local, NO se envía a BD aquí
     const registeredDetail = {
       ...product,
       productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
+      lote_nuevo: String(formData.batch ?? "").trim() || null,
       registeredExpiry: formData.expiryDate || null,
       isReturn: true,
     };
@@ -167,7 +173,8 @@ const ProductRegistrationModal = ({
   const handleClose = () => {
     setFormData({
       barcode: "",
-      quantity: "",
+      quantity: fixedQuantity != null ? String(fixedQuantity) : "",
+      batch: "",
       expiryDate: "",
       isReturn: true,
     });
@@ -201,6 +208,12 @@ const ProductRegistrationModal = ({
     e.target.blur();
     setTimeout(() => e.target.focus(), 0);
   };
+  React.useEffect(() => {
+    if (fixedQuantity != null) {
+      setFormData((prev) => ({ ...prev, quantity: String(fixedQuantity) }));
+    }
+  }, [fixedQuantity]);
+
   const isExactly13Digits = (s) => /^\d{13}$/.test(s);
   const isOnlyDigits = (s) => /^\d+$/.test(s);
   const ymdToDate = (ymd) => {
@@ -330,6 +343,7 @@ const ProductRegistrationModal = ({
                       min={0}
                       inputMode="numeric"
                       value={formData.quantity}
+                      disabled={fixedQuantity != null}
                       onChange={(e) =>
                         handleChange(
                           "quantity",
@@ -339,7 +353,9 @@ const ProductRegistrationModal = ({
                       onKeyDown={handleQuantityKeyDown}
                       onPaste={handleQuantityPaste}
                       onWheel={handleQuantityWheel}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
+                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black ${
+                        fixedQuantity != null ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
                       placeholder="0"
                     />
                     {errors.quantity && (
@@ -347,6 +363,19 @@ const ProductRegistrationModal = ({
                         {errors.quantity}
                       </div>
                     )}
+                  </div>
+
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Lote
+                    </label>
+                    <input
+                      value={formData.batch}
+                      onChange={(e) => handleChange("batch", e.target.value)}
+                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
+                      placeholder="LOTE-REEMPLAZO-01"
+                    />
                   </div>
 
                   <div>
