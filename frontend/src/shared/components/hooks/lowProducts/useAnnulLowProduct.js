@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../../../../api/axiosConfig";
 
 export const useAnnulLowProduct = () => {
   const [loading, setLoading] = useState(false);

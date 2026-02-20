@@ -15,8 +15,8 @@ import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
 import Swal from "sweetalert2";
-import { useAnnulReturnClient } from "../../../shared/hooks/useAnnulReturnClient";
-import { useAnnulmentWindow } from "../../../shared/hooks/useAnnulmentWindow";
+import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 
 export default function IndexClientReturns() {
   const { returns, loading, error, refetch } = useFetchReturnClients();

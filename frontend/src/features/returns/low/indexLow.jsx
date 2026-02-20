@@ -16,8 +16,8 @@ import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../onboarding/loading";
 import Swal from "sweetalert2";
-import { useAnnulLowProduct } from "../../../shared/hooks/useAnnulLowProduct";
-import { useAnnulmentWindow } from "../../../shared/hooks/useAnnulmentWindow";
+import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
