@@ -1,6 +1,11 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-
+const priceCellValue = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "";           // o "—"
+  if (n === 1001) return "aun no asignado";
+  return n; // número real para que Excel lo formatee como moneda
+};
 /**
  * Exportar productos a Excel
  * @param {Array} products - Lista de productos filtrados
@@ -35,13 +40,35 @@ export const exportProductsToExcel = async (products = []) => {
 
     // Agregar filas
     products.forEach((p) => {
-      worksheet.addRow({
+      const row = worksheet.addRow({
         id: p.id,
         barcode: p.barcode,
         vencimiento: p.vencimiento,
         cantidad: p.cantidad,
         consumido: p.consumido,
-        precio: p.precio,
+        precio: priceCellValue(p.precio),
+      });
+    
+      // Columna "Precio" = 6
+      const priceCell = row.getCell(6);
+    
+      if (typeof priceCell.value === "number") {
+        priceCell.numFmt = '"$"#,##0;[Red]-"$"#,##0';
+      } else {
+        // opcional: que se vea como texto "suave"
+        priceCell.alignment = { vertical: "middle", horizontal: "center" };
+        // priceCell.font = { italic: true, color: { argb: "FF888888" } };
+      }
+    
+      // (Opcional) bordes y alineación para toda la fila
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
       });
     });
 

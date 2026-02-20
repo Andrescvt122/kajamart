@@ -79,11 +79,16 @@ const getErrorTitle = (err) => {
   if (status >= 500) return "Error del servidor";
   return `Error (${status || "desconocido"})`;
 };
-
+const formatPriceOrUnassigned = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  if (n === 1001) return "aun no asignado";
+  return `$${n.toLocaleString()}`;
+};
 export default function AllProductsPage() {
   const { state } = useLocation();
   const params = useParams();
-  const {hasPermission} = useAuth();
+  const { hasPermission } = useAuth();
   const canDelete = hasPermission("Eliminar productos");
   const passedProduct = state?.product || null;
   const productId =
@@ -95,8 +100,7 @@ export default function AllProductsPage() {
   const { data: fetchedProduct } = useProduct(productId);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
-  const product =
-    passedProduct ??
+  const product = passedProduct ??
     fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -127,7 +131,10 @@ export default function AllProductsPage() {
     if (!error) return;
 
     const title = getErrorTitle(error);
-    const msg = getErrorMessage(error, "Error al cargar los detalles del producto.");
+    const msg = getErrorMessage(
+      error,
+      "Error al cargar los detalles del producto."
+    );
     const key = `${title}::${msg}`;
 
     if (lastListErrorRef.current !== key) {
@@ -148,7 +155,7 @@ export default function AllProductsPage() {
         : "Sin fecha",
       cantidad: d.stock_producto ?? 0,
       consumido: 0,
-      precio: product.precio_venta ?? 0,
+      precio: product.precio_venta,
     }));
   }, [backendDetails, product]);
 
@@ -167,8 +174,7 @@ export default function AllProductsPage() {
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
 
-  const goToPage = (n) =>
-    setCurrentPage(Math.min(Math.max(1, n), totalPages));
+  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // delete
   const deleteDetailMutation = useDeleteDetailProduct();
@@ -268,7 +274,9 @@ export default function AllProductsPage() {
 
               {/* Exportar Excel */}
               <div className="flex justify-end">
-                <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
+                <ExportExcelButton
+                  event={() => exportProductsToExcel(filtered)}
+                >
                   Excel
                 </ExportExcelButton>
               </div>
@@ -329,7 +337,10 @@ export default function AllProductsPage() {
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">
                             <p
-                              className={"text-base font-semibold text-gray-900 " + ONE_LINE_SAFE}
+                              className={
+                                "text-base font-semibold text-gray-900 " +
+                                ONE_LINE_SAFE
+                              }
                               title={p.barcode}
                             >
                               {p.barcode}
@@ -349,7 +360,10 @@ export default function AllProductsPage() {
                             initial={{ height: 0, opacity: 0, y: -4 }}
                             animate={{ height: "auto", opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                            transition={{
+                              duration: 0.32,
+                              ease: [0.22, 1, 0.36, 1],
+                            }}
                             className="overflow-hidden border-t border-gray-100"
                             aria-live="polite"
                           >
@@ -364,20 +378,24 @@ export default function AllProductsPage() {
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Cantidad
                                 </p>
-                                <p className="text-sm text-gray-800">{p.cantidad}</p>
+                                <p className="text-sm text-gray-800">
+                                  {p.cantidad}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Consumido
                                 </p>
-                                <p className="text-sm text-gray-800">{p.consumido}</p>
+                                <p className="text-sm text-gray-800">
+                                  {p.consumido}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-[11px] uppercase tracking-wide text-gray-500">
                                   Precio
                                 </p>
                                 <p className="text-sm text-gray-800">
-                                  ${Number(p.precio || 0).toLocaleString()}
+                                  {formatPriceOrUnassigned(p.precio)}
                                 </p>
                               </div>
 
@@ -388,7 +406,10 @@ export default function AllProductsPage() {
                                     setIsModalOpen(true);
                                   }}
                                 />
-                                <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
+                                <DeleteButton
+                                  canDelete={canDelete}
+                                  event={() => handleDeleteClick(p)}
+                                />
                               </div>
                             </div>
                           </motion.div>
@@ -413,12 +434,20 @@ export default function AllProductsPage() {
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-4 lg:px-6 py-3 lg:py-4">ID Detalle</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Código de barras</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Fecha de vencimiento</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Código de barras
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Fecha de vencimiento
+                    </th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Stock consumido</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">
+                      Stock consumido
+                    </th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
 
@@ -437,13 +466,19 @@ export default function AllProductsPage() {
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-red-500"
+                      >
                         {errorMessage}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
                         No se encontraron detalles.
                       </td>
                     </tr>
@@ -476,7 +511,7 @@ export default function AllProductsPage() {
                           {p.consumido}
                         </td>
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          ${Number(p.precio || 0).toLocaleString()}
+                          {formatPriceOrUnassigned(p.precio)}
                         </td>
                         <td className="px-4 lg:px-6 py-4 text-right">
                           <div className="inline-flex items-center gap-2">
@@ -486,7 +521,10 @@ export default function AllProductsPage() {
                                 setIsModalOpen(true);
                               }}
                             />
-                            <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
+                            <DeleteButton
+                              canDelete={canDelete}
+                              event={() => handleDeleteClick(p)}
+                            />
                           </div>
                         </td>
                       </motion.tr>
