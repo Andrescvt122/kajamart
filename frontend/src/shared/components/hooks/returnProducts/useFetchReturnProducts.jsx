@@ -25,6 +25,15 @@ export const useFetchReturnProducts = () => {
           idReturn: r.id_devolucion_product,
           dateReturn: date ? date.toLocaleDateString("es-CO") : "",
           dateISO: date ? date.toISOString() : null,
+          createdAt:
+            r.fecha_creacion ||
+            r.fecha_devolucion ||
+            r.createdAt ||
+            r.created_at ||
+            null,
+          isActive: Boolean(
+            r.estado ?? r.activo ?? r.isActive ?? r.is_active ?? true
+          ),
           responsable: r.nombre_responsable,
           numeroFactura: r.numero_factura,
           products: (r.detalle_devolucion_producto || []).map((d) => {
