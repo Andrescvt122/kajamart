@@ -4,7 +4,7 @@ import {
   ExportPDFButton,
   ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,9 @@ import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../onboarding/loading";
+import Swal from "sweetalert2";
+import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -71,12 +74,14 @@ export default function IndexLow() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
+  const [annulledMap, setAnnulledMap] = useState({});
   const {hasPermission} = useAuth();
 
   // Permiso requerido para ver la página
-  const canView = hasPermission('Ver baja productos');
   const canCreate = hasPermission('Crear baja productos');
   const perPage = 6;
+  const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
 
   // Normalización de texto
   const normalizeText = (text) =>
@@ -135,6 +140,51 @@ export default function IndexLow() {
   const handleConfirmLow = () => {
     refetch();
   };
+
+  const handleAnnulLow = async (item) => {
+    const status = annulledMap[item.idLow] ?? item.isActive;
+    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateLow, status);
+    if (isDisabled) return;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await annulLowProduct(item.idLow);
+      setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
+      await refetch?.();
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+    } catch {
+      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
@@ -308,13 +358,21 @@ export default function IndexLow() {
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="mt-4 flex items-center justify-between gap-2">
                                 <ViewDetailsButton
                                   event={() => {
                                     setSelectedLow(item);
                                     setIsOpen(true);
                                   }}
                                 />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Anular</span>
+                                  <ToggleSwitch
+                                    checked={annulledMap[item.idLow] ?? item.isActive}
+                                    disabled={getAnnulmentMeta(item.createdAt || item.dateLow, annulledMap[item.idLow] ?? item.isActive).isDisabled}
+                                    onChange={() => handleAnnulLow(item)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -344,6 +402,7 @@ export default function IndexLow() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Razón</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Responsable</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
                       Acciones
                     </th>
@@ -355,14 +414,14 @@ export default function IndexLow() {
                 >
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center">
+                      <td colSpan={8} className="px-6 py-12 text-center">
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-6 py-12 text-center text-red-500"
                       >
                         Error al cargar las bajas
@@ -371,7 +430,7 @@ export default function IndexLow() {
                   ) : pageItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-6 py-8 text-center text-gray-400"
                       >
                         No se encontraron productos dados de baja.
@@ -471,6 +530,18 @@ export default function IndexLow() {
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsible}
                             </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <ToggleSwitch
+                                checked={annulledMap[item.idLow] ?? item.isActive}
+                                disabled={getAnnulmentMeta(item.createdAt || item.dateLow, annulledMap[item.idLow] ?? item.isActive).isDisabled}
+                                onChange={() => handleAnnulLow(item)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {(annulledMap[item.idLow] ?? item.isActive) ? "Activo" : "Anulado"}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-right">
                             <div className="inline-flex items-center gap-2">
