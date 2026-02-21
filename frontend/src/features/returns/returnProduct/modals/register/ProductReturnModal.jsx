@@ -41,6 +41,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
+    { value: "Reemplazo proveedor", label: "Reemplazo proveedor" },
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
   ];
@@ -384,7 +385,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
         if (createdDetail?.id_detalle_producto) {
           savedDetails.push({
-            productKey: detail.productKey,
+            productKey: String(detail.productKey),
             id_detalle_producto_creado: createdDetail.id_detalle_producto,
           });
         } else {
@@ -415,9 +416,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           }
 
           const savedDetail = savedDetails.find(
-            (d) => d.productKey === p.id_producto,
+            (d) => String(d.productKey) === String(p.id_producto),
           );
-          const idDetalleCreado = savedDetail?.id_detalle_producto_creado ?? null;
+          const idDetalleCreado =
+            p.id_detalle_producto_creado ??
+            savedDetail?.id_detalle_producto_creado ??
+            null;
 
           if (p.actionType === "registrar" && !idDetalleCreado) {
             console.error(
@@ -429,7 +433,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             alert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
-              }" no tiene detalle destino creado.`,
+              }" no tiene detalle de reemplazo creado.`,
             );
             return null;
           }
