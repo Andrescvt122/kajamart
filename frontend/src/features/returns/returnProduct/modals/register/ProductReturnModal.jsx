@@ -41,7 +41,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
-    { value: "Reemplazo proveedor", label: "Reemplazo proveedor" },
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
   ];
