@@ -17,6 +17,7 @@ import PurchaseSearchSelect from "../../../../../shared/components/searchBars/Pu
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
+import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
@@ -31,17 +32,17 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [showErrors, setShowErrors] = useState(false);
   const [registrationMode, setRegistrationMode] = useState("create"); // 'create' | 'edit'
   const [detailToEdit, setDetailToEdit] = useState(null);
-  // 🔹 NUEVOS estados para la factura
+  // ðŸ”¹ NUEVOS estados para la factura
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
-  // 🔹 Detalles de producto registrados TEMPORALMENTE
+  // ðŸ”¹ Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
+  const { postDetailProduct } = usePostDetailProduct();
   const { refetch, returns } = useFetchReturnProducts();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
-    { value: "Reemplazo proveedor", label: "Reemplazo proveedor" },
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
   ];
@@ -50,7 +51,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     { value: "descuento", label: "Descuento" },
     { value: "registrar", label: "Registrar" },
   ];
-  // 🔹 Lista de números de factura ya usados en compras y devoluciones
+  const normalizeInvoice = (value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase();
+  // ðŸ”¹ Lista de números de factura ya usados en compras y devoluciones
   const existingInvoiceNumbers = useMemo(() => {
     const fromPurchases =
       purchases
@@ -73,7 +78,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         .filter(Boolean) || [];
 
     // normalizamos y quitamos duplicados
-    const all = [...fromPurchases, ...fromReturns].map((n) => String(n).trim());
+    const all = [...fromPurchases, ...fromReturns]
+      .map((n) => normalizeInvoice(n))
+      .filter(Boolean);
 
     return Array.from(new Set(all));
   }, [purchases, returns]);
@@ -120,19 +127,20 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   };
 
   const validateInvoiceNumber = (value) => {
-    const v = value.trim();
+    const raw = String(value ?? "").trim();
+    const normalized = normalizeInvoice(raw);
 
-    if (!v) {
+    if (!raw) {
       return "El número de factura es obligatorio.";
     }
-    if (v.length < 4) {
+    if (raw.length < 4) {
       return "El número de factura debe tener al menos 4 caracteres.";
     }
-    if (v.length > 20) {
+    if (raw.length > 20) {
       return "El número de factura no puede superar los 20 caracteres.";
     }
-    if (existingInvoiceNumbers.includes(v)) {
-      return "El número de factura ya existe en compras o devoluciones anteriores.";
+    if (existingInvoiceNumbers.includes(normalized)) {
+      return "El codigo de barras no puede repertirse";
     }
 
     return "";
@@ -141,7 +149,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleInvoiceChange = (e) => {
     const value = e.target.value;
     setInvoiceNumber(value);
-    setInvoiceError(validateInvoiceNumber(value)); // 🔴 validación en tiempo real
+    setInvoiceError(validateInvoiceNumber(value)); // ðŸ”´ validación en tiempo real
   };
 
   // Helper: encontrar detalle para un producto
@@ -312,8 +320,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setProductToRegister(null);
     setOpenConfigProductId(null);
     setPendingDetails([]);
-    setInvoiceNumber(""); // ⬅️ limpiar número de factura
-    setInvoiceError(""); // ⬅️ limpiar error
+    setInvoiceNumber(""); // â¬…ï¸ limpiar número de factura
+    setInvoiceError(""); // â¬…ï¸ limpiar error
     onClose();
   };
 
@@ -358,18 +366,25 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const handleCancelAlert = () => setShowConfirmAlert(false);
 
   const handleAcceptAlert = async () => {
-    console.log("👉 handleAcceptAlert DISPARADO");
+    console.log("ðŸ‘‰ handleAcceptAlert DISPARADO");
     setShowConfirmAlert(false);
-    console.log("📋 selectedProducts al confirmar:", payloadId.uid);
+    console.log("ðŸ“‹ selectedProducts al confirmar:", payloadId.uid);
     const id_responsable = payloadId.uid; // TODO: reemplazar con el usuario logueado
 
     try {
       console.log("selectedProducts en handleAcceptAlert:", selectedProducts);
       console.log("pendingDetails en handleAcceptAlert:", pendingDetails);
 
-      // 🔹 PRIMERO: Guardar todos los detalles pendientes en la BD
+      // ðŸ”¹ PRIMERO: Guardar todos los detalles pendientes en la BD
       const savedDetails = [];
-      for (const detail of []) {
+      const detailsToPersist = pendingDetails.filter((detail) =>
+        selectedProducts.some(
+          (p) =>
+            p.actionType === "registrar" &&
+            String(p.id_producto) === String(detail.productKey),
+        ),
+      );
+      for (const detail of detailsToPersist) {
         console.log("Guardando detalle:", detail);
         const saved = await postDetailProduct({
           id_producto: detail.productKey,
@@ -383,28 +398,28 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           saved?.detail ??
           saved;
 
-        if (createdDetail?.id_detalle_producto) {
-          savedDetails.push({
-            productKey: String(detail.productKey),
-            id_detalle_producto_creado: createdDetail.id_detalle_producto,
-          });
-        } else {
+        if (!createdDetail?.id_detalle_producto) {
           throw new Error(
             `No se pudo guardar el detalle para el producto ${detail.productKey}`,
           );
         }
+
+        savedDetails.push({
+          productKey: String(detail.productKey),
+          id_detalle_producto_creado: createdDetail.id_detalle_producto,
+        });
       }
 
-      console.log("✅ Detalles guardados:", savedDetails);
+      console.log("âœ… Detalles guardados:", savedDetails);
 
-      // 🔹 SEGUNDO: Construir payload con los IDs de detalles guardados
+      // ðŸ”¹ SEGUNDO: Construir payload con los IDs de detalles guardados
       const productsPayload = selectedProducts
         .map((p) => {
           const idDetalleOrigen = p.id_detalle_producto;
 
           if (!idDetalleOrigen) {
             console.error(
-              "❌ Falta id_detalle_producto (origen) para este producto:",
+              "âŒ Falta id_detalle_producto (origen) para este producto:",
               p,
             );
             alert(
@@ -425,7 +440,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
           if (p.actionType === "registrar" && !idDetalleCreado) {
             console.error(
-              "❌ Falta id_detalle_producto_creado para reemplazo:",
+              "âŒ Falta id_detalle_producto_creado para reemplazo:",
               p,
               "savedDetails:",
               savedDetails,
@@ -453,7 +468,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       if (productsPayload.length === 0) {
         console.error(
-          "❌ No hay productos válidos para enviar en el payload (productsPayload vacío).",
+          "âŒ No hay productos válidos para enviar en el payload (productsPayload vacío).",
         );
         return;
       }
@@ -465,11 +480,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         products: productsPayload,
       };
 
-      console.log("📦 Payload FINAL antes de POST:", payload);
+      console.log("ðŸ“¦ Payload FINAL antes de POST:", payload);
 
       const result = await postReturnProducts(payload);
 
-      console.log("🔙 Resultado de postReturnProducts:", result);
+      console.log("ðŸ”™ Resultado de postReturnProducts:", result);
 
       if (result) {
         refetch();
@@ -478,12 +493,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           setShowSuccessMessage(false);
           handleCloseModal();
         }, 2500);
-        console.log("✅ Devolución registrada con éxito");
+        console.log("âœ… Devolución registrada con éxito");
       } else {
-        console.warn("⚠️ postReturnProducts devolvió null/undefined");
+        console.warn("âš ï¸ postReturnProducts devolvió null/undefined");
       }
     } catch (err) {
-      console.error("❌ Error en handleAcceptAlert:", err);
+      console.error("âŒ Error en handleAcceptAlert:", err);
       alert(err.message || "No fue posible registrar la devolución.");
     }
   };
@@ -1225,7 +1240,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     )}
                   </motion.button>
                 </motion.div>
-                {/* 🔸 Alerta de confirmación */}
+                {/* ðŸ”¸ Alerta de confirmación */}
                 <AnimatePresence>
                   {showConfirmAlert && (
                     <motion.div
@@ -1284,7 +1299,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                   )}
                 </AnimatePresence>
 
-                {/* 🔹 Animación de éxito */}
+                {/* ðŸ”¹ Animación de éxito */}
                 <AnimatePresence>
                   {showSuccessMessage && (
                     <motion.div
@@ -1349,3 +1364,4 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 };
 
 export default ProductReturnModal;
+
