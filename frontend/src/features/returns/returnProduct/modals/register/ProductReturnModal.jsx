@@ -43,6 +43,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
+    { value: "Reemplazo proveedor", label: "Reemplazo proveedor" },
     { value: "cerca de vencer", label: "Cerca de vencer" },
     { value: "vencido", label: "Vencido" },
   ];
@@ -378,10 +379,16 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           registeredExpiry: detail.registeredExpiry,
           registeredQuantity: detail.registeredQuantity,
         });
-        if (saved && saved.id_detalle_producto) {
+        const createdDetail =
+          saved?.newDetail ??
+          saved?.newProductDetail ??
+          saved?.detail ??
+          saved;
+
+        if (createdDetail?.id_detalle_producto) {
           savedDetails.push({
             productKey: detail.productKey,
-            id_detalle_producto: saved.id_detalle_producto,
+            id_detalle_producto_creado: createdDetail.id_detalle_producto,
           });
         } else {
           throw new Error(
@@ -395,22 +402,29 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       // 🔹 SEGUNDO: Construir payload con los IDs de detalles guardados
       const productsPayload = selectedProducts
         .map((p) => {
-          let id_detalle;
+          const idDetalleOrigen = p.id_detalle_producto;
 
-          if (p.actionType === "registrar") {
-            // Buscar el detalle guardado
-            const savedDetail = savedDetails.find(
-              (d) => d.productKey === p.id_producto,
+          if (!idDetalleOrigen) {
+            console.error(
+              "❌ Falta id_detalle_producto (origen) para este producto:",
+              p,
             );
-            id_detalle = savedDetail?.id_detalle_producto;
-          } else {
-            // Para descuento, usar el detalle existente
-            id_detalle = p.id_detalle_producto;
+            alert(
+              `El producto "${
+                p.productos?.nombre ?? p.nombre_producto
+              }" no tiene detalle origen válido.`,
+            );
+            return null;
           }
 
-          if (!id_detalle) {
+          const savedDetail = savedDetails.find(
+            (d) => d.productKey === p.id_producto,
+          );
+          const idDetalleCreado = savedDetail?.id_detalle_producto_creado ?? null;
+
+          if (p.actionType === "registrar" && !idDetalleCreado) {
             console.error(
-              "❌ Falta id_detalle_producto para este producto:",
+              "❌ Falta id_detalle_producto_creado para reemplazo:",
               p,
               "savedDetails:",
               savedDetails,
@@ -418,39 +432,20 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
             alert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
-              }" no tiene id_detalle_producto. Revisa el origen de los datos.`,
+              }" no tiene detalle destino creado.`,
             );
             return null;
           }
 
-          console.log(
-            "✅ Producto listo para payload:",
-            p.productos?.nombre ?? p.nombre_producto,
-            " -> id_detalle_producto:",
-            id_detalle,
-          );
-
-          const pendingDetail = getPendingDetailForProduct(p.id_producto);
-
           return {
             id_producto: p.id_producto,
-            id_detalle_producto: id_detalle,
-            nombre_producto: p.productos?.nombre ?? p.nombre_producto,
+            id_detalle_producto: idDetalleOrigen,
+            id_detalle_producto_creado:
+              p.actionType === "registrar" ? idDetalleCreado : null,
             cantidad: p.returnQuantity || 1,
             motivo: p.returnReason,
+            nombre_producto: p.productos?.nombre ?? p.nombre_producto,
             es_descuento: p.actionType === "descuento",
-            codigo_barras_producto_compra_nuevo:
-              p.actionType === "registrar"
-                ? pendingDetail?.registeredBarcode ?? null
-                : null,
-            lote_nuevo:
-              p.actionType === "registrar"
-                ? pendingDetail?.lote_nuevo ?? null
-                : null,
-            fecha_vencimiento_nueva:
-              p.actionType === "registrar"
-                ? pendingDetail?.registeredExpiry ?? null
-                : null,
           };
         })
         .filter(Boolean); // quitamos los null
