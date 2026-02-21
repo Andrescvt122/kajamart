@@ -18,6 +18,7 @@ import Loading from "../../onboarding/loading";
 import Swal from "sweetalert2";
 import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -70,6 +71,7 @@ function ChevronIcon({ open }) {
 export default function IndexLow() {
   const { data: lows, loading, error, refetch } = useGetLowProducts();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
@@ -105,17 +107,23 @@ export default function IndexLow() {
         }`,
       }))
     );
+    const byStatus = expandedRows.filter((item) => {
+      const isActive = annulledMap[item.idLow] ?? item.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive") return isActive === false;
+      return true;
+    });
 
-    if (!s) return expandedRows;
+    if (!s) return byStatus;
 
-    return expandedRows.filter((item) =>
+    return byStatus.filter((item) =>
       Object.values(item).some((val) =>
         typeof val === "object"
           ? Object.values(val).some((v) => match(v))
           : match(val)
       )
     );
-  }, [lows, searchTerm]);
+  }, [lows, searchTerm, statusFilter, annulledMap]);
 
   // Paginación basada en filas (productos)
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -218,19 +226,29 @@ export default function IndexLow() {
 
           {/* Toolbar responsive */}
           <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="relative w-full min-w-0">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+            <div className="w-full min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar bajas..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Buscar bajas..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+              <StatusFilterDropdown
+                value={statusFilter}
+                onChange={(nextStatus) => {
+                  setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="w-full sm:w-[220px]"
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
