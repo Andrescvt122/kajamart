@@ -16,7 +16,6 @@ import ProductRegistrationModal from "./ProductRegistrationModal";
 import PurchaseSearchSelect from "../../../../../shared/components/searchBars/PurchaseSearchSelect";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
 import { useFetchReturnProducts } from "../../../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
-import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 import { useAuth } from "../../../../../context/useAtuh";
 const ProductReturnModal = ({ isOpen, onClose }) => {
@@ -39,7 +38,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
   const { refetch, returns } = useFetchReturnProducts();
-  const { postDetailProduct } = usePostDetailProduct();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
@@ -370,7 +368,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
       // 🔹 PRIMERO: Guardar todos los detalles pendientes en la BD
       const savedDetails = [];
-      for (const detail of pendingDetails) {
+      for (const detail of []) {
         console.log("Guardando detalle:", detail);
         const saved = await postDetailProduct({
           id_producto: detail.productKey,
@@ -395,9 +393,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       // 🔹 SEGUNDO: Construir payload con los IDs de detalles guardados
       const productsPayload = selectedProducts
         .map((p) => {
-          let id_detalle;
+          let id_detalle = p.id_detalle_producto;
 
-          if (p.actionType === "registrar") {
+          if (false && p.actionType === "registrar") {
             // Buscar el detalle guardado
             const savedDetail = savedDetails.find(
               (d) => d.productKey === p.id_producto,
@@ -431,6 +429,14 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           );
 
           const pendingDetail = getPendingDetailForProduct(p.id_producto);
+          if (p.actionType === "registrar" && !pendingDetail) {
+            alert(
+              `El producto "${
+                p.productos?.nombre ?? p.nombre_producto
+              }" requiere detalle registrado antes de confirmar.`,
+            );
+            return null;
+          }
 
           return {
             id_producto: p.id_producto,
