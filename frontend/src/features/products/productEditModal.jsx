@@ -124,7 +124,7 @@ export default function ProductEditModal({
       {isModalOpen && (
         <motion.div
           // 🔹 Igual overlay que el modal de Registrar: blur total + un poco más arriba
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/50 backdrop-blur-sm pt-10 sm:pt-16"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm pt-10 sm:pt-16"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
