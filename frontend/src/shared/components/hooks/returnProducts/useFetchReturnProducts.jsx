@@ -20,6 +20,10 @@ export const useFetchReturnProducts = () => {
       // ...
       const flattened = data.map((r) => {
         const date = r.fecha_devolucion ? new Date(r.fecha_devolucion) : null;
+        const purchaseSupplierName =
+          r?.compras?.proveedores?.nombre ||
+          r?.compras?.proveedor?.nombre ||
+          null;
 
         return {
           idReturn: r.id_devolucion_product,
@@ -49,7 +53,7 @@ export const useFetchReturnProducts = () => {
               reason: d.motivo,
               barcode: detalle?.codigo_barras_producto_compra || "",
               price: producto?.precio_venta ?? null,
-              supplier: proveedor?.nombre || "Sin proveedor",
+              supplier: proveedor?.nombre || purchaseSupplierName || "Sin proveedor",
             };
           }),
         };

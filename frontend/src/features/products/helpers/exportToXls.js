@@ -1,7 +1,12 @@
 // src/features/products/helpers/exportToXls.js
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-
+const priceCellValue = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "";           // o "—"
+  if (n === 1001) return "aun no asignado";
+  return n; // número real para que Excel lo formatee como moneda
+};
 /**
  * Exporta productos a Excel con estilos
  * @param {Array} products
@@ -67,7 +72,7 @@ export async function exportProductsToExcel(products = []) {
         p.stockActual,
         p.stockMin,
         p.stockMax,
-        p.precio,
+        priceCellValue(p.precio),
         p.estado,
       ]);
 
@@ -93,7 +98,13 @@ export async function exportProductsToExcel(products = []) {
       }
 
       // Columna precio formato moneda
-      row.getCell(7).numFmt = '"$"#,##0;[Red]-"$"#,##0';
+      const priceCell = row.getCell(7);
+      if (typeof priceCell.value === "number") {
+        priceCell.numFmt = '"$"#,##0;[Red]-"$"#,##0';
+      } else {
+        // opcional: centrar y color suave para "aun no asignado"
+        priceCell.alignment = { horizontal: "center", vertical: "middle" };
+      }
     });
 
     worksheet.columns = [
