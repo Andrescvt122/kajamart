@@ -36,6 +36,15 @@ export const useFetchReturnClients = () => {
           idSale: item.id_venta,
           dateReturn: formatDate(fechaBase),
           dateISO: fechaBase || null,
+          createdAt:
+            item.fecha_creacion ||
+            item.fecha_devolucion ||
+            item.createdAt ||
+            item.created_at ||
+            null,
+          isActive: Boolean(
+            item.estado ?? item.activo ?? item.isActive ?? item.is_active ?? true
+          ),
           client: cliente.nombre_cliente || "",
           responsable: `${responsable.nombre || ""} ${responsable.apellido || ""}`.trim(),
           totalDevolucionCliente: Number(item.total_devolucion_cliente || 0),

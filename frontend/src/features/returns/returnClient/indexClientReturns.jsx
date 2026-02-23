@@ -14,18 +14,26 @@ import generateProductReturnsPDF from "./helpers/exportToPdf";
 import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
+import Swal from "sweetalert2";
+import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 
 export default function IndexClientReturns() {
-  const { returns, loading, error } = useFetchReturnClients();
+  const { returns, loading, error, refetch } = useFetchReturnClients();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
   const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [annulledMap, setAnnulledMap] = useState({});
   const perPage = 6;
 
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
+  const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
 
   // Función para abrir el modal de detalles
   const handleViewDetails = (rowData) => {
@@ -71,10 +79,16 @@ export default function IndexClientReturns() {
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     const match = (val) => normalizeText(String(val ?? "")).includes(s);
+    const byStatus = formattedRows.filter((row) => {
+      const isActive = annulledMap[row.idReturn] ?? row.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive") return isActive === false;
+      return true;
+    });
 
-    if (!s) return formattedRows;
+    if (!s) return byStatus;
 
-    return formattedRows.filter((row) => {
+    return byStatus.filter((row) => {
       const topMatch = Object.entries(row).some(([, v]) => {
         if (Array.isArray(v)) return false;
         return match(v);
@@ -82,7 +96,7 @@ export default function IndexClientReturns() {
       const productMatch = Object.values(row.currentProduct || {}).some((val) => match(val));
       return topMatch || productMatch;
     });
-  }, [formattedRows, searchTerm]);
+  }, [formattedRows, searchTerm, statusFilter, annulledMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -102,6 +116,50 @@ export default function IndexClientReturns() {
     }).format(amount);
   };
 
+  const handleAnnulReturn = async (row) => {
+    const status = annulledMap[row.idReturn] ?? row.isActive;
+    const { isDisabled } = getAnnulmentMeta(row.createdAt || row.dateISO, status);
+    if (isDisabled) return;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await annulReturnClient(row.idReturn);
+      setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
+      await refetch?.();
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+    } catch {
+      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   // Animaciones
   const tableVariants = {
@@ -145,7 +203,7 @@ export default function IndexClientReturns() {
         </div>
 
         {/* Barra de búsqueda + botones */}
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search size={20} className="text-gray-400" />
@@ -161,6 +219,14 @@ export default function IndexClientReturns() {
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
           </div>
+          <StatusFilterDropdown
+            value={statusFilter}
+            onChange={(nextStatus) => {
+              setStatusFilter(nextStatus);
+              setCurrentPage(1);
+            }}
+            className="w-full sm:w-[220px]"
+          />
 
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
@@ -191,6 +257,7 @@ export default function IndexClientReturns() {
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Razón</th>
                 <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -201,7 +268,7 @@ export default function IndexClientReturns() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     Cargando devoluciones...
@@ -210,7 +277,7 @@ export default function IndexClientReturns() {
               ) : pageItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
                     {error || "No se encontraron devoluciones."}
@@ -256,6 +323,18 @@ export default function IndexClientReturns() {
                           )}{" "}
                           c/u
                         </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <ToggleSwitch
+                          checked={annulledMap[s.idReturn] ?? s.isActive}
+                          disabled={getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
+                          onChange={() => handleAnnulReturn(s)}
+                        />
+                        <span className="text-xs text-gray-500">
+                          {(annulledMap[s.idReturn] ?? s.isActive) ? "Activo" : "Anulado"}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">

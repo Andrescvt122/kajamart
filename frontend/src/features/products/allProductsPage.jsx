@@ -34,6 +34,13 @@ const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
 const ONE_LINE_SAFE =
   "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+const STATUS_BADGE_BASE =
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium";
+
+const getStatusBadgeClass = (status) =>
+  status === "Activo"
+    ? "bg-green-50 text-green-700 border-green-100"
+    : "bg-red-50 text-red-700 border-red-100";
 
 // Chevron acordeón móvil
 function ChevronIcon({ open }) {
@@ -170,13 +177,27 @@ export default function AllProductsPage() {
     incremento_venta: d.incremento_venta,
   }));
 }, [backendDetails, product]);
+    if (!Array.isArray(backendDetails)) return [];
+    return backendDetails.map((d) => ({
+      id: d.id_detalle_producto,
+      nombre: product.nombre,
+      barcode: d.codigo_barras_producto_compra ?? "—",
+      estado: d.estado === false ? "Inactivo" : "Activo",
+      vencimiento: d.fecha_vencimiento
+        ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
+        : "Sin fecha",
+      cantidad: d.stock_producto ?? 0,
+      consumido: 0,
+      precio: product.precio_venta ?? 0,
+    }));
+  }, [backendDetails, product]);
 
   // filtro + paginación
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return allProducts;
     return allProducts.filter((p) =>
-      `${p.id} ${p.barcode} ${p.vencimiento}`.toLowerCase().includes(s)
+      `${p.id} ${p.barcode} ${p.vencimiento} ${p.estado}`.toLowerCase().includes(s)
     );
   }, [searchTerm, allProducts]);
 
@@ -399,6 +420,16 @@ export default function AllProductsPage() {
                                   ${Number(p.precio || 0).toLocaleString()}
                                 </p>
                               </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Estado
+                                </p>
+                                <p className="text-sm">
+                                  <span className={`${STATUS_BADGE_BASE} ${getStatusBadgeClass(p.estado)}`}>
+                                    {p.estado}
+                                  </span>
+                                </p>
+                              </div>
 
                               <div className="col-span-2 pt-1 flex items-center gap-2">
                                 <ViewDetailsButton
@@ -428,7 +459,7 @@ export default function AllProductsPage() {
             animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
-              <table className="min-w-[780px] lg:min-w-[940px] w-full md:table-fixed">
+              <table className="min-w-[860px] lg:min-w-[1020px] w-full md:table-fixed">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
                     <th className="px-4 lg:px-6 py-3 lg:py-4">ID Detalle</th>
@@ -437,6 +468,7 @@ export default function AllProductsPage() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Stock consumido</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -450,19 +482,19 @@ export default function AllProductsPage() {
                 >
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12">
+                      <td colSpan={8} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
+                      <td colSpan={8} className="px-6 py-8 text-center text-red-500">
                         {errorMessage}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                         No se encontraron detalles.
                       </td>
                     </tr>
@@ -496,6 +528,11 @@ export default function AllProductsPage() {
                         </td>
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                           ${Number(p.precio || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          <span className={`${STATUS_BADGE_BASE} ${getStatusBadgeClass(p.estado)}`}>
+                            {p.estado}
+                          </span>
                         </td>
                         <td className="px-4 lg:px-6 py-4 text-right">
                           <div className="inline-flex items-center gap-2">
