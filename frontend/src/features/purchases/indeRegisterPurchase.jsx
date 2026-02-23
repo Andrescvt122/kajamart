@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import ProductRegisterModal from "../products/productRegisterModal";
 import SuplliersRegisterModal from "../suppliers/SuplliersRegisterModal";
 
+// ✅ NUEVO: SweetAlert2 (igual que ventas)
+import Swal from "sweetalert2";
+
 // ✅ Iconos
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 
@@ -43,7 +46,7 @@ export default function IndexRegisterPurchase() {
   // ✅ Alertas (estilo como las otras)
   const [mensajeComprobante, setMensajeComprobante] = useState(null);
 
-  // ✅ NUEVO: loading registrar compra
+  // ✅ loading registrar compra
   const [isRegistrandoCompra, setIsRegistrandoCompra] = useState(false);
 
   // ✅ Modales
@@ -60,7 +63,6 @@ export default function IndexRegisterPurchase() {
   const [isPackModalOpen, setIsPackModalOpen] = useState(false);
   const [productoPackPendiente, setProductoPackPendiente] = useState(null);
 
-  // ✅ CAMBIO: iniciar en "" para que NO aparezca "1" y se pueda borrar sin pelear con el input
   const [packForm, setPackForm] = useState({
     cantidad: "", // paquetes
     unidadesPorPaquete: "", // informativo
@@ -144,11 +146,13 @@ export default function IndexRegisterPurchase() {
     x.setHours(0, 0, 0, 0);
     return x;
   };
+
   const addDays = (d, days) => {
     const x = startOfDay(d);
     x.setDate(x.getDate() + days);
     return x;
   };
+
   const toISODate = (d) => startOfDay(d).toISOString().slice(0, 10);
 
   // ✅ mínimo permitido: hoy + 4 días
@@ -157,7 +161,6 @@ export default function IndexRegisterPurchase() {
   // =========================
   // ✅ Helpers cantidad (paquetes x unidades) (SOLO INFORMATIVO)
   // =========================
-  // ✅ CAMBIO: si está vacío => 0 (para cálculo informativo y validación)
   const toNonNegIntFromString = (s) => {
     if (s === "" || s == null) return 0;
     const n = Number(s);
@@ -213,7 +216,6 @@ export default function IndexRegisterPurchase() {
     fechaVencimiento: "",
   });
 
-  // ✅ ahora soporta n=0
   const syncPaquetesLength = (prevPaquetes, n, fallbackBarcode = "") => {
     const N = Math.max(0, Number(n || 0));
     const next = [...(prevPaquetes || [])];
@@ -495,7 +497,6 @@ export default function IndexRegisterPurchase() {
   const abrirModalPaquetesProducto = (productoEncontrado) => {
     setProductoPackPendiente(productoEncontrado);
 
-    // ✅ iniciar vacío (0 lógico, pero el input queda en blanco para poder borrar)
     setPackForm({
       cantidad: "",
       unidadesPorPaquete: "",
@@ -529,7 +530,6 @@ export default function IndexRegisterPurchase() {
       }, {}),
     }));
 
-    // ✅ IMPORTANTE: validar con un form "normalizado" ("" => "0") para no romper UX
     const normalized = {
       ...packForm,
       cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
@@ -552,7 +552,6 @@ export default function IndexRegisterPurchase() {
     const enriched = {
       ...productoPackPendiente,
 
-      // ✅ NUEVO: guardo ambos para backend/tabla/modal detalle
       cantidadPaquetes: String(cantidadPaquetesNum),
       unidadesPorPaquete: String(unidadesPorPaqueteNum),
       cantidadTotalUnidades: String(totalUnidades),
@@ -563,7 +562,7 @@ export default function IndexRegisterPurchase() {
       // ✅ IMPORTANTÍSIMO: mandar paquetes[] al backend
       paquetes: paquetesNormalized,
 
-      // compat: paquete “principal” (si backend aún lo usa)
+      // compat: paquete “principal”
       codigoBarrasIngreso: String(
         paquetesNormalized[normalized.selectedIndex]?.codigoBarrasIngreso ||
           paquetesNormalized[0]?.codigoBarrasIngreso ||
@@ -584,10 +583,7 @@ export default function IndexRegisterPurchase() {
   // ✅ Editar desde tabla
   // =========================
   const abrirPackEditDesdeTabla = (prod, index) => {
-    const cantPaquetes = Math.max(
-      0,
-      Number(prod?.cantidadPaquetes ?? prod?.cantidad ?? 0)
-    );
+    const cantPaquetes = Math.max(0, Number(prod?.cantidadPaquetes ?? prod?.cantidad ?? 0));
     const unid = Math.max(0, Number(prod?.unidadesPorPaquete ?? 0));
 
     const base =
@@ -600,7 +596,6 @@ export default function IndexRegisterPurchase() {
 
     setPackEditIndex(index);
 
-    // ✅ iniciar con valores reales (edit)
     setPackForm({
       cantidad: String(cantPaquetes),
       unidadesPorPaquete: String(unid),
@@ -700,6 +695,14 @@ export default function IndexRegisterPurchase() {
     );
 
     if (id && selectedProductIds.has(String(id))) {
+      // ✅ (opcional) Swal parecido a ventas
+      Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Este producto ya fue agregado.",
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensajeProducto({ tipo: "error", texto: "⚠️ Este producto ya fue agregado." });
       setProductoQuery("");
       setIsProdOpen(false);
@@ -847,6 +850,14 @@ export default function IndexRegisterPurchase() {
           tipo: "error",
           texto: "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
         });
+
+        // ✅ Swal igual a ventas (opcional)
+        Swal.fire({
+          icon: "error",
+          title: "Proveedor no encontrado",
+          text: "Selecciónalo de la lista o créalo.",
+          confirmButtonColor: "#16a34a",
+        });
       }
     }
   };
@@ -885,6 +896,14 @@ export default function IndexRegisterPurchase() {
           tipo: "error",
           texto: "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
         });
+
+        // ✅ Swal igual a ventas (opcional)
+        Swal.fire({
+          icon: "error",
+          title: "Producto no encontrado",
+          text: "Selecciónalo de la lista o regístralo.",
+          confirmButtonColor: "#16a34a",
+        });
       }
     }
   };
@@ -902,6 +921,14 @@ export default function IndexRegisterPurchase() {
     const siguiente = ultimoNumero + 1;
 
     if (siguiente > 999) {
+      // ✅ Swal igual a ventas
+      Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Se alcanzó el límite de numeración de facturas (999).",
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensajeComprobante({
         tipo: "error",
         texto: "⚠️ Se alcanzó el límite de numeración de facturas (999)",
@@ -913,10 +940,17 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // ✅ Comprobante (validación + alerta estilo)
+  // ✅ Comprobante (validación + alerta estilo ventas)
   // =========================
-  const validarComprobante = (file) => {
+  const validarComprobante = async (file) => {
     if (!file) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe subir el comprobante original de la compra.",
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensajeComprobante({
         tipo: "error",
         texto: "⚠️ Debe subir el comprobante original de la compra",
@@ -927,6 +961,13 @@ export default function IndexRegisterPurchase() {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "image/webp"];
 
     if (!allowed.includes(file.type)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Formato no válido",
+        text: "Sube PDF o imagen (JPG/PNG/WebP).",
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensajeComprobante({
         tipo: "error",
         texto: "⚠️ Formato no válido. Sube PDF o imagen (JPG/PNG/WebP).",
@@ -936,6 +977,13 @@ export default function IndexRegisterPurchase() {
 
     const maxBytes = 5 * 1024 * 1024;
     if (file.size > maxBytes) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Archivo muy grande",
+        text: "Máximo 5MB.",
+        confirmButtonColor: "#16a34a",
+      });
+
       setMensajeComprobante({
         tipo: "error",
         texto: "⚠️ El archivo es muy grande. Máximo 5MB.",
@@ -950,167 +998,228 @@ export default function IndexRegisterPurchase() {
     return true;
   };
 
-  const handleComprobanteUpload = (e) => {
-  const file = e.target.files?.[0] || null;
-  setComprobante(file);
-  validarComprobante(file);
+  const handleComprobanteUpload = async (e) => {
+    const file = e.target.files?.[0] || null;
+    setComprobante(file);
+    await validarComprobante(file);
   };
 
   // =========================
-  // ✅ Finalizar compra (FRONT)
+  // ✅ Finalizar compra (FRONT) con Swal (igual a ventas)
   // =========================
- // ✅ Finalizar compra (FRONT)
-const handleFinalizarCompra = async () => {
-  if (isRegistrandoCompra) return;
+  const handleFinalizarCompra = async () => {
+    if (isRegistrandoCompra) return;
 
-  setMensajeComprobante(null);
+    setMensajeComprobante(null);
 
-  if (!proveedor) {
-    setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
-    return;
-  }
-
-  if (productos.length === 0) {
-    setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
-    return;
-  }
-
-  // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq (para que no vuelva a llegar 0 al backend)
-  for (const p of productos) {
-    const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
-    const unid = Number(p.unidadesPorPaquete ?? 0);
-    const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
-
-    if (!cantPaquetes || cantPaquetes <= 0) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: `⚠️ Revisa "${p.nombre}": faltan paquetes.`,
+    if (!proveedor) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe seleccionar un proveedor.",
+        confirmButtonColor: "#16a34a",
       });
+      setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
       return;
     }
-    if (!unid || unid <= 0) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: `⚠️ Revisa "${p.nombre}": faltan unidades por paquete.`,
+
+    if (productos.length === 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe agregar al menos un producto.",
+        confirmButtonColor: "#16a34a",
       });
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
       return;
     }
-    if (packs.length !== cantPaquetes) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: `⚠️ Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
-      });
-      return;
-    }
-  }
 
-  // ✅ IMPORTANTE: comprobante debe ser File real (para FormData)
-  if (!validarComprobante(comprobante)) return;
-
-  const num = generarNumeroFactura();
-  if (!num) return;
-  setNumFactura(num);
-
-  // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
-  const payload = {
-    fecha_compra: fechaFactura.toISOString(),
-    id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
-
-    // ✅ este objeto puede quedarse (no estorba), pero NO es lo que guarda el backend;
-    // lo que manda el archivo de verdad es FormData.append("comprobante", comprobante)
-    comprobante: comprobante
-      ? {
-          url: null,
-          nombre: comprobante.name,
-          mime: comprobante.type,
-          size: comprobante.size,
-        }
-      : null,
-
-    items: productos.map((p) => {
+    // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq
+    for (const p of productos) {
       const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
       const unid = Number(p.unidadesPorPaquete ?? 0);
-      const totalUnid = cantPaquetes * unid;
+      const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
 
-      return {
-        id_producto: Number(p.id_producto ?? p.productoId),
+      if (!cantPaquetes || cantPaquetes <= 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": faltan paquetes.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({ tipo: "error", texto: `⚠️ Revisa "${p.nombre}": faltan paquetes.` });
+        return;
+      }
+      if (!unid || unid <= 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": faltan unidades por paquete.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": faltan unidades por paquete.`,
+        });
+        return;
+      }
+      if (packs.length !== cantPaquetes) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
+        });
+        return;
+      }
+    }
 
-        // ✅ paquetes
-        cantidad: cantPaquetes,
+    // ✅ comprobante debe ser válido
+    if (!(await validarComprobante(comprobante))) return;
 
-        // ✅ NUEVO (para guardar en detalle_compra)
-        cantidad_paquetes: cantPaquetes,
-        unidades_por_paquete: unid,
-        cantidad_total_unidades: totalUnid,
+    const num = generarNumeroFactura();
+    if (!num) return;
+    setNumFactura(num);
 
-        precio_unitario: Number(p.precioCompra),
-        precio_venta: Number(p.precioVenta ?? 0),
-        iva_porcentaje: Number(p.subida ?? 0),
-        icu_porcentaje: Number(p.descuento ?? 0),
+    // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
+    const payload = {
+      fecha_compra: fechaFactura.toISOString(),
+      id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
 
-        // ✅ lista paquetes
-        paquetes: Array.isArray(p.paquetes)
-          ? p.paquetes.map((x) => ({
-              codigoBarrasIngreso: String(x.codigoBarrasIngreso || "").trim(),
-              fechaVencimiento: x.fechaVencimiento ? x.fechaVencimiento : null,
-            }))
-          : [],
+      comprobante: comprobante
+        ? {
+            url: null,
+            nombre: comprobante.name,
+            mime: comprobante.type,
+            size: comprobante.size,
+          }
+        : null,
 
-        // ✅ compat
-        codigo_barras_producto_compra: String(p.codigoBarrasIngreso ?? "").trim(),
-        fecha_vencimiento: p.fechaVencimiento ? p.fechaVencimiento : null,
-      };
-    }),
+      items: productos.map((p) => {
+        const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
+        const unid = Number(p.unidadesPorPaquete ?? 0);
+        const totalUnid = cantPaquetes * unid;
+
+        return {
+          id_producto: Number(p.id_producto ?? p.productoId),
+
+          // ✅ paquetes
+          cantidad: cantPaquetes,
+
+          // ✅ NUEVO
+          cantidad_paquetes: cantPaquetes,
+          unidades_por_paquete: unid,
+          cantidad_total_unidades: totalUnid,
+
+          precio_unitario: Number(p.precioCompra),
+          precio_venta: Number(p.precioVenta ?? 0),
+          iva_porcentaje: Number(p.subida ?? 0),
+          icu_porcentaje: Number(p.descuento ?? 0),
+
+          // ✅ lista paquetes
+          paquetes: Array.isArray(p.paquetes)
+            ? p.paquetes.map((x) => ({
+                codigoBarrasIngreso: String(x.codigoBarrasIngreso || "").trim(),
+                fechaVencimiento: x.fechaVencimiento ? x.fechaVencimiento : null,
+              }))
+            : [],
+
+          // ✅ compat
+          codigo_barras_producto_compra: String(p.codigoBarrasIngreso ?? "").trim(),
+          fecha_vencimiento: p.fechaVencimiento ? p.fechaVencimiento : null,
+        };
+      }),
+    };
+
+    setIsRegistrandoCompra(true);
+
+    // ✅ Swal loading igual a ventas
+    Swal.fire({
+      title: "Registrando compra...",
+      text: "Por favor espera",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(payload));
+      if (comprobante) formData.append("comprobante", comprobante);
+
+      const resp = await fetch("http://localhost:3000/kajamart/api/purchase", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await resp.json().catch(() => null);
+
+      if (!resp.ok) {
+        const msg = data?.message || data?.error || "Error al registrar la compra (backend).";
+        Swal.close();
+
+        await Swal.fire({
+          icon: "error",
+          title: "No se pudo registrar",
+          text: msg,
+          confirmButtonColor: "#16a34a",
+        });
+
+        setMensajeComprobante({ tipo: "error", texto: `❌ ${msg}` });
+        return;
+      }
+
+      Swal.close();
+
+      // ✅ Swal success igual a ventas
+      Swal.fire({
+        icon: "success",
+        title: "Compra registrada",
+        text: "✅ La compra se registró correctamente.",
+        timer: 1200,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        timerProgressBar: true,
+      });
+
+      setMensajeComprobante({
+        tipo: "ok",
+        texto: "✅ Compra registrada correctamente en el sistema",
+      });
+
+      const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
+      facturasGuardadas.push({
+        num_factura: num,
+        fecha_registro: fechaFactura.toISOString(),
+        valor_factura: total,
+        id_compra: data?.compra?.id_compra ?? null,
+      });
+      localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
+
+      navigate("/app/purchases");
+    } catch (err) {
+      Swal.close();
+
+      await Swal.fire({
+        icon: "error",
+        title: "No se pudo registrar",
+        text: "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "❌ No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+      });
+    } finally {
+      setIsRegistrandoCompra(false);
+    }
   };
-
-  setIsRegistrandoCompra(true);
-  setMensajeComprobante({ tipo: "info", texto: "⏳ Registrando compra..." });
-
-  try {
-    // ✅ FormData compatible con multer
-    const formData = new FormData();
-    formData.append("data", JSON.stringify(payload)); // backend lee req.body.data
-
-    if (comprobante) {
-      // multer espera exactamente el field name "comprobante"
-      formData.append("comprobante", comprobante);
-    }
-
-    const resp = await fetch("http://localhost:3000/kajamart/api/purchase", {
-      method: "POST",
-      body: formData, // ✅ NO pongas Content-Type
-    });
-
-    const data = await resp.json().catch(() => null);
-
-    if (!resp.ok) {
-      const msg = data?.message || data?.error || "Error al registrar la compra (backend).";
-      setMensajeComprobante({ tipo: "error", texto: `❌ ${msg}` });
-      return;
-    }
-
-    setMensajeComprobante({ tipo: "ok", texto: "✅ Compra registrada correctamente en el sistema" });
-
-    const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
-    facturasGuardadas.push({
-      num_factura: num,
-      fecha_registro: fechaFactura.toISOString(),
-      valor_factura: total,
-      id_compra: data?.compra?.id_compra ?? null,
-    });
-    localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
-
-    navigate("/app/purchases");
-  } catch (err) {
-    setMensajeComprobante({
-      tipo: "error",
-      texto: "❌ No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
-    });
-  } finally {
-    setIsRegistrandoCompra(false);
-  }
-};
-
 
   // =========================
   // Errores de carga
@@ -1163,21 +1272,6 @@ const handleFinalizarCompra = async () => {
           .purchase-supplier-open .z-\\[55\\] { padding-top: 14px !important; }
         }
       `}</style>
-
-      {/* ✅ Overlay mientras registra compra */}
-      {isRegistrandoCompra && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-600" />
-              <div>
-                <p className="font-semibold text-gray-900">Registrando compra...</p>
-                <p className="text-sm text-gray-500">Por favor espera un momento.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="mb-6">
@@ -1329,9 +1423,7 @@ const handleFinalizarCompra = async () => {
               if (productoQuery.trim()) setIsProdOpen(true);
             }}
             onKeyDown={onProductoKeyDown}
-            placeholder={
-              isProductsLoading ? "Cargando productos..." : "Ingrese código, barras o nombre"
-            }
+            placeholder={isProductsLoading ? "Cargando productos..." : "Ingrese código, barras o nombre"}
             disabled={isProductsLoading || isRegistrandoCompra}
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
@@ -1665,7 +1757,6 @@ const handleFinalizarCompra = async () => {
                       const raw = e.target.value;
 
                       setPackForm((prev) => {
-                        // ✅ permitir borrar (queda vacío)
                         if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
 
                         const n = Math.max(0, Math.floor(Number(raw || 0)));
@@ -1688,7 +1779,6 @@ const handleFinalizarCompra = async () => {
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, cantidad: true }));
-                      // valida con normalizado
                       const normalized = {
                         ...packForm,
                         cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
@@ -1706,7 +1796,7 @@ const handleFinalizarCompra = async () => {
                   )}
                 </div>
 
-                {/* Unid/paq (informativo) */}
+                {/* Unid/paq */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
                   <input
@@ -1749,7 +1839,7 @@ const handleFinalizarCompra = async () => {
               </p>
             </div>
 
-            {/* Códigos de barras (SELECT + 1 input) */}
+            {/* Códigos de barras */}
             <div className="mb-3">
               <div className="flex items-center justify-between">
                 <label className="block text-sm text-gray-600 mb-1">Códigos de barras</label>

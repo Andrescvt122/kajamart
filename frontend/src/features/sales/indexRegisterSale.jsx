@@ -134,10 +134,9 @@ export default function IndexRegisterSale() {
     );
   }, [clientes, safeClienteQuery]);
 
-  const total = useMemo(
-    () => productos.reduce((acc, p) => acc + Number(p.subtotal || 0), 0),
-    [productos]
-  );
+  const total = useMemo(() => {
+    return productos.reduce((acc, p) => acc + Number(p.subtotal || 0), 0);
+  }, [productos]);
 
   // ✅ SET de ids ya seleccionados (para filtrar resultados en tiempo real)
   const selectedProductIds = useMemo(() => {
@@ -204,9 +203,7 @@ export default function IndexRegisterSale() {
       const caja = prev.find((x) => x.id === CLIENTE_CAJA_ID);
       const sinCaja = prev.filter((x) => x.id !== CLIENTE_CAJA_ID);
 
-      const idsApi = new Set(
-        apiClients.map((c) => String(c.id ?? c.id_cliente))
-      );
+      const idsApi = new Set(apiClients.map((c) => String(c.id ?? c.id_cliente)));
       const otros = sinCaja.filter(
         (c) => !idsApi.has(String(c.id ?? c.id_cliente))
       );
@@ -359,10 +356,7 @@ export default function IndexRegisterSale() {
 
     // ✅ Validación: ya seleccionado -> bloquear
     const idDetalleProducto = prod.id_detalle_producto ?? prod.id ?? null;
-    if (
-      idDetalleProducto != null &&
-      selectedProductIds.has(String(idDetalleProducto))
-    ) {
+    if (idDetalleProducto != null && selectedProductIds.has(String(idDetalleProducto))) {
       setMensaje({
         tipo: "error",
         texto: "⚠️ Este producto ya fue agregado.",
@@ -394,12 +388,13 @@ export default function IndexRegisterSale() {
       stock,
     };
 
+    // ✅ CAMBIO: inicia en 0 y subtotal en 0 (y permite borrar luego)
     setProductos((prev) => [
       ...prev,
       {
         ...producto,
-        cantidad: 1,
-        subtotal: precioUnitario,
+        cantidad: 0,
+        subtotal: 0,
       },
     ]);
 
@@ -408,13 +403,26 @@ export default function IndexRegisterSale() {
     setShowDropdownProducto(false);
   };
 
+  // ✅ CAMBIO: permitir borrar (value === "") sin forzar a 0 inmediatamente
   const handleChangeCantidad = (index, value) => {
+    if (value === "") {
+      setProductos((prev) => {
+        const arr = [...prev];
+        arr[index].cantidad = "";
+        arr[index].subtotal = 0;
+        return arr;
+      });
+      setMensaje(null);
+      return;
+    }
+
     let cant = parseInt(value, 10);
-    if (isNaN(cant) || cant < 0) cant = 0; // Permitir 0 o vacío
+    if (isNaN(cant) || cant < 0) cant = 0;
 
     setProductos((prev) => {
       const arr = [...prev];
       const stockDisponible = arr[index].stock || 0;
+
       if (cant > stockDisponible) {
         cant = stockDisponible;
         setMensaje({
@@ -424,6 +432,7 @@ export default function IndexRegisterSale() {
       } else {
         setMensaje(null);
       }
+
       arr[index].cantidad = cant;
       arr[index].subtotal = cant * Number(arr[index].precioUnitario || 0);
       return arr;
@@ -534,9 +543,11 @@ export default function IndexRegisterSale() {
       return;
     }
 
-    // Validar cantidades
+    // ✅ Validar cantidades (soporta "" -> 0)
     for (const p of productos) {
-      if (p.cantidad < 1) {
+      const cant = Number(p.cantidad || 0);
+
+      if (cant < 1) {
         await Swal.fire({
           icon: "warning",
           title: "Cuidado",
@@ -545,7 +556,7 @@ export default function IndexRegisterSale() {
         });
         return;
       }
-      if (p.cantidad > p.stock) {
+      if (cant > p.stock) {
         await Swal.fire({
           icon: "warning",
           title: "Cuidado",
@@ -601,7 +612,7 @@ export default function IndexRegisterSale() {
 
     const medioPagoLabel = getMedioPagoLabel(metodoPago);
 
-    // ✅ IMPORTANTE: enviar pagoMixto como números (backend lo usa)
+    // ✅ payload con cantidad numérica segura (soporta "" -> 0)
     const payload = {
       fecha_venta: new Date().toISOString(),
       fecha: new Date().toISOString().slice(0, 10),
@@ -620,16 +631,18 @@ export default function IndexRegisterSale() {
             }
           : null,
 
-      productos: productos.map((p) => ({
-        productoId: p.productoId ?? null,
-        nombre: p.nombre ?? "Sin nombre",
-        cantidad: Number(p.cantidad || 1),
-        precioUnitario: Number(p.precioUnitario || 0),
-        subtotal: Number(
-          p.subtotal ??
-            Number(p.cantidad || 1) * Number(p.precioUnitario || 0)
-        ),
-      })),
+      productos: productos.map((p) => {
+        const cant = Number(p.cantidad || 0);
+        const precio = Number(p.precioUnitario || 0);
+
+        return {
+          productoId: p.productoId ?? null,
+          nombre: p.nombre ?? "Sin nombre",
+          cantidad: cant,
+          precioUnitario: precio,
+          subtotal: Number(p.subtotal ?? cant * precio),
+        };
+      }),
     };
 
     try {
@@ -777,9 +790,7 @@ export default function IndexRegisterSale() {
         </div>
 
         <div className="mt-2">
-          {loadingClients && (
-            <p className="text-sm text-gray-500">Buscando...</p>
-          )}
+          {loadingClients && <p className="text-sm text-gray-500">Buscando...</p>}
           {errorClients && (
             <p className="text-sm text-red-600">Error: {errorClients}</p>
           )}
@@ -829,9 +840,7 @@ export default function IndexRegisterSale() {
                   return (
                     <div
                       key={String(
-                        p.id_detalle_producto ??
-                          p.id ??
-                          p.codigo_barras_producto_compra
+                        p.id_detalle_producto ?? p.id ?? p.codigo_barras_producto_compra
                       )}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -867,9 +876,7 @@ export default function IndexRegisterSale() {
 
                       <div className="text-xs text-gray-500">
                         Código:{" "}
-                        {p.codigo_barras ??
-                          p.codigo_barras_producto_compra ??
-                          "N/A"}
+                        {p.codigo_barras ?? p.codigo_barras_producto_compra ?? "N/A"}
                       </div>
                     </div>
                   );
@@ -892,9 +899,7 @@ export default function IndexRegisterSale() {
           {loadingProduct && (
             <p className="text-sm text-gray-500">Buscando producto...</p>
           )}
-          {errorProduct && (
-            <p className="text-sm text-red-600">{errorProduct}</p>
-          )}
+          {errorProduct && <p className="text-sm text-red-600">{errorProduct}</p>}
         </div>
       </div>
 

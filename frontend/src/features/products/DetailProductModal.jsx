@@ -49,8 +49,8 @@ export default function DetailProductModal({
       : detail.es_devolucion === "true";
 
   // Impuestos
-  const ivaValor = product.iva_detalle?.valor_impuesto ?? product.iva ?? "—";
-  const icuValor = product.icu_detalle?.valor_impuesto ?? product.icu ?? "—";
+  const ivaValor = detail.iva_porcentaje ?? product.iva_detalle?.valor_impuesto ?? product.iva ?? "—";
+  const icuValor = detail.icu_porcentaje ?? product.icu_detalle?.valor_impuesto ?? product.icu ?? "—";
   const incrementoValor =
     product.incremento_detalle?.valor_impuesto ??
     product.porcentaje_incremento ??
@@ -58,56 +58,44 @@ export default function DetailProductModal({
 
   // ------- Info combinada (producto + lote) en un solo grid ancho -------
   const productInfo = [
-    {
-      label: "ID Producto",
-      value: product.id_producto,
-      icon: Hash,
-      group: "Producto",
-    },
-    {
-      label: "Nombre producto",
-      value: product.nombre,
-      icon: Package,
-      group: "Producto",
-    },
-    {
-      label: "Stock total (producto)",
-      value: product.stock_actual,
-      icon: Boxes,
-      group: "Producto",
-    },
-    {
-      label: "Stock mínimo",
-      value: product.stock_minimo,
-      icon: Layers,
-      group: "Producto",
-    },
-    {
-      label: "Stock máximo",
-      value: product.stock_maximo,
-      icon: Layers,
-      group: "Producto",
-    },
-    {
+    { label: "ID Producto", value: product.id_producto, icon: Hash, group: "Producto" },
+    { label: "Nombre producto", value: product.nombre, icon: Package, group: "Producto" },
+    { label: "Stock total (producto)", value: product.stock_actual, icon: Boxes, group: "Producto" },
+    { label: "Stock mínimo", value: product.stock_minimo, icon: Layers, group: "Producto" },
+    { label: "Stock máximo", value: product.stock_maximo, icon: Layers, group: "Producto" },
+ {
       label: "Costo unitario",
       value:
-        product.costo_unitario != null
-          ? `$${product.costo_unitario.toLocaleString()}`
+        detail?.costo_unitario != null
+          ? `$${Number(detail.costo_unitario).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          : product?.costo_unitario != null
+          ? `$${Number(product.costo_unitario).toLocaleString()}`
           : "—",
       icon: DollarSign,
       group: "Producto",
     },
     {
-      label: "Precio venta",
-      value: formatMoneyOrUnassigned(product.precio_venta),
-      icon: DollarSign,
-      group: "Producto",
+    label: "Precio venta",
+    value:
+      detail.precio_venta != null
+        ? `$${Number(detail.precio_venta).toLocaleString()}`
+        : product.precio_venta != null
+        ? `$${product.precio_venta.toLocaleString()}`
+        : "—",
+    icon: DollarSign,
+    group: "Producto",
     },
-    { label: "IVA (%)", value: ivaValor, icon: Percent, group: "Producto" },
-    { label: "ICU (%)", value: icuValor, icon: QrCode, group: "Producto" },
+    { label: "IVA (%)", value: detail.iva_porcentaje ?? ivaValor, icon: Percent, group: "Producto" },
+    { label: "ICU (%)", value: detail.icu_porcentaje ?? icuValor, icon: QrCode, group: "Producto" },
     {
       label: "Incremento venta (%)",
-      value: incrementoValor,
+      value:
+        detail?.incremento_venta != null
+          ? `${(Number(detail.incremento_venta) * 100).toFixed(2)}%`
+          : "—",
       icon: TrendingUp,
       group: "Producto",
     },

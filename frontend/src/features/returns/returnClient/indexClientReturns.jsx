@@ -17,6 +17,7 @@ import { useFetchReturnClients } from "../../../shared/components/hooks/returnCl
 import Swal from "sweetalert2";
 import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 
 export default function IndexClientReturns() {
   const { returns, loading, error, refetch } = useFetchReturnClients();
@@ -24,6 +25,7 @@ export default function IndexClientReturns() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
   const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [annulledMap, setAnnulledMap] = useState({});
   const perPage = 6;
@@ -77,10 +79,16 @@ export default function IndexClientReturns() {
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     const match = (val) => normalizeText(String(val ?? "")).includes(s);
+    const byStatus = formattedRows.filter((row) => {
+      const isActive = annulledMap[row.idReturn] ?? row.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive") return isActive === false;
+      return true;
+    });
 
-    if (!s) return formattedRows;
+    if (!s) return byStatus;
 
-    return formattedRows.filter((row) => {
+    return byStatus.filter((row) => {
       const topMatch = Object.entries(row).some(([, v]) => {
         if (Array.isArray(v)) return false;
         return match(v);
@@ -88,7 +96,7 @@ export default function IndexClientReturns() {
       const productMatch = Object.values(row.currentProduct || {}).some((val) => match(val));
       return topMatch || productMatch;
     });
-  }, [formattedRows, searchTerm]);
+  }, [formattedRows, searchTerm, statusFilter, annulledMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -195,7 +203,7 @@ export default function IndexClientReturns() {
         </div>
 
         {/* Barra de búsqueda + botones */}
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search size={20} className="text-gray-400" />
@@ -211,6 +219,14 @@ export default function IndexClientReturns() {
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
           </div>
+          <StatusFilterDropdown
+            value={statusFilter}
+            onChange={(nextStatus) => {
+              setStatusFilter(nextStatus);
+              setCurrentPage(1);
+            }}
+            className="w-full sm:w-[220px]"
+          />
 
           <div className="flex gap-2 flex-shrink-0">
             <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
