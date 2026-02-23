@@ -15,7 +15,12 @@ import {
   XCircle,
 } from "lucide-react";
 
-export default function DetailProductModal({ isOpen, onClose, detail, product }) {
+export default function DetailProductModal({
+  isOpen,
+  onClose,
+  detail,
+  product,
+}) {
   if (!isOpen || !detail || !product) return null;
 
   // ------- Helpers -------
@@ -25,12 +30,18 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
     if (Number.isNaN(d.getTime())) return "Sin fecha";
     return d.toLocaleDateString();
   };
-
+  const formatMoneyOrUnassigned = (val) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "—";
+    if (n === 1001) return "aun no asignado";
+    return `$${n.toLocaleString()}`;
+  };
   const detalleId = detail.id_detalle_producto ?? detail.id ?? "—";
   const codigoBarras =
     detail.codigo_barras_producto_compra ?? detail.barcode ?? "—";
   const stockLote = detail.stock_producto ?? detail.cantidad ?? "—";
-  const fechaVencimiento = detail.fecha_vencimiento || detail.vencimiento || null;
+  const fechaVencimiento =
+    detail.fecha_vencimiento || detail.vencimiento || null;
 
   const esDevolucion =
     typeof detail.es_devolucion === "boolean"
@@ -92,7 +103,12 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
 
   const detailInfo = [
     { label: "ID Detalle", value: detalleId, icon: Hash, group: "Lote" },
-    { label: "Código de barras", value: codigoBarras, icon: Barcode, group: "Lote" },
+    {
+      label: "Código de barras",
+      value: codigoBarras,
+      icon: Barcode,
+      group: "Lote",
+    },
     {
       label: "Fecha de vencimiento",
       value: formatDate(fechaVencimiento),
@@ -142,8 +158,8 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
                 </h2>
                 <p className="text-xs text-gray-500 mt-1">
                   Producto:{" "}
-                  <span className="font-medium">{product.nombre}</span> · Detalle{" "}
-                  <span className="font-mono">#{detalleId}</span>
+                  <span className="font-medium">{product.nombre}</span> ·
+                  Detalle <span className="font-mono">#{detalleId}</span>
                 </p>
               </div>
               <button
@@ -162,31 +178,37 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
                   Información general
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {combinedInfo.map(({ label, value, icon: Icon, group }, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
-                    >
-                      <Icon
-                        className={`w-5 h-5 shrink-0 ${
-                          group === "Producto" ? "text-green-600" : "text-blue-600"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-[11px] text-gray-500 uppercase tracking-wide">
-                          {label}
-                        </p>
-                        <p className="text-xs font-semibold text-gray-400 mb-0.5">
-                          {group}
-                        </p>
-                        <p className="text-sm font-medium text-gray-800 break-all">
-                          {value !== undefined && value !== null && value !== ""
-                            ? value
-                            : "—"}
-                        </p>
+                  {combinedInfo.map(
+                    ({ label, value, icon: Icon, group }, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
+                      >
+                        <Icon
+                          className={`w-5 h-5 shrink-0 ${
+                            group === "Producto"
+                              ? "text-green-600"
+                              : "text-blue-600"
+                          }`}
+                        />
+                        <div>
+                          <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+                            {label}
+                          </p>
+                          <p className="text-xs font-semibold text-gray-400 mb-0.5">
+                            {group}
+                          </p>
+                          <p className="text-sm font-medium text-gray-800 break-all">
+                            {value !== undefined &&
+                            value !== null &&
+                            value !== ""
+                              ? value
+                              : "—"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
 

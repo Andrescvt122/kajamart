@@ -103,7 +103,7 @@ export default function IndexProducts() {
 
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
-  const {hasPermission} = useAuth();
+  const { hasPermission } = useAuth();
   const canDelete = hasPermission("Eliminar productos");
   const canEdit = hasPermission("Editar productos");
   const canCreate = hasPermission("Crear productos");
@@ -538,7 +538,11 @@ export default function IndexProducts() {
                                   Precio
                                 </p>
                                 <p className="text-sm text-gray-800">
-                                  ${Number(p.precio || 0).toLocaleString()}
+                                  {Number(p.precio) === 1001
+                                    ? "aun no asignado"
+                                    : `$${Number(
+                                        p.precio || 0
+                                      ).toLocaleString()}`}
                                 </p>
                               </div>
                               <div>
@@ -576,10 +580,13 @@ export default function IndexProducts() {
                                     })
                                   }
                                 />
-                                <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
+                                <EditButton
+                                  canEdit={canEdit}
+                                  event={() => handleEditClick(p)}
+                                />
                                 <DeleteButton
                                   event={() => handleDeleteClick(p)}
-                                  canDelete={canDelete} 
+                                  canDelete={canDelete}
                                 />
                               </div>
                             </div>
@@ -680,7 +687,9 @@ export default function IndexProducts() {
                       </td>
 
                       <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        ${Number(p.precio || 0).toLocaleString()}
+                        {Number(p.precio) === 1001
+                          ? "aun no asignado"
+                          : `$${Number(p.precio || 0).toLocaleString()}`}
                       </td>
 
                       <td className="px-4 lg:px-6 py-4">
@@ -704,8 +713,14 @@ export default function IndexProducts() {
                               })
                             }
                           />
-                          <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
-                          <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
+                          <EditButton
+                            canEdit={canEdit}
+                            event={() => handleEditClick(p)}
+                          />
+                          <DeleteButton
+                            canDelete={canDelete}
+                            event={() => handleDeleteClick(p)}
+                          />
                         </div>
                       </td>
                     </motion.tr>
