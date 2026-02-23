@@ -54,7 +54,7 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexUsers() {
-  const { usuarios, setUsuarios, loading, error } = useUsuariosList();
+  const { usuarios, setUsuarios, loading, error, getUsuarios } = useUsuariosList();
   const { deleteUser } = useUserActions();
   const users = usuarios || [];
 
@@ -142,18 +142,8 @@ export default function IndexUsers() {
     setCurrentPage(p);
   };
 
-  const handleRegisterUser = (formData) => {
-    const newUser = {
-      id: Date.now(),
-      Nombre: `${formData.nombre} ${formData.apellido}`,
-      Correo: formData.correo,
-      Documento: formData.documento,
-      Telefono: formData.telefono,
-      Rol: formData.rol,
-      Estado: formData.estado ? "Activo" : "Inactivo",
-    };
-    setUsuarios((prev) => [newUser, ...(prev || [])]);
-    showSuccessAlert("Usuario registrado correctamente");
+  const handleRegisterSuccess = () => {
+    getUsuarios();
     setIsModalOpen(false);
     setCurrentPage(1);
   };
@@ -572,7 +562,7 @@ export default function IndexUsers() {
       <RegisterUsers
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onRegister={handleRegisterUser}
+        onRegisterSuccess={handleRegisterSuccess}
       />
       <DetailsUsers
         isOpen={isDetailsOpen}

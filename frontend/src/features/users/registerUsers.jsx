@@ -27,7 +27,7 @@ const EstadoToggle = ({ enabled, onChange }) => (
   </button>
 );
 
-export default function RegisterUsers({ isOpen, onClose }) {
+export default function RegisterUsers({ isOpen, onClose, onRegisterSuccess }) {
   const { roles } = useRolesList();
   const { createUsuario } = useCreateUsuario();
   const { usuarios } = useUsuariosList();
@@ -280,6 +280,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
 
     if (result) {
       showSuccessAlert("Usuario registrado exitosamente");
+      if (onRegisterSuccess) onRegisterSuccess();
       onClose();
     } else {
       showErrorAlert("Error al crear el usuario");
