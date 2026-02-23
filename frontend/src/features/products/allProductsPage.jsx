@@ -161,6 +161,7 @@ export default function AllProductsPage() {
     // ✅ conserva lo que ya usas
     nombre: product.nombre,
     barcode: d.codigo_barras_producto_compra ?? "—",
+    estado: d.estado === false ? "Inactivo" : "Activo",
     vencimiento: d.fecha_vencimiento
       ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
       : "Sin fecha",
@@ -184,20 +185,7 @@ export default function AllProductsPage() {
     incremento_venta: d.incremento_venta,
   }));
 }, [backendDetails, product]);
-    if (!Array.isArray(backendDetails)) return [];
-    return backendDetails.map((d) => ({
-      id: d.id_detalle_producto,
-      nombre: product.nombre,
-      barcode: d.codigo_barras_producto_compra ?? "—",
-      estado: d.estado === false ? "Inactivo" : "Activo",
-      vencimiento: d.fecha_vencimiento
-        ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
-        : "Sin fecha",
-      cantidad: d.stock_producto ?? 0,
-      consumido: 0,
-      precio: product.precio_venta,
-    }));
-  }, [backendDetails, product]);
+
 
   // filtro + paginación
   const filtered = useMemo(() => {
