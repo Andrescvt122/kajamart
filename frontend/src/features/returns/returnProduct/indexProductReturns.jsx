@@ -18,6 +18,7 @@ import Loading from "../../../features/onboarding/loading.jsx";
 import Swal from "sweetalert2";
 import { useAnnulReturnProduct } from "../../../shared/components/hooks/returnProducts/useAnnulReturnProduct";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 // ===== Helpers de responsive (tomados de IndexLow) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -66,6 +67,7 @@ function ChevronIcon({ open }) {
 export default function IndexProductReturns() {
   const { returns = [], loading, error, refetch } = useFetchReturnProducts();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -105,12 +107,18 @@ export default function IndexProductReturns() {
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return flattenedProducts;
+    const byStatus = flattenedProducts.filter((product) => {
+      const isActive = annulledMap[product.idReturn] ?? product.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive") return isActive === false;
+      return true;
+    });
+    if (!s) return byStatus;
 
-    return flattenedProducts.filter((product) =>
+    return byStatus.filter((product) =>
       Object.values(product).some((value) => normalizeText(value).includes(s))
     );
-  }, [flattenedProducts, searchTerm]);
+  }, [flattenedProducts, searchTerm, statusFilter, annulledMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
@@ -224,19 +232,29 @@ export default function IndexProductReturns() {
 
           {/* Toolbar responsive */}
           <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="relative w-full min-w-0">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+            <div className="w-full min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar productos en devoluciones..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Buscar productos en devoluciones..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+              <StatusFilterDropdown
+                value={statusFilter}
+                onChange={(nextStatus) => {
+                  setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="w-full sm:w-[220px]"
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
