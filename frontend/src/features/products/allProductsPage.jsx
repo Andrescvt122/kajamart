@@ -145,6 +145,38 @@ export default function AllProductsPage() {
 
   // map UI
   const allProducts = useMemo(() => {
+  if (!Array.isArray(backendDetails)) return [];
+
+  return backendDetails.map((d) => ({
+    // ✅ conserva el id
+    id: d.id_detalle_producto,
+
+    // ✅ conserva lo que ya usas
+    nombre: product.nombre,
+    barcode: d.codigo_barras_producto_compra ?? "—",
+    vencimiento: d.fecha_vencimiento
+      ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
+      : "Sin fecha",
+    cantidad: d.stock_producto ?? 0,
+    consumido: 0,
+    // ✅ AQUI está el cambio: precio desde el LOTE
+    precio: d.precio_venta ?? product.precio_venta ?? 0,
+
+    // ✅ (no agrega columnas, solo para que el modal use los mismos campos)
+    id_detalle_producto: d.id_detalle_producto,
+    codigo_barras_producto_compra: d.codigo_barras_producto_compra,
+    fecha_vencimiento: d.fecha_vencimiento,
+    stock_producto: d.stock_producto,
+    es_devolucion: d.es_devolucion,
+
+    // ✅ lo que estás actualizando desde compra
+    iva_porcentaje: d.iva_porcentaje,
+    icu_porcentaje: d.icu_porcentaje,
+    precio_venta: d.precio_venta,
+    costo_unitario: d.costo_unitario,
+    incremento_venta: d.incremento_venta,
+  }));
+}, [backendDetails, product]);
     if (!Array.isArray(backendDetails)) return [];
     return backendDetails.map((d) => ({
       id: d.id_detalle_producto,

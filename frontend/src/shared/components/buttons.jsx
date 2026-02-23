@@ -120,14 +120,17 @@ export const ExportPDFButton = ({ event, children = "Exportar" }) => (
 /* ----------------------------- */
 /* Botón de imprimir */
 /* ----------------------------- */
-export const PrinterButton = ({ alert }) => (
-  <button
-    onClick={alert}
-    className="button-square edit-btn"
-  >
-    <FiPrinter size={20} />
-  </button>
-);
+export const PrinterButton = ({ event, alert }) => {
+  const handler = typeof event === "function" ? event : typeof alert === "function" ? alert : undefined;
+  return (
+    <button
+      onClick={handler}
+      className="button-square edit-btn"
+    >
+      <FiPrinter size={20} />
+    </button>
+  );
+};
 
 
 {/* Botones de prueba para las alertas */}
