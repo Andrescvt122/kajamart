@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -65,7 +65,8 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexProductReturns() {
-  const { returns = [], loading, error, refetch } = useFetchReturnProducts();
+  const { returns, loading, error, refetch } = useFetchReturnProducts();
+  console.log("Devoluciones cargadas:", returns);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -125,6 +126,12 @@ export default function IndexProductReturns() {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);

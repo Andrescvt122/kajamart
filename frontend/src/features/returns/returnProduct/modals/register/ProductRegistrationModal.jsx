@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-// ❌ YA NO usamos el hook aquí
+// YA NO usamos el hook aqui
 // import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
 const ProductRegistrationModal = ({
@@ -97,7 +97,7 @@ const ProductRegistrationModal = ({
   const validate = () => {
     const errs = {};
 
-    // ✅ Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
+    // Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
     const barcode = String(formData.barcode ?? "").trim();
     if (!barcode) {
       errs.barcode = "Código de barras requerido";
@@ -111,7 +111,7 @@ const ProductRegistrationModal = ({
       errs.barcode = "Este código de barras ya está registrado en el sistema";
     }
 
-    // ✅ Cantidad: obligatoria, solo números, no negativa (permito 0)
+    // Cantidad: obligatoria, solo números, no negativa (permito 0)
     const qtyStr = String(formData.quantity ?? "").trim();
     if (!qtyStr) {
       errs.quantity = "Cantidad requerida";
@@ -127,7 +127,7 @@ const ProductRegistrationModal = ({
       }
     }
 
-    // ✅ Fecha: opcional; si se llena => debe ser >= hoy + 4 días
+    // Fecha: opcional; si se llena => debe ser >= hoy + 4 días
     const expStr = String(formData.expiryDate ?? "").trim();
     if (expStr) {
       const expDate = ymdToDate(expStr);
@@ -151,10 +151,10 @@ const ProductRegistrationModal = ({
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     console.log("product", product);
-    // 🔹 Detalle local, NO se envía a BD aquí
+    // Detalle local, NO se envia a BD aqui
     const registeredDetail = {
       ...product,
-      productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
+      productKey: product?.id_detalle_producto, // para vincularlo a la linea exacta en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
       lote_nuevo: String(formData.batch ?? "").trim() || null,
@@ -288,7 +288,7 @@ const ProductRegistrationModal = ({
                       Nombre
                     </label>
                     <div className="mt-1 text-gray-800 font-medium">
-                      {product?.productos?.nombre || "—"}
+                      {product?.productos?.nombre || "-"}
                     </div>
                   </div>
 
@@ -299,7 +299,7 @@ const ProductRegistrationModal = ({
                     <div className="mt-1 text-gray-700">
                       {product
                         ? formatPrice(product.productos.precio_venta)
-                        : "—"}
+                        : "-"}
                     </div>
                   </div>
 
