@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_URL = "http://localhost:3000/kajamart/api/returnProducts";
@@ -13,7 +13,10 @@ export const useFetchReturnProducts = () => {
     setError(null);
     try {
       const res = await axios.get(API_URL);
-      const data = res.data.returnProducts || [];
+      const payload = res.data;
+      const data = Array.isArray(payload)
+        ? payload
+        : payload?.returnProducts || payload?.data || [];
 
       const flattened = data.map((r) => {
         const date = r.fecha_devolucion ? new Date(r.fecha_devolucion) : null;

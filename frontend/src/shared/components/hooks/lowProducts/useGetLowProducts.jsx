@@ -13,8 +13,11 @@ export const useGetLowProducts = () => {
     setError(null);
     try {
       const response = await axios.get(API_URL);
+      const rawData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.lowProducts || response.data?.data || [];
 
-      const adaptedData = response.data.map((low) => ({
+      const adaptedData = rawData.map((low) => ({
         idLow: low.id_baja_productos,
         dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
         createdAt:
@@ -28,22 +31,37 @@ export const useGetLowProducts = () => {
         ),
         responsible: low.nombre_responsable,
         total: Number(low.total_precio_baja),
-        products:
-          low.detalle_productos_baja?.map((p) => ({
-            id: p.id_detalle_productos,
-            name: p.nombre_producto,
-            lowQuantity: Number(p.cantidad) || 0,
-            reason: p.motivo,
-            category:
-              p.categoria ||
-              p.categoria_producto ||
-              p.categoriaProducto ||
-              p.nombre_categoria ||
-              p.nombreCategoria ||
-              p.category ||
-              "Sin categoría",
-            totalValue: Number(p.total_producto_baja ?? 0),
-          })) || [],
+        products: (() => {
+          const details = low.detalle_productos_baja || [];
+          if (details.length > 0) {
+            return details.map((p) => ({
+              id: p.id_detalle_productos,
+              name: p.nombre_producto,
+              lowQuantity: Number(p.cantidad) || 0,
+              reason: p.motivo,
+              category:
+                p.categoria ||
+                p.categoria_producto ||
+                p.categoriaProducto ||
+                p.nombre_categoria ||
+                p.nombreCategoria ||
+                p.category ||
+                "Sin categoría",
+              totalValue: Number(p.total_producto_baja ?? 0),
+            }));
+          }
+
+          return [
+            {
+              id: `low-${low.id_baja_productos}-empty`,
+              name: "Sin productos asociados",
+              lowQuantity: Number(low.cantida_baja) || 0,
+              reason: "Sin detalle de productos",
+              category: "Sin categoría",
+              totalValue: Number(low.total_precio_baja ?? 0),
+            },
+          ];
+        })(),
       }));
 
       setData(adaptedData);
