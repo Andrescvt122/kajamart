@@ -66,7 +66,6 @@ function ChevronIcon({ open }) {
 
 export default function IndexProductReturns() {
   const { returns, loading, error, refetch } = useFetchReturnProducts();
-  console.log("Devoluciones cargadas:", returns);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
