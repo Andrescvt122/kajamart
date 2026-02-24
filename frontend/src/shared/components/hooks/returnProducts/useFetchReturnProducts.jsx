@@ -24,12 +24,11 @@ export const useFetchReturnProducts = () => {
           r?.compras?.proveedores?.nombre ||
           r?.compras?.proveedor?.nombre ||
           null;
-
+          console.log("Procesando devolución:", r);
         const productRows = (r.detalle_devolucion_producto || []).map((d) => {
           const detalle = d.detalle_productos;
           const producto = detalle?.productos;
           const proveedor = producto?.producto_proveedor?.[0]?.proveedores;
-
           return {
             idProduct: d.id_detalle_devolucion_productos,
             name: d.nombre_producto || producto?.nombre || "Producto sin nombre",
@@ -58,6 +57,7 @@ export const useFetchReturnProducts = () => {
                   supplier: purchaseSupplierName || "Sin proveedor",
                 },
               ];
+              console.log("productRows:", productRows);
 
         return {
           idReturn: r.id_devolucion_product,
