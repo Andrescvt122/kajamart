@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, KeyRound } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
 import tiendaImg from "../assets/image.png";
 import logoImg from "../assets/logo.png";
 import api from "../api/axiosConfig";
@@ -24,21 +24,36 @@ export default function RecoverPassword() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
 
   useEffect(() => {
     if (!email) navigate("/forgot-password");
   }, [email, navigate]);
 
+  const handleResendCode = async () => {
+    setError("");
+    setResendMsg("");
+    setLoading(true);
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setResendMsg("¡Código reenviado! Revisa tu correo.");
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al reenviar el código.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setResendMsg("");
 
     if (password !== confirmPassword) return setError("Las contraseñas no coinciden.");
     if (code.length < 6) return setError("El código debe tener 6 dígitos.");
 
     setLoading(true);
     try {
-      // AQUÍ SE ENVÍA TODO AL BACKEND PARA VERIFICAR
       await api.post("/auth/reset-password", { 
           email, 
           codigo: code, 
@@ -46,7 +61,6 @@ export default function RecoverPassword() {
       });
       setSubmitted(true);
     } catch (err) {
-      // Si el código está mal, el backend responderá con error 400 y caerá aquí
       setError(err.response?.data?.error || "Código incorrecto o expirado.");
     } finally {
       setLoading(false);
@@ -74,6 +88,7 @@ export default function RecoverPassword() {
              <p className="text-center text-white/80 text-sm mb-6">Enviado a: <b>{email}</b></p>
              
              {error && <div className="bg-red-500/80 text-white p-2 rounded-lg mb-4 text-center text-sm">{error}</div>}
+             {resendMsg && <div className="bg-emerald-500/80 text-white p-2 rounded-lg mb-4 text-center text-sm">{resendMsg}</div>}
 
              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative">
@@ -109,7 +124,22 @@ export default function RecoverPassword() {
 
                 <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl mt-2 transition">Cambiar Contraseña</button>
              </form>
-             <Link to="/forgot-password" className="block text-center mt-4 text-white/70 text-sm hover:text-white">¿No llegó? Reintentar</Link>
+
+             <button 
+               type="button" 
+               onClick={handleResendCode} 
+               className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl mt-3 transition"
+             >
+               ¿No llegó? Reintentar
+             </button>
+
+             <button 
+               type="button" 
+               onClick={() => navigate("/")} 
+               className="flex items-center justify-center gap-2 w-full py-3 border-2 border-white/50 hover:border-white hover:bg-white/10 text-white font-bold rounded-xl mt-3 transition"
+             >
+               <ArrowLeft size={16} /> Volver
+             </button>
            </>
         )}
       </div>

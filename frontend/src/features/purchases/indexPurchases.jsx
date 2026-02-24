@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAtuh";
+import { exportPurchaseReceiptPDF } from "../purchases/helper/eportPurchaseReceiptPDF";
+
 
 import ondas from "../../assets/ondasHorizontal.png";
 
@@ -459,6 +461,15 @@ export default function IndexPurchases() {
   // =========================
   // Print Compra
   // =========================
+const handleDownloadReceiptPdf = useCallback((purchase) => {
+  console.log("CLICK PDF", purchase);
+  exportPurchaseReceiptPDF({
+    purchase,
+    filename: `recibo_compra_${purchase.factura}.pdf`,
+  });
+}, []);
+
+
   const handlePrint = useCallback((purchase) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
@@ -731,7 +742,15 @@ export default function IndexPurchases() {
                           <td className="px-4 py-3 text-right">
                             <div className="inline-flex items-center justify-end gap-2">
                               <ViewButton event={() => handleViewDetails(p)} />
-                              <PrinterButton alert={() => handlePrint(p)} />
+                              <PrinterButton
+                                event={() => {
+                                  console.log("CLICK PDF", p);
+                                  exportPurchaseReceiptPDF({
+                                    purchase: p,
+                                    filename: `recibo_compra_${p.factura}.pdf`,
+                                  });
+                                }}
+                              />
                             </div>
                           </td>
                         </motion.tr>
