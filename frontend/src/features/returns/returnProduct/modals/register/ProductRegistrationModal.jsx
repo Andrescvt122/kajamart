@@ -19,7 +19,6 @@ const ProductRegistrationModal = ({
   const [formData, setFormData] = useState({
     barcode: "",
     quantity: fixedQuantity != null ? String(fixedQuantity) : "",
-    batch: "",
     expiryDate: "",
     isReturn: true,
   });
@@ -51,7 +50,6 @@ const ProductRegistrationModal = ({
               fixedQuantity ??
               ""
           ),
-          batch: initialDetail.lote_nuevo || "",
           expiryDate:
             initialDetail.registeredExpiry?.slice(0, 10) ||
             initialDetail.fecha_vencimiento?.slice(0, 10) ||
@@ -62,7 +60,6 @@ const ProductRegistrationModal = ({
         setFormData({
           barcode: "",
           quantity: fixedQuantity != null ? String(fixedQuantity) : "",
-          batch: "",
           expiryDate: "",
           isReturn: true,
         });
@@ -157,7 +154,6 @@ const ProductRegistrationModal = ({
       productKey: product?.id_detalle_producto, // para vincularlo a la linea exacta en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
-      lote_nuevo: String(formData.batch ?? "").trim() || null,
       registeredExpiry: formData.expiryDate || null,
       isReturn: true,
     };
@@ -174,7 +170,6 @@ const ProductRegistrationModal = ({
     setFormData({
       barcode: "",
       quantity: fixedQuantity != null ? String(fixedQuantity) : "",
-      batch: "",
       expiryDate: "",
       isReturn: true,
     });
@@ -363,19 +358,6 @@ const ProductRegistrationModal = ({
                         {errors.quantity}
                       </div>
                     )}
-                  </div>
-
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">
-                      Lote
-                    </label>
-                    <input
-                      value={formData.batch}
-                      onChange={(e) => handleChange("batch", e.target.value)}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
-                      placeholder="LOTE-REEMPLAZO-01"
-                    />
                   </div>
 
                   <div>
