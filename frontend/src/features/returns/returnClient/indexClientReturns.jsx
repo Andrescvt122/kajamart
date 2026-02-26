@@ -362,6 +362,7 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
+        onReturnRegistered={refetch}
       />
 
       {/* Modal de detalles de devolución */}

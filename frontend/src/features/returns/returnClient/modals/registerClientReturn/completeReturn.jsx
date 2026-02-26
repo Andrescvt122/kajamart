@@ -23,6 +23,7 @@ const CompleteReturn = ({
   selectedSale,
   productsToReturn,
   returnTotal,
+  onReturnRegistered,
 }) => {
   const { payload: payloadId } = useAuth();
   const { postReturnClients } = usePostReturnClients();
@@ -178,6 +179,7 @@ const CompleteReturn = ({
     try {
       const response = await postReturnClients(payload);
       if (response) {
+        await onReturnRegistered?.();
         setShowSuccessMessage(true);
         setTimeout(() => {
           setShowSuccessMessage(false);
