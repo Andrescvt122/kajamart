@@ -128,17 +128,24 @@ export default function IndexClientReturns() {
       showCancelButton: true,
       confirmButtonText: "Confirmar",
       cancelButtonText: "Cancelar",
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      allowEscapeKey: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          await annulReturnClient(row.idReturn);
+          setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
+          await refetch?.();
+          return true;
+        } catch {
+          Swal.showValidationMessage("No se pudo anular el registro.");
+          return false;
+        }
+      },
     });
 
-    if (!result.isConfirmed) return;
-
-    try {
-      await annulReturnClient(row.idReturn);
-      setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
-      await refetch?.();
+    if (result.isConfirmed) {
       await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
-    } catch {
-      await Swal.fire("Error", "No se pudo anular el registro.", "error");
     }
   };
 
@@ -362,6 +369,7 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
+        onReturnRegistered={refetch}
       />
 
       {/* Modal de detalles de devolución */}

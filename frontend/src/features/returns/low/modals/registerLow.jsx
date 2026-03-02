@@ -79,6 +79,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       reason: "",
     };
     setSelectedProducts((prev) => [...prev, adaptedProduct]);
+    setOpenConfigProductId(adaptedProduct.id);
   };
 
   const handleRemoveProduct = (id) => {
@@ -301,7 +302,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             onClick={() => toggleConfigDropdown(p.id)}
                             className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
                           >
-                            Opciones
+                            Motivos
                             {openConfigProductId === p.id ? (
                               <ChevronUp size={14} />
                             ) : (

@@ -167,7 +167,7 @@ export default function AllProductsPage() {
       : "Sin fecha",
     cantidad: d.stock_producto ?? 0,
     consumido: 0,
-    // ✅ AQUI está el cambio: precio desde el LOTE
+    // ✅ AQUI está el cambio: precio desde el detalle
     precio: d.precio_venta ?? product.precio_venta ?? 0,
 
     // ✅ (no agrega columnas, solo para que el modal use los mismos campos)

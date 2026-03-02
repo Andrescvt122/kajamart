@@ -39,7 +39,7 @@ export default function DetailProductModal({
   const detalleId = detail.id_detalle_producto ?? detail.id ?? "—";
   const codigoBarras =
     detail.codigo_barras_producto_compra ?? detail.barcode ?? "—";
-  const stockLote = detail.stock_producto ?? detail.cantidad ?? "—";
+  const stockDetalle = detail.stock_producto ?? detail.cantidad ?? "—";
   const fechaVencimiento =
     detail.fecha_vencimiento || detail.vencimiento || null;
 
@@ -56,7 +56,7 @@ export default function DetailProductModal({
     product.porcentaje_incremento ??
     "—";
 
-  // ------- Info combinada (producto + lote) en un solo grid ancho -------
+  // ------- Info combinada (producto + detalle) en un solo grid ancho -------
   const productInfo = [
     { label: "ID Producto", value: product.id_producto, icon: Hash, group: "Producto" },
     { label: "Nombre producto", value: product.nombre, icon: Package, group: "Producto" },
@@ -102,30 +102,30 @@ export default function DetailProductModal({
   ];
 
   const detailInfo = [
-    { label: "ID Detalle", value: detalleId, icon: Hash, group: "Lote" },
+    { label: "ID Detalle", value: detalleId, icon: Hash, group: "Detalle" },
     {
       label: "Código de barras",
       value: codigoBarras,
       icon: Barcode,
-      group: "Lote",
+      group: "Detalle",
     },
     {
       label: "Fecha de vencimiento",
       value: formatDate(fechaVencimiento),
       icon: Calendar,
-      group: "Lote",
+      group: "Detalle",
     },
     {
-      label: "Stock en este lote",
-      value: stockLote,
+      label: "Stock en este detalle",
+      value: stockDetalle,
       icon: Boxes,
-      group: "Lote",
+      group: "Detalle",
     },
     {
       label: "¿Es devolución?",
       value: esDevolucion ? "Sí" : "No",
       icon: Boxes,
-      group: "Lote",
+      group: "Detalle",
     },
   ];
 
@@ -154,7 +154,7 @@ export default function DetailProductModal({
             <div className="flex justify-between items-start mb-6 gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Detalles del producto y lote
+                  Detalles del producto y detalle
                 </h2>
                 <p className="text-xs text-gray-500 mt-1">
                   Producto:{" "}

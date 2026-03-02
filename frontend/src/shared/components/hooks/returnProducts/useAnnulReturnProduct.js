@@ -12,7 +12,8 @@ export const useAnnulReturnProduct = () => {
       await api.patch(`/returnProducts/${id}/anular`, {});
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || "No se pudo anular la devolución de producto.");
+      const payload = err?.response?.data ?? {};
+      setError(payload.error || payload.message || "No se pudo anular la devolucion de producto.");
       throw err;
     } finally {
       setLoading(false);

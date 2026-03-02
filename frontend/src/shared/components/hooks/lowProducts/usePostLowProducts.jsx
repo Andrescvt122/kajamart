@@ -87,8 +87,6 @@ export const usePostLowProducts = () => {
 
             lowProduct.codigo_barras_destino =
               pendingRegistration?.pendingDetail?.registeredBarcode ?? null;
-            lowProduct.lote_destino =
-              pendingRegistration?.pendingDetail?.registeredLot ?? null;
             lowProduct.fecha_vencimiento_destino =
               pendingRegistration?.pendingDetail?.registeredExpiry ?? null;
           } else {
