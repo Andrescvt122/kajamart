@@ -28,16 +28,13 @@ const pick = (obj, ...keys) => {
   return null;
 };
 
-// ✅ Detecta imagen por extensión y/o mimetype
 const isImageLike = (url = "", mime = "") => {
   const m = String(mime || "").toLowerCase();
   if (m.startsWith("image/")) return true;
-
   const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
   return /\.(jpg|jpeg|png|gif|webp|bmp|svg|tif|tiff|ico|avif)$/i.test(clean);
 };
 
-// ✅ Cantidades (tolerante)
 const getQty = (p) => {
   const paquetes = Math.max(
     0,
@@ -82,7 +79,6 @@ const getQty = (p) => {
   return { paquetes, unidPorPaq, totalUnid };
 };
 
-// ✅ Subtotal por línea: base + impuestos (por paquetes)
 const computeLine = (p) => {
   const { paquetes } = getQty(p);
 
@@ -103,7 +99,6 @@ const computeLine = (p) => {
 export default function PurchaseDetailModal({ purchase, onClose }) {
   const [showReceiptViewer, setShowReceiptViewer] = useState(false);
 
-  // bloquear scroll
   useEffect(() => {
     if (!purchase) return;
     const prev = document.body.style.overflow;
@@ -126,6 +121,14 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
   const purchaseId = formatPurchaseId(pick(purchase, "id", "_id", "id_compra"));
   const estado = pick(purchase, "estado", "estado_compra") ?? "—";
 
+  // ✅ NUEVO: motivo de anulación
+  const motivoAnulacion =
+    purchase?.motivo_anulacion ??
+    purchase?.motivo ??
+    purchase?.raw?.motivo_anulacion ??
+    purchase?.raw?.motivo ??
+    null;
+
   const factura =
     pick(purchase, "numero_factura", "num_factura", "factura") ??
     (purchaseId !== "—" ? String(purchaseId).padStart(3, "0") : "—");
@@ -141,7 +144,6 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
       })
     : "—";
 
-  // Proveedor
   const proveedorNombre =
     purchase?.proveedor?.nombre ??
     purchase?.proveedores?.nombre ??
@@ -154,19 +156,16 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     pick(purchase, "nit", "proveedor_nit") ??
     "—";
 
-  // Productos
   const productos = useMemo(() => {
     const arr = purchase?.productos;
     return Array.isArray(arr) ? arr : [];
   }, [purchase]);
 
-  // ✅ Fallback: detalle_compra del backend (para sacar vencimientos SIEMPRE)
   const rawDetalle = useMemo(() => {
     const det = purchase?.raw?.detalle_compra;
     return Array.isArray(det) ? det : [];
   }, [purchase]);
 
-  // ✅ OJO: NO deduplicamos aquí, para respetar "por paquete"
   const getVencimientosFromRaw = (p) => {
     const nombre = String(p?.nombre ?? "").trim();
     const pid = p?.productoId ?? null;
@@ -194,9 +193,6 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     return list;
   };
 
-  // =========================
-  // Comprobante
-  // =========================
   const receiptObj =
     typeof purchase?.comprobante === "object" && purchase?.comprobante ? purchase.comprobante : null;
 
@@ -222,14 +218,12 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     purchase?.comprobante?.type ??
     "";
 
-  const receiptSize = receiptObj?.size ?? purchase?.comprobante?.size ?? purchase?.raw?.comprobante_size ?? null;
+  const receiptSize =
+    receiptObj?.size ?? purchase?.comprobante?.size ?? purchase?.raw?.comprobante_size ?? null;
 
   const hasReceipt = Boolean(receiptUrl);
   const receiptIsImage = hasReceipt ? isImageLike(receiptUrl, receiptMime) : false;
 
-  // =========================
-  // Totales (solo una vez)
-  // =========================
   const totals = useMemo(() => {
     return productos.reduce(
       (acc, p) => {
@@ -293,17 +287,27 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
                 <h3 className="text-base sm:text-lg font-extrabold text-gray-900">
                   Detalles de la Compra
                 </h3>
+
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
                   <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200">
                     <b>Factura:</b> {factura}
                   </span>
+
                   <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200">
                     <b>ID:</b> {purchaseId}
                   </span>
+
                   <span className={`px-2 py-1 rounded-lg border ${badgeClass}`}>
                     <b>Estado:</b> {estado}
                   </span>
                 </div>
+
+                {/* ✅ MOTIVO SOLO SI ANULADA */}
+                {String(estado).toLowerCase().includes("anul") && motivoAnulacion && (
+                  <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                    Motivo de anulación: {motivoAnulacion}
+                  </div>
+                )}
               </div>
 
               <button
