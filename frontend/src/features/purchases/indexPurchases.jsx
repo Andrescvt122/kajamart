@@ -43,7 +43,7 @@ const canAnnulPurchase = (purchase) => {
 };
 const isAnulada = (estado) => {
   const s = String(estado || "").toLowerCase();
-  return s === "anulada" || s === "anulado";
+  return s === "anulada" || s === "anulado" || s === "cancelada" || s === "cancelado";
 };
 
 // ✅ util: unique conservando orden
@@ -389,75 +389,104 @@ export default function IndexPurchases() {
   }, []);
 
   // ✅ Anular compra (solo UI por ahora)
-  const handleAnnulPurchase = useCallback(
-    async (purchase) => {
-      if (!purchase) return;
+ const handleAnnulPurchase = useCallback(
+  async (purchase) => {
+    if (!purchase) return;
 
-      if (!canAnnular) {
-        await Swal.fire({
-          icon: "warning",
-          title: "Sin permisos",
-          text: "No tienes permisos para anular compras.",
-          confirmButtonColor: "#16a34a",
-        });
-        return;
-      }
-
-      if (isAnulada(purchase.estado)) {
-        await Swal.fire({
-          icon: "info",
-          title: "Compra anulada",
-          text: "Esta compra ya fue anulada previamente.",
-          confirmButtonColor: "#16a34a",
-        });
-        return;
-      }
-
-      const mins = diffMinutesFromNow(purchase.fecha);
-      if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
-        await Swal.fire({
-          icon: "error",
-          title: "Tiempo agotado",
-          html: `
-            <p>No se puede anular esta compra.</p>
-            <p>El tiempo máximo para anular es de <b>${MAX_MINUTES_ANNUL} minutos</b>.</p>
-          `,
-          confirmButtonColor: "#16a34a",
-        });
-        return;
-      }
-
-      const { isConfirmed } = await Swal.fire({
+    // 1) permisos
+    if (!canAnnular) {
+      await Swal.fire({
         icon: "warning",
-        title: "¿Anular compra?",
-        html: `
-          <p>¿Está seguro de anular la compra:</p>
-          <p><b>${purchase.factura}</b>?</p>
-          <p style="font-size:12px;color:#6b7280;margin-top:6px;">
-            Esta acción no se puede deshacer.
-          </p>
-        `,
+        title: "Sin permisos",
+        text: "No tienes permisos para anular compras.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    // 2) ya cancelada
+    if (isAnulada(purchase.estado)) {
+      await Swal.fire({
+        icon: "info",
+        title: "Compra cancelada",
+        text: "Esta compra ya fue cancelada previamente.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    // 3) ventana 30 min
+    const mins = diffMinutesFromNow(purchase.fecha);
+    if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
+      const r = await Swal.fire({
+        icon: "warning",
+        title: "Tiempo agotado",
+        text: `Han pasado más de ${MAX_MINUTES_ANNUL} minutos. El servidor probablemente rechazará la anulación. ¿Deseas intentar de todos modos?`,
         showCancelButton: true,
-        confirmButtonText: "Sí, anular",
+        confirmButtonText: "Intentar",
         cancelButtonText: "Cancelar",
         confirmButtonColor: "#dc2626",
         cancelButtonColor: "#6b7280",
       });
+      if (!r.isConfirmed) return;
+    }
 
-      if (!isConfirmed) return;
+    // 4) pedir motivo
+    const { value: motivo } = await Swal.fire({
+      title: "Motivo de anulación",
+      input: "textarea",
+      inputLabel: `Factura: ${purchase.factura}`,
+      inputPlaceholder: "Escriba el motivo de la anulación...",
+      inputAttributes: {
+        maxlength: 300,
+      },
+      showCancelButton: true,
+      confirmButtonText: "Confirmar anulación",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 5) {
+          return "Debe ingresar un motivo válido (mínimo 5 caracteres)";
+        }
+      },
+    });
 
+    if (!motivo) return;
+
+    // 5) llamar backend con motivo
+    try {
+      await api.put(`/purchase/${purchase.id}/cancel`, {
+        motivo: motivo.trim(),
+      });
+
+      // refrescar lista
       setComprasVersion((v) => v + 1);
 
       await Swal.fire({
         icon: "success",
         title: "Compra anulada",
-        text: "La compra fue anulada correctamente (UI).",
+        text: "La compra fue cancelada y el stock fue revertido.",
         confirmButtonColor: "#16a34a",
       });
-    },
-    [canAnnular]
-  );
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo cancelar la compra.";
 
+      await Swal.fire({
+        icon: status === 409 ? "info" : "error",
+        title: status === 409 ? "No se puede anular" : "No se pudo cancelar",
+        text: msg,
+        confirmButtonColor: "#16a34a",
+      });
+    }
+  },
+  [canAnnular]
+);
   // =========================
   // Print Compra
   // =========================
