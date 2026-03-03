@@ -417,20 +417,17 @@ export default function IndexPurchases() {
 
     // 3) ventana 30 min
     const mins = diffMinutesFromNow(purchase.fecha);
+
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
-      const r = await Swal.fire({
+      await Swal.fire({
         icon: "warning",
         title: "Tiempo agotado",
-        text: `Han pasado más de ${MAX_MINUTES_ANNUL} minutos. El servidor probablemente rechazará la anulación. ¿Deseas intentar de todos modos?`,
-        showCancelButton: true,
-        confirmButtonText: "Intentar",
-        cancelButtonText: "Cancelar",
-        confirmButtonColor: "#dc2626",
-        cancelButtonColor: "#6b7280",
+        text: `Han pasado más de ${MAX_MINUTES_ANNUL} minutos. Esta compra ya no puede anularse.`,
+        confirmButtonText: "Cerrar",
+        confirmButtonColor: "#6b7280",
       });
-      if (!r.isConfirmed) return;
+      return; // ⛔ NO permitir continuar
     }
-
     // 4) pedir motivo
     const { value: motivo } = await Swal.fire({
       title: "Motivo de anulación",
