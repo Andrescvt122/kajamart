@@ -310,12 +310,12 @@ export default function AllProductsPage() {
                   ) : (
                     pageItems.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">{p.id}</td>
-                        <td className="px-6 py-4">{p.barcode}</td>
-                        <td className="px-6 py-4">{p.vencimiento}</td>
-                        <td className="px-6 py-4">{p.cantidad}</td>
-                        <td className="px-6 py-4">{p.consumido}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-black">{p.id}</td>
+                        <td className="px-6 py-4 text-black">{p.barcode}</td>
+                        <td className="px-6 py-4 text-black">{p.vencimiento}</td>
+                        <td className="px-6 py-4 text-black">{p.cantidad}</td>
+                        <td className="px-6 py-4 text-black">{p.consumido}</td>
+                        <td className="px-6 py-4 text-black">
                           ${Number(p.precio || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
