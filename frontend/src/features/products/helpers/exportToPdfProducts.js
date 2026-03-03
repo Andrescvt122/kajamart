@@ -19,7 +19,12 @@ const getBase64Image = (imgPath) => {
     img.src = imgPath;
   });
 };
-
+const formatPriceOrUnassigned = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  if (n === 1001) return "aun no asignado";
+  return `$${n.toLocaleString()}`;
+};
 /**
  * Exportar productos a PDF
  * @param {Array} products - Lista de productos filtrados
@@ -87,7 +92,7 @@ export const exportProductsToPDF = async (products = []) => {
         p.vencimiento,
         p.cantidad?.toString(),
         p.consumido?.toString(),
-        `$${p.precio?.toLocaleString()}`,
+        formatPriceOrUnassigned(p.precio),
       ];
 
       x = 20;

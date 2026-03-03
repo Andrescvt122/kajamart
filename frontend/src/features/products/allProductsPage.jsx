@@ -83,7 +83,12 @@ const getErrorTitle = (err) => {
   if (status >= 500) return "Error del servidor";
   return `Error (${status || "desconocido"})`;
 };
-
+const formatPriceOrUnassigned = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  if (n === 1001) return "aun no asignado";
+  return `$${n.toLocaleString()}`;
+};
 export default function AllProductsPage() {
   const { state } = useLocation();
   const params = useParams();
@@ -99,8 +104,7 @@ export default function AllProductsPage() {
 
   const { data: fetchedProduct } = useProduct(productId);
 
-  const product =
-    passedProduct ??
+  const product = passedProduct ??
     fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -188,8 +192,7 @@ export default function AllProductsPage() {
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage, perPage]);
 
-  const goToPage = (n) =>
-    setCurrentPage(Math.min(Math.max(1, n), totalPages));
+  const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   const deleteDetailMutation = useDeleteDetailProduct();
 

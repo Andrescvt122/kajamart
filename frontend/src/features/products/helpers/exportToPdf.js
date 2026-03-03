@@ -21,7 +21,12 @@ const getBase64Image = (imgPath) => {
     img.src = imgPath;
   });
 };
-
+const formatPriceOrUnassigned = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  if (n === 1001) return "aun no asignado";
+  return `$${n.toLocaleString()}`;
+};
 // --------------------
 // Exportar Productos a PDF
 // --------------------
@@ -75,7 +80,7 @@ export const exportProductsToPDF = async (products = []) => {
       p.stockActual,
       p.stockMin,
       p.stockMax,
-      `$${p.precio?.toLocaleString()}`,
+      formatPriceOrUnassigned(p.precio),
       p.estado,
     ]);
 

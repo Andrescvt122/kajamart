@@ -12,7 +12,8 @@ export const useAnnulLowProduct = () => {
       await api.patch(`/lowProducts/${id}/anular`, {});
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || "No se pudo anular la baja de producto.");
+      const payload = err?.response?.data ?? {};
+      setError(payload.error || payload.message || "No se pudo anular la baja de producto.");
       throw err;
     } finally {
       setLoading(false);
