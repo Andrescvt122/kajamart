@@ -70,12 +70,12 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = useCallback(
     async ({ email, password }) => {
-      setLoading(true);
       const res = await login({ email, password });
       if (res?.ok && res?.token) {
+        setLoading(true);
         await initFromToken(res.token);
+        setLoading(false);
       }
-      setLoading(false);
       return res;
     },
     [login, initFromToken]

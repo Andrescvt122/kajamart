@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CompleteReturn from "./completeReturn";
 import SalesSearch from "./searchSale";
 
-const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
+const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen, onReturnRegistered }) => {
   const [selectedSale, setSelectedSale] = useState(null);
   const [returnProducts, setReturnProducts] = useState([]);
   const [isCompleteReturnOpen, setIsCompleteReturnOpen] = useState(false);
@@ -311,6 +311,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen }) => {
         selectedSale={selectedSale}
         productsToReturn={returnProducts.filter((p) => p.returnQuantity > 0)}
         returnTotal={calculateReturnTotal()}
+        onReturnRegistered={onReturnRegistered}
       />
     </>
   );

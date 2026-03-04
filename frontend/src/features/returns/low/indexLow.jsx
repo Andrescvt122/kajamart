@@ -77,6 +77,7 @@ export default function IndexLow() {
   const [selectedLow, setSelectedLow] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const [annulledMap, setAnnulledMap] = useState({});
+  const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
 
   // Permiso requerido para ver la página
@@ -84,6 +85,38 @@ export default function IndexLow() {
   const perPage = 6;
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+
+  const buildAnnulErrorMessage = (err) => {
+    const payload = err?.response?.data ?? {};
+    const baseMessage =
+      payload.error || payload.message || "No se pudo anular el registro.";
+
+    const detailTables = Array.isArray(payload.tablas_detalle_relacionadas)
+      ? payload.tablas_detalle_relacionadas
+      : [];
+    const productTables = Array.isArray(payload.tablas_producto_relacionadas)
+      ? payload.tablas_producto_relacionadas
+      : [];
+
+    if (!detailTables.length && !productTables.length) return baseMessage;
+
+    const parts = [baseMessage];
+    if (detailTables.length) {
+      parts.push(`Tablas detalle relacionadas: ${detailTables.join(", ")}`);
+    }
+    if (productTables.length) {
+      parts.push(`Tablas producto relacionadas: ${productTables.join(", ")}`);
+    }
+
+    return parts.join("<br/>");
+  };
+
+  const isRelationConflict = (payload = {}) => {
+    const text = `${payload.error || ""} ${payload.message || ""}`.toLowerCase();
+    return payload.code === "LOW_PRODUCT_RELATION_CONFLICT" || text.includes("relacionad");
+  };
+
+  const getBlockKey = (id) => String(id);
 
   // Normalización de texto
   const normalizeText = (text) =>
@@ -150,9 +183,13 @@ export default function IndexLow() {
   };
 
   const handleAnnulLow = async (item) => {
+    const itemKey = getBlockKey(item.idLow);
     const status = annulledMap[item.idLow] ?? item.isActive;
+    const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
     const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateLow, status);
-    if (isDisabled) return;
+    if (isDisabled || isBlockedByRelation) return;
+
+    let relationConflictDetected = false;
 
     const result = await Swal.fire({
       title: "¿Estás seguro?",
@@ -161,17 +198,43 @@ export default function IndexLow() {
       showCancelButton: true,
       confirmButtonText: "Confirmar",
       cancelButtonText: "Cancelar",
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      allowEscapeKey: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          await annulLowProduct(item.idLow);
+          setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
+          await refetch?.();
+          return { ok: true };
+        } catch (err) {
+          const payload = err?.response?.data ?? {};
+          relationConflictDetected = isRelationConflict(payload);
+          return {
+            ok: false,
+            relationConflict: relationConflictDetected,
+            message: buildAnnulErrorMessage(err),
+          };
+        }
+      },
     });
 
     if (!result.isConfirmed) return;
 
-    try {
-      await annulLowProduct(item.idLow);
-      setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
-      await refetch?.();
+    if (result.value?.ok) {
       await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
-    } catch {
-      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+      return;
+    }
+
+    await Swal.fire({
+      title: "No se pudo anular",
+      html: result.value?.message || "No se pudo anular el registro.",
+      icon: "error",
+      confirmButtonText: "Aceptar",
+    });
+
+    if (relationConflictDetected || result.value?.relationConflict) {
+      setBlockedAnnulMap((prev) => ({ ...prev, [itemKey]: true }));
     }
   };
 
@@ -213,7 +276,7 @@ export default function IndexLow() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
@@ -279,8 +342,6 @@ export default function IndexLow() {
           <motion.div
             className="md:hidden"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
@@ -387,7 +448,12 @@ export default function IndexLow() {
                                   <span className="text-xs text-gray-500">Anular</span>
                                   <ToggleSwitch
                                     checked={annulledMap[item.idLow] ?? item.isActive}
-                                    disabled={getAnnulmentMeta(item.createdAt || item.dateLow, annulledMap[item.idLow] ?? item.isActive).isDisabled}
+                                    disabled={
+                                      getAnnulmentMeta(
+                                        item.createdAt || item.dateLow,
+                                        annulledMap[item.idLow] ?? item.isActive
+                                      ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
+                                    }
                                     onChange={() => handleAnnulLow(item)}
                                   />
                                 </div>
@@ -407,8 +473,6 @@ export default function IndexLow() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -427,7 +491,7 @@ export default function IndexLow() {
                   </tr>
                 </thead>
                 <motion.tbody
-                  className="divide-y divide-gray-100"
+                  className="divide-y divide-gray-100 text-gray-700"
                   variants={tableVariants}
                 >
                   {loading ? (
@@ -544,16 +608,21 @@ export default function IndexLow() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsible}
                             </span>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <div className="flex items-center gap-2">
                               <ToggleSwitch
                                 checked={annulledMap[item.idLow] ?? item.isActive}
-                                disabled={getAnnulmentMeta(item.createdAt || item.dateLow, annulledMap[item.idLow] ?? item.isActive).isDisabled}
+                                disabled={
+                                  getAnnulmentMeta(
+                                    item.createdAt || item.dateLow,
+                                    annulledMap[item.idLow] ?? item.isActive
+                                  ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
+                                }
                                 onChange={() => handleAnnulLow(item)}
                               />
                               <span className="text-xs text-gray-500">

@@ -1076,6 +1076,7 @@ export default function IndexRegisterPurchase() {
         });
         return;
       }
+
     }
 
     // ✅ comprobante debe ser válido
@@ -1517,7 +1518,8 @@ export default function IndexRegisterPurchase() {
               </td>
             </tr>
           ) : (
-            productos.map((prod, i) => (
+            productos.map((prod, i) => {
+              return (
               <tr key={`${prod.productoId ?? getProductoId(prod)}-${i}`}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
 
@@ -1669,7 +1671,8 @@ export default function IndexRegisterPurchase() {
                   </div>
                 </td>
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>

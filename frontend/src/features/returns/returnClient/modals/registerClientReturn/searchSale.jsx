@@ -8,6 +8,14 @@ const SalesSearch = ({ onSelectSale }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const { data: sales, loading, error } = useFetchSales(searchTerm);
 
+  const isSaleAvailableForReturn = (sale) => {
+    const value = sale?.dispo_devolucion;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") return value.toLowerCase() !== "false";
+    return true;
+  };
+
   const formatDate = (date) => {
     if (!date) return "";
     return new Date(date).toLocaleDateString("es-CO");
@@ -69,36 +77,51 @@ const SalesSearch = ({ onSelectSale }) => {
               <div className="p-4 text-center text-sm text-red-500">{error}</div>
             ) : sales.length > 0 ? (
               <div className="p-2">
-                {sales.map((sale) => (
-                  <motion.div
-                    key={sale.id_venta}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer rounded-lg mb-1 border border-gray-100"
-                    onClick={() => {
-                      onSelectSale?.(sale);
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Receipt className="w-5 h-5 text-gray-500" />
+                {sales.map((sale) => {
+                  const isAvailableForReturn = isSaleAvailableForReturn(sale);
+
+                  return (
+                    <motion.div
+                      key={sale.id_venta}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15 }}
+                      aria-disabled={!isAvailableForReturn}
+                      className={`px-4 py-3 rounded-lg mb-1 border border-gray-100 ${
+                        isAvailableForReturn
+                          ? "hover:bg-gray-50 cursor-pointer"
+                          : "bg-gray-50/70 cursor-not-allowed opacity-80"
+                      }`}
+                      onClick={() => {
+                        if (!isAvailableForReturn) return;
+                        onSelectSale?.(sale);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Receipt className="w-5 h-5 text-gray-500" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {sale?.clientes?.nombre_cliente?.trim() ||
+                              "Cliente sin nombre"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDate(sale?.fecha_venta)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {getProductLabel(sale)}
+                          </p>
+                          {!isAvailableForReturn && (
+                            <p className="text-xs text-red-600 mt-1">
+                              La venta no esta disponible para hacer devolucion
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {sale?.clientes?.nombre_cliente?.trim() ||
-                            "Cliente sin nombre"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatDate(sale?.fecha_venta)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {getProductLabel(sale)}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 text-center text-sm text-gray-500">

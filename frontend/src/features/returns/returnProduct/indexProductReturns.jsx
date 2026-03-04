@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -65,7 +65,7 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexProductReturns() {
-  const { returns = [], loading, error, refetch } = useFetchReturnProducts();
+  const { returns, loading, error, refetch } = useFetchReturnProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,11 +74,43 @@ export default function IndexProductReturns() {
   const [selectedReturnData, setSelectedReturnData] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const [annulledMap, setAnnulledMap] = useState({});
+  const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const perPage = 6;
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+
+  const buildAnnulErrorMessage = (err) => {
+    const payload = err?.response?.data ?? {};
+    const baseMessage =
+      payload.error || payload.message || "No se pudo anular el registro.";
+
+    const code = payload.code ? `Codigo: ${payload.code}` : null;
+    const relatedTables = Array.isArray(payload.tablas_relacionadas)
+      ? payload.tablas_relacionadas
+      : [];
+
+    if (!code && !relatedTables.length) return baseMessage;
+
+    const parts = [baseMessage];
+    if (code) parts.push(code);
+    if (relatedTables.length) {
+      parts.push(`Tablas relacionadas: ${relatedTables.join(", ")}`);
+    }
+
+    return parts.join("<br/>");
+  };
+
+  const isRelationConflict = (payload = {}) => {
+    const text = `${payload.error || ""} ${payload.message || ""}`.toLowerCase();
+    return (
+      payload.code === "RETURN_PRODUCT_DETAIL_RELATION_CONFLICT" ||
+      text.includes("relacionad")
+    );
+  };
+
+  const getBlockKey = (id) => String(id);
   // Normalización de texto
   const normalizeText = (text) =>
     (text ?? "")
@@ -126,6 +158,12 @@ export default function IndexProductReturns() {
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage]);
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
@@ -160,9 +198,13 @@ export default function IndexProductReturns() {
   };
 
   const handleAnnulReturn = async (item) => {
+    const itemKey = getBlockKey(item.idReturn);
     const status = annulledMap[item.idReturn] ?? item.isActive;
+    const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
     const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateISO, status);
-    if (isDisabled) return;
+    if (isDisabled || isBlockedByRelation) return;
+
+    let relationConflictDetected = false;
 
     const result = await Swal.fire({
       title: "¿Estás seguro?",
@@ -171,17 +213,43 @@ export default function IndexProductReturns() {
       showCancelButton: true,
       confirmButtonText: "Confirmar",
       cancelButtonText: "Cancelar",
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      allowEscapeKey: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          await annulReturnProduct(item.idReturn);
+          setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
+          await refetch?.();
+          return { ok: true };
+        } catch (err) {
+          const payload = err?.response?.data ?? {};
+          relationConflictDetected = isRelationConflict(payload);
+          return {
+            ok: false,
+            relationConflict: relationConflictDetected,
+            message: buildAnnulErrorMessage(err),
+          };
+        }
+      },
     });
 
     if (!result.isConfirmed) return;
 
-    try {
-      await annulReturnProduct(item.idReturn);
-      setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
-      await refetch?.();
+    if (result.value?.ok) {
       await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
-    } catch (err) {
-      await Swal.fire("Error", "No se pudo anular el registro.", "error");
+      return;
+    }
+
+    await Swal.fire({
+      title: "No se pudo anular",
+      html: result.value?.message || "No se pudo anular el registro.",
+      icon: "error",
+      confirmButtonText: "Aceptar",
+    });
+
+    if (relationConflictDetected || result.value?.relationConflict) {
+      setBlockedAnnulMap((prev) => ({ ...prev, [itemKey]: true }));
     }
   };
 
@@ -223,7 +291,7 @@ export default function IndexProductReturns() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">Devoluciones de productos</h2>
@@ -282,7 +350,7 @@ export default function IndexProductReturns() {
           {/* ===== LISTADO RESPONSIVE ===== */}
 
           {/* Móvil: tarjetas / acordeón */}
-          <motion.div className="md:hidden" variants={tableVariants} initial="hidden" animate="visible">
+          <motion.div className="md:hidden" variants={tableVariants}>
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
@@ -385,7 +453,12 @@ export default function IndexProductReturns() {
                                   <span className="text-xs text-gray-500">Anular</span>
                                   <ToggleSwitch
                                     checked={annulledMap[item.idReturn] ?? item.isActive}
-                                    disabled={getAnnulmentMeta(item.createdAt || item.dateISO, annulledMap[item.idReturn] ?? item.isActive).isDisabled}
+                                    disabled={
+                                      getAnnulmentMeta(
+                                        item.createdAt || item.dateISO,
+                                        annulledMap[item.idReturn] ?? item.isActive
+                                      ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]
+                                    }
                                     onChange={() => handleAnnulReturn(item)}
                                   />
                                 </div>
@@ -405,8 +478,6 @@ export default function IndexProductReturns() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -422,7 +493,10 @@ export default function IndexProductReturns() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <motion.tbody
+                  className="divide-y divide-gray-100 text-gray-700"
+                  variants={tableVariants}
+                >
                   {loading ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center">
@@ -467,7 +541,7 @@ export default function IndexProductReturns() {
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {item.quantity}
                           </td>
-                          <td className="px-4 lg:px-6 py-4 text-sm whitespace-nowrap">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {item.discount ? (
                               <Check size={18} className="text-green-600 inline-block align-middle" />
                             ) : (
@@ -526,16 +600,21 @@ export default function IndexProductReturns() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsable}
                             </span>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <div className="flex items-center gap-2">
                               <ToggleSwitch
                                 checked={annulledMap[item.idReturn] ?? item.isActive}
-                                disabled={getAnnulmentMeta(item.createdAt || item.dateISO, annulledMap[item.idReturn] ?? item.isActive).isDisabled}
+                                disabled={
+                                  getAnnulmentMeta(
+                                    item.createdAt || item.dateISO,
+                                    annulledMap[item.idReturn] ?? item.isActive
+                                  ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]
+                                }
                                 onChange={() => handleAnnulReturn(item)}
                               />
                               <span className="text-xs text-gray-500">
