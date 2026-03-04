@@ -276,7 +276,7 @@ export default function IndexLow() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
@@ -342,8 +342,6 @@ export default function IndexLow() {
           <motion.div
             className="md:hidden"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
@@ -475,8 +473,6 @@ export default function IndexLow() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -495,7 +491,7 @@ export default function IndexLow() {
                   </tr>
                 </thead>
                 <motion.tbody
-                  className="divide-y divide-gray-100"
+                  className="divide-y divide-gray-100 text-gray-700"
                   variants={tableVariants}
                 >
                   {loading ? (
@@ -612,12 +608,12 @@ export default function IndexLow() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsible}
                             </span>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <div className="flex items-center gap-2">
                               <ToggleSwitch
                                 checked={annulledMap[item.idLow] ?? item.isActive}

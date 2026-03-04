@@ -22,6 +22,7 @@ import { exportProductsToExcel } from "./helpers/exportToXlsProducts";
 import { exportProductsToPDF } from "./helpers/exportToPdfProducts";
 import Loading from "../../features/onboarding/loading.jsx";
 import { useAuth } from "../../context/useAtuh.jsx";
+
 // hooks
 import { useProduct } from "../../shared/components/hooks/products/products.hooks";
 import {
@@ -29,11 +30,11 @@ import {
   useDeleteDetailProduct,
 } from "../../shared/components/hooks/productDetails/productDetails.hooks";
 
-// Textos seguros
 const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
 const ONE_LINE_SAFE =
   "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+
 const STATUS_BADGE_BASE =
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium";
 
@@ -42,7 +43,6 @@ const getStatusBadgeClass = (status) =>
     ? "bg-green-50 text-green-700 border-green-100"
     : "bg-red-50 text-red-700 border-red-100";
 
-// Chevron acordeón móvil
 function ChevronIcon({ open }) {
   return (
     <motion.svg
@@ -50,7 +50,6 @@ function ChevronIcon({ open }) {
       height="18"
       viewBox="0 0 20 20"
       fill="none"
-      aria-hidden="true"
       animate={{ rotate: open ? 180 : 0 }}
       transition={{ duration: 0.2 }}
       className="text-gray-500"
@@ -66,7 +65,6 @@ function ChevronIcon({ open }) {
   );
 }
 
-// Helper para extraer mensaje de error del backend (compatible message/error)
 const getErrorMessage = (err, fallback) =>
   err?.response?.data?.message ||
   err?.response?.data?.error ||
@@ -74,7 +72,6 @@ const getErrorMessage = (err, fallback) =>
   fallback ||
   "Ocurrió un error inesperado.";
 
-// Helper: título según status (para alertas más claras)
 const getErrorTitle = (err) => {
   const status = err?.response?.status;
   if (!err?.response) return "No se pudo conectar";
@@ -97,6 +94,7 @@ export default function AllProductsPage() {
   const params = useParams();
   const { hasPermission } = useAuth();
   const canDelete = hasPermission("Eliminar productos");
+
   const passedProduct = state?.product || null;
   const productId =
     (params.id && Number(params.id)) ||
@@ -105,98 +103,90 @@ export default function AllProductsPage() {
     null;
 
   const { data: fetchedProduct } = useProduct(productId);
-  const [selectedDetail, setSelectedDetail] = useState(null);
 
   const product = passedProduct ??
     fetchedProduct ?? { nombre: "Producto desconocido", precio_venta: 0 };
 
+  const [selectedDetail, setSelectedDetail] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedProductToDelete, setSelectedProductToDelete] = useState(null);
+  const [selectedProductToDelete, setSelectedProductToDelete] =
+    useState(null);
 
   const perPage = 5;
 
-  // data
   const {
     data: backendDetails = [],
     isLoading,
     error,
   } = useDetailProductsByProduct(productId);
 
-  // Mensaje de error legible para listar
   const errorMessage = error
     ? getErrorMessage(error, "Error al cargar los detalles del producto.")
     : null;
 
-  // ✅ Mostrar alerta cuando falle el LISTADO (solo 1 vez por error)
   const lastListErrorRef = useRef(null);
   useEffect(() => {
     if (!error) return;
-
     const title = getErrorTitle(error);
     const msg = getErrorMessage(
       error,
       "Error al cargar los detalles del producto."
     );
     const key = `${title}::${msg}`;
-
     if (lastListErrorRef.current !== key) {
       showErrorAlert(`${title}: ${msg}`);
       lastListErrorRef.current = key;
     }
   }, [error]);
 
-  // map UI
+  // ✅ MAP UI CORRECTO
   const allProducts = useMemo(() => {
-  if (!Array.isArray(backendDetails)) return [];
+    if (!Array.isArray(backendDetails)) return [];
 
-  return backendDetails.map((d) => ({
-    // ✅ conserva el id
-    id: d.id_detalle_producto,
+    return backendDetails.map((d) => ({
+      id: d.id_detalle_producto,
+      nombre: product.nombre,
+      barcode: d.codigo_barras_producto_compra ?? "—",
+      estado: d.estado === false ? "Inactivo" : "Activo",
+      vencimiento: d.fecha_vencimiento
+        ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
+        : "Sin fecha",
+      cantidad: d.stock_producto ?? 0,
+      consumido: 0,
 
-    // ✅ conserva lo que ya usas
-    nombre: product.nombre,
-    barcode: d.codigo_barras_producto_compra ?? "—",
-    estado: d.estado === false ? "Inactivo" : "Activo",
-    vencimiento: d.fecha_vencimiento
-      ? new Date(d.fecha_vencimiento).toISOString().slice(0, 10)
-      : "Sin fecha",
-    cantidad: d.stock_producto ?? 0,
-    consumido: 0,
-    // ✅ AQUI está el cambio: precio desde el detalle
-    precio: d.precio_venta ?? product.precio_venta ?? 0,
+      // 🔥 precio por lote si existe
+      precio: d.precio_venta ?? product.precio_venta ?? 0,
 
-    // ✅ (no agrega columnas, solo para que el modal use los mismos campos)
-    id_detalle_producto: d.id_detalle_producto,
-    codigo_barras_producto_compra: d.codigo_barras_producto_compra,
-    fecha_vencimiento: d.fecha_vencimiento,
-    stock_producto: d.stock_producto,
-    es_devolucion: d.es_devolucion,
+      // datos extra para modal
+      id_detalle_producto: d.id_detalle_producto,
+      codigo_barras_producto_compra: d.codigo_barras_producto_compra,
+      fecha_vencimiento: d.fecha_vencimiento,
+      stock_producto: d.stock_producto,
+      es_devolucion: d.es_devolucion,
+      iva_porcentaje: d.iva_porcentaje,
+      icu_porcentaje: d.icu_porcentaje,
+      precio_venta: d.precio_venta,
+      costo_unitario: d.costo_unitario,
+      incremento_venta: d.incremento_venta,
+    }));
+  }, [backendDetails, product]);
 
-    // ✅ lo que estás actualizando desde compra
-    iva_porcentaje: d.iva_porcentaje,
-    icu_porcentaje: d.icu_porcentaje,
-    precio_venta: d.precio_venta,
-    costo_unitario: d.costo_unitario,
-    incremento_venta: d.incremento_venta,
-  }));
-}, [backendDetails, product]);
-
-
-  // filtro + paginación
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return allProducts;
     return allProducts.filter((p) =>
-      `${p.id} ${p.barcode} ${p.vencimiento} ${p.estado}`.toLowerCase().includes(s)
+      `${p.id} ${p.barcode} ${p.vencimiento} ${p.estado}`
+        .toLowerCase()
+        .includes(s)
     );
   }, [searchTerm, allProducts]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
@@ -204,7 +194,6 @@ export default function AllProductsPage() {
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
-  // delete
   const deleteDetailMutation = useDeleteDetailProduct();
 
   const handleDeleteClick = (p) => {
@@ -222,14 +211,12 @@ export default function AllProductsPage() {
       showSuccessAlert("Detalle eliminado correctamente");
       setIsDeleteModalOpen(false);
     } catch (err) {
-      console.error(err);
       const title = getErrorTitle(err);
       const msg = getErrorMessage(err, "Error al eliminar el detalle");
       showErrorAlert(`${title}: ${msg}`);
     }
   };
 
-  // Animaciones tipo “Proveedores”
   const listVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -237,12 +224,12 @@ export default function AllProductsPage() {
       transition: { when: "beforeChildren", staggerChildren: 0.12 },
     },
   };
+
   const rowVariants = {
     hidden: { opacity: 0, y: 8 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.22 } },
   };
 
-  // acordeón móvil
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -254,29 +241,10 @@ export default function AllProductsPage() {
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
-      {/* Fondo ondas */}
-      <div
-        className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
-        style={{
-          height: "50%",
-          backgroundImage: `url(${ondas})`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center bottom",
-          backgroundSize: "cover",
-          zIndex: 0,
-        }}
-      >
-        <div className="h-full w-full" />
-      </div>
-
-      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
-          {/* Header */}
+      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-screen-xl">
           <div className="mb-4 sm:mb-6">
-            <h2
-              className={"text-2xl sm:text-3xl font-semibold " + ONE_LINE_SAFE}
-              title={product.nombre}
-            >
+            <h2 className={"text-2xl sm:text-3xl font-semibold " + ONE_LINE_SAFE}>
               Detalles — {product.nombre}
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
@@ -284,227 +252,53 @@ export default function AllProductsPage() {
             </p>
           </div>
 
-          {/* Toolbar */}
-          <div className="mb-4 sm:mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-3">
-              {/* Buscar */}
-              <div className="min-w-0">
-                <SearchBar
-                  placeholder="Buscar detalles..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full h-10"
-                />
-              </div>
+          {/* BUSCAR + EXPORT */}
+          <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3">
+            <SearchBar
+              placeholder="Buscar detalles..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
 
-              {/* Exportar Excel */}
-              <div className="flex justify-end">
-                <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
-                >
-                  Excel
-                </ExportExcelButton>
-              </div>
+            <ExportExcelButton event={() => exportProductsToExcel(filtered)}>
+              Excel
+            </ExportExcelButton>
 
-              {/* Exportar PDF */}
-              <div className="flex justify-end">
-                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
-                  PDF
-                </ExportPDFButton>
-              </div>
-            </div>
+            <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+              PDF
+            </ExportPDFButton>
           </div>
 
-          {/* ====== LISTADO ====== */}
-          {/* Móvil */}
+          {/* TABLA */}
           <motion.div
-            className="md:hidden"
+            className="bg-white rounded-xl shadow-sm border border-gray-100"
             variants={listVariants}
             initial="hidden"
             animate="visible"
           >
-            {isLoading ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loading inline heightClass="h-28" />
-              </div>
-            ) : error ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                {errorMessage}
-              </div>
-            ) : pageItems.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
-                No se encontraron detalles.
-              </div>
-            ) : (
-              <motion.ul
-                className="space-y-3"
-                variants={listVariants}
-                key={`m-${currentPage}-${filtered.length}-${searchTerm}`}
-                initial="hidden"
-                animate="visible"
-              >
-                {pageItems.map((p) => {
-                  const isOpen = expanded.has(p.id);
-                  const pid = `detail-${p.id}`;
-                  return (
-                    <motion.li
-                      key={p.id + "-m"}
-                      variants={rowVariants}
-                      className="bg-white rounded-xl shadow-sm border border-gray-100"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(p.id)}
-                        aria-expanded={isOpen}
-                        aria-controls={pid}
-                        className="w-full p-4 text-left"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={
-                                "text-base font-semibold text-gray-900 " +
-                                ONE_LINE_SAFE
-                              }
-                              title={p.barcode}
-                            >
-                              {p.barcode}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Vence: {p.vencimiento}
-                            </p>
-                          </div>
-                          <ChevronIcon open={isOpen} />
-                        </div>
-                      </button>
-
-                      <AnimatePresence initial={false}>
-                        {isOpen && (
-                          <motion.div
-                            id={pid}
-                            initial={{ height: 0, opacity: 0, y: -4 }}
-                            animate={{ height: "auto", opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{
-                              duration: 0.32,
-                              ease: [0.22, 1, 0.36, 1],
-                            }}
-                            className="overflow-hidden border-t border-gray-100"
-                            aria-live="polite"
-                          >
-                            <div className="px-4 py-4 grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  ID Detalle
-                                </p>
-                                <p className="text-sm text-gray-800">{p.id}</p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Cantidad
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.cantidad}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Consumido
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.consumido}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Precio
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {formatPriceOrUnassigned(p.precio)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Estado
-                                </p>
-                                <p className="text-sm">
-                                  <span className={`${STATUS_BADGE_BASE} ${getStatusBadgeClass(p.estado)}`}>
-                                    {p.estado}
-                                  </span>
-                                </p>
-                              </div>
-
-                              <div className="col-span-2 pt-1 flex items-center gap-2">
-                                <ViewDetailsButton
-                                  event={() => {
-                                    setSelectedDetail(p);
-                                    setIsModalOpen(true);
-                                  }}
-                                />
-                                <DeleteButton
-                                  canDelete={canDelete}
-                                  event={() => handleDeleteClick(p)}
-                                />
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-          </motion.div>
-
-          {/* Desktop */}
-          <motion.div
-            className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
-            variants={listVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <div className="overflow-x-auto max-w-full">
-              <table className="min-w-[860px] lg:min-w-[1020px] w-full md:table-fixed">
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">ID Detalle</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Código de barras
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Fecha de vencimiento
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">
-                      Stock consumido
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Precio</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
-                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
+                    <th className="px-6 py-4">ID</th>
+                    <th className="px-6 py-4">Código</th>
+                    <th className="px-6 py-4">Vencimiento</th>
+                    <th className="px-6 py-4">Cantidad</th>
+                    <th className="px-6 py-4">Consumido</th>
+                    <th className="px-6 py-4">Precio</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
-                  className="divide-y divide-gray-100"
-                  variants={listVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
+                <tbody className="divide-y divide-gray-100">
                   {isLoading ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
-                      </td>
-                    </tr>
-                  ) : error ? (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-red-500">
-                        {errorMessage}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
@@ -515,42 +309,26 @@ export default function AllProductsPage() {
                     </tr>
                   ) : (
                     pageItems.map((p) => (
-                      <motion.tr
-                        key={p.id}
-                        className="hover:bg-gray-50 align-top"
-                        variants={rowVariants}
-                      >
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {p.id}
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-black">{p.id}</td>
+                        <td className="px-6 py-4 text-black">{p.barcode}</td>
+                        <td className="px-6 py-4 text-black">{p.vencimiento}</td>
+                        <td className="px-6 py-4 text-black">{p.cantidad}</td>
+                        <td className="px-6 py-4 text-black">{p.consumido}</td>
+                        <td className="px-6 py-4 text-black">
+                          ${Number(p.precio || 0).toLocaleString()}
                         </td>
-
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600">
-                          <div className="min-w-0 max-w-[30ch] lg:max-w-[40ch]">
-                            <div className={ONE_LINE_SAFE} title={p.barcode}>
-                              {p.barcode}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {p.vencimiento}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {p.cantidad}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {p.consumido}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {formatPriceOrUnassigned(p.precio)}
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          <span className={`${STATUS_BADGE_BASE} ${getStatusBadgeClass(p.estado)}`}>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`${STATUS_BADGE_BASE} ${getStatusBadgeClass(
+                              p.estado
+                            )}`}
+                          >
                             {p.estado}
                           </span>
                         </td>
-                        <td className="px-4 lg:px-6 py-4 text-right">
-                          <div className="inline-flex items-center gap-2">
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex gap-2">
                             <ViewDetailsButton
                               event={() => {
                                 setSelectedDetail(p);
@@ -563,16 +341,15 @@ export default function AllProductsPage() {
                             />
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>
 
-          {/* Paginador */}
-          <div className="mt-4 sm:mt-6">
+          <div className="mt-6">
             <Paginator
               currentPage={currentPage}
               perPage={perPage}
@@ -584,7 +361,6 @@ export default function AllProductsPage() {
         </div>
       </div>
 
-      {/* Delete Modal */}
       <ProductDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -592,7 +368,6 @@ export default function AllProductsPage() {
         product={selectedProductToDelete}
       />
 
-      {/* Modal detalle */}
       <DetailProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

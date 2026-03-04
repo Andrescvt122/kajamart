@@ -486,21 +486,6 @@ export default function IndexRegisterPurchase() {
     return base + iva + icu;
   };
 
-  const getPriceRelationError = (prod) => {
-    const compraRaw = String(prod?.precioCompra ?? "").trim();
-    const ventaRaw = String(prod?.precioVenta ?? "").trim();
-    if (!compraRaw || !ventaRaw) return "";
-
-    const precioCompra = Number(compraRaw);
-    const precioVenta = Number(ventaRaw);
-
-    if (!Number.isFinite(precioCompra) || !Number.isFinite(precioVenta)) return "";
-    if (precioCompra >= precioVenta) {
-      return "El precio de compra debe ser menor al precio de venta.";
-    }
-    return "";
-  };
-
   const total = useMemo(
     () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
     [productos]
@@ -1092,20 +1077,6 @@ export default function IndexRegisterPurchase() {
         return;
       }
 
-      const priceError = getPriceRelationError(p);
-      if (priceError) {
-        await Swal.fire({
-          icon: "warning",
-          title: "Cuidado",
-          text: `Revisa "${p.nombre}": ${priceError}`,
-          confirmButtonColor: "#16a34a",
-        });
-        setMensajeProducto({
-          tipo: "error",
-          texto: `⚠️ Revisa "${p.nombre}": ${priceError}`,
-        });
-        return;
-      }
     }
 
     // ✅ comprobante debe ser válido
@@ -1548,7 +1519,6 @@ export default function IndexRegisterPurchase() {
             </tr>
           ) : (
             productos.map((prod, i) => {
-              const priceRelationError = getPriceRelationError(prod);
               return (
               <tr key={`${prod.productoId ?? getProductoId(prod)}-${i}`}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
@@ -1649,9 +1619,7 @@ export default function IndexRegisterPurchase() {
                       setProductos(nueva);
                     }}
                     disabled={isRegistrandoCompra}
-                    className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
-                      priceRelationError ? "border-red-500" : ""
-                    }`}
+                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
                   />
                 </td>
 
@@ -1671,13 +1639,8 @@ export default function IndexRegisterPurchase() {
                       setProductos(nueva);
                     }}
                     disabled={isRegistrandoCompra}
-                    className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
-                      priceRelationError ? "border-red-500" : ""
-                    }`}
+                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
                   />
-                  {priceRelationError && (
-                    <p className="mt-1 text-xs text-red-600">{priceRelationError}</p>
-                  )}
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
