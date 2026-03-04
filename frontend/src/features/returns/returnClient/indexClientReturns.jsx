@@ -198,7 +198,7 @@ export default function IndexClientReturns() {
       />
 
       {/* Contenido */}
-      <div className="relative z-10">
+      <div className="relative z-10 text-gray-900">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -252,8 +252,6 @@ export default function IndexClientReturns() {
         <motion.div
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
           variants={tableVariants}
-          initial="hidden"
-          animate="visible"
         >
           <table key={currentPage} className="min-w-full">
             <thead>
@@ -269,7 +267,7 @@ export default function IndexClientReturns() {
               </tr>
             </thead>
             <motion.tbody
-              className="divide-y divide-gray-100"
+              className="divide-y divide-gray-100 text-gray-700"
               variants={tableVariants}
             >
               {loading ? (

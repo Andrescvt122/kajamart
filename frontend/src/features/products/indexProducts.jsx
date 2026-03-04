@@ -626,10 +626,8 @@ export default function IndexProducts() {
               {/* IMPORTANTE: el stagger vive en el tbody y las filas solo heredan */}
               <motion.tbody
                 key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
-                className="divide-y divide-gray-100"
+                className="divide-y divide-gray-100 text-gray-700"
                 variants={tableVariants}
-                initial="hidden"
-                animate="visible"
               >
                 {isLoading || isCatLoading ? (
                   <tr>
