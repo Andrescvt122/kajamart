@@ -624,10 +624,9 @@ export default function IndexProducts() {
               </thead>
 
               {/* IMPORTANTE: el stagger vive en el tbody y las filas solo heredan */}
-              <motion.tbody
+              <tbody
                 key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
                 className="divide-y divide-gray-100 text-gray-700"
-                variants={tableVariants}
               >
                 {isLoading || isCatLoading ? (
                   <tr>
@@ -646,11 +645,9 @@ export default function IndexProducts() {
                   </tr>
                 ) : (
                   pageItems.map((p, i) => (
-                    <motion.tr
+                    <tr
                       key={p.id + "-" + i}
-                      variants={rowVariants} // <- hereda de tbody
                       className="hover:bg-gray-50 align-top"
-                      layout
                     >
                       <td className="px-4 lg:px-6 py-4">
                         <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -721,10 +718,10 @@ export default function IndexProducts() {
                           />
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))
                 )}
-              </motion.tbody>
+              </tbody>
             </table>
           </motion.div>
 
