@@ -294,7 +294,7 @@ export default function IndexRoles() {
                   </tr>
                 </thead>
 
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
+                <tbody className="divide-y divide-gray-100">
                   {loading ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center"><span className="text-sm text-gray-600">Cargando roles...</span></td>
@@ -305,7 +305,7 @@ export default function IndexRoles() {
                     </tr>
                   ) : (
                     pageItems.map((role, i) => (
-                      <motion.tr key={role.rol_id ?? role.id ?? i} className="hover:bg-gray-50" variants={rowVariants}>
+                      <tr key={role.rol_id ?? role.id ?? i} className="hover:bg-gray-50">
                         <td className="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900">{role.rol_nombre || role.nombre || "—"}</td>
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">{role.descripcion || role.rol_descripcion || "Sin descripción"}</td>
                         <td className="px-4 lg:px-6 py-4">
@@ -322,10 +322,10 @@ export default function IndexRoles() {
                             <button type="button" onClick={() => openDeleteModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Eliminar"><DeleteButton canDelete={canDelete}/></button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>

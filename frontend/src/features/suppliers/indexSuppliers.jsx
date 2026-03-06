@@ -483,10 +483,7 @@ export default function IndexSuppliers() {
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  className="divide-y divide-gray-100"
-                  variants={tableVariants}
-                >
+                <tbody className="divide-y divide-gray-100 text-gray-700">
                   {isLoading ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12">
@@ -515,10 +512,9 @@ export default function IndexSuppliers() {
                             }`;
 
                       return (
-                        <motion.tr
+                        <tr
                           key={(s.id_proveedor ?? s.nit ?? i) + "-" + i}
                           className="hover:bg-gray-50 align-top"
-                          variants={rowVariants}
                         >
                           <td className="px-4 lg:px-6 py-4 align-top text-sm text-gray-600 whitespace-nowrap">
                             {s.nit ?? "—"}
@@ -574,11 +570,11 @@ export default function IndexSuppliers() {
                               />
                             </div>
                           </td>
-                        </motion.tr>
+                        </tr>
                       );
                     })
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>

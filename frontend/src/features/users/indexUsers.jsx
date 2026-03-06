@@ -446,10 +446,7 @@ export default function IndexUsers() {
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  className="divide-y divide-gray-100"
-                  variants={tableVariants}
-                >
+                <tbody className="divide-y divide-gray-100">
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center">
@@ -469,11 +466,7 @@ export default function IndexUsers() {
                     </tr>
                   ) : (
                     pageItems.map((user) => (
-                      <motion.tr
-                        key={user.id}
-                        className="hover:bg-gray-50"
-                        variants={rowVariants}
-                      >
+                      <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                           {user.Nombre}
                         </td>
@@ -538,10 +531,10 @@ export default function IndexUsers() {
                             </button>)}
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>
