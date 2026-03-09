@@ -28,6 +28,8 @@ function getFirstProductText(purchase) {
 export default function PurchaseSearchSelect({
   onSelect,
   placeholder = "Buscar compra por número, proveedor, etc...",
+  isOptionDisabled,
+  getOptionDisabledMessage,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
@@ -46,6 +48,7 @@ export default function PurchaseSearchSelect({
   }, [purchases]);
 
   const handlePick = (purchase) => {
+    if (isOptionDisabled?.(purchase)) return;
     onSelect?.(purchase);
     setSearchTerm(String(purchase?.id_compra ?? ""));
     setShowDropdown(false);
@@ -125,20 +128,30 @@ export default function PurchaseSearchSelect({
               <div className="p-4 text-center text-red-500">{error}</div>
             ) : list.length > 0 ? (
               list.map((p) => {
+                const isDisabled = Boolean(isOptionDisabled?.(p));
                 const compra = p?.id_compra ?? "-";
                 const proveedor = p?.proveedores?.nombre || "Sin proveedor";
                 const fecha = formatDate(p?.fecha_compra);
                 const producto = getFirstProductText(p);
+                const disabledMessage = getOptionDisabledMessage?.(p);
 
                 return (
                   <motion.div
                     key={p?.id_compra}
-                    className="px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 hover:bg-green-50 cursor-pointer"
+                    className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 ${
+                      isDisabled
+                        ? "bg-gray-50 opacity-70 cursor-not-allowed"
+                        : "hover:bg-green-50 cursor-pointer"
+                    }`}
                     onClick={() => handlePick(p)}
                     whileHover={{
-                      scale: 1.01,
-                      backgroundColor: "#dcfce7",
-                      transition: { duration: 0.2 },
+                      ...(isDisabled
+                        ? {}
+                        : {
+                            scale: 1.01,
+                            backgroundColor: "#dcfce7",
+                            transition: { duration: 0.2 },
+                          }),
                     }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -154,6 +167,11 @@ export default function PurchaseSearchSelect({
                         <p className="text-xs text-gray-500 mt-1">
                           {producto}
                         </p>
+                        {isDisabled && disabledMessage ? (
+                          <p className="text-xs text-amber-700 mt-1 font-medium">
+                            {disabledMessage}
+                          </p>
+                        ) : null}
                       </div>
 
                       {/* Badge estado (opcional) */}
