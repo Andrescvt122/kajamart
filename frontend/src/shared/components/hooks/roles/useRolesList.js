@@ -1,61 +1,43 @@
 // Archivo: useRolesList.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const API_URL = "http://localhost:3000/kajamart/api/roles";
 
-export const useRolesList = () => {
+export const useRolesList = ({ page = 1, limit = 6, search = "" } = {}) => {
   const [roles, setRoles] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔹 Obtener lista completa de roles desde el backend
-  const getRoles = async () => {
+  const getRoles = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(API_URL);
-      setRoles(data);
+      const { data } = await axios.get(API_URL, {
+        params: { page, limit, search: search || undefined },
+      });
+      setRoles(data.data);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
     } catch (err) {
       console.error("❌ Error al obtener roles:", err);
       setError(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search]);
 
-  // 🔹 Agregar un nuevo rol sin recargar la página
-  const addRole = (newRole) => {
-    setRoles((prev) => {
-      // Evita duplicados por ID
-      const exists = prev.some((r) => r.rol_id === newRole.rol_id);
-      return exists ? prev : [...prev, newRole];
-    });
-  };
-
-  // 🔹 Actualizar un rol en el estado local
-  const updateRoleInState = (updated) => {
-    setRoles((prev) =>
-      prev.map((r) => (r.rol_id === updated.rol_id ? updated : r))
-    );
-  };
-
-  // 🔹 Eliminar un rol del estado local
-  const deleteRoleInState = (id) => {
-    setRoles((prev) => prev.filter((r) => r.rol_id !== id));
-  };
-
-  // 🔹 Cargar roles al iniciar
   useEffect(() => {
     getRoles();
-  }, []);
+  }, [getRoles]);
 
   return {
     roles,
+    total,
+    totalPages,
     loading,
     error,
     getRoles,
-    addRole,
-    updateRoleInState,
-    deleteRoleInState,
   };
 };
