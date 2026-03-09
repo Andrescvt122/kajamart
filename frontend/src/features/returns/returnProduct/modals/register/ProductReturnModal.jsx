@@ -19,6 +19,7 @@ import { useFetchReturnProducts } from "../../../../../shared/components/hooks/r
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 import { useAuth } from "../../../../../context/useAtuh";
+import Swal from "sweetalert2";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const isReturnProduct = true;
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -199,9 +200,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
     // Si ya hay detalle y se intenta seleccionar "descuento", bloqueamos y avisamos
     if (actionValue === "descuento" && hasDetail) {
-      alert(
-        "Para poder seleccionar descuento, primero debes borrar el registro del detalle de producto."
-      );
+      Swal.fire({
+        icon: "warning",
+        title: "Acción no permitida",
+        text: "Para seleccionar descuento, primero debes borrar el registro del detalle de producto.",
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
@@ -278,11 +282,21 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const errorMsg = validateInvoiceNumber(invoiceNumber);
     if (errorMsg) {
       setInvoiceError(errorMsg);
-      alert("Corrige el número de factura antes de continuar.");
+      Swal.fire({
+        icon: "warning",
+        title: "Factura inválida",
+        text: "Corrige el número de factura antes de continuar.",
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
     if (selectedProducts.length === 0) {
-      alert("Selecciona al menos un producto.");
+      Swal.fire({
+        icon: "warning",
+        title: "Faltan productos",
+        text: "Selecciona al menos un producto.",
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
@@ -303,9 +317,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     );
 
     if (missingDetail) {
-      alert(
-        `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`
-      );
+      Swal.fire({
+        icon: "warning",
+        title: "Detalle faltante",
+        text: `El producto "${missingDetail.productos.nombre}" tiene acción Registrar pero no tiene detalle cargado.`,
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
@@ -340,11 +357,14 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "detail:",
               detail
             );
-            alert(
-              `El producto "${
+            Swal.fire({
+              icon: "error",
+              title: "Producto inválido",
+              text: `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
-              }" no tiene id_detalle_producto. Revisa el origen de los datos.`
-            );
+              }" no tiene id_detalle_producto. Revisa el origen de los datos.`,
+              confirmButtonColor: "#16a34a",
+            });
             return null;
           }
 
@@ -397,7 +417,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       }
     } catch (err) {
       console.error("❌ Error en handleAcceptAlert:", err);
-      alert(err.message || "No fue posible registrar la devolución.");
+      Swal.fire({
+        icon: "error",
+        title: "Error al registrar",
+        text: err.message || "No fue posible registrar la devolución.",
+        confirmButtonColor: "#16a34a",
+      });
     }
   };
 
@@ -561,7 +586,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <h3 className="text-lg font-semibold text-gray-800 mb-4">
                         Buscar y agregar productos
                       </h3>
-                      <ProductSearch onAddProduct={handleAddProduct} />
+                      <ProductSearch
+                        onAddProduct={handleAddProduct}
+                        requireExpiryEligibility
+                      />
                     </motion.div>
                     {/* Lista de productos seleccionados */}
                     <AnimatePresence>
