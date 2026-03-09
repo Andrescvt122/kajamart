@@ -16,6 +16,7 @@ import ProductSearch from "../../../../shared/components/searchBars/productSearc
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
 import { useAuth } from "../../../../context/useAtuh";
+import Swal from "sweetalert2";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
@@ -34,6 +35,25 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = payloadId.uid;
   const isBusy = loading || isSubmittingLow;
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const isExpiredProduct = (expiryDateValue) => {
+    const expiryDate = parseDateSafe(expiryDateValue);
+    if (!expiryDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const normalizedExpiry = new Date(expiryDate);
+    normalizedExpiry.setHours(0, 0, 0, 0);
+
+    return normalizedExpiry < today;
+  };
+
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -77,6 +97,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       unitCost: product.productos?.costo_unitario || 0,
       cantidad_unitaria: product?.productos?.cantidad_unitaria ?? null,
       reason: "",
+      expiryDate: product.fecha_vencimiento || null,
+      isExpired: isExpiredProduct(product.fecha_vencimiento),
     };
     setSelectedProducts((prev) => [...prev, adaptedProduct]);
     setOpenConfigProductId(adaptedProduct.id);
@@ -154,11 +176,26 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     }).format(price);
 
   // 🔹 Paso 1: Mostrar alerta de confirmación
-  const handleConfirmLow = () => {
-    if (selectedProducts.length === 0)
-      return alert("Selecciona al menos un producto.");
-    if (selectedProducts.some((p) => !p.reason))
-      return alert("Todos los productos deben tener un motivo de baja.");
+  const handleConfirmLow = async () => {
+    if (selectedProducts.length === 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Campos requeridos",
+        text: "Selecciona al menos un producto.",
+        confirmButtonColor: "#059669",
+      });
+      return;
+    }
+
+    if (selectedProducts.some((p) => !p.reason)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Campos requeridos",
+        text: "Todos los productos deben tener un motivo de baja.",
+        confirmButtonColor: "#059669",
+      });
+      return;
+    }
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
@@ -167,9 +204,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     );
 
     if (invalidUnitSale) {
-      alert(
-        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria.",
-      );
+      await Swal.fire({
+        icon: "warning",
+        title: "Validación de traslado",
+        text: "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria.",
+        confirmButtonColor: "#059669",
+      });
       return;
     }
     setShowConfirmAlert(true);
@@ -194,7 +234,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
         }, 2500);
       }
     } catch (error) {
-      alert(error?.message || "No fue posible completar la baja.");
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error?.message || "No fue posible completar la baja.",
+        confirmButtonColor: "#059669",
+      });
     } finally {
       setIsSubmittingLow(false);
     }
@@ -268,6 +313,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             <p className="text-xs text-gray-500">
                               {formatPrice(p.salePrice)} c/u
                             </p>
+                            {p.isExpired && (
+                              <p className="text-xs text-red-600 font-medium mt-0.5">
+                                Producto vencido: se habilita motivo "Superó fecha de vencimiento"
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -338,6 +388,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                     !p.cantidad_unitaria
                                   )
                                     return null;
+                                  const isExpired = Boolean(p.isExpired);
+                                  if (r.value === "vencido" && !isExpired) return null;
+
                                   const isSelected = p.reason === r.value;
                                   const hasTransferConfigured =
                                     p.reason === "venta unitaria" &&

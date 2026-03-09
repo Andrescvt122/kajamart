@@ -85,6 +85,46 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     return Array.from(new Set(all));
   }, [purchases, returns]);
 
+
+
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const getPurchaseExpiryStatus = (purchase) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const detalles = Array.isArray(purchase?.detalle_compra)
+      ? purchase.detalle_compra
+      : [];
+
+    const hasExpiredOrNearExpiry = detalles.some((detail) => {
+      const expiryDate = parseDateSafe(
+        detail?.detalle_productos?.fecha_vencimiento,
+      );
+      if (!expiryDate) return false;
+
+      const normalizedExpiry = new Date(expiryDate);
+      normalizedExpiry.setHours(0, 0, 0, 0);
+
+      const diffInDays = Math.ceil(
+        (normalizedExpiry - today) / (1000 * 60 * 60 * 24),
+      );
+
+      return diffInDays <= 7;
+    });
+
+    return {
+      selectable: hasExpiredOrNearExpiry,
+      message: hasExpiredOrNearExpiry
+        ? ""
+        : "Sin productos vencidos o próximos a vencer (<= 7 días)",
+    };
+  };
+
   const normalizePurchaseProducts = (purchase) => {
     const detalles = Array.isArray(purchase?.detalle_compra)
       ? purchase.detalle_compra
@@ -669,6 +709,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <PurchaseSearchSelect
                         placeholder="Buscar compra por #, proveedor, fecha, producto..."
                         onSelect={handleSelectPurchase}
+                        isOptionDisabled={(purchase) =>
+                          !getPurchaseExpiryStatus(purchase).selectable
+                        }
+                        getOptionDisabledMessage={(purchase) =>
+                          getPurchaseExpiryStatus(purchase).message
+                        }
                       />
 
                       {/* 2) Lista de productos de la compra seleccionada (como devoluci?n de clientes) */}
