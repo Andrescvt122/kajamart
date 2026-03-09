@@ -19,6 +19,7 @@ import ProductRegisterModal from "../../../products/productRegisterModal";
 import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
 import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../context/useAtuh";
+import Swal from "sweetalert2";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
@@ -37,6 +38,38 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = payloadId.uid;
+
+  const normalizeDate = (rawDate) => {
+    if (!rawDate) return null;
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const getExpiryStatus = (rawDate) => {
+    const expiryDate = normalizeDate(rawDate);
+    if (!expiryDate) return { expired: false, nearExpiry: false };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const inAWeek = new Date(today);
+    inAWeek.setDate(inAWeek.getDate() + 7);
+
+    return {
+      expired: expiryDate < today,
+      nearExpiry: expiryDate >= today && expiryDate <= inAWeek,
+    };
+  };
+
+  const showWarningAlert = (title, text) =>
+    Swal.fire({
+      icon: "warning",
+      title,
+      text,
+      confirmButtonColor: "#16a34a",
+    });
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -77,6 +110,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       requestedQuantity: 1,
       unitCost: product.productos?.costo_unitario || 0,
       cantidad_unitaria: product?.productos?.cantidad_unitaria ?? null,
+      expiryDate:
+        product?.fecha_vencimiento ||
+        product?.expiryDate ||
+        product?.fechaVencimiento ||
+        null,
       reason: "",
     };
     setSelectedProducts((prev) => [...prev, adaptedProduct]);
@@ -143,9 +181,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   // 🔹 Paso 1: Mostrar alerta de confirmación
   const handleConfirmLow = () => {
     if (selectedProducts.length === 0)
-      return alert("Selecciona al menos un producto.");
+      return showWarningAlert("Faltan productos", "Selecciona al menos un producto.");
     if (selectedProducts.some((p) => !p.reason))
-      return alert("Todos los productos deben tener un motivo de baja.");
+      return showWarningAlert("Faltan motivos", "Todos los productos deben tener un motivo de baja.");
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
@@ -153,7 +191,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     );
 
     if (invalidUnitSale) {
-      alert(
+      showWarningAlert(
+        "Configuración incompleta",
         "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria."
       );
       return;
@@ -316,6 +355,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                   const isLockedOption =
                                     hasTransferConfigured &&
                                     r.value !== "venta unitaria";
+                                  const expiryStatus = getExpiryStatus(p.expiryDate);
+                                  const isExpired = expiryStatus.expired;
+                                  const shouldHideOption =
+                                    r.value === "vencido" && !isExpired;
+                                  if (shouldHideOption) return null;
                                   return (
                                     <label
                                       key={r.value}
@@ -382,6 +426,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                     </label>
                                   );
                                 })}
+                                {getExpiryStatus(p.expiryDate).expired && (
+                                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                                    Motivo sugerido: superó la fecha de vencimiento.
+                                  </p>
+                                )}
                                 <AnimatePresence>
                                   {reasonLockAlertByProduct[p.id] && (
                                     <motion.div

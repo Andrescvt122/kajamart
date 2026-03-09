@@ -3,7 +3,7 @@ import { Search, Package, CheckCircle, AlertCircle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFetchProduct } from "../hooks/searchBars/useFetchProducts";
 
-const ProductSearch = ({ onAddProduct }) => {
+const ProductSearch = ({ onAddProduct, requireExpiryEligibility = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -26,12 +26,20 @@ const ProductSearch = ({ onAddProduct }) => {
   const { data: products, loading, error } = useFetchProduct(debouncedTerm);
 
   const handleSelectProduct = (product) => {
-    // 🚫 Si no tiene stock, no permitimos seleccionarlo
     if (product.stock_producto <= 0) {
       showTemporaryAlert(
         `El producto "${
           product.productos?.nombre || "sin nombre"
         }" no tiene stock disponible.`
+      );
+      return;
+    }
+
+    if (requireExpiryEligibility && !getExpiryStatus(product).isEligible) {
+      showTemporaryAlert(
+        `El producto "${
+          product.productos?.nombre || "sin nombre"
+        }" no aplica para devolución por vencimiento.`
       );
       return;
     }
@@ -276,18 +284,22 @@ const ProductSearch = ({ onAddProduct }) => {
             ) : products && products.length > 0 ? (
               products.map((item) => {
                 const isOutOfStock = item.stock_producto <= 0;
+                const expiryStatus = getExpiryStatus(item);
+                const isDisabledByExpiry =
+                  requireExpiryEligibility && !expiryStatus.isEligible;
+                const isDisabled = isOutOfStock || isDisabledByExpiry;
 
                 return (
                   <motion.div
                     key={item.id_detalle_producto}
                     className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 ${
-                      isOutOfStock
+                      isDisabled
                         ? "bg-gray-50 cursor-not-allowed opacity-60"
                         : "hover:bg-green-50 cursor-pointer"
                     }`}
                     onClick={() => handleSelectProduct(item)}
                     whileHover={
-                      !isOutOfStock
+                      !isDisabled
                         ? {
                             scale: 1.01,
                             backgroundColor: "#dcfce7",
@@ -313,6 +325,16 @@ const ProductSearch = ({ onAddProduct }) => {
                             Sin stock disponible
                           </p>
                         )}
+                        {!isOutOfStock && isDisabledByExpiry && (
+                          <p className="text-xs text-amber-600 font-semibold mt-1">
+                            {expiryStatus.label}
+                          </p>
+                        )}
+                        {!isOutOfStock && requireExpiryEligibility && !isDisabledByExpiry && (
+                          <p className="text-xs text-emerald-600 font-semibold mt-1">
+                            {expiryStatus.label}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -331,3 +353,64 @@ const ProductSearch = ({ onAddProduct }) => {
 };
 
 export default ProductSearch;
+  const normalizeDate = (rawDate) => {
+    if (!rawDate) return null;
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const getExpiryDate = (product) =>
+    normalizeDate(
+      product?.fecha_vencimiento ||
+        product?.expiryDate ||
+        product?.fechaVencimiento ||
+        product?.registeredExpiry
+    );
+
+  const getExpiryStatus = (product) => {
+    const expiryDate = getExpiryDate(product);
+    if (!expiryDate) {
+      return {
+        isEligible: false,
+        isExpired: false,
+        isNearExpiry: false,
+        label: "Sin fecha de vencimiento registrada",
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const inAWeek = new Date(today);
+    inAWeek.setDate(inAWeek.getDate() + 7);
+
+    const isExpired = expiryDate < today;
+    const isNearExpiry = expiryDate >= today && expiryDate <= inAWeek;
+
+    if (isExpired) {
+      return {
+        isEligible: true,
+        isExpired: true,
+        isNearExpiry: false,
+        label: "Vencido",
+      };
+    }
+
+    if (isNearExpiry) {
+      return {
+        isEligible: true,
+        isExpired: false,
+        isNearExpiry: true,
+        label: "Cerca de vencer (≤ 7 días)",
+      };
+    }
+
+    return {
+      isEligible: false,
+      isExpired: false,
+      isNearExpiry: false,
+      label: "No vencido ni próximo a vencer",
+    };
+  };
