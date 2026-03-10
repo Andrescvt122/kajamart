@@ -39,7 +39,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
-  const { refetch, returns } = useFetchReturnProducts();
+  const { allItems: returns, fetchAll } = useFetchReturnProducts();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
@@ -56,11 +56,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       .trim()
       .toLowerCase();
   // ?Y???? Lista de n?meros de factura ya usados en compras y devoluciones
+  // make sure we have the complete list of returns (not just current page)
+  React.useEffect(() => {
+    fetchAll().catch(console.error);
+  }, []);
+
   const existingInvoiceNumbers = useMemo(() => {
     const fromPurchases =
       purchases
         ?.map((p) => {
-          // Intentamos varios nombres de campo y, si no, usamos id_compra como fallback
           return (
             p.numero_factura ||
             p.numeroFactura ||
@@ -77,7 +81,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         })
         .filter(Boolean) || [];
 
-    // normalizamos y quitamos duplicados
     const all = [...fromPurchases, ...fromReturns]
       .map((n) => normalizeInvoice(n))
       .filter(Boolean);
@@ -524,7 +527,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       console.log("Resultado de postReturnProducts:", result);
 
       if (result) {
-        refetch();
+        // refresh cached returns for invoice validation
+        fetchAll().catch(console.error);
         setShowSuccessMessage(true);
         setTimeout(() => {
           setShowSuccessMessage(false);

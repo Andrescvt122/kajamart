@@ -65,7 +65,17 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexProductReturns() {
-  const { returns, loading, error, refetch } = useFetchReturnProducts();
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useFetchReturnProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,7 +85,6 @@ export default function IndexProductReturns() {
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const [annulledMap, setAnnulledMap] = useState({});
   const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
-  const perPage = 6;
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
@@ -119,9 +128,10 @@ export default function IndexProductReturns() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Aplanar datos y mostrar productos individuales con un id de fila estable
+  // items computed from current page only
   const flattenedProducts = useMemo(() => {
-    return (returns || []).flatMap((returnItem) =>
+    const pageData = pagesCache[currentPage] || [];
+    return pageData.flatMap((returnItem) =>
       (returnItem.products || []).map((product, idx) => ({
         idReturn: returnItem.idReturn,
         dateReturn: returnItem.dateReturn,
@@ -135,14 +145,14 @@ export default function IndexProductReturns() {
         ...product,
       }))
     );
-  }, [returns]);
+  }, [pagesCache, currentPage]);
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
     const byStatus = flattenedProducts.filter((product) => {
       const isActive = annulledMap[product.idReturn] ?? product.isActive;
       if (statusFilter === "active") return isActive === true;
-      if (statusFilter === "inactive") return isActive === false;
+      if (statusFilter === "inactive" || statusFilter === "annulled") return isActive === false;
       return true;
     });
     if (!s) return byStatus;
@@ -152,17 +162,13 @@ export default function IndexProductReturns() {
     );
   }, [flattenedProducts, searchTerm, statusFilter, annulledMap]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  const totalPages = getTotalPages();
+  const filteredLength = getLoadedCount();
+  const pageItems = filtered; // already one page worth after filter
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+    fetchPage(currentPage);
+  }, [currentPage]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -180,13 +186,15 @@ export default function IndexProductReturns() {
   const handleOpenReturnModal = () => setIsReturnModalOpen(true);
   const handleCloseReturnModal = () => {
     setIsReturnModalOpen(false);
-    refetch?.();
+    // reset cache and fetch first page on new registration
+    reset();
+    setCurrentPage(1);
+    fetchPage(1);
   };
 
   const handleOpenDetailsModal = (productData) => {
-    const returnItem = (returns || []).find(
-      (r) => r.idReturn === productData.idReturn
-    );
+    const pageData = pagesCache[currentPage] || [];
+    const returnItem = pageData.find((r) => r.idReturn === productData.idReturn);
     if (returnItem) {
       setSelectedReturnData(returnItem);
       setIsDetailsModalOpen(true);
@@ -220,7 +228,8 @@ export default function IndexProductReturns() {
         try {
           await annulReturnProduct(item.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
-          await refetch?.();
+          // refresh current page
+          await fetchPage(currentPage);
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -642,7 +651,7 @@ export default function IndexProductReturns() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>
