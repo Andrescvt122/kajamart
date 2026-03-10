@@ -113,6 +113,37 @@ export default function IndexProducts() {
   const canDelete = hasPermission("Eliminar productos");
   const canEdit = hasPermission("Editar productos");
   const canCreate = hasPermission("Crear productos");
+  const handleExportExcel = async () => {
+
+  try {
+
+    const products = await getAllProductsForExport(searchTerm);
+
+    exportProductsToExcel(products);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const products = await getAllProductsForExport(searchTerm);
+
+    exportProductsToPDF(products);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   // Normalizar categorías
   const categories = useMemo(
     () =>

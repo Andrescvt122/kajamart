@@ -115,7 +115,37 @@ export default function IndexCategories() {
       return next;
     });
   };
+const handleExportExcel = async () => {
 
+  try {
+
+    const allCategories = await getAllCategoriesForExport(searchTerm);
+
+    exportCategoriesToExcel(allCategories);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const allCategories = await getAllCategoriesForExport(searchTerm);
+
+    exportCategoriesToPDF(allCategories);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   // Filtro
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
