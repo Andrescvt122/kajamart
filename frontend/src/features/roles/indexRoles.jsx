@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ViewButton, EditButton, DeleteButton } from "../../shared/components/buttons";
 import { Search } from "lucide-react";
 import ondas from "../../assets/ondasHorizontal.png";
@@ -38,27 +38,28 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexRoles() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
+
   const {
     roles,
+    total,
+    totalPages,
     loading,
     error,
-    addRole,
-    updateRoleInState,
-    deleteRoleInState,
-  } = useRolesList();
+    getRoles,
+  } = useRolesList({ page: currentPage, limit: perPage, search: searchTerm });
 
-  const { permisosAgrupados, loading: loadingPermisos } = usePermisosList();
-
+  const pageItems = roles || [];
+  const { permisosAgrupados } = usePermisosList();
   const [selectedRole, setSelectedRole] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 6;
-  const {hasPermission} = useAuth();
+  const { hasPermission, payload } = useAuth();
   const canCreate = hasPermission("Crear roles");
   const canEdit = hasPermission("Editar roles");
   const canDelete = hasPermission("Eliminar roles");
@@ -83,27 +84,25 @@ export default function IndexRoles() {
     };
   }, [isModalOpen, isDetailsOpen, isEditOpen, isDeleteModalOpen]);
 
-  const handleRoleCreated = (newRole) => {
-    addRole(newRole);
-    setSelectedRole(newRole);
-    setIsModalOpen(false);
+  const handleRoleCreated = () => {
     setCurrentPage(1);
+    getRoles();
+    setIsModalOpen(false);
   };
 
-  const handleRoleUpdated = (updatedRole) => {
-    updateRoleInState(updatedRole);
+  const handleRoleUpdated = () => {
+    getRoles();
     setIsEditOpen(false);
     setSelectedRole(null);
   };
 
-  const handleRoleDeleted = (roleId) => {
-    deleteRoleInState(roleId);
+  const handleRoleDeleted = () => {
     setIsDeleteModalOpen(false);
     setRoleToDelete(null);
-    // ajustar página si hace falta
-    const affects = roles.some((r) => r.rol_id === roleId || r.id === roleId);
-    if (affects && currentPage > 1) {
+    if (pageItems.length === 1 && currentPage > 1) {
       setCurrentPage((p) => p - 1);
+    } else {
+      getRoles();
     }
   };
 
@@ -121,30 +120,6 @@ export default function IndexRoles() {
     setRoleToDelete(role);
     setIsDeleteModalOpen(true);
   };
-
-  const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    if (!s) return roles;
-    return roles.filter((p) =>
-      Object.values(p).some((value) =>
-        normalizeText(String(value)).includes(s)
-      )
-    );
-  }, [roles, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
@@ -203,7 +178,7 @@ export default function IndexRoles() {
 
             <div className="flex flex-wrap gap-2 sm:justify-end min-w-0">
               <button
-              hiddent={!canCreate}
+              hidden={!canCreate}
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: "auto" });
                   setIsModalOpen(true);
@@ -224,7 +199,7 @@ export default function IndexRoles() {
             ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">No se encontraron roles.</div>
             ) : (
-              <motion.ul className="space-y-3" variants={tableVariants}>
+              <motion.ul className="space-y-3" variants={tableVariants} initial="hidden" animate="visible">
                 {pageItems.map((role, i) => {
                   const id = role.rol_id ?? role.id ?? i;
                   const isExpanded = expanded.has(id);
@@ -267,8 +242,8 @@ export default function IndexRoles() {
 
                               <div className="mt-4 flex items-center gap-2">
                                 <ViewButton  event={() => openDetailsModal(role)} />
-                                <EditButton canEdit={canEdit} event={() => openEditModal(role)} />
-                                <DeleteButton canDelete={canDelete} event={() => openDeleteModal(role)} />
+                                <EditButton canEdit={canEdit && (role.rol_id ?? role.id) !== payload?.rol_id} event={() => openEditModal(role)} />
+                                <DeleteButton canDelete={canDelete && (role.rol_id ?? role.id) !== payload?.rol_id} event={() => openDeleteModal(role)} />
                               </div>
                             </div>
                           </motion.div>
@@ -294,18 +269,18 @@ export default function IndexRoles() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-gray-100">
+                <motion.tbody key={loading ? "loading" : "loaded"} initial="hidden" animate="visible" className="divide-y divide-gray-100" variants={tableVariants}>
                   {loading ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center"><span className="text-sm text-gray-600">Cargando roles...</span></td>
                     </tr>
-                  ) : filtered.length === 0 ? (
+                  ) : pageItems.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-8 text-center text-gray-400">No se encontraron roles.</td>
                     </tr>
                   ) : (
                     pageItems.map((role, i) => (
-                      <tr key={role.rol_id ?? role.id ?? i} className="hover:bg-gray-50">
+                      <motion.tr key={role.rol_id ?? role.id ?? i} className="hover:bg-gray-50" variants={rowVariants}>
                         <td className="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900">{role.rol_nombre || role.nombre || "—"}</td>
                         <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">{role.descripcion || role.rol_descripcion || "Sin descripción"}</td>
                         <td className="px-4 lg:px-6 py-4">
@@ -318,20 +293,24 @@ export default function IndexRoles() {
                         <td className="px-4 lg:px-6 py-4 text-right">
                           <div className="inline-flex items-center gap-2">
                             <button type="button" onClick={() => openDetailsModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Ver detalles"><ViewButton /></button>
-                            <button type="button" onClick={() => openEditModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Editar"><EditButton canEdit={canEdit} /></button>
-                            <button type="button" onClick={() => openDeleteModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Eliminar"><DeleteButton canDelete={canDelete}/></button>
+                            {canEdit && (role.rol_id ?? role.id) !== payload?.rol_id && (
+                              <button type="button" onClick={() => openEditModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Editar"><EditButton canEdit={true} /></button>
+                            )}
+                            {canDelete && (role.rol_id ?? role.id) !== payload?.rol_id && (
+                              <button type="button" onClick={() => openDeleteModal(role)} className="p-1 rounded-md hover:bg-gray-100" title="Eliminar"><DeleteButton canDelete={true}/></button>
+                            )}
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))
                   )}
-                </tbody>
+                </motion.tbody>
               </table>
             </div>
           </motion.div>
 
           <div className="mt-4 sm:mt-6">
-            <Paginator currentPage={currentPage} perPage={perPage} totalPages={totalPages} filteredLength={filtered.length} goToPage={goToPage} />
+            <Paginator currentPage={currentPage} perPage={perPage} totalPages={totalPages} filteredLength={total} goToPage={goToPage} />
           </div>
         </div>
       </div>
