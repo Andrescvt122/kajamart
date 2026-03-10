@@ -27,6 +27,21 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const RETURNS_URL = `${API_BASE}/kajamart/api/returnClients`;
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CO", { month: "short" });
 const money = (value) => Number(value || 0);
+const extractReturnClientsPayload = (payload) => ({
+  data: Array.isArray(payload)
+    ? payload
+    : payload?.returnClients || payload?.data || [],
+  meta: payload?.meta || null,
+});
+const getCategoryName = (categoria) => {
+  if (Array.isArray(categoria)) {
+    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
+  }
+
+  return categoria?.nombre_categoria || null;
+};
+const getReturnedQuantity = (item) =>
+  Number(item?.cantidad_cliente_devuelto ?? item?.cantidad ?? 0);
 
 export default function DashboardReturnClients() {
   const [returnClients, setReturnClients] = useState([]);
@@ -38,10 +53,30 @@ export default function DashboardReturnClients() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(RETURNS_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setReturnClients(Array.isArray(json?.returnClients) ? json.returnClients : []);
+        let allReturns = [];
+        let cursor = null;
+        const visitedCursors = new Set();
+
+        while (true) {
+          const params = new URLSearchParams({ limit: "20" });
+          if (cursor != null) params.set("cursor", String(cursor));
+
+          const res = await fetch(`${RETURNS_URL}?${params.toString()}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+          const json = await res.json();
+          const payload = extractReturnClientsPayload(json);
+
+          allReturns = allReturns.concat(payload.data || []);
+
+          const nextCursor = payload.meta?.nextCursor;
+          if (nextCursor == null || visitedCursors.has(nextCursor)) break;
+
+          visitedCursors.add(nextCursor);
+          cursor = nextCursor;
+        }
+
+        setReturnClients(allReturns);
       } catch (err) {
         setError(err?.message || "Error cargando devoluciones");
         setReturnClients([]);
@@ -57,22 +92,41 @@ export default function DashboardReturnClients() {
     const monthMap = new Map();
     const clientsMap = new Map();
     const reasonsMap = new Map();
+    const categoriesMap = new Map();
 
     let totalAmount = 0;
+    let totalReturnedProducts = 0;
 
     returnClients.forEach((r) => {
       const date = new Date(r.fecha_devolucion || r.ventas?.fecha_venta);
+      const returnedItems = r.devolucion_cliente_devuelto || [];
+      const returnQuantity =
+        returnedItems.reduce(
+          (sum, item) => sum + getReturnedQuantity(item),
+          0
+        ) || Number(r.cantidad_devuelta_cliente || 0);
       const monthKey = Number.isNaN(date.getTime()) ? "Sin fecha" : `${date.getFullYear()}-${date.getMonth()}`;
-      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + 1);
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + returnQuantity);
 
       const clientName = r.ventas?.clientes?.nombre_cliente || "Cliente no identificado";
-      clientsMap.set(clientName, (clientsMap.get(clientName) || 0) + 1);
+      clientsMap.set(clientName, (clientsMap.get(clientName) || 0) + returnQuantity);
 
       totalAmount += money(r.total_devolucion_cliente);
+      totalReturnedProducts += returnQuantity;
 
-      (r.devolucion_cliente_devuelto || []).forEach((item) => {
+      returnedItems.forEach((item) => {
+        const quantity = getReturnedQuantity(item);
         const reason = item?.motivo || "Sin motivo";
-        reasonsMap.set(reason, (reasonsMap.get(reason) || 0) + 1);
+        const category =
+          getCategoryName(
+            item?.detalle_venta?.detalle_productos?.productos?.categorias
+          ) ||
+          item?.detalle_venta?.detalle_productos?.productos?.nombre_categoria ||
+          item?.detalle_venta?.detalle_productos?.productos?.categoria ||
+          "Sin categoría";
+
+        reasonsMap.set(reason, (reasonsMap.get(reason) || 0) + quantity);
+        categoriesMap.set(category, (categoriesMap.get(category) || 0) + quantity);
       });
     });
 
@@ -95,12 +149,19 @@ export default function DashboardReturnClients() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
 
+    const categories = [...categoriesMap.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
     return {
       monthlyVolume,
       totalReturns: returnClients.length,
+      totalReturnedProducts,
       avgReturnValue: returnClients.length ? totalAmount / returnClients.length : 0,
       topClients,
       reasons,
+      categories,
     };
   }, [returnClients]);
 
@@ -184,6 +245,19 @@ export default function DashboardReturnClients() {
     },
   };
 
+  const categoriesData = useMemo(() => ({
+    labels: data.categories.map((c) => c.label),
+    datasets: [{
+      label: "Categorías",
+      data: data.categories.map((c) => c.value),
+      backgroundColor: "rgba(47,106,63,0.75)",
+      borderColor: "#6ea57a",
+      borderWidth: 1,
+      borderRadius: 6,
+      maxBarThickness: 56,
+    }],
+  }), [data.categories]);
+
   return (
     <div className="p-8 bg-white min-h-screen">
       <div className="max-w-6xl mx-auto">
@@ -193,11 +267,18 @@ export default function DashboardReturnClients() {
           {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
         </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
             <p className="text-sm text-gray-600">Devoluciones Totales</p>
             <div className="mt-3 flex items-baseline gap-4">
               <span className="text-3xl font-bold text-gray-900">{data.totalReturns.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+            <p className="text-sm text-gray-600">Productos Devueltos</p>
+            <div className="mt-3 flex items-baseline gap-4">
+              <span className="text-3xl font-bold text-gray-900">{data.totalReturnedProducts.toLocaleString()}</span>
             </div>
           </div>
 
@@ -214,8 +295,8 @@ export default function DashboardReturnClients() {
         <section className="mb-10">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendencias de Devoluciones</h2>
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Volumen Mensual de Devoluciones</p>
-            <h3 className="text-3xl font-bold mt-2">{data.totalReturns.toLocaleString()}</h3>
+            <p className="text-sm text-gray-600">Volumen Mensual de Productos Devueltos</p>
+            <h3 className="text-3xl font-bold mt-2">{data.totalReturnedProducts.toLocaleString()}</h3>
             <div style={{ height: 220 }} className="mt-4"><Line data={lineData} options={lineOptions} /></div>
           </div>
         </section>
@@ -228,11 +309,21 @@ export default function DashboardReturnClients() {
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Razones de Devolución</h2>
-          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Distribución por motivo reportado</p>
-            <div style={{ height: 180 }} className="mt-4"><Bar data={reasonsData} options={reasonsOptions} /></div>
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Razones de Devolución</h2>
+            <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+              <p className="text-sm text-gray-600">Distribución por motivo reportado</p>
+              <div style={{ height: 180 }} className="mt-4"><Bar data={reasonsData} options={reasonsOptions} /></div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Categorías Más Afectadas</h2>
+            <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+              <p className="text-sm text-gray-600">Productos devueltos por categoría</p>
+              <div style={{ height: 180 }} className="mt-4"><Bar data={categoriesData} options={reasonsOptions} /></div>
+            </div>
           </div>
         </section>
       </div>

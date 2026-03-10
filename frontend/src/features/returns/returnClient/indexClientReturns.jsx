@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -40,7 +40,6 @@ export default function IndexClientReturns() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [annulledMap, setAnnulledMap] = useState({});
-
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
