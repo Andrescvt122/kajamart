@@ -39,7 +39,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
   const { postDetailProduct } = usePostDetailProduct();
-  const { refetch, returns } = useFetchReturnProducts();
+  const { allItems: returns, fetchAll } = useFetchReturnProducts();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
   const returnReasons = [
@@ -56,11 +56,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       .trim()
       .toLowerCase();
   // ?Y???? Lista de n?meros de factura ya usados en compras y devoluciones
+  // make sure we have the complete list of returns (not just current page)
+  React.useEffect(() => {
+    fetchAll().catch(console.error);
+  }, []);
+
   const existingInvoiceNumbers = useMemo(() => {
     const fromPurchases =
       purchases
         ?.map((p) => {
-          // Intentamos varios nombres de campo y, si no, usamos id_compra como fallback
           return (
             p.numero_factura ||
             p.numeroFactura ||
@@ -77,13 +81,52 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         })
         .filter(Boolean) || [];
 
-    // normalizamos y quitamos duplicados
     const all = [...fromPurchases, ...fromReturns]
       .map((n) => normalizeInvoice(n))
       .filter(Boolean);
 
     return Array.from(new Set(all));
   }, [purchases, returns]);
+
+
+
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const getPurchaseExpiryStatus = (purchase) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const detalles = Array.isArray(purchase?.detalle_compra)
+      ? purchase.detalle_compra
+      : [];
+
+    const hasExpiredOrNearExpiry = detalles.some((detail) => {
+      const expiryDate = parseDateSafe(
+        detail?.detalle_productos?.fecha_vencimiento,
+      );
+      if (!expiryDate) return false;
+
+      const normalizedExpiry = new Date(expiryDate);
+      normalizedExpiry.setHours(0, 0, 0, 0);
+
+      const diffInDays = Math.ceil(
+        (normalizedExpiry - today) / (1000 * 60 * 60 * 24),
+      );
+
+      return diffInDays <= 7;
+    });
+
+    return {
+      selectable: hasExpiredOrNearExpiry,
+      message: hasExpiredOrNearExpiry
+        ? ""
+        : "Sin productos vencidos o próximos a vencer (<= 7 días)",
+    };
+  };
 
   const normalizePurchaseProducts = (purchase) => {
     const detalles = Array.isArray(purchase?.detalle_compra)
@@ -484,7 +527,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       console.log("Resultado de postReturnProducts:", result);
 
       if (result) {
-        refetch();
+        // refresh cached returns for invoice validation
+        fetchAll().catch(console.error);
         setShowSuccessMessage(true);
         setTimeout(() => {
           setShowSuccessMessage(false);
@@ -669,6 +713,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       <PurchaseSearchSelect
                         placeholder="Buscar compra por #, proveedor, fecha, producto..."
                         onSelect={handleSelectPurchase}
+                        isOptionDisabled={(purchase) =>
+                          !getPurchaseExpiryStatus(purchase).selectable
+                        }
+                        getOptionDisabledMessage={(purchase) =>
+                          getPurchaseExpiryStatus(purchase).message
+                        }
                       />
 
                       {/* 2) Lista de productos de la compra seleccionada (como devoluci?n de clientes) */}

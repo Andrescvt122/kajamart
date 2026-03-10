@@ -68,7 +68,11 @@ ChartJS.register(
 );
 
 export default function DashboardReturnProducts() {
-  const { returns, loading, error } = useFetchReturnProducts();
+  const { allItems: returns, fetchAll, loading, error } = useFetchReturnProducts();
+
+  React.useEffect(() => {
+    fetchAll().catch(console.error);
+  }, []);
 
   const {
     monthLabels,

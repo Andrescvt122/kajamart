@@ -9,13 +9,27 @@ export const usePostLowProducts = () => {
   const [success, setSuccess] = useState(false);
   const [responseData, setResponseData] = useState(null);
 
+  const fileToDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error("Formato de imagen invalido"));
+      };
+      reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
+      reader.readAsDataURL(file);
+    });
+
   const postLowProducts = async (id_responsable, products) => {
     setLoading(true);
     setError(null);
     setSuccess(false);
 
     try {
-      const productsWithTotals = products.map((p) => {
+      const productsWithTotals = await Promise.all(products.map(async (p) => {
         const toNumberOrNull = (value) => {
           if (value === "" || value === null || value === undefined) {
             return null;
@@ -31,32 +45,41 @@ export const usePostLowProducts = () => {
           cantidadOrigen > 0 ? cantidadTraslado / cantidadOrigen : null;
         const isVentaUnitaria = p.reason === "venta unitaria";
         const pendingRegistration = p.pending_transfer_registration;
+        const draftPayload = pendingRegistration?.pendingProduct?.draftPayload;
 
-        const productoDestinoDraft = pendingRegistration?.pendingProduct?.draftPayload
+        let imagenBase64 = null;
+        const draftImage = draftPayload?.imagen;
+        const isFile =
+          (typeof File !== "undefined" && draftImage instanceof File) ||
+          (typeof Blob !== "undefined" && draftImage instanceof Blob);
+
+        if (isFile) {
+          imagenBase64 = await fileToDataUrl(draftImage);
+        }
+
+        const productoDestinoDraft = draftPayload
           ? {
-              nombre: pendingRegistration.pendingProduct.draftPayload.nombre,
-              descripcion:
-                pendingRegistration.pendingProduct.draftPayload.descripcion ||
-                "",
+              nombre: draftPayload.nombre,
+              descripcion: draftPayload.descripcion || "",
               id_categoria: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload.id_categoria,
+                draftPayload.id_categoria,
               ),
               stock_minimo: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload.stock_minimo,
+                draftPayload.stock_minimo,
               ),
               stock_maximo: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload.stock_maximo,
+                draftPayload.stock_maximo,
               ),
               costo_unitario: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload.costo_unitario,
+                draftPayload.costo_unitario,
               ),
               precio_venta: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload.precio_venta,
+                draftPayload.precio_venta,
               ),
               cantidad_unitaria: toNumberOrNull(
-                pendingRegistration.pendingProduct.draftPayload
-                  .cantidad_unitaria,
+                draftPayload.cantidad_unitaria,
               ),
+              imagen_base64: imagenBase64,
             }
           : null;
 
@@ -95,7 +118,7 @@ export const usePostLowProducts = () => {
         }
 
         return lowProduct;
-      });
+      }));
 
       const body = {
         id_responsable,
