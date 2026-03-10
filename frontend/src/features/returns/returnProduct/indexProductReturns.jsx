@@ -65,7 +65,8 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexProductReturns() {
-  const { returns, loading, error, refetch } = useFetchReturnProducts();
+  const perPage = 6;
+  const { returns, loading, error, refetch } = useFetchReturnProducts({ limit: perPage });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,7 +76,6 @@ export default function IndexProductReturns() {
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
   const [annulledMap, setAnnulledMap] = useState({});
   const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
-  const perPage = 6;
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();

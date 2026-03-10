@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -69,7 +69,8 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexLow() {
-  const { data: lows, loading, error, refetch } = useGetLowProducts();
+  const perPage = 6;
+  const { data: lows, loading, error, refetch } = useGetLowProducts({ limit: perPage });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,7 +83,6 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
-  const perPage = 6;
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -164,6 +164,12 @@ export default function IndexLow() {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);

@@ -13,7 +13,15 @@ const formatDate = (value) => {
 const getProductName = (productNode) =>
   productNode?.productos?.nombre || productNode?.nombre_producto || "Sin producto";
 
-export const useFetchReturnClients = () => {
+const extractPayload = (payload) => ({
+  data: Array.isArray(payload)
+    ? payload
+    : payload?.data || payload?.returnClients || [],
+  meta: payload?.meta || null,
+});
+
+export const useFetchReturnClients = (options = {}) => {
+  const { limit } = options;
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -22,8 +30,32 @@ export const useFetchReturnClients = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(API_URL);
-      const data = res.data.returnClients || [];
+      let data = [];
+
+      if (limit) {
+        let cursor = null;
+        const visitedCursors = new Set();
+
+        while (true) {
+          const res = await axios.get(API_URL, {
+            params: {
+              limit,
+              ...(cursor != null ? { cursor } : {}),
+            },
+          });
+          const payload = extractPayload(res.data);
+          data = data.concat(payload.data || []);
+
+          const nextCursor = payload.meta?.nextCursor;
+          if (nextCursor == null || visitedCursors.has(nextCursor)) break;
+
+          visitedCursors.add(nextCursor);
+          cursor = nextCursor;
+        }
+      } else {
+        const res = await axios.get(API_URL);
+        data = extractPayload(res.data).data;
+      }
 
       const mapped = data.map((item) => {
         const venta = item.ventas || {};
@@ -62,7 +94,8 @@ export const useFetchReturnClients = () => {
             };
           }),
           productsDelivered: (item.devolucion_cliente_entregado || []).map((product) => {
-            const detalleProducto = product.detalle_producto || {};
+            const detalleProducto =
+              product.detalle_productos || product.detalle_producto || {};
             return {
               idProduct: product.id_devolucion_cliente_entregado,
               name: getProductName(detalleProducto),
@@ -84,7 +117,7 @@ export const useFetchReturnClients = () => {
 
   useEffect(() => {
     fetchReturnClients();
-  }, []);
+  }, [limit]);
 
   return { returns, loading, error, refetch: fetchReturnClients };
 };

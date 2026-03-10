@@ -3,7 +3,23 @@ import axios from "axios";
 
 const API_URL = "http://localhost:3000/kajamart/api/lowProducts";
 
-export const useGetLowProducts = () => {
+const getCategoryName = (categoria) => {
+  if (Array.isArray(categoria)) {
+    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
+  }
+
+  return categoria?.nombre_categoria || null;
+};
+
+const extractPayload = (payload) => ({
+  data: Array.isArray(payload)
+    ? payload
+    : payload?.lowProducts || payload?.data || [],
+  meta: payload?.meta || null,
+});
+
+export const useGetLowProducts = (options = {}) => {
+  const { limit } = options;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,10 +28,32 @@ export const useGetLowProducts = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(API_URL);
-      const rawData = Array.isArray(response.data)
-        ? response.data
-        : response.data?.lowProducts || response.data?.data || [];
+      let rawData = [];
+
+      if (limit) {
+        let cursor = null;
+        const visitedCursors = new Set();
+
+        while (true) {
+          const response = await axios.get(API_URL, {
+            params: {
+              limit,
+              ...(cursor != null ? { cursor } : {}),
+            },
+          });
+          const payload = extractPayload(response.data);
+          rawData = rawData.concat(payload.data || []);
+
+          const nextCursor = payload.meta?.nextCursor;
+          if (nextCursor == null || visitedCursors.has(nextCursor)) break;
+
+          visitedCursors.add(nextCursor);
+          cursor = nextCursor;
+        }
+      } else {
+        const response = await axios.get(API_URL);
+        rawData = extractPayload(response.data).data;
+      }
 
       const adaptedData = rawData.map((low) => ({
         idLow: low.id_baja_productos,
@@ -40,6 +78,10 @@ export const useGetLowProducts = () => {
               lowQuantity: Number(p.cantidad) || 0,
               reason: p.motivo,
               category:
+                getCategoryName(
+                  p.detalle_productos?.productos?.categorias ||
+                    p.detalle_productos?.categorias
+                ) ||
                 p.categoria ||
                 p.categoria_producto ||
                 p.categoriaProducto ||
@@ -77,7 +119,7 @@ export const useGetLowProducts = () => {
 
   useEffect(() => {
     fetchLowProducts();
-  }, []);
+  }, [limit]);
 
   return { data, loading, error, refetch: fetchLowProducts };
 };

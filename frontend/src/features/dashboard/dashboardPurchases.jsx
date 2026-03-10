@@ -35,6 +35,13 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const PURCHASES_URL = `${API_BASE}/kajamart/api/purchase`;
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CO", { month: "short" });
 const money = (value) => Number(value || 0);
+const getCategoryName = (categoria) => {
+  if (Array.isArray(categoria)) {
+    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
+  }
+
+  return categoria?.nombre_categoria || null;
+};
 
 function useCountUp(value, duration = 1000) {
   const [display, setDisplay] = useState(0);
@@ -113,8 +120,11 @@ export default function DashboardCompras() {
       providerMap.set(providerName, (providerMap.get(providerName) || 0) + money(c.total));
 
       (c.detalle_compra || []).forEach((d) => {
-        const categoryId = d?.detalle_productos?.productos?.id_categoria;
-        const categoryName = categoryId ? `Categoría ${categoryId}` : "Sin categoría";
+        const categoryName =
+          getCategoryName(d?.detalle_productos?.productos?.categorias) ||
+          d?.detalle_productos?.productos?.categoria ||
+          d?.detalle_productos?.productos?.nombre_categoria ||
+          "Sin categoría";
         categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + money(d.subtotal));
       });
 
@@ -138,7 +148,7 @@ export default function DashboardCompras() {
     const categoriasCompras = [...categoryMap.entries()]
       .map(([categoria, valor]) => ({ categoria, valor }))
       .sort((a, b) => b.valor - a.valor)
-      .slice(0, 3);
+      .slice(0, 5);
 
     const prev = comprasMensuales.at(-2)?.valor || 0;
     const current = comprasMensuales.at(-1)?.valor || 0;

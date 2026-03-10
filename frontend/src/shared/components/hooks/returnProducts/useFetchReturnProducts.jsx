@@ -3,7 +3,23 @@ import axios from "axios";
 
 const API_URL = "http://localhost:3000/kajamart/api/returnProducts";
 
-export const useFetchReturnProducts = () => {
+const getCategoryName = (categoria) => {
+  if (Array.isArray(categoria)) {
+    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
+  }
+
+  return categoria?.nombre_categoria || null;
+};
+
+const extractPayload = (payload) => ({
+  data: Array.isArray(payload)
+    ? payload
+    : payload?.returnProducts || payload?.data || [],
+  meta: payload?.meta || null,
+});
+
+export const useFetchReturnProducts = (options = {}) => {
+  const { limit } = options;
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,11 +28,32 @@ export const useFetchReturnProducts = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(API_URL);
-      const payload = res.data;
-      const data = Array.isArray(payload)
-        ? payload
-        : payload?.returnProducts || payload?.data || [];
+      let data = [];
+
+      if (limit) {
+        let cursor = null;
+        const visitedCursors = new Set();
+
+        while (true) {
+          const res = await axios.get(API_URL, {
+            params: {
+              limit,
+              ...(cursor != null ? { cursor } : {}),
+            },
+          });
+          const payload = extractPayload(res.data);
+          data = data.concat(payload.data || []);
+
+          const nextCursor = payload.meta?.nextCursor;
+          if (nextCursor == null || visitedCursors.has(nextCursor)) break;
+
+          visitedCursors.add(nextCursor);
+          cursor = nextCursor;
+        }
+      } else {
+        const res = await axios.get(API_URL);
+        data = extractPayload(res.data).data;
+      }
 
       const flattened = data.map((r) => {
         const date = r.fecha_devolucion ? new Date(r.fecha_devolucion) : null;
@@ -24,7 +61,6 @@ export const useFetchReturnProducts = () => {
           r?.compras?.proveedores?.nombre ||
           r?.compras?.proveedor?.nombre ||
           null;
-          console.log("Procesando devolución:", r);
         const productRows = (r.detalle_devolucion_producto || []).map((d) => {
           const detalle = d.detalle_productos;
           const producto = detalle?.productos;
@@ -35,6 +71,11 @@ export const useFetchReturnProducts = () => {
             quantity: Number(d.cantidad_devuelta) || 0,
             discount: Boolean(d.es_descuento),
             reason: d.motivo || "",
+            category:
+              getCategoryName(producto?.categorias || detalle?.categorias) ||
+              d.categoria ||
+              d.nombre_categoria ||
+              "Sin categoría",
             barcode: detalle?.codigo_barras_producto_compra || "",
             price: producto?.precio_venta ?? null,
             supplier: proveedor?.nombre || purchaseSupplierName || "Sin proveedor",
@@ -57,7 +98,6 @@ export const useFetchReturnProducts = () => {
                   supplier: purchaseSupplierName || "Sin proveedor",
                 },
               ];
-              console.log("productRows:", productRows);
 
         return {
           idReturn: r.id_devolucion_product,
@@ -89,7 +129,7 @@ export const useFetchReturnProducts = () => {
 
   useEffect(() => {
     fetchReturnProducts();
-  }, []);
+  }, [limit]);
 
   return { returns, loading, error, refetch: fetchReturnProducts };
 };

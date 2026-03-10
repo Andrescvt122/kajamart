@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -20,7 +20,8 @@ import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmen
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 
 export default function IndexClientReturns() {
-  const { returns, loading, error, refetch } = useFetchReturnClients();
+  const perPage = 6;
+  const { returns, loading, error, refetch } = useFetchReturnClients({ limit: perPage });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
   const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
@@ -28,8 +29,6 @@ export default function IndexClientReturns() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [annulledMap, setAnnulledMap] = useState({});
-  const perPage = 6;
-
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
@@ -103,6 +102,12 @@ export default function IndexClientReturns() {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
   }, [filtered, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
