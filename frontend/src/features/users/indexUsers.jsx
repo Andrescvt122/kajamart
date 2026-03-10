@@ -58,7 +58,7 @@ export default function IndexUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
-  const { usuarios, total, totalPages, loading, error, getUsuarios } =
+  const { usuarios, total, totalPages, loading, error, getUsuarios, getAllUsuariosForExport } =
     useUsuariosList({ page: currentPage, limit: perPage, search: searchTerm });
   const { deleteUser } = useUserActions();
   const pageItems = usuarios || [];
@@ -157,8 +157,9 @@ export default function IndexUsers() {
     setSelectedUser(null);
   };
 
-  const handleExportExcel = () => {
-    const dataToExport = pageItems.map((user) => ({
+  const handleExportExcel = async () => {
+    const allUsers = await getAllUsuariosForExport(searchTerm);
+    const dataToExport = allUsers.map((user) => ({
       Nombre: user.Nombre,
       Correo: user.Correo,
       Documento: user.Documento,
@@ -169,7 +170,7 @@ export default function IndexUsers() {
     exportToExcel(dataToExport, "usuarios", "Usuarios");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     const headers = [
       "Nombre",
       "Correo",
@@ -178,7 +179,8 @@ export default function IndexUsers() {
       "Rol asignado",
       "Estado",
     ];
-    const dataToExport = pageItems.map((user) => ({
+    const allUsers = await getAllUsuariosForExport(searchTerm);
+    const dataToExport = allUsers.map((user) => ({
       Nombre: user.Nombre,
       Correo: user.Correo,
       Documento: user.Documento,

@@ -27,10 +27,13 @@ export const useLogin = ()=>{
                 });
                 return {ok:true, token, data};
             }catch(err){
-                const message =
-                err?.response?.data?.message ||
-                err.message ||
-                "Error al iniciar sesión.";
+                let message = "Error al iniciar sesión.";
+                if (!err.response) {
+                    message = "no se puede establecer conexión";
+                } else {
+                    const data = err.response.data;
+                    message = (typeof data === 'string' ? data : data?.message || data?.error || data?.msg) || err.message || message;
+                }
                 setError(message);
                 return{ok:false, message};
             }finally{

@@ -29,7 +29,7 @@ export default function Login() {
       // Redirigir a la ruta anterior o a /app
       navigate(from, { replace: true });
     } else {
-      setLoginError("Correo o contrasena incorrectas");
+      setLoginError(result.message || "Correo o contraseña incorrectas");
     }
   };
 
