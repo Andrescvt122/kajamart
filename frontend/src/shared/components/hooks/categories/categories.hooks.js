@@ -18,55 +18,93 @@ const mapFromApi = (cat) => ({
 const toBoolEstado = (v, fallback = true) => {
   if (typeof v === "boolean") return v;
   if (typeof v === "number") return v === 1;
+
   if (typeof v === "string") {
     const s = v.toLowerCase();
+
     if (s === "true" || s === "1" || s === "activo") return true;
     if (s === "false" || s === "0" || s === "inactivo") return false;
   }
+
   return fallback;
 };
 
-// Limita descripción a 80 chars (según schema: VarChar(80))
+// Limita descripción a 80 chars
 const clampDesc = (s = "", max = 80) => String(s ?? "").slice(0, max);
 
 export function useCategories() {
+
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   const abortRef = useRef(null);
 
-  // GET todas
-  const fetchCategories = useCallback(async () => {
+  // ==============================
+  // GET categorías (paginadas)
+  // ==============================
+  const fetchCategories = useCallback(async (page = 1, limit = 6) => {
     try {
+
       setLoading(true);
       setError(null);
 
       if (abortRef.current) abortRef.current.abort();
+
       abortRef.current = new AbortController();
 
-      const { data } = await axios.get(API, { signal: abortRef.current.signal });
-      setCategories(Array.isArray(data) ? data.map(mapFromApi) : []);
+      const { data } = await axios.get(
+        `${API}?page=${page}&limit=${limit}`,
+        { signal: abortRef.current.signal }
+      );
+
+      setCategories(data.data.map(mapFromApi));
+      setTotalPages(data.totalPages);
+      setTotalItems(data.totalItems);
+
     } catch (err) {
+
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+
       console.error("❌ useCategories - fetchCategories:", err);
-      setError(err.response?.data?.error || "Error al obtener las categorías.");
+
+      setError(
+        err.response?.data?.error ||
+        "Error al obtener las categorías."
+      );
+
     } finally {
+
       setLoading(false);
+
     }
+
   }, []);
 
+  // ==============================
+  // Cargar al montar
+  // ==============================
   useEffect(() => {
-    fetchCategories();
+
+    fetchCategories(1, 6);
+
     return () => abortRef.current?.abort();
+
   }, [fetchCategories]);
 
+  // ==============================
   // CREATE
+  // ==============================
   const createCategory = useCallback(async (form) => {
+
     try {
+
       const body = {
         nombre_categoria: form.nombre?.trim(),
         descripcion_categoria: clampDesc(form.descripcion),
-        // 👇 acepta boolean o string; default true
         estado: toBoolEstado(form.estado, true),
       };
 
@@ -85,21 +123,32 @@ export function useCategories() {
       });
 
       setCategories((prev) => [mapFromApi(data.category), ...prev]);
+
       return data.category;
+
     } catch (err) {
+
       console.error("❌ useCategories - createCategory:", err);
+
       Swal.fire(
         "Error",
         err.response?.data?.error || "Error al crear la categoría.",
         "error"
       );
+
       throw err;
+
     }
+
   }, []);
 
+  // ==============================
   // UPDATE
+  // ==============================
   const updateCategory = useCallback(async (payload) => {
+
     try {
+
       const { id_categoria, nombre, descripcion, estado } = payload;
 
       const body = {
@@ -108,9 +157,11 @@ export function useCategories() {
         estado: toBoolEstado(estado, true),
       };
 
-      const { data } = await axios.put(`${API}/${id_categoria}`, body, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const { data } = await axios.put(
+        `${API}/${id_categoria}`,
+        body,
+        { headers: { "Content-Type": "application/json" } }
+      );
 
       Swal.fire({
         icon: "success",
@@ -123,26 +174,40 @@ export function useCategories() {
       });
 
       const mapped = mapFromApi(data.category);
+
       setCategories((prev) =>
-        prev.map((c) => (c.id_categoria === id_categoria ? mapped : c))
+        prev.map((c) =>
+          c.id_categoria === id_categoria ? mapped : c
+        )
       );
 
       return data.category;
+
     } catch (err) {
+
       console.error("❌ useCategories - updateCategory:", err);
+
       Swal.fire(
         "Error",
         err.response?.data?.error || "Error al actualizar la categoría.",
         "error"
       );
+
       throw err;
+
     }
+
   }, []);
 
+  // ==============================
   // DELETE
+  // ==============================
   const deleteCategory = useCallback(async (id_categoria) => {
+
     try {
+
       const { data } = await axios.delete(`${API}/${id_categoria}`);
+
       Swal.fire({
         icon: "success",
         title: "✅ Categoría eliminada",
@@ -152,36 +217,63 @@ export function useCategories() {
         background: "#e8f5e9",
         color: "#1b5e20",
       });
-      setCategories((prev) => prev.filter((c) => c.id_categoria !== id_categoria));
+
+      setCategories((prev) =>
+        prev.filter((c) => c.id_categoria !== id_categoria)
+      );
+
     } catch (err) {
+
       console.error("❌ useCategories - deleteCategory:", err);
+
       Swal.fire(
         "Error",
         err.response?.data?.error || "Error al eliminar la categoría.",
         "error"
       );
+
       throw err;
+
     }
+
   }, []);
 
+  // ==============================
   // Helpers locales
+  // ==============================
   const addLocal = useCallback((cat) => {
+
     setCategories((prev) => [mapFromApi(cat), ...prev]);
+
   }, []);
 
   const updateLocal = useCallback((cat) => {
+
     const mapped = mapFromApi(cat);
+
     setCategories((prev) =>
-      prev.map((c) => (c.id_categoria === mapped.id_categoria ? mapped : c))
+      prev.map((c) =>
+        c.id_categoria === mapped.id_categoria ? mapped : c
+      )
     );
+
   }, []);
 
   const removeLocal = useCallback((id_categoria) => {
-    setCategories((prev) => prev.filter((c) => c.id_categoria !== id_categoria));
+
+    setCategories((prev) =>
+      prev.filter((c) => c.id_categoria !== id_categoria)
+    );
+
   }, []);
 
+  // ==============================
+  // RETURN
+  // ==============================
   return {
     categories,
+    totalPages,
+    totalItems,
     loading,
     error,
     refresh: fetchCategories,
@@ -192,4 +284,5 @@ export function useCategories() {
     updateLocal,
     removeLocal,
   };
+
 }

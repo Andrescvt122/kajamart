@@ -7,13 +7,19 @@ const API_BASE =
 const API_URL = `${API_BASE}/products`;
 
 // 🔹 Obtener todos los productos
-export const useProducts = () =>
+export const useProducts = (page = 1, limit = 6) =>
   useQuery({
-    queryKey:["products"],
+    queryKey: ["products", page],
     queryFn: async () => {
-      const { data } = await axios.get(API_URL);
-      return Array.isArray(data) ? data : [];
+
+      const { data } = await axios.get(
+        `${API_URL}?page=${page}&limit=${limit}`
+      );
+
+      return data;
+
     },
+    keepPreviousData: true
   });
 
 // 🔹 Obtener producto por ID
