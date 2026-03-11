@@ -13,6 +13,7 @@ import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
+import { useExportReturnProducts } from "../../../shared/components/hooks/returnProducts/useExportReturnProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../../features/onboarding/loading.jsx";
 import Swal from "sweetalert2";
@@ -76,6 +77,8 @@ export default function IndexProductReturns() {
     getTotalPages,
     getLoadedCount,
   } = useFetchReturnProducts(perPage);
+  const { exportReturnProductsExcel, exportReturnProductsPdf } =
+    useExportReturnProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -161,6 +164,38 @@ export default function IndexProductReturns() {
       Object.values(product).some((value) => normalizeText(value).includes(s))
     );
   }, [flattenedProducts, searchTerm, statusFilter, annulledMap]);
+
+  const filterReturnProductsForExport = (items) => {
+    const s = normalizeText(searchTerm.trim());
+    const flattened = items.flatMap((returnItem) =>
+      (returnItem.products || []).map((product, idx) => ({
+        idReturn: returnItem.idReturn,
+        dateReturn: returnItem.dateReturn,
+        responsable: returnItem.responsable,
+        createdAt: returnItem.createdAt,
+        dateISO: returnItem.dateISO,
+        isActive: returnItem.isActive,
+        _rowId:
+          `${returnItem.idReturn}-` +
+          (product.idProduct ?? product.id ?? product.name ?? idx),
+        ...product,
+      }))
+    );
+
+    const byStatus = flattened.filter((product) => {
+      const isActive = annulledMap[product.idReturn] ?? product.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive" || statusFilter === "annulled")
+        return isActive === false;
+      return true;
+    });
+
+    if (!s) return byStatus;
+
+    return byStatus.filter((product) =>
+      Object.values(product).some((value) => normalizeText(value).includes(s))
+    );
+  };
 
   const totalPages = getTotalPages();
   const filteredLength = getLoadedCount();
@@ -335,10 +370,22 @@ export default function IndexProductReturns() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductReturnsXLS(filtered)}>
+              <ExportExcelButton
+                event={() =>
+                  exportReturnProductsExcel({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
-              <ExportPDFButton event={() => generateProductReturnsPDF(filtered)}>
+              <ExportPDFButton
+                event={() =>
+                  exportReturnProductsPdf({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
               <motion.button

@@ -11,8 +11,6 @@ import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { exportProductsToExcel } from "./helpers/exportToXls";
-import { exportProductsToPDF } from "./helpers/exportToPdf";
 import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
@@ -31,6 +29,7 @@ import {
   useDeleteProduct,
   useUpdateProduct,
 } from "../../shared/components/hooks/products/products.hooks.js";
+import { useExportProducts } from "../../shared/components/hooks/products/useExportProducts.js";
 
 // ===== Texto seguro / anti-overflow
 const LONG_TEXT_CLS =
@@ -96,6 +95,7 @@ export default function IndexProducts() {
 
   // Datos
   const { data, isLoading, isError, error } = useProducts(currentPage, perPage);
+  const { exportProductsExcel, exportProductsPdf } = useExportProducts();
 
   const productsRaw = data?.data || [];
   const totalPages = data?.totalPages || 1;
@@ -339,6 +339,21 @@ export default function IndexProducts() {
     );
   }, [products, searchTerm]);
 
+  const filterProductsForExport = (items) => {
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return items;
+    if (/^activos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "activo");
+    if (/^inactivos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "inactivo");
+
+    return items.filter((item) =>
+      `${item.id} ${item.nombre} ${item.descripcion || ""} ${item.categoria} ${item.estado}`
+        .toLowerCase()
+        .includes(s)
+    );
+  };
+
   
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
@@ -411,7 +426,9 @@ export default function IndexProducts() {
               {/* Exportar Excel */}
               <div className="flex justify-end">
                 <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
+                  event={() =>
+                    exportProductsExcel({ transform: filterProductsForExport })
+                  }
                 >
                   Excel
                 </ExportExcelButton>
@@ -419,7 +436,11 @@ export default function IndexProducts() {
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                <ExportPDFButton
+                  event={() =>
+                    exportProductsPdf({ transform: filterProductsForExport })
+                  }
+                >
                   PDF
                 </ExportPDFButton>
               </div>

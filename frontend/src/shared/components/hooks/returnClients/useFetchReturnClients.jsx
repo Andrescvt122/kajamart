@@ -58,7 +58,7 @@ export const useFetchReturnClients = (initialLimit = 6) => {
         };
       }),
       productsDelivered: (item.devolucion_cliente_entregado || []).map((product) => {
-        const detalleProducto = product.detalle_producto || {};
+        const detalleProducto = product.detalle_productos || {};
         return {
           idProduct: product.id_devolucion_cliente_entregado,
           name: getProductName(detalleProducto),
