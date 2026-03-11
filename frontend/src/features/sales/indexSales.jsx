@@ -15,10 +15,9 @@ import {
   ExportPDFButton,
 } from "../../shared/components/buttons";
 import SaleDetailModal from "./SaleDetailModal";
-import { exportSalesToExcel } from "./helper/exportSalesExcel";
-import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
+import { useExportSales } from "../../shared/components/hooks/sales/useExportSales";
 import { useAuth } from "../../context/useAtuh";
 import Loading from "../../features/onboarding/loading.jsx";
 
@@ -58,6 +57,7 @@ export default function IndexSales() {
   const navigate = useNavigate();
   const { sales, loading, error, refetch } = useSales();
   const { updateStatus } = useUpdateSaleStatus();
+  const { exportSalesExcel, exportSalesPdf } = useExportSales();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 5;
@@ -154,29 +154,15 @@ export default function IndexSales() {
     />
   );
 
-  const exportRows = useMemo(() => {
-    return filtered.map((v) => ({
-      id: v.id_ui,
-      fecha: v.fecha_ui,
-      cliente: v.cliente_ui,
-      total: v.total_ui,
-      medioPago: v.medioPago_ui,
-      estado: v.estado_ui,
-    }));
-  }, [filtered]);
+  const filterSalesForExport = (rows) => {
+    const s = normalizeText(searchTerm.trim());
+    if (!s) return rows;
 
-  const handleExportExcel = () => {
-    exportSalesToExcel({
-      rows: exportRows,
-      filename: `ventas_${new Date().toISOString().slice(0, 10)}.xlsx`,
-    });
-  };
-
-  const handleExportPDF = () => {
-    exportSalesToPDF({
-      rows: exportRows,
-      filename: `ventas_${new Date().toISOString().slice(0, 10)}.pdf`,
-    });
+    return rows.filter((row) =>
+      normalizeText(
+        `${row.id} ${row.fecha} ${row.cliente} ${row.medioPago} ${row.estado} ${row.total}`
+      ).includes(s)
+    );
   };
 
   const handleAnnulSale = async (event, saleRaw) => {
@@ -309,8 +295,16 @@ export default function IndexSales() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
-            <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
+            <ExportExcelButton
+              event={() => exportSalesExcel({ transform: filterSalesForExport })}
+            >
+              Excel
+            </ExportExcelButton>
+            <ExportPDFButton
+              event={() => exportSalesPdf({ transform: filterSalesForExport })}
+            >
+              PDF
+            </ExportPDFButton>
 
             <button
               onClick={() => navigate("/app/sales/register")}

@@ -71,13 +71,21 @@ function ChevronIcon({ open }) {
 
 export default function IndexSuppliers() {
   // === CARGA DESDE BACKEND ===
-  const {
-    data: suppliersRaw = [],
-    isLoading,
-    isError,
-    error,
-  } = useSuppliersQuery();
+  // Buscador + paginación
+const [searchTerm, setSearchTerm] = useState("");
+const [currentPage, setCurrentPage] = useState(1);
+const perPage = 6;
 
+// === CARGA DESDE BACKEND ===
+const {
+  data,
+  isLoading,
+  isError,
+  error,
+} = useSuppliersQuery(currentPage, perPage);
+
+const suppliersRaw = data?.data || [];
+const totalPages = data?.totalPages || 1;
   // Mapeo para UI
   const suppliers = useMemo(() => {
     if (!Array.isArray(suppliersRaw)) return [];
@@ -159,9 +167,6 @@ export default function IndexSuppliers() {
   }, [isDetailOpen]);
 
   // Buscador + paginación
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 6;
 
   // Modal de registro
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,11 +214,6 @@ export default function IndexSuppliers() {
   }, [suppliers, searchTerm]);
 
   // Paginación
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -330,13 +330,13 @@ export default function IndexSuppliers() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : pageItems.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron proveedores.
               </div>
             ) : (
               <motion.ul className="space-y-3" variants={tableVariants}>
-                {pageItems.map((s, i) => {
+                {filtered.map((s, i) => {
                   const isOpen = expanded.has(s.id_proveedor ?? s.nit ?? i);
                   const pid = `sup-${s.id_proveedor ?? s.nit ?? i}`;
                   const catNames = getSupplierCategoryNames(s);
@@ -483,17 +483,14 @@ export default function IndexSuppliers() {
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  className="divide-y divide-gray-100"
-                  variants={tableVariants}
-                >
+                <tbody className="divide-y divide-gray-100 text-gray-700">
                   {isLoading ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
-                  ) : pageItems.length === 0 ? (
+                  ) : filtered.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -503,7 +500,7 @@ export default function IndexSuppliers() {
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((s, i) => {
+                    filtered.map((s, i) => {
                       const catNames = getSupplierCategoryNames(s);
                       const displayCats =
                         catNames.length === 0
@@ -515,10 +512,9 @@ export default function IndexSuppliers() {
                             }`;
 
                       return (
-                        <motion.tr
+                        <tr
                           key={(s.id_proveedor ?? s.nit ?? i) + "-" + i}
                           className="hover:bg-gray-50 align-top"
-                          variants={rowVariants}
                         >
                           <td className="px-4 lg:px-6 py-4 align-top text-sm text-gray-600 whitespace-nowrap">
                             {s.nit ?? "—"}
@@ -574,11 +570,11 @@ export default function IndexSuppliers() {
                               />
                             </div>
                           </td>
-                        </motion.tr>
+                        </tr>
                       );
                     })
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>

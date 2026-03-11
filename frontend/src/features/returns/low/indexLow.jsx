@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -69,7 +69,17 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexLow() {
-  const { data: lows, loading, error, refetch } = useGetLowProducts();
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useGetLowProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,9 +92,12 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
-  const perPage = 6;
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+
+  React.useEffect(() => {
+    fetchPage(currentPage);
+  }, [currentPage]);
 
   const buildAnnulErrorMessage = (err) => {
     const payload = err?.response?.data ?? {};
@@ -126,12 +139,13 @@ export default function IndexLow() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Filtrado + expansión por producto (cada producto = fila)
-  const filtered = useMemo(() => {
+  // Filtrado + expansión por producto para la página actual
+  const pageItems = useMemo(() => {
+    const pageData = pagesCache[currentPage] || [];
     const s = normalizeText(searchTerm.trim());
     const match = (val) => normalizeText(String(val ?? "")).includes(s);
 
-    const expandedRows = (lows || []).flatMap((low) =>
+    const expandedRows = pageData.flatMap((low) =>
       (low.products || []).map((product) => ({
         ...low,
         currentProduct: product,
@@ -156,14 +170,10 @@ export default function IndexLow() {
           : match(val)
       )
     );
-  }, [lows, searchTerm, statusFilter, annulledMap]);
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap]);
 
-  // Paginación basada en filas (productos)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  const totalPages = getTotalPages();
+  const filteredLength = getLoadedCount();
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -179,7 +189,10 @@ export default function IndexLow() {
   };
 
   const handleConfirmLow = () => {
-    refetch();
+    // after registering we want to refresh first page
+    reset();
+    setCurrentPage(1);
+    fetchPage(1);
   };
 
   const handleAnnulLow = async (item) => {
@@ -205,7 +218,7 @@ export default function IndexLow() {
         try {
           await annulLowProduct(item.idLow);
           setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
-          await refetch?.();
+          await fetchPage(currentPage);
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -315,11 +328,11 @@ export default function IndexLow() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
+              <ExportExcelButton event={() => generateProductLowsXLS(pageItems)}>
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
+              <ExportPDFButton event={() => generateProductLowsPDF(pageItems)}>
                 PDF
               </ExportPDFButton>
 
@@ -655,7 +668,7 @@ export default function IndexLow() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

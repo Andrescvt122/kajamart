@@ -81,6 +81,7 @@ export default function IndexCategories() {
     categories,
     loading,
     error,
+    refresh,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -99,7 +100,9 @@ export default function IndexCategories() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
+
   const { hasPermission } = useAuth();
+
   const canDelete = hasPermission("Eliminar categorias");
   const canCreate = hasPermission("Crear categorias");
   const canEdit = hasPermission("Editar categorias");

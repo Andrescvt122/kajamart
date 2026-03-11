@@ -11,8 +11,6 @@ import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { exportProductsToExcel } from "./helpers/exportToXls";
-import { exportProductsToPDF } from "./helpers/exportToPdf";
 import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
@@ -31,6 +29,7 @@ import {
   useDeleteProduct,
   useUpdateProduct,
 } from "../../shared/components/hooks/products/products.hooks.js";
+import { useExportProducts } from "../../shared/components/hooks/products/useExportProducts.js";
 
 // ===== Texto seguro / anti-overflow
 const LONG_TEXT_CLS =
@@ -90,9 +89,16 @@ if (typeof document !== "undefined") {
 export default function IndexProducts() {
   const navigate = useNavigate();
 
-  // Datos
-  const { data: productsRaw = [], isLoading, isError, error } = useProducts();
+  // Estado de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
 
+  // Datos
+  const { data, isLoading, isError, error } = useProducts(currentPage, perPage);
+  const { exportProductsExcel, exportProductsPdf } = useExportProducts();
+
+  const productsRaw = data?.data || [];
+  const totalPages = data?.totalPages || 1;
   const catHook =
     (typeof useCategories === "function" ? useCategories() : null) || {};
   const categoriesRaw = Array.isArray(catHook.categories)
@@ -289,8 +295,6 @@ export default function IndexProducts() {
 
   // UI local
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [estadoOpen, setEstadoOpen] = useState(false);
@@ -335,11 +339,22 @@ export default function IndexProducts() {
     );
   }, [products, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
+  const filterProductsForExport = (items) => {
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return items;
+    if (/^activos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "activo");
+    if (/^inactivos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "inactivo");
+
+    return items.filter((item) =>
+      `${item.id} ${item.nombre} ${item.descripcion || ""} ${item.categoria} ${item.estado}`
+        .toLowerCase()
+        .includes(s)
+    );
+  };
+
+  
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
@@ -411,7 +426,9 @@ export default function IndexProducts() {
               {/* Exportar Excel */}
               <div className="flex justify-end">
                 <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
+                  event={() =>
+                    exportProductsExcel({ transform: filterProductsForExport })
+                  }
                 >
                   Excel
                 </ExportExcelButton>
@@ -419,7 +436,11 @@ export default function IndexProducts() {
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                <ExportPDFButton
+                  event={() =>
+                    exportProductsPdf({ transform: filterProductsForExport })
+                  }
+                >
                   PDF
                 </ExportPDFButton>
               </div>
@@ -449,7 +470,7 @@ export default function IndexProducts() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : pageItems.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron productos.
               </div>
@@ -461,7 +482,7 @@ export default function IndexProducts() {
                 initial="hidden"
                 animate="visible"
               >
-                {pageItems.map((p, i) => {
+                {filtered.map((p, i) => {
                   const key = p.id ?? i;
                   const isOpen = expanded.has(key);
                   const pid = `prod-${key}`;
@@ -624,10 +645,9 @@ export default function IndexProducts() {
               </thead>
 
               {/* IMPORTANTE: el stagger vive en el tbody y las filas solo heredan */}
-              <motion.tbody
+              <tbody
                 key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
                 className="divide-y divide-gray-100 text-gray-700"
-                variants={tableVariants}
               >
                 {isLoading || isCatLoading ? (
                   <tr>
@@ -635,7 +655,7 @@ export default function IndexProducts() {
                       <Loading inline heightClass="h-28" />
                     </td>
                   </tr>
-                ) : pageItems.length === 0 ? (
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -645,12 +665,10 @@ export default function IndexProducts() {
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((p, i) => (
-                    <motion.tr
+                  filtered.map((p, i) => (
+                    <tr
                       key={p.id + "-" + i}
-                      variants={rowVariants} // <- hereda de tbody
                       className="hover:bg-gray-50 align-top"
-                      layout
                     >
                       <td className="px-4 lg:px-6 py-4">
                         <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -721,10 +739,10 @@ export default function IndexProducts() {
                           />
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))
                 )}
-              </motion.tbody>
+              </tbody>
             </table>
           </motion.div>
 

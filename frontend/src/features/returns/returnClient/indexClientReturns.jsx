@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -20,24 +20,40 @@ import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmen
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 
 export default function IndexClientReturns() {
-  const { returns, loading, error, refetch } = useFetchReturnClients();
+  // pagination hook handles loading pages from backend
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useFetchReturnClients(perPage);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
-  const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedReturn, setSelectedReturn] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [annulledMap, setAnnulledMap] = useState({});
-  const perPage = 6;
-
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
-  // Función para abrir el modal de detalles
+  // data-fetching effect
+  React.useEffect(() => {
+    fetchPage(currentPage);
+  }, [currentPage]);
+
+  // Función para abrir el modal de detalles (busca sólo en página actual)
   const handleViewDetails = (rowData) => {
-    const found = returns.find((returnItem) => returnItem.idReturn === rowData.idReturn);
+    const pageData = pagesCache[currentPage] || [];
+    const found = pageData.find((r) => r.idReturn === rowData.idReturn);
     setSelectedReturn(found || rowData);
     setIsDetailsModalOpen(true);
   };
@@ -56,53 +72,47 @@ export default function IndexClientReturns() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  const formattedRows = useMemo(() => {
-    return returns.flatMap((returnItem) => {
-      const returnedRows = (returnItem.productsReturned || []).map((product) => ({
-        ...returnItem,
-        currentProduct: {
-          ...product,
-          category: "devuelto",
-        },
-      }));
-      const deliveredRows = (returnItem.productsDelivered || []).map((product) => ({
-        ...returnItem,
-        currentProduct: {
-          ...product,
-          category: "entregado",
-        },
-      }));
-      return [...returnedRows, ...deliveredRows];
-    });
-  }, [returns]);
-
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    const match = (val) => normalizeText(String(val ?? "")).includes(s);
-    const byStatus = formattedRows.filter((row) => {
-      const isActive = annulledMap[row.idReturn] ?? row.isActive;
-      if (statusFilter === "active") return isActive === true;
-      if (statusFilter === "inactive") return isActive === false;
-      return true;
-    });
-
-    if (!s) return byStatus;
-
-    return byStatus.filter((row) => {
-      const topMatch = Object.entries(row).some(([, v]) => {
-        if (Array.isArray(v)) return false;
-        return match(v);
-      });
-      const productMatch = Object.values(row.currentProduct || {}).some((val) => match(val));
-      return topMatch || productMatch;
-    });
-  }, [formattedRows, searchTerm, statusFilter, annulledMap]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  // build items for UI from current page and apply filters locally
   const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    const pageData = pagesCache[currentPage] || [];
+    return pageData
+      .flatMap((returnItem) => {
+        const returnedRows = (returnItem.productsReturned || []).map((product) => ({
+          ...returnItem,
+          currentProduct: {
+            ...product,
+            category: "devuelto",
+          },
+        }));
+        const deliveredRows = (returnItem.productsDelivered || []).map((product) => ({
+          ...returnItem,
+          currentProduct: {
+            ...product,
+            category: "entregado",
+          },
+        }));
+        return [...returnedRows, ...deliveredRows];
+      })
+      .filter((row) => {
+        const isActive = annulledMap[row.idReturn] ?? row.isActive;
+        if (statusFilter === "active") return isActive;
+        if (statusFilter === "annulled") return !isActive;
+        return true;
+      })
+      .filter((row) => {
+        const s = normalizeText(searchTerm.trim());
+        if (!s) return true;
+        return (
+          normalizeText(row.idReturn).includes(s) ||
+          normalizeText(row.idSale).includes(s) ||
+          normalizeText(row.client).includes(s) ||
+          normalizeText(row.currentProduct?.name).includes(s)
+        );
+      });
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap]);
+
+  const totalPages = getTotalPages();
+  const filteredLength = getLoadedCount();
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -135,7 +145,8 @@ export default function IndexClientReturns() {
         try {
           await annulReturnClient(row.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
-          await refetch?.();
+          // recarga la página actual luego de anular
+          await fetchPage(currentPage);
           return true;
         } catch {
           Swal.showValidationMessage("No se pudo anular el registro.");
@@ -181,6 +192,10 @@ export default function IndexClientReturns() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
+
+  useEffect(() => {
+    fetchPage(currentPage);
+  }, [currentPage]);
 
   return (
     <>
@@ -236,8 +251,12 @@ export default function IndexClientReturns() {
           />
 
           <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
-            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
+            <ExportExcelButton event={() => generateProductReturnsXLS(pageItems)}>
+              Excel
+            </ExportExcelButton>
+            <ExportPDFButton event={() => generateProductReturnsPDF(pageItems)}>
+              PDF
+            </ExportPDFButton>
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
@@ -358,7 +377,7 @@ export default function IndexClientReturns() {
           currentPage={currentPage}
           perPage={perPage}
           totalPages={totalPages}
-          filteredLength={filtered.length}
+          filteredLength={filteredLength}
           goToPage={goToPage}
         />
       </div>
@@ -367,7 +386,11 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
-        onReturnRegistered={refetch}
+        onReturnRegistered={() => {
+          reset();
+          setCurrentPage(1);
+          fetchPage(1);
+        }}
       />
 
       {/* Modal de detalles de devolución */}
