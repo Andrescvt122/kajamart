@@ -27,9 +27,21 @@ export const useUsuariosList = ({ page = 1, limit = 6, search = "" } = {}) => {
     }
   }, [page, limit, search]);
 
+  const getAllUsuariosForExport = async (currentSearch) => {
+    try {
+      const { data } = await axios.get(API_URL, {
+        params: { limit: total > 0 ? total : 10000, search: currentSearch || undefined },
+      });
+      return data.data || [];
+    } catch (err) {
+      console.error("Error fetching all users for export", err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     getUsuarios();
   }, [getUsuarios]);
 
-  return { usuarios, setUsuarios, total, totalPages, loading, error, getUsuarios };
+  return { usuarios, setUsuarios, total, totalPages, loading, error, getUsuarios, getAllUsuariosForExport };
 };
