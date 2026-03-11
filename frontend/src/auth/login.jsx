@@ -83,12 +83,13 @@ export default function Login() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-white drop-shadow">
+              <label htmlFor="email" className="block text-sm font-medium text-white drop-shadow">
                 Correo electrónico
               </label>
               <input
                 type="email"
                 name="email"
+                id="email"
                 placeholder="tu@email.com"
                 required
                 value={email}
@@ -99,12 +100,13 @@ export default function Login() {
 
             {/* Password */}
             <div className="relative">
-              <label className="block text-sm font-medium text-white drop-shadow">
+              <label htmlFor="password" className="block text-sm font-medium text-white drop-shadow">
                 Contraseña
               </label>
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
+                id="password"
                 placeholder="••••••••"
                 required
                 minLength={8}

@@ -90,6 +90,7 @@ export default function IndexProductReturns() {
   const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
+  const canAnnul = hasPermission('Anular devolucion Productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -224,7 +225,7 @@ export default function IndexProductReturns() {
     // reset cache and fetch first page on new registration
     reset();
     setCurrentPage(1);
-    fetchPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleOpenDetailsModal = (productData) => {
@@ -264,7 +265,7 @@ export default function IndexProductReturns() {
           await annulReturnProduct(item.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
           // refresh current page
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -666,7 +667,7 @@ export default function IndexProductReturns() {
                               <ToggleSwitch
                                 checked={annulledMap[item.idReturn] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateISO,
                                     annulledMap[item.idReturn] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]

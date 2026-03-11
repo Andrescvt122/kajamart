@@ -42,6 +42,7 @@ export default function IndexClientReturns() {
   const [annulledMap, setAnnulledMap] = useState({});
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
+  const canAnnul = hasPermission('Anular devolucion cliente');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -146,7 +147,7 @@ export default function IndexClientReturns() {
           await annulReturnClient(row.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
           // recarga la página actual luego de anular
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return true;
         } catch {
           Swal.showValidationMessage("No se pudo anular el registro.");
@@ -353,7 +354,7 @@ export default function IndexClientReturns() {
                       <div className="flex items-center gap-2">
                         <ToggleSwitch
                           checked={annulledMap[s.idReturn] ?? s.isActive}
-                          disabled={getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
+                          disabled={ !canAnnul || getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
                           onChange={() => handleAnnulReturn(s)}
                         />
                         <span className="text-xs text-gray-500">
@@ -386,10 +387,10 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
-        onReturnRegistered={() => {
+        onReturnRegistered={async () => {
           reset();
           setCurrentPage(1);
-          fetchPage(1);
+          await fetchPage(1, { force: true });
         }}
       />
 

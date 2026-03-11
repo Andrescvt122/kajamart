@@ -20,6 +20,21 @@ export const useFetchReturnClients = (initialLimit = 6) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const lastNextCursor = useRef(null);
+  const pagesCacheRef = useRef({});
+  const pageCursorsRef = useRef({ 1: null });
+  const metaRef = useRef({ limit: initialLimit, nextCursor: null });
+
+  useEffect(() => {
+    pagesCacheRef.current = pagesCache;
+  }, [pagesCache]);
+
+  useEffect(() => {
+    pageCursorsRef.current = pageCursors;
+  }, [pageCursors]);
+
+  useEffect(() => {
+    metaRef.current = meta;
+  }, [meta]);
 
   const mapItem = (item) => {
     const venta = item.ventas || {};
@@ -79,39 +94,52 @@ export const useFetchReturnClients = (initialLimit = 6) => {
     return Object.values(pagesCache).reduce((acc, arr) => acc + arr.length, 0);
   };
 
-  const fetchPage = async (pageNumber) => {
+  const fetchPage = async (pageNumber, options = {}) => {
+    const { force = false } = options;
     if (pageNumber < 1) return [];
 
     // ensure cursors up to requested page exist by loading previous pages sequentially
     if (
       pageNumber > 1 &&
-      pageCursors[pageNumber] === undefined // we don't have cursor for this page
+      pageCursorsRef.current[pageNumber] === undefined // we don't have cursor for this page
     ) {
-      await fetchPage(pageNumber - 1);
+      await fetchPage(pageNumber - 1, options);
     }
 
-    if (pagesCache[pageNumber]) {
-      return pagesCache[pageNumber];
+    if (!force && pagesCacheRef.current[pageNumber]) {
+      return pagesCacheRef.current[pageNumber];
     }
 
     setLoading(true);
     setError(null);
     try {
-      const params = { limit: meta.limit };
-      const cursor = pageCursors[pageNumber];
+      const params = { limit: metaRef.current.limit };
+      const cursor = pageCursorsRef.current[pageNumber];
       if (cursor) params.cursor = cursor;
 
       const res = await api.get(API_PATH, { params });
       const raw = res.data?.data || [];
       const mapped = raw.map(mapItem);
 
-      setPagesCache((prev) => ({ ...prev, [pageNumber]: mapped }));
+      setPagesCache((prev) => {
+        const next = { ...prev, [pageNumber]: mapped };
+        pagesCacheRef.current = next;
+        return next;
+      });
 
       const newNext = res.data?.meta?.nextCursor ?? null;
       lastNextCursor.current = newNext;
-      setMeta((prev) => ({ ...prev, nextCursor: newNext }));
+      setMeta((prev) => {
+        const next = { ...prev, nextCursor: newNext };
+        metaRef.current = next;
+        return next;
+      });
       if (newNext) {
-        setPageCursors((prev) => ({ ...prev, [pageNumber + 1]: newNext }));
+        setPageCursors((prev) => {
+          const next = { ...prev, [pageNumber + 1]: newNext };
+          pageCursorsRef.current = next;
+          return next;
+        });
       }
 
       return mapped;
@@ -125,6 +153,10 @@ export const useFetchReturnClients = (initialLimit = 6) => {
   };
 
   const reset = () => {
+    pagesCacheRef.current = {};
+    pageCursorsRef.current = { 1: null };
+    metaRef.current = { limit: initialLimit, nextCursor: null };
+    lastNextCursor.current = null;
     setPagesCache({});
     setPageCursors({ 1: null });
     setMeta({ limit: initialLimit, nextCursor: null });

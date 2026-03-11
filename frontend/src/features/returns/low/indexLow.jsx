@@ -92,6 +92,7 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
+  const canAnnul = hasPermission('Anular baja producto');
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -192,7 +193,7 @@ export default function IndexLow() {
     // after registering we want to refresh first page
     reset();
     setCurrentPage(1);
-    fetchPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleAnnulLow = async (item) => {
@@ -218,7 +219,7 @@ export default function IndexLow() {
         try {
           await annulLowProduct(item.idLow);
           setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -631,7 +632,7 @@ export default function IndexLow() {
                               <ToggleSwitch
                                 checked={annulledMap[item.idLow] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateLow,
                                     annulledMap[item.idLow] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
