@@ -92,6 +92,7 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
+  const canAnnul = hasPermission('Anular baja producto');
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -631,7 +632,7 @@ export default function IndexLow() {
                               <ToggleSwitch
                                 checked={annulledMap[item.idLow] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateLow,
                                     annulledMap[item.idLow] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]

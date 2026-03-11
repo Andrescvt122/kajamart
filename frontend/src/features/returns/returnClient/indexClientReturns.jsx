@@ -42,6 +42,7 @@ export default function IndexClientReturns() {
   const [annulledMap, setAnnulledMap] = useState({});
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
+  const canAnnul = hasPermission('Anular devolucion cliente');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -353,7 +354,7 @@ export default function IndexClientReturns() {
                       <div className="flex items-center gap-2">
                         <ToggleSwitch
                           checked={annulledMap[s.idReturn] ?? s.isActive}
-                          disabled={getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
+                          disabled={ !canAnnul || getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
                           onChange={() => handleAnnulReturn(s)}
                         />
                         <span className="text-xs text-gray-500">

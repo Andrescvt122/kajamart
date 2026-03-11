@@ -90,6 +90,7 @@ export default function IndexProductReturns() {
   const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
+  const canAnnul = hasPermission('Anular devolucion Productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
 
@@ -666,7 +667,7 @@ export default function IndexProductReturns() {
                               <ToggleSwitch
                                 checked={annulledMap[item.idReturn] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateISO,
                                     annulledMap[item.idReturn] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]
