@@ -146,7 +146,7 @@ export default function IndexClientReturns() {
           await annulReturnClient(row.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
           // recarga la página actual luego de anular
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return true;
         } catch {
           Swal.showValidationMessage("No se pudo anular el registro.");
@@ -386,10 +386,10 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
-        onReturnRegistered={() => {
+        onReturnRegistered={async () => {
           reset();
           setCurrentPage(1);
-          fetchPage(1);
+          await fetchPage(1, { force: true });
         }}
       />
 

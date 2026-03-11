@@ -192,7 +192,7 @@ export default function IndexLow() {
     // after registering we want to refresh first page
     reset();
     setCurrentPage(1);
-    fetchPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleAnnulLow = async (item) => {
@@ -218,7 +218,7 @@ export default function IndexLow() {
         try {
           await annulLowProduct(item.idLow);
           setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};

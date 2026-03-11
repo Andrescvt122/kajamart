@@ -401,6 +401,26 @@ export default function IndexRegisterPurchase() {
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
 
+  const proveedorExacto = useMemo(() => {
+    const val = proveedorQuery.trim();
+    if (!val) return null;
+
+    return (
+      proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      ) ?? null
+    );
+  }, [proveedorQuery, proveedoresDB]);
+
+  const shouldShowRegisterSupplier = useMemo(() => {
+    return Boolean(
+      proveedorQuery.trim() &&
+        !proveedor &&
+        !proveedorExacto &&
+        proveedoresFiltrados.length === 0
+    );
+  }, [proveedorQuery, proveedor, proveedorExacto, proveedoresFiltrados]);
+
   // =========================
   // ✅ Productos: SET seleccionados
   // =========================
@@ -1346,7 +1366,7 @@ export default function IndexRegisterPurchase() {
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
-          {mensajeProveedor?.tipo === "error" && (
+          {shouldShowRegisterSupplier && (
             <button
               onClick={() => {
                 prevSupplierIdsRef.current = new Set(
@@ -1384,13 +1404,14 @@ export default function IndexRegisterPurchase() {
           </div>
         )}
 
-        {mensajeProveedor && (
+        {(mensajeProveedor || shouldShowRegisterSupplier) && (
           <p
             className={`mt-1 text-sm ${
-              mensajeProveedor.tipo === "ok" ? "text-green-600" : "text-red-600"
+              mensajeProveedor?.tipo === "ok" ? "text-green-600" : "text-red-600"
             }`}
           >
-            {mensajeProveedor.texto}
+            {mensajeProveedor?.texto ??
+              "❌ Proveedor no encontrado. Puedes registrarlo desde aquí."}
           </p>
         )}
       </div>
