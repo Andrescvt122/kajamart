@@ -60,6 +60,32 @@ const uniqueKeepOrder = (arr) => {
   return out;
 };
 
+const ONE_LINE_SAFE =
+  "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
+  );
+}
+
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -334,6 +360,7 @@ export default function IndexPurchases() {
   const perPage = 5;
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expanded, setExpanded] = useState(new Set());
 
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
@@ -381,6 +408,13 @@ export default function IndexPurchases() {
   const handleViewDetails = useCallback((purchase) => {
     setSelectedPurchase(purchase);
     setIsDetailOpen(true);
+  }, []);
+  const toggleExpand = useCallback((rowId) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      return next;
+    });
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -585,13 +619,13 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
         }}
       />
 
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
         <div className="relative z-10">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="mb-4 sm:mb-6">
             <div>
-              <h2 className="text-3xl font-semibold text-gray-800">Compras</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Compras</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
               {apiError ? (
@@ -601,43 +635,47 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
           </div>
 
           {/* Buscador + botones */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+          <div className="mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border text-gray-500 border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
 
-              <input
-                type="text"
-                placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border text-gray-700 border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-              />
-            </div>
+              <div className="flex gap-2">
+                <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
+                  Excel
+                </ExportExcelButton>
 
-            <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
-                Excel
-              </ExportExcelButton>
+                <ExportPDFButton
+                  event={() =>
+                    exportPurchasesToPdf({
+                      rows: filtered,
+                      filename: "compras.pdf",
+                    })
+                  }
+                >
+                  PDF
+                </ExportPDFButton>
+              </div>
 
-              <ExportPDFButton
-                event={() =>
-                  exportPurchasesToPdf({
-                    rows: filtered,
-                    filename: "compras.pdf",
-                  })
-                }
-              >
-                PDF
-              </ExportPDFButton>
+              <div className="hidden xl:block" />
 
               <button
                 onClick={() => navigate("/app/purchases/register")}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition"
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition w-full xl:w-auto"
                 hidden={!canCreate}
               >
                 Registrar Nueva Compra
@@ -645,8 +683,134 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
             </div>
           </div>
 
+          <motion.div
+            className="md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {isLoadingApi ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+                Cargando compras...
+              </div>
+            ) : pageItems.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+                No se encontraron compras.
+              </div>
+            ) : (
+              <motion.ul className="space-y-3">
+                {pageItems.map((p) => {
+                  const rowId = String(p.id);
+                  const isExpanded = expanded.has(rowId);
+                  const annulled = isAnulada(p.estado);
+
+                  return (
+                    <motion.li
+                      key={`${rowId}-mobile`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(rowId)}
+                        className="w-full p-4 text-left"
+                        aria-expanded={isExpanded}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                                Factura {p.factura}
+                              </span>
+                              <span
+                                className={`inline-flex items-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
+                                  annulled
+                                    ? "bg-red-100 text-red-700"
+                                    : p.estado === "Completada" || p.estado === "Completado"
+                                    ? "bg-green-50 text-green-700"
+                                    : p.estado === "Pendiente"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {p.estado}
+                              </span>
+                            </div>
+                            <p className={`mt-1 text-base font-semibold text-gray-900 ${ONE_LINE_SAFE}`}>
+                              {p.proveedor}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {onlyDate(p.fecha)}
+                            </p>
+                          </div>
+                          <ChevronIcon open={isExpanded} />
+                        </div>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden border-t border-gray-100"
+                          >
+                            <div className="px-4 py-4 space-y-3">
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">NIT</p>
+                                  <p className="mt-1 font-medium text-gray-800">{p.nit}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Total</p>
+                                  <p className="mt-1 font-medium text-gray-800">{money(p.total)}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAnnulPurchase(p)}
+                                  disabled={!canAnnular || annulled}
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                                    !canAnnular || annulled
+                                      ? "opacity-70 cursor-not-allowed"
+                                      : "cursor-pointer hover:opacity-90"
+                                  } ${
+                                    annulled
+                                      ? "bg-red-100 text-red-700"
+                                      : p.estado === "Completada" || p.estado === "Completado"
+                                      ? "bg-green-50 text-green-700"
+                                      : p.estado === "Pendiente"
+                                      ? "bg-yellow-50 text-yellow-700"
+                                      : "bg-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {p.estado}
+                                </button>
+                                <ViewButton event={() => handleViewDetails(p)} />
+                                <PrinterButton
+                                  event={() =>
+                                    exportPurchaseReceiptPDF({
+                                      purchase: p,
+                                      filename: `recibo_compra_${p.factura}.pdf`,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
+                  );
+                })}
+              </motion.ul>
+            )}
+          </motion.div>
+
           {/* Tabla */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full table-fixed">
                 <colgroup>
