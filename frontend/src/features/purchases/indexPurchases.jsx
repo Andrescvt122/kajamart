@@ -60,32 +60,6 @@ const uniqueKeepOrder = (arr) => {
   return out;
 };
 
-const ONE_LINE_SAFE =
-  "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
-
-function ChevronIcon({ open }) {
-  return (
-    <motion.svg
-      width="18"
-      height="18"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      animate={{ rotate: open ? 180 : 0 }}
-      transition={{ duration: 0.2 }}
-      className="text-gray-500"
-    >
-      <path
-        d="M5.5 7.5l4.5 4 4.5-4"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </motion.svg>
-  );
-}
-
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -102,30 +76,38 @@ export default function IndexPurchases() {
   const [purchasesApi, setPurchasesApi] = useState([]);
   const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchPurchases = useCallback(async () => {
-    try {
-      setIsLoadingApi(true);
-      setApiError("");
 
-      const { data } = await api.get("/purchase");
-      const arr = Array.isArray(data) ? data : [];
-      setPurchasesApi(arr);
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Error cargando compras desde el servidor.";
-      setApiError(msg);
-      setPurchasesApi([]);
-    } finally {
-      setIsLoadingApi(false);
-    }
-  }, []);
+ const fetchPurchases = useCallback(async () => {
+  try {
+    setIsLoadingApi(true);
+    setApiError("");
 
-  useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases, comprasVersion]);
+    const { data } = await api.get(`/purchase?page=${page}&limit=10`);
+
+    const arr = Array.isArray(data.data) ? data.data : [];
+    setPurchasesApi(arr);
+    setTotalPages(data.pagination?.totalPages || 1);
+
+  } catch (e) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "Error cargando compras desde el servidor.";
+
+    setApiError(msg);
+    setPurchasesApi([]);
+  } finally {
+    setIsLoadingApi(false);
+  }
+}, [page]);
+
+useEffect(() => {
+  fetchPurchases();
+}, [fetchPurchases, comprasVersion, page]);
 
   // =========================
   // (Opcional) LocalStorage legacy
@@ -206,141 +188,28 @@ export default function IndexPurchases() {
           const totalUnid =
             Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
 
-          // impuestos
-          const iva = Number(d?.iva_porcentaje ?? 0) || 0;
-          const icu = Number(d?.icu_porcentaje ?? 0) || 0;
-
-          // precios
-          const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
-          const precioVenta = Number(d?.precio_venta ?? 0) || 0;
-
-          // vencimiento y codigo (por paquete)
-          const fechaVenc =
-            d?.detalle_productos?.fecha_vencimiento ??
-            d?.fecha_vencimiento ??
-            "";
-
-          const codigo =
-            d?.detalle_productos?.codigo_barras_producto_compra ??
-            d?.codigo_barras_producto_compra ??
-            "";
-
-          if (!map.has(key)) {
-            map.set(key, {
-              productoId: idProducto,
-              nombre,
-
-              // ✅ cantidades agregadas
-              cantidad_paquetes: 0,
-              unidades_por_paquete: unidPorPaq,
-              cantidad_total_unidades: 0,
-
-              precioCompra,
-              precioVenta,
-              iva_porcentaje: iva,
-              icu_porcentaje: icu,
-
-              // ✅ arrays por paquete
-              vencimientos: [],
-              codigosBarras: [],
-            });
-          }
-
-          const acc = map.get(key);
-
-          // acumuladores
-          acc.cantidad_paquetes += paquetes;
-          acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
-          acc.cantidad_total_unidades += totalUnid;
-
-          // últimos valores “actuales”
-          acc.precioCompra = precioCompra;
-          acc.precioVenta = precioVenta;
-          acc.iva_porcentaje = iva;
-          acc.icu_porcentaje = icu;
-
-          // push vencimientos/códigos (1 por cada detalle/paquete)
-          if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
-          if (codigo) acc.codigosBarras.push(String(codigo));
-        }
-
-        // ✅ IMPORTANTE:
-        // - vencimientos NO se deduplican (para que salgan 2 fechas aunque sean iguales)
-        // - codigos sí se puede deduplicar si quieres
-        return Array.from(map.values()).map((p) => ({
-          ...p,
-          vencimientos: (p.vencimientos || []).filter(Boolean),
-          codigosBarras: uniqueKeepOrder(p.codigosBarras),
-        }));
-      })();
-
-      // comprobante
-      const comprobante = {
-        name: c?.comprobante_nombre ?? null,
-        type: c?.comprobante_mime ?? null,
-        url: c?.comprobante_url ?? null,
-        size: c?.comprobante_size ?? null,
-      };
-
-      return {
-        id: String(id),
-        factura: String(factura),
-        proveedor: proveedorNombre,
-        nit: String(proveedorNit),
-        total,
-        fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-        estado,
-
-        // ✅ lo que consume el modal
-        productos,
-
-        comprobante,
-        raw: c,
-      };
-    });
-  }, [purchasesApi]);
-
-  // =========================
-  // Normalizar Local => UI shape (legacy)
-  // =========================
-  const normalizedLocalPurchases = useMemo(() => {
-    return purchasesLocal.map((c) => {
-      const id = c?.id ?? c?._id ?? "";
-      const factura = c?.numero_factura ?? c?.num_factura ?? c?.factura ?? "—";
-
-      const proveedorNombre =
-        c?.proveedor?.nombre ??
-        (typeof c?.proveedor === "string" ? c.proveedor : null) ??
-        "—";
-
-      const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
-      const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
-      const estado = c?.estado ?? "Completada";
-
-      return {
-        id: String(id),
-        factura: String(factura),
-        proveedor: proveedorNombre,
-        nit: String(proveedorNit ?? "—"),
-        total: Number(c?.total ?? 0),
-        fecha,
-        estado,
-        productos: Array.isArray(c?.productos) ? c.productos : [],
-        comprobante: c?.comprobante ?? null,
-        raw: c,
-      };
-    });
-  }, [purchasesLocal]);
-
-  // =========================
-  // Lista final (API + Local sin duplicar)
-  // =========================
-  const purchases = useMemo(() => {
-  const apiIds = new Set(normalizedApiPurchases.map((p) => String(p.id)));
-
-  const localNoDup = normalizedLocalPurchases.filter(
-    (p) => !apiIds.has(String(p.id))
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
   );
+}
 
   const merged = [...normalizedApiPurchases, ...localNoDup];
 
@@ -357,10 +226,6 @@ export default function IndexPurchases() {
   // =========================
   // UI State
   // =========================
-  const perPage = 5;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [expanded, setExpanded] = useState(new Set());
 
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
@@ -380,27 +245,13 @@ export default function IndexPurchases() {
     );
   }, [purchases, searchTerm]);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filtered.length / perPage)),
-    [filtered.length]
-  );
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
-  }, [totalPages]);
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
   // =========================
   // Handlers
   // =========================
   const goToPage = useCallback(
     (n) => {
       const p = Math.min(Math.max(1, n), totalPages);
-      setCurrentPage(p);
+      setPage(p);
     },
     [totalPages]
   );
@@ -654,22 +505,22 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                 />
               </div>
 
-              <div className="flex gap-2">
-                <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
-                  Excel
-                </ExportExcelButton>
+              <input
+                type="text"
+                placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+              />
+            </div>
 
-                <ExportPDFButton
-                  event={() =>
-                    exportPurchasesToPdf({
-                      rows: filtered,
-                      filename: "compras.pdf",
-                    })
-                  }
-                >
-                  PDF
-                </ExportPDFButton>
-              </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
+                Excel
+              </ExportExcelButton>
 
               <div className="hidden xl:block" />
 
@@ -683,48 +534,113 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
             </div>
           </div>
 
-          <motion.div
-            className="md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {isLoadingApi ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
-                Cargando compras...
-              </div>
-            ) : pageItems.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
-                No se encontraron compras.
-              </div>
-            ) : (
-              <motion.ul className="space-y-3">
-                {pageItems.map((p) => {
-                  const rowId = String(p.id);
-                  const isExpanded = expanded.has(rowId);
-                  const annulled = isAnulada(p.estado);
+          {/* Tabla */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
+                <colgroup>
+                  <col className="w-[160px]" />
+                  <col className="w-[260px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
 
-                  return (
-                    <motion.li
-                      key={`${rowId}-mobile`}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-xl shadow-sm border border-gray-100"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(rowId)}
-                        className="w-full p-4 text-left"
-                        aria-expanded={isExpanded}
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                    <th className="px-4 py-4">N° Factura</th>
+                    <th className="px-4 py-4">Proveedor</th>
+                    <th className="px-4 py-4">NIT</th>
+                    <th className="px-4 py-4 text-right">Total</th>
+                    <th className="px-4 py-4">Fecha</th>
+                    <th className="px-4 py-4">Estado</th>
+                    <th className="px-4 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+                  <AnimatePresence>
+                    {isLoadingApi ? (
+                      <motion.tr
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] uppercase tracking-wide text-gray-500">
-                                Factura {p.factura}
-                              </span>
-                              <span
-                                className={`inline-flex items-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
-                                  annulled
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          Cargando compras...
+                        </td>
+                      </motion.tr>
+                    ) : filtered.length === 0 ? (
+                      <motion.tr
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          No se encontraron compras.
+                        </td>
+                      </motion.tr>
+                    ) : (
+                      filtered.map((p) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
+                            {p.factura}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 truncate">
+                            {p.proveedor}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
+                            {p.nit}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                            {money(p.total)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {onlyDate(p.fecha)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAnnulPurchase(p)}
+                              disabled={!canAnnular || isAnulada(p.estado)}
+                              title={
+                                !canAnnular
+                                  ? "No tienes permiso para anular"
+                                  : isAnulada(p.estado)
+                                  ? "Esta compra ya está anulada"
+                                  : canAnnulPurchase(p)
+                                  ? "Click para anular (menos de 30 min)"
+                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                              }
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
+                                ${
+                                  !canAnnular || isAnulada(p.estado)
+                                    ? "opacity-70 cursor-not-allowed"
+                                    : "cursor-pointer hover:opacity-90"
+                                }
+                                ${
+                                  isAnulada(p.estado)
                                     ? "bg-red-100 text-red-700"
                                     : p.estado === "Completada" || p.estado === "Completado"
                                     ? "bg-green-50 text-green-700"
@@ -736,78 +652,24 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                                 {p.estado}
                               </span>
                             </div>
-                            <p className={`mt-1 text-base font-semibold text-gray-900 ${ONE_LINE_SAFE}`}>
-                              {p.proveedor}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {onlyDate(p.fecha)}
-                            </p>
-                          </div>
-                          <ChevronIcon open={isExpanded} />
-                        </div>
-                      </button>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-                      <AnimatePresence initial={false}>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden border-t border-gray-100"
-                          >
-                            <div className="px-4 py-4 space-y-3">
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">NIT</p>
-                                  <p className="mt-1 font-medium text-gray-800">{p.nit}</p>
-                                </div>
-                                <div>
-                                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Total</p>
-                                  <p className="mt-1 font-medium text-gray-800">{money(p.total)}</p>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAnnulPurchase(p)}
-                                  disabled={!canAnnular || annulled}
-                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-                                    !canAnnular || annulled
-                                      ? "opacity-70 cursor-not-allowed"
-                                      : "cursor-pointer hover:opacity-90"
-                                  } ${
-                                    annulled
-                                      ? "bg-red-100 text-red-700"
-                                      : p.estado === "Completada" || p.estado === "Completado"
-                                      ? "bg-green-50 text-green-700"
-                                      : p.estado === "Pendiente"
-                                      ? "bg-yellow-50 text-yellow-700"
-                                      : "bg-red-100 text-red-700"
-                                  }`}
-                                >
-                                  {p.estado}
-                                </button>
-                                <ViewButton event={() => handleViewDetails(p)} />
-                                <PrinterButton
-                                  event={() =>
-                                    exportPurchaseReceiptPDF({
-                                      purchase: p,
-                                      filename: `recibo_compra_${p.factura}.pdf`,
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-          </motion.div>
+          {/* Paginación */}
+          <Paginator
+            currentPage={page}
+            totalPages={totalPages}
+            goToPage={(p) => setPage(p)}
+          />
+        </div>
+      </div>
 
           {/* Tabla */}
           <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

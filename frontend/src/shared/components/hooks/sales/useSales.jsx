@@ -1,65 +1,58 @@
-// src/shared/components/hooks/sales/useSales.jsx
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
-const ENDPOINT = `${API_BASE}/kajamart/api/sales`;
+const API_URL = "http://localhost:3000/kajamart/api/sales";
 
-function extractArray(json) {
-  if (Array.isArray(json)) return json;
+export const useSales = () => {
 
-  // soporta wrappers comunes
-  const candidates = [
-    json?.sales,
-    json?.ventas,
-    json?.data,
-    json?.results,
-    json?.items,
-  ];
-
-  const arr = candidates.find(Array.isArray);
-  return arr || [];
-}
-
-export function useSales() {
   const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const fetchSales = useCallback(async () => {
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const limit = 10;
+
+  const fetchSales = async (pageNumber = page) => {
+
     setLoading(true);
-    setError("");
+    setError(null);
 
     try {
-      const res = await fetch(ENDPOINT);
 
-      if (!res.ok) {
-        let msg = "";
-        try {
-          const j = await res.json();
-          msg = j?.message || j?.error || JSON.stringify(j);
-        } catch {
-          msg = await res.text();
-        }
-        throw new Error(msg || `HTTP ${res.status}`);
-      }
+      const response = await axios.get(
+        `${API_URL}?page=${pageNumber}&limit=${limit}`
+      );
 
-      const json = await res.json();
+      setSales(response.data.data);
+      setTotalPages(response.data.pagination.totalPages);
+      setPage(response.data.pagination.page);
 
-      // 👇 Debug rápido (temporal)
-      console.log("GET /sales response:", json);
+    } catch (err) {
 
-      setSales(extractArray(json));
-    } catch (e) {
-      setError(e?.message || "Error cargando ventas");
-      setSales([]);
+      console.error("❌ Error obteniendo ventas:", err);
+
+      setError(
+        err.response?.data?.message || "Error al obtener ventas"
+      );
+
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+    fetchSales(1);
+  }, []);
 
-  return { sales, loading, error, refetch: fetchSales };
-}
+  return {
+    sales,
+    loading,
+    error,
+    page,
+    totalPages,
+    setPage: fetchSales, // 👈 cambiar página
+    refetch: fetchSales
+  };
+};
