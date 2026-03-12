@@ -15,8 +15,13 @@
     "transform": {
       "^.+\\.(js|jsx)$": "babel-jest"
     },
-    "moduleFileExtensions": ["js", "jsx"],
-    "setupFilesAfterEnv": ["<rootDir>/src/setupTests.js"],
+    "moduleFileExtensions": [
+      "js",
+      "jsx"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/src/setupTests.js"
+    ],
     "moduleNameMapper": {
       "\\.(css|less|scss|sass)$": "identity-obj-proxy",
       "\\.(jpg|jpeg|png|gif|webp|svg)$": "<rootDir>/src/__mocks__/fileMock.cjs"
