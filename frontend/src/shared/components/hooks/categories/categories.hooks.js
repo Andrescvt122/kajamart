@@ -12,6 +12,7 @@ const mapFromApi = (cat) => ({
   nombre: cat.nombre_categoria,
   descripcion: cat.descripcion_categoria,
   estado: cat.estado ? "Activo" : "Inactivo",
+  productos: Array.isArray(cat.productos) ? cat.productos : [],
 });
 
 // Normaliza cualquier forma de "estado" a boolean
@@ -283,6 +284,67 @@ export function useCategories() {
     addLocal,
     updateLocal,
     removeLocal,
+  };
+
+}
+
+export function useAllCategories() {
+
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const abortRef = useRef(null);
+
+  const fetchAllCategories = useCallback(async () => {
+    try {
+
+      setLoading(true);
+      setError(null);
+
+      if (abortRef.current) abortRef.current.abort();
+
+      abortRef.current = new AbortController();
+
+      const { data } = await axios.get(`${API}/all`, {
+        signal: abortRef.current.signal,
+      });
+
+      setCategories(
+        Array.isArray(data) ? data.map(mapFromApi) : []
+      );
+
+    } catch (err) {
+
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+
+      console.error("❌ useAllCategories - fetchAllCategories:", err);
+
+      setError(
+        err.response?.data?.error ||
+        "Error al obtener todas las categorías."
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+  }, []);
+
+  useEffect(() => {
+
+    fetchAllCategories();
+
+    return () => abortRef.current?.abort();
+
+  }, [fetchAllCategories]);
+
+  return {
+    categories,
+    loading,
+    error,
+    refresh: fetchAllCategories,
   };
 
 }

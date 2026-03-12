@@ -6,6 +6,16 @@ const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
 const API_URL = `${API_BASE}/products`;
 
+// 🔹 Obtener todos los productos sin paginación
+export const useAllProducts = () =>
+  useQuery({
+    queryKey: ["products", "all"],
+    queryFn: async () => {
+      const { data } = await axios.get(`${API_URL}/all`);
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
 // 🔹 Obtener todos los productos
 export const useProducts = (page = 1, limit = 6) =>
   useQuery({

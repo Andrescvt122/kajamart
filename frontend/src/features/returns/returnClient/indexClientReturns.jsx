@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -25,7 +25,6 @@ export default function IndexClientReturns() {
   const {
     fetchPage,
     pagesCache,
-    meta,
     loading,
     error,
     reset,
@@ -193,10 +192,6 @@ export default function IndexClientReturns() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
-
-  useEffect(() => {
-    fetchPage(currentPage);
-  }, [currentPage]);
 
   return (
     <>

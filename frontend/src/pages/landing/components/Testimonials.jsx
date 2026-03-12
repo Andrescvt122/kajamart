@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useProducts } from "../../../shared/components/hooks/products/products.hooks";
-import { useCategories } from "../../../shared/components/hooks/categories/categories.hooks";
+import { useAllProducts } from "../../../shared/components/hooks/products/products.hooks";
+import { useAllCategories } from "../../../shared/components/hooks/categories/categories.hooks";
 
 const pick = (...vals) => {
   for (const v of vals) {
@@ -49,43 +49,50 @@ const CategoryFallback = ({ name = "Categoría" }) => (
 );
 
 export default function MemoriesBouncing() {
-  const { data: productsRaw, isLoading: loadingProducts, isError: errorProducts } = useProducts();
-  const { categories, loading: loadingCategories, error: errorCategories } = useCategories();
+  const {
+    data: productsRaw,
+    isLoading: loadingProducts,
+    isError: errorProducts,
+  } = useAllProducts();
+  const {
+    categories,
+    loading: loadingCategories,
+    error: errorCategories,
+  } = useAllCategories();
 
   // ✅ cards finales (categorías + imagen aleatoria de productos de esa categoría)
   const cards = useMemo(() => {
     const prods = Array.isArray(productsRaw) ? productsRaw : [];
     const cats = Array.isArray(categories) ? categories : [];
 
-    // indexar productos por id_categoria (con fallbacks)
-    const byCatId = new Map();
+    const productsById = new Map();
 
     for (const p of prods) {
-      const idCat = pick(
-        p?.id_categoria,
-        p?.categoria_id,
-        p?.idCategoria,
-        p?.categoria?.id_categoria,
-        p?.categoria?.id,
-        p?.category_id
-      );
-
-      if (idCat === undefined || idCat === null) continue;
-
-      const key = String(idCat);
-      if (!byCatId.has(key)) byCatId.set(key, []);
-      byCatId.get(key).push(p);
+      const idProd = pick(p?.id_producto, p?.id, p?._id, p?.productId);
+      if (idProd === undefined || idProd === null) continue;
+      productsById.set(String(idProd), p);
     }
 
-    // construir cards usando categorías del hook (ya mapeadas)
     const out = cats
-      .filter((c) => c.estado === "Activo") // opcional
+      .filter((c) => c.estado === "Activo")
       .map((c) => {
-        const key = String(c.id_categoria);
-        const list = byCatId.get(key) || [];
+        const linkedProducts = Array.isArray(c.productos)
+          ? c.productos
+              .map((p) => {
+                const idProd = pick(
+                  p?.id_producto,
+                  p?.id,
+                  p?._id,
+                  p?.productId
+                );
+                return idProd === undefined || idProd === null
+                  ? null
+                  : productsById.get(String(idProd));
+              })
+              .filter(Boolean)
+          : [];
 
-        // buscar productos con imagen
-        const withImg = list
+        const withImg = linkedProducts
           .map((p) => {
             const img = pick(
               p?.url_imagen,
@@ -109,8 +116,8 @@ export default function MemoriesBouncing() {
         return {
           id: c.id_categoria,
           nombre: c.nombre || "Categoría",
-          texto: list.length
-            ? `${list.length} producto${list.length === 1 ? "" : "s"}`
+          texto: linkedProducts.length
+            ? `${linkedProducts.length} producto${linkedProducts.length === 1 ? "" : "s"}`
             : "Sin productos aún",
           img: chosen?.img || "",
         };

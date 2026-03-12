@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import api from "../../../../api/axiosConfig";
 
 const API_PATH = "/returnClients"; // relative to baseURL in axios config
@@ -14,27 +14,22 @@ const getProductName = (productNode) =>
   productNode?.productos?.nombre || productNode?.nombre_producto || "Sin producto";
 
 export const useFetchReturnClients = (initialLimit = 6) => {
-  const [pagesCache, setPagesCache] = useState({}); // { pageNumber: [items] }
-  const [pageCursors, setPageCursors] = useState({ 1: null }); // cursor used to fetch each page
-  const [meta, setMeta] = useState({ limit: initialLimit, nextCursor: null });
+  const [pagesCache, setPagesCache] = useState({});
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: initialLimit,
+    totalItems: 0,
+    totalPages: 1,
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const lastNextCursor = useRef(null);
   const pagesCacheRef = useRef({});
-  const pageCursorsRef = useRef({ 1: null });
-  const metaRef = useRef({ limit: initialLimit, nextCursor: null });
-
-  useEffect(() => {
-    pagesCacheRef.current = pagesCache;
-  }, [pagesCache]);
-
-  useEffect(() => {
-    pageCursorsRef.current = pageCursors;
-  }, [pageCursors]);
-
-  useEffect(() => {
-    metaRef.current = meta;
-  }, [meta]);
+  const metaRef = useRef({
+    page: 1,
+    limit: initialLimit,
+    totalItems: 0,
+    totalPages: 1,
+  });
 
   const mapItem = (item) => {
     const venta = item.ventas || {};
@@ -85,26 +80,16 @@ export const useFetchReturnClients = (initialLimit = 6) => {
   };
 
   const getTotalPages = () => {
-    const loaded = Object.keys(pagesCache).map(Number);
-    const last = loaded.length ? Math.max(...loaded) : 0;
-    return last + (meta.nextCursor ? 1 : 0);
+    return Math.max(1, Number(meta.totalPages) || 1);
   };
 
   const getLoadedCount = () => {
-    return Object.values(pagesCache).reduce((acc, arr) => acc + arr.length, 0);
+    return Number(meta.totalItems) || 0;
   };
 
   const fetchPage = async (pageNumber, options = {}) => {
     const { force = false } = options;
     if (pageNumber < 1) return [];
-
-    // ensure cursors up to requested page exist by loading previous pages sequentially
-    if (
-      pageNumber > 1 &&
-      pageCursorsRef.current[pageNumber] === undefined // we don't have cursor for this page
-    ) {
-      await fetchPage(pageNumber - 1, options);
-    }
 
     if (!force && pagesCacheRef.current[pageNumber]) {
       return pagesCacheRef.current[pageNumber];
@@ -113,11 +98,12 @@ export const useFetchReturnClients = (initialLimit = 6) => {
     setLoading(true);
     setError(null);
     try {
-      const params = { limit: metaRef.current.limit };
-      const cursor = pageCursorsRef.current[pageNumber];
-      if (cursor) params.cursor = cursor;
-
-      const res = await api.get(API_PATH, { params });
+      const res = await api.get(API_PATH, {
+        params: {
+          page: pageNumber,
+          limit: metaRef.current.limit,
+        },
+      });
       const raw = res.data?.data || [];
       const mapped = raw.map(mapItem);
 
@@ -127,20 +113,16 @@ export const useFetchReturnClients = (initialLimit = 6) => {
         return next;
       });
 
-      const newNext = res.data?.meta?.nextCursor ?? null;
-      lastNextCursor.current = newNext;
-      setMeta((prev) => {
-        const next = { ...prev, nextCursor: newNext };
-        metaRef.current = next;
-        return next;
-      });
-      if (newNext) {
-        setPageCursors((prev) => {
-          const next = { ...prev, [pageNumber + 1]: newNext };
-          pageCursorsRef.current = next;
-          return next;
-        });
-      }
+      const responseMeta = res.data?.meta || {};
+      const nextMeta = {
+        page: Number(responseMeta.page) || pageNumber,
+        limit: Number(responseMeta.limit) || metaRef.current.limit,
+        totalItems: Number(responseMeta.totalItems) || mapped.length,
+        totalPages: Number(responseMeta.totalPages) || 1,
+      };
+
+      metaRef.current = nextMeta;
+      setMeta(nextMeta);
 
       return mapped;
     } catch (err) {
@@ -154,12 +136,9 @@ export const useFetchReturnClients = (initialLimit = 6) => {
 
   const reset = () => {
     pagesCacheRef.current = {};
-    pageCursorsRef.current = { 1: null };
-    metaRef.current = { limit: initialLimit, nextCursor: null };
-    lastNextCursor.current = null;
+    metaRef.current = { page: 1, limit: initialLimit, totalItems: 0, totalPages: 1 };
     setPagesCache({});
-    setPageCursors({ 1: null });
-    setMeta({ limit: initialLimit, nextCursor: null });
+    setMeta({ page: 1, limit: initialLimit, totalItems: 0, totalPages: 1 });
     setError(null);
   };
 
@@ -167,22 +146,21 @@ export const useFetchReturnClients = (initialLimit = 6) => {
 
   const fetchAll = async () => {
     reset();
-    let page = 1;
-    let acc = [];
-    // iterate until no next cursor is discovered
-    do {
-      const pageData = await fetchPage(page);
+    const firstPage = await fetchPage(1, { force: true });
+    const totalPages = Math.max(1, Number(metaRef.current.totalPages) || 1);
+    let acc = [...firstPage];
+
+    for (let page = 2; page <= totalPages; page += 1) {
+      const pageData = await fetchPage(page, { force: true });
       acc = acc.concat(pageData || []);
-      if (!lastNextCursor.current) break;
-      page += 1;
-    } while (true);
+    }
+
     return acc;
   };
 
   return {
     fetchPage,
     pagesCache,
-    pageCursors,
     meta,
     loading,
     error,
