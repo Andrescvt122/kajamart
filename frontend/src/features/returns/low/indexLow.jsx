@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -13,6 +13,7 @@ import DetailsLow from "./modals/detailsLow";
 import generateProductLowsPDF from "./helpers/exportToPdf";
 import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
+import { useSearchLowProducts } from "../../../shared/components/hooks/lowProducts/useSearchLowProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../onboarding/loading";
 import Swal from "sweetalert2";
@@ -69,8 +70,23 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexLow() {
-  const { data: lows, loading, error, refetch } = useGetLowProducts();
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useGetLowProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedLows = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchLowProducts(searchTerm);
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
@@ -82,9 +98,16 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
-  const perPage = 6;
+  const canAnnul = hasPermission('Anular baja producto');
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
+
+  React.useEffect(() => {
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
 
   const buildAnnulErrorMessage = (err) => {
     const payload = err?.response?.data ?? {};
@@ -126,12 +149,13 @@ export default function IndexLow() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Filtrado + expansión por producto (cada producto = fila)
-  const filtered = useMemo(() => {
+  // Filtrado + expansión por producto para la página actual
+  const pageItems = useMemo(() => {
+    const pageData = isSearching ? searchedLows : pagesCache[currentPage] || [];
     const s = normalizeText(searchTerm.trim());
     const match = (val) => normalizeText(String(val ?? "")).includes(s);
 
-    const expandedRows = (lows || []).flatMap((low) =>
+    const expandedRows = pageData.flatMap((low) =>
       (low.products || []).map((product) => ({
         ...low,
         currentProduct: product,
@@ -156,14 +180,17 @@ export default function IndexLow() {
           : match(val)
       )
     );
-  }, [lows, searchTerm, statusFilter, annulledMap]);
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedLows]);
 
-  // Paginación basada en filas (productos)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(pageItems.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? pageItems.length : getLoadedCount();
+  const visibleItems = useMemo(() => {
+    if (!isSearching) return pageItems;
     const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    return pageItems.slice(start, start + perPage);
+  }, [pageItems, currentPage, perPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -179,7 +206,10 @@ export default function IndexLow() {
   };
 
   const handleConfirmLow = () => {
-    refetch();
+    // after registering we want to refresh first page
+    reset();
+    setCurrentPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleAnnulLow = async (item) => {
@@ -205,7 +235,7 @@ export default function IndexLow() {
         try {
           await annulLowProduct(item.idLow);
           setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
-          await refetch?.();
+          await fetchPage(currentPage, { force: true });
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -276,7 +306,7 @@ export default function IndexLow() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
@@ -315,11 +345,11 @@ export default function IndexLow() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
+              <ExportExcelButton event={() => generateProductLowsXLS(pageItems)}>
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
+              <ExportPDFButton event={() => generateProductLowsPDF(pageItems)}>
                 PDF
               </ExportPDFButton>
 
@@ -342,24 +372,22 @@ export default function IndexLow() {
           <motion.div
             className="md:hidden"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
-            {loading ? (
+            {loading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : error ? (
+            ) : error || searchError ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                Error al cargar las bajas
+                {searchError || error || "Error al cargar las bajas"}
               </div>
-            ) : pageItems.length === 0 ? (
+            ) : visibleItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron productos dados de baja.
               </div>
             ) : (
               <motion.ul className="space-y-3" variants={tableVariants}>
-                {pageItems.map((item, i) => {
+                {visibleItems.map((item, i) => {
                   const id = item._rowId || `${item.idLow}-${i}`;
                   const isExpanded = expanded.has(id);
                   const panelId = `panel-${id}`;
@@ -475,8 +503,6 @@ export default function IndexLow() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -495,25 +521,25 @@ export default function IndexLow() {
                   </tr>
                 </thead>
                 <motion.tbody
-                  className="divide-y divide-gray-100"
+                  className="divide-y divide-gray-100 text-gray-700"
                   variants={tableVariants}
                 >
-                  {loading ? (
+                  {loading || (isSearching && searchLoading) ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center">
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
-                  ) : error ? (
+                  ) : error || searchError ? (
                     <tr>
                       <td
                         colSpan={8}
                         className="px-6 py-12 text-center text-red-500"
                       >
-                        Error al cargar las bajas
+                        {searchError || error || "Error al cargar las bajas"}
                       </td>
                     </tr>
-                  ) : pageItems.length === 0 ? (
+                  ) : visibleItems.length === 0 ? (
                     <tr>
                       <td
                         colSpan={8}
@@ -523,7 +549,7 @@ export default function IndexLow() {
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((item, i) => {
+                    visibleItems.map((item, i) => {
                       const id =
                         item._rowId ||
                         `${item.idLow}-${item.currentProduct?.id ?? i}`;
@@ -612,17 +638,17 @@ export default function IndexLow() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsible}
                             </span>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <div className="flex items-center gap-2">
                               <ToggleSwitch
                                 checked={annulledMap[item.idLow] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateLow,
                                     annulledMap[item.idLow] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
@@ -659,7 +685,7 @@ export default function IndexLow() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

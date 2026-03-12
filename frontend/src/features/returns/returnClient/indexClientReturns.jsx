@@ -7,37 +7,89 @@ import {
 import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
 import generateProductReturnsPDF from "./helpers/exportToPdf";
 import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
+import { useSearchReturnClients } from "../../../shared/components/hooks/returnClients/useSearchReturnClients";
 import Swal from "sweetalert2";
 import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 
+const ONE_LINE_SAFE =
+  "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
+
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
+  );
+}
+
 export default function IndexClientReturns() {
-  const { returns, loading, error, refetch } = useFetchReturnClients();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado para el modal de detalles
-  const [selectedReturn, setSelectedReturn] = useState(null); // Estado para la devolución seleccionada
+  // pagination hook handles loading pages from backend
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useFetchReturnClients(perPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedReturnClients = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchReturnClients(searchTerm);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedReturn, setSelectedReturn] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expanded, setExpanded] = useState(new Set());
   const [annulledMap, setAnnulledMap] = useState({});
-  const perPage = 6;
-
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion clientes');
+  const canAnnul = hasPermission('Anular devolucion cliente');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
 
-  // Función para abrir el modal de detalles
+  // data-fetching effect
+  React.useEffect(() => {
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
+
+  // Función para abrir el modal de detalles (busca sólo en página actual)
   const handleViewDetails = (rowData) => {
-    const found = returns.find((returnItem) => returnItem.idReturn === rowData.idReturn);
+    const pageData = isSearching ? searchedReturnClients : pagesCache[currentPage] || [];
+    const found = pageData.find((r) => r.idReturn === rowData.idReturn);
     setSelectedReturn(found || rowData);
     setIsDetailsModalOpen(true);
   };
@@ -56,53 +108,76 @@ export default function IndexClientReturns() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  const formattedRows = useMemo(() => {
-    return returns.flatMap((returnItem) => {
-      const returnedRows = (returnItem.productsReturned || []).map((product) => ({
-        ...returnItem,
-        currentProduct: {
-          ...product,
-          category: "devuelto",
-        },
-      }));
-      const deliveredRows = (returnItem.productsDelivered || []).map((product) => ({
-        ...returnItem,
-        currentProduct: {
-          ...product,
-          category: "entregado",
-        },
-      }));
-      return [...returnedRows, ...deliveredRows];
-    });
-  }, [returns]);
+  // build items for UI from current page and apply filters locally
+  const filteredItems = useMemo(() => {
+    const pageData = isSearching ? searchedReturnClients : pagesCache[currentPage] || [];
+    return pageData
+      .flatMap((returnItem) => {
+        const returnedRows = (returnItem.productsReturned || []).map((product) => ({
+          ...returnItem,
+          currentProduct: {
+            ...product,
+            category: "devuelto",
+          },
+        }));
+        const deliveredRows = (returnItem.productsDelivered || []).map((product) => ({
+          ...returnItem,
+          currentProduct: {
+            ...product,
+            category: "entregado",
+          },
+        }));
+        const rows = [...returnedRows, ...deliveredRows];
 
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    const match = (val) => normalizeText(String(val ?? "")).includes(s);
-    const byStatus = formattedRows.filter((row) => {
-      const isActive = annulledMap[row.idReturn] ?? row.isActive;
-      if (statusFilter === "active") return isActive === true;
-      if (statusFilter === "inactive") return isActive === false;
-      return true;
-    });
+        if (rows.length > 0) {
+          return rows;
+        }
 
-    if (!s) return byStatus;
-
-    return byStatus.filter((row) => {
-      const topMatch = Object.entries(row).some(([, v]) => {
-        if (Array.isArray(v)) return false;
-        return match(v);
+        return [
+          {
+            ...returnItem,
+            currentProduct: {
+              idProduct: `fallback-${returnItem.idReturn}`,
+              name: "Sin productos asociados",
+              quantity: 0,
+              totalValue:
+                Number(returnItem.totalDevolucionCliente) ||
+                Number(returnItem.totalDevolucionProducto) ||
+                0,
+              reason: "",
+              condition: "",
+              category: "sin-detalle",
+            },
+          },
+        ];
+      })
+      .filter((row) => {
+        const isActive = annulledMap[row.idReturn] ?? row.isActive;
+        if (statusFilter === "active") return isActive;
+        if (statusFilter === "annulled") return !isActive;
+        return true;
+      })
+      .filter((row) => {
+        const s = normalizeText(searchTerm.trim());
+        if (!s) return true;
+        return (
+          normalizeText(row.idReturn).includes(s) ||
+          normalizeText(row.idSale).includes(s) ||
+          normalizeText(row.client).includes(s) ||
+          normalizeText(row.currentProduct?.name).includes(s)
+        );
       });
-      const productMatch = Object.values(row.currentProduct || {}).some((val) => match(val));
-      return topMatch || productMatch;
-    });
-  }, [formattedRows, searchTerm, statusFilter, annulledMap]);
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedReturnClients]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filteredItems.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? filteredItems.length : getLoadedCount();
   const pageItems = useMemo(() => {
+    if (!isSearching) return filteredItems;
     const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    return filteredItems.slice(start, start + perPage);
+  }, [filteredItems, currentPage, perPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -114,6 +189,13 @@ export default function IndexClientReturns() {
       currency: "COP",
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+  const toggleExpand = (rowId) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      return next;
+    });
   };
 
   const handleAnnulReturn = async (row) => {
@@ -135,7 +217,8 @@ export default function IndexClientReturns() {
         try {
           await annulReturnClient(row.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [row.idReturn]: false }));
-          await refetch?.();
+          // recarga la página actual luego de anular
+          await fetchPage(currentPage, { force: true });
           return true;
         } catch {
           Swal.showValidationMessage("No se pudo anular el registro.");
@@ -198,49 +281,57 @@ export default function IndexClientReturns() {
       />
 
       {/* Contenido */}
-      <div className="relative z-10">
+      <div className="relative z-10 min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip text-gray-900">
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="mb-4 sm:mb-6">
           <div>
-            <h2 className="text-3xl font-semibold">Devoluciones de clientes</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <h2 className="text-2xl sm:text-3xl font-semibold">Devoluciones de clientes</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Administrador de tienda
             </p>
           </div>
         </div>
 
         {/* Barra de búsqueda + botones */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={20} className="text-gray-400" />
+        <div className="mb-4 sm:mb-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+            <div className="relative min-w-0">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={20} className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar devoluciones..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Buscar devoluciones..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+
+            <StatusFilterDropdown
+              value={statusFilter}
+              onChange={(nextStatus) => {
+                setStatusFilter(nextStatus);
                 setCurrentPage(1);
               }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+              className="w-full xl:w-[220px]"
             />
-          </div>
-          <StatusFilterDropdown
-            value={statusFilter}
-            onChange={(nextStatus) => {
-              setStatusFilter(nextStatus);
-              setCurrentPage(1);
-            }}
-            className="w-full sm:w-[220px]"
-          />
 
-          <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={generateProductReturnsXLS}>Excel</ExportExcelButton>
-            <ExportPDFButton event={generateProductReturnsPDF}>PDF</ExportPDFButton>
+            <div className="flex gap-2">
+              <ExportExcelButton event={() => generateProductReturnsXLS(pageItems)}>
+                Excel
+              </ExportExcelButton>
+              <ExportPDFButton event={() => generateProductReturnsPDF(pageItems)}>
+                PDF
+              </ExportPDFButton>
+            </div>
+
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 w-full xl:w-auto"
               hidden={!canCreate}
             >
               Registrar nueva devolución
@@ -248,12 +339,134 @@ export default function IndexClientReturns() {
           </div>
         </div>
 
-        {/* Tabla con animación */}
         <motion.div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          className="md:hidden"
           variants={tableVariants}
           initial="hidden"
           animate="visible"
+        >
+          {loading || (isSearching && searchLoading) ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+              Cargando devoluciones...
+            </div>
+          ) : pageItems.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+              {searchError || error || "No se encontraron devoluciones."}
+            </div>
+          ) : (
+            <motion.ul className="space-y-3" variants={tableVariants}>
+              {pageItems.map((s, i) => {
+                const rowId =
+                  `${s.idReturn}-${s.currentProduct?.idProduct ?? s.currentProduct?.name ?? i}`;
+                const isExpanded = expanded.has(rowId);
+                const status = annulledMap[s.idReturn] ?? s.isActive;
+                const unitValue =
+                  s.currentProduct.quantity > 0
+                    ? s.currentProduct.totalValue / s.currentProduct.quantity
+                    : 0;
+
+                return (
+                  <motion.li
+                    key={`${rowId}-mobile`}
+                    variants={rowVariants}
+                    className="bg-white rounded-xl shadow-sm border border-gray-100"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(rowId)}
+                      className="w-full p-4 text-left"
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                              Devolución #{s.idReturn}
+                            </span>
+                            <span
+                              className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
+                                status
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-100 text-red-600"
+                              }`}
+                            >
+                              {status ? "Activo" : "Anulado"}
+                            </span>
+                          </div>
+                          <p className={`mt-1 text-base font-semibold text-gray-900 ${ONE_LINE_SAFE}`}>
+                            {s.client}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {s.currentProduct.name}
+                          </p>
+                        </div>
+                        <ChevronIcon open={isExpanded} />
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden border-t border-gray-100"
+                        >
+                          <div className="px-4 py-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Venta</p>
+                                <p className="mt-1 font-medium text-gray-800">#{s.idSale}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Fecha</p>
+                                <p className="mt-1 font-medium text-gray-800">{s.dateReturn}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Razón</p>
+                                <p className="mt-1 text-gray-700">{s.currentProduct.reason || "N/A"}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">Total</p>
+                                <p className="mt-1 font-medium text-gray-800">{formatCurrency(s.currentProduct.totalValue)}</p>
+                                <p className="text-xs text-gray-500">{formatCurrency(unitValue)} c/u</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                              <div className="flex items-center gap-2">
+                                <ToggleSwitch
+                                  checked={status}
+                                  disabled={
+                                    !canAnnul ||
+                                    getAnnulmentMeta(
+                                      s.createdAt || s.dateISO,
+                                      status
+                                    ).isDisabled
+                                  }
+                                  onChange={() => handleAnnulReturn(s)}
+                                />
+                                <span className="text-xs text-gray-500">
+                                  {status ? "Activo" : "Anulado"}
+                                </span>
+                              </div>
+                              <ViewDetailsButton event={() => handleViewDetails(s)} />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.li>
+                );
+              })}
+            </motion.ul>
+          )}
+        </motion.div>
+
+        {/* Tabla desktop */}
+        <motion.div
+          className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+          variants={tableVariants}
         >
           <table key={currentPage} className="min-w-full">
             <thead>
@@ -269,10 +482,10 @@ export default function IndexClientReturns() {
               </tr>
             </thead>
             <motion.tbody
-              className="divide-y divide-gray-100"
+              className="divide-y divide-gray-100 text-gray-700"
               variants={tableVariants}
             >
-              {loading ? (
+              {loading || (isSearching && searchLoading) ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -287,7 +500,7 @@ export default function IndexClientReturns() {
                     colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
-                    {error || "No se encontraron devoluciones."}
+                    {searchError || error || "No se encontraron devoluciones."}
                   </td>
                 </tr>
               ) : (
@@ -336,7 +549,7 @@ export default function IndexClientReturns() {
                       <div className="flex items-center gap-2">
                         <ToggleSwitch
                           checked={annulledMap[s.idReturn] ?? s.isActive}
-                          disabled={getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
+                          disabled={ !canAnnul || getAnnulmentMeta(s.createdAt || s.dateISO, annulledMap[s.idReturn] ?? s.isActive).isDisabled}
                           onChange={() => handleAnnulReturn(s)}
                         />
                         <span className="text-xs text-gray-500">
@@ -360,7 +573,7 @@ export default function IndexClientReturns() {
           currentPage={currentPage}
           perPage={perPage}
           totalPages={totalPages}
-          filteredLength={filtered.length}
+          filteredLength={filteredLength}
           goToPage={goToPage}
         />
       </div>
@@ -369,7 +582,11 @@ export default function IndexClientReturns() {
       <ReturnSalesComponent
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
-        onReturnRegistered={refetch}
+        onReturnRegistered={async () => {
+          reset();
+          setCurrentPage(1);
+          await fetchPage(1, { force: true });
+        }}
       />
 
       {/* Modal de detalles de devolución */}

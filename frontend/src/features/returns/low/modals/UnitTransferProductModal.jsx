@@ -134,9 +134,10 @@ const UnitTransferProductModal = ({
                     <button
                       type="button"
                       onClick={() => setSelectedDestination(null)}
-                      className="px-3 py-2 text-xs rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition"
+                      className="flex items-center justify-center px-2 py-1 text-xs rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition text-gray-700"
+                      title="Eliminar selección"
                     >
-                      Cambiar
+                      <X size={16} />
                     </button>
                   </div>
                 )}

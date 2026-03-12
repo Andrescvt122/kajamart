@@ -21,11 +21,11 @@ export default function IndexRegisterPurchase() {
   // Carga real desde backend
   // =========================
   const {
-    data: suppliersRaw = [],
+    data: suppliersResponse,
     isLoading: isSuppliersLoading,
     isError: isSuppliersError,
     error: suppliersError,
-  } = useSuppliersQuery();
+  } = useSuppliersQuery(1, 1000);
 
   const {
     data: productsRaw = [],
@@ -338,6 +338,10 @@ export default function IndexRegisterPurchase() {
   // Normalizar data REAL (backend)
   // =========================
   const proveedoresDB = useMemo(() => {
+    const suppliersRaw = Array.isArray(suppliersResponse?.data)
+      ? suppliersResponse.data
+      : [];
+
     if (!Array.isArray(suppliersRaw)) return [];
     return suppliersRaw.map((s) => ({
       ...s,
@@ -347,7 +351,7 @@ export default function IndexRegisterPurchase() {
       telefono: s?.telefono ?? "",
       estado: s?.estado,
     }));
-  }, [suppliersRaw]);
+  }, [suppliersResponse]);
 
   const productosDB = useMemo(() => {
     if (!Array.isArray(productsRaw)) return [];
@@ -396,6 +400,26 @@ export default function IndexRegisterPurchase() {
       .filter((p) => normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q))
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
+
+  const proveedorExacto = useMemo(() => {
+    const val = proveedorQuery.trim();
+    if (!val) return null;
+
+    return (
+      proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      ) ?? null
+    );
+  }, [proveedorQuery, proveedoresDB]);
+
+  const shouldShowRegisterSupplier = useMemo(() => {
+    return Boolean(
+      proveedorQuery.trim() &&
+        !proveedor &&
+        !proveedorExacto &&
+        proveedoresFiltrados.length === 0
+    );
+  }, [proveedorQuery, proveedor, proveedorExacto, proveedoresFiltrados]);
 
   // =========================
   // ✅ Productos: SET seleccionados
@@ -843,7 +867,15 @@ export default function IndexRegisterPurchase() {
       const val = proveedorQuery.trim();
       if (!val) return;
 
-      const exacto = proveedoresDB.find((p) => p.nit === val);
+      if (proveedoresFiltrados.length > 0) {
+        e.preventDefault();
+        seleccionarProveedor(proveedoresFiltrados[0]);
+        return;
+      }
+
+      const exacto = proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      );
       if (exacto) seleccionarProveedor(exacto);
       else {
         setMensajeProveedor({
@@ -958,19 +990,19 @@ export default function IndexRegisterPurchase() {
       return false;
     }
 
-    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "image/webp"];
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
     if (!allowed.includes(file.type)) {
       await Swal.fire({
         icon: "warning",
         title: "Formato no válido",
-        text: "Sube PDF o imagen (JPG/PNG/WebP).",
+        text: "Solo se permiten imágenes JPG, PNG o WebP.",
         confirmButtonColor: "#16a34a",
       });
 
       setMensajeComprobante({
         tipo: "error",
-        texto: "⚠️ Formato no válido. Sube PDF o imagen (JPG/PNG/WebP).",
+        texto: "⚠️ Formato no válido. Solo se permiten imágenes JPG, PNG o WebP.",
       });
       return false;
     }
@@ -1000,8 +1032,12 @@ export default function IndexRegisterPurchase() {
 
   const handleComprobanteUpload = async (e) => {
     const file = e.target.files?.[0] || null;
-    setComprobante(file);
-    await validarComprobante(file);
+    const isValid = await validarComprobante(file);
+    setComprobante(isValid ? file : null);
+
+    if (!isValid && e.target) {
+      e.target.value = "";
+    }
   };
 
   // =========================
@@ -1298,25 +1334,27 @@ export default function IndexRegisterPurchase() {
             value={proveedorQuery}
             onChange={(e) => {
               const val = e.target.value;
-              setProveedorQuery(val);
-              setIsProvOpen(true);
+              const trimmedVal = val.trim();
 
-              if (!val.trim()) {
+              setProveedorQuery(val);
+              setIsProvOpen(Boolean(trimmedVal));
+
+              if (!trimmedVal) {
                 setProveedor(null);
                 setMensajeProveedor(null);
                 setIsProvOpen(false);
                 return;
               }
 
-              const exacto = proveedoresDB.find((p) => p.nit === val.trim());
+              setProveedor(null);
+              setMensajeProveedor(null);
+
+              const exacto = proveedoresDB.find(
+                (p) =>
+                  p.nit === trimmedVal ||
+                  normalizeText(p.nombre) === normalizeText(trimmedVal)
+              );
               if (exacto) seleccionarProveedor(exacto);
-              else {
-                setProveedor(null);
-                setMensajeProveedor({
-                  tipo: "error",
-                  texto: "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
-                });
-              }
             }}
             onFocus={() => {
               if (proveedorQuery.trim()) setIsProvOpen(true);
@@ -1327,7 +1365,7 @@ export default function IndexRegisterPurchase() {
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
-          {mensajeProveedor?.tipo === "error" && (
+          {shouldShowRegisterSupplier && (
             <button
               onClick={() => {
                 prevSupplierIdsRef.current = new Set(
@@ -1365,13 +1403,14 @@ export default function IndexRegisterPurchase() {
           </div>
         )}
 
-        {mensajeProveedor && (
+        {(mensajeProveedor || shouldShowRegisterSupplier) && (
           <p
             className={`mt-1 text-sm ${
-              mensajeProveedor.tipo === "ok" ? "text-green-600" : "text-red-600"
+              mensajeProveedor?.tipo === "ok" ? "text-green-600" : "text-red-600"
             }`}
           >
-            {mensajeProveedor.texto}
+            {mensajeProveedor?.texto ??
+              "❌ Proveedor no encontrado. Puedes registrarlo desde aquí."}
           </p>
         )}
       </div>
@@ -1681,7 +1720,7 @@ export default function IndexRegisterPurchase() {
 
           <input
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/jpeg,image/png,image/jpg,image/webp"
             onChange={handleComprobanteUpload}
             disabled={isRegistrandoCompra}
           />

@@ -26,10 +26,11 @@ const CompleteReturn = ({
   onReturnRegistered,
 }) => {
   const { payload: payloadId } = useAuth();
-  const { postReturnClients } = usePostReturnClients();
+  const { postReturnClients, loading } = usePostReturnClients();
   const [newProducts, setNewProducts] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const isBusy = isProcessing || loading;
 
   const newProductsTotal = useMemo(
     () =>
@@ -218,7 +219,9 @@ const CompleteReturn = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              if (!isBusy) setIsOpen(false);
+            }}
           />
 
           <motion.div
@@ -244,7 +247,10 @@ const CompleteReturn = ({
               >
                 <h2 className="text-2xl font-bold text-gray-800">Devolución de Venta</h2>
                 <motion.button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    if (!isBusy) setIsOpen(false);
+                  }}
+                  disabled={isBusy}
                   className="text-gray-400 hover:text-gray-600 transition-all p-2 rounded-full"
                   aria-label="Cerrar modal"
                   whileHover={{
@@ -259,7 +265,11 @@ const CompleteReturn = ({
               </motion.div>
 
               {/* Contenido del formulario */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div
+                className={`flex-1 overflow-y-auto p-6 ${
+                  isBusy ? "pointer-events-none opacity-60" : ""
+                }`}
+              >
                 <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.5 }}>
                   {/* Detalles de la venta */}
                   <motion.div className="flex justify-between items-center mb-4" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.4 }}>
@@ -296,7 +306,10 @@ const CompleteReturn = ({
                       </motion.div>
                     </div>
                     
-                    <ProductSearch onAddProduct={handleAddProduct} />
+                    <ProductSearch
+                      onAddProduct={handleAddProduct}
+                      disabled={isBusy}
+                    />
                     <AnimatePresence>
                       {newProducts.length > 0 && (
                         <motion.div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mt-4" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}>
@@ -314,7 +327,7 @@ const CompleteReturn = ({
                                   <div className="flex items-center gap-2">
                                     <motion.button
                                       onClick={() => handleUpdateNewProductQuantity(product.id, -1)}
-                                      disabled={product.requestedQuantity <= 1}
+                                      disabled={isBusy || product.requestedQuantity <= 1}
                                       className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
                                       whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
                                       whileTap={{ scale: 0.9 }}
@@ -326,7 +339,7 @@ const CompleteReturn = ({
                                     </motion.span>
                                     <motion.button
                                       onClick={() => handleUpdateNewProductQuantity(product.id, 1)}
-                                      disabled={product.requestedQuantity >= product.quantity}
+                                      disabled={isBusy || product.requestedQuantity >= product.quantity}
                                       className="w-7 h-7 rounded-full bg-emerald-100 text-black flex items-center justify-center disabled:opacity-50 transition-all"
                                       whileHover={{ scale: 1.1, backgroundColor: "#a7f3d0" }}
                                       whileTap={{ scale: 0.9 }}
@@ -334,7 +347,13 @@ const CompleteReturn = ({
                                       <Plus size={14} />
                                     </motion.button>
                                   </div>
-                                  <motion.button onClick={() => handleRemoveProduct(product.id)} className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full" whileHover={{ scale: 1.2, backgroundColor: "#fee2e2", color: "#dc2626" }} whileTap={{ scale: 0.9 }}>
+                                  <motion.button
+                                    onClick={() => handleRemoveProduct(product.id)}
+                                    disabled={isBusy}
+                                    className="text-gray-400 hover:text-red-500 transition-all p-1 rounded-full disabled:cursor-not-allowed disabled:opacity-50"
+                                    whileHover={!isBusy ? { scale: 1.2, backgroundColor: "#fee2e2", color: "#dc2626" } : {}}
+                                    whileTap={!isBusy ? { scale: 0.9 } : {}}
+                                  >
                                     <Trash2 size={16} />
                                   </motion.button>
                                 </motion.div>
@@ -383,11 +402,11 @@ const CompleteReturn = ({
 
               {/* Footer con botones */}
               <motion.div className="bg-white px-6 py-4 flex gap-4 border-t border-gray-200 rounded-b-2xl" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.4 }}>
-                <motion.button onClick={() => setIsOpen(false)} disabled={isProcessing} className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" whileHover={{ scale: 1.00, backgroundColor: "#d1d5db" }} whileTap={{ scale: 0.98 }}>
+                <motion.button onClick={() => setIsOpen(false)} disabled={isBusy} className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-sm hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" whileHover={!isBusy ? { scale: 1.00, backgroundColor: "#d1d5db" } : {}} whileTap={!isBusy ? { scale: 0.98 } : {}}>
                   Cancelar
                 </motion.button>
-                <motion.button onClick={handleConfirmReturn} disabled={isProcessing || (productsToReturn?.length === 0 && newProducts.length === 0)} className="flex-1 px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" whileHover={{ scale: 1.00, backgroundColor: "#15803d", boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)" }} whileTap={{ scale: 0.98 }}>
-                  {isProcessing ? (
+                <motion.button onClick={handleConfirmReturn} disabled={isBusy || (productsToReturn?.length === 0 && newProducts.length === 0)} className="flex-1 px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" whileHover={!isBusy ? { scale: 1.00, backgroundColor: "#15803d", boxShadow: "0 10px 25px rgba(22, 163, 74, 0.3)" } : {}} whileTap={!isBusy ? { scale: 0.98 } : {}}>
+                  {isBusy ? (
                     <>
                       <motion.div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} />
                       <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>Procesando...</motion.span>
@@ -402,6 +421,17 @@ const CompleteReturn = ({
                   )}
                 </motion.button>
               </motion.div>
+
+              <AnimatePresence>
+                {isBusy && !showSuccessMessage && (
+                  <motion.div
+                    className="absolute inset-0 z-10 rounded-2xl bg-white/35 backdrop-blur-[1px]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  />
+                )}
+              </AnimatePresence>
 
               {/* Mensaje de éxito */}
               <AnimatePresence>

@@ -188,141 +188,28 @@ useEffect(() => {
           const totalUnid =
             Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
 
-          // impuestos
-          const iva = Number(d?.iva_porcentaje ?? 0) || 0;
-          const icu = Number(d?.icu_porcentaje ?? 0) || 0;
-
-          // precios
-          const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
-          const precioVenta = Number(d?.precio_venta ?? 0) || 0;
-
-          // vencimiento y codigo (por paquete)
-          const fechaVenc =
-            d?.detalle_productos?.fecha_vencimiento ??
-            d?.fecha_vencimiento ??
-            "";
-
-          const codigo =
-            d?.detalle_productos?.codigo_barras_producto_compra ??
-            d?.codigo_barras_producto_compra ??
-            "";
-
-          if (!map.has(key)) {
-            map.set(key, {
-              productoId: idProducto,
-              nombre,
-
-              // ✅ cantidades agregadas
-              cantidad_paquetes: 0,
-              unidades_por_paquete: unidPorPaq,
-              cantidad_total_unidades: 0,
-
-              precioCompra,
-              precioVenta,
-              iva_porcentaje: iva,
-              icu_porcentaje: icu,
-
-              // ✅ arrays por paquete
-              vencimientos: [],
-              codigosBarras: [],
-            });
-          }
-
-          const acc = map.get(key);
-
-          // acumuladores
-          acc.cantidad_paquetes += paquetes;
-          acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
-          acc.cantidad_total_unidades += totalUnid;
-
-          // últimos valores “actuales”
-          acc.precioCompra = precioCompra;
-          acc.precioVenta = precioVenta;
-          acc.iva_porcentaje = iva;
-          acc.icu_porcentaje = icu;
-
-          // push vencimientos/códigos (1 por cada detalle/paquete)
-          if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
-          if (codigo) acc.codigosBarras.push(String(codigo));
-        }
-
-        // ✅ IMPORTANTE:
-        // - vencimientos NO se deduplican (para que salgan 2 fechas aunque sean iguales)
-        // - codigos sí se puede deduplicar si quieres
-        return Array.from(map.values()).map((p) => ({
-          ...p,
-          vencimientos: (p.vencimientos || []).filter(Boolean),
-          codigosBarras: uniqueKeepOrder(p.codigosBarras),
-        }));
-      })();
-
-      // comprobante
-      const comprobante = {
-        name: c?.comprobante_nombre ?? null,
-        type: c?.comprobante_mime ?? null,
-        url: c?.comprobante_url ?? null,
-        size: c?.comprobante_size ?? null,
-      };
-
-      return {
-        id: String(id),
-        factura: String(factura),
-        proveedor: proveedorNombre,
-        nit: String(proveedorNit),
-        total,
-        fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-        estado,
-
-        // ✅ lo que consume el modal
-        productos,
-
-        comprobante,
-        raw: c,
-      };
-    });
-  }, [purchasesApi]);
-
-  // =========================
-  // Normalizar Local => UI shape (legacy)
-  // =========================
-  const normalizedLocalPurchases = useMemo(() => {
-    return purchasesLocal.map((c) => {
-      const id = c?.id ?? c?._id ?? "";
-      const factura = c?.numero_factura ?? c?.num_factura ?? c?.factura ?? "—";
-
-      const proveedorNombre =
-        c?.proveedor?.nombre ??
-        (typeof c?.proveedor === "string" ? c.proveedor : null) ??
-        "—";
-
-      const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
-      const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
-      const estado = c?.estado ?? "Completada";
-
-      return {
-        id: String(id),
-        factura: String(factura),
-        proveedor: proveedorNombre,
-        nit: String(proveedorNit ?? "—"),
-        total: Number(c?.total ?? 0),
-        fecha,
-        estado,
-        productos: Array.isArray(c?.productos) ? c.productos : [],
-        comprobante: c?.comprobante ?? null,
-        raw: c,
-      };
-    });
-  }, [purchasesLocal]);
-
-  // =========================
-  // Lista final (API + Local sin duplicar)
-  // =========================
-  const purchases = useMemo(() => {
-  const apiIds = new Set(normalizedApiPurchases.map((p) => String(p.id)));
-
-  const localNoDup = normalizedLocalPurchases.filter(
-    (p) => !apiIds.has(String(p.id))
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
   );
+}
 
   const merged = [...normalizedApiPurchases, ...localNoDup];
 
@@ -372,6 +259,13 @@ useEffect(() => {
   const handleViewDetails = useCallback((purchase) => {
     setSelectedPurchase(purchase);
     setIsDetailOpen(true);
+  }, []);
+  const toggleExpand = useCallback((rowId) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId);
+      return next;
+    });
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -576,13 +470,13 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
         }}
       />
 
-      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
         <div className="relative z-10">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="mb-4 sm:mb-6">
             <div>
-              <h2 className="text-3xl font-semibold text-gray-800">Compras</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Compras</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
               {apiError ? (
@@ -592,10 +486,23 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
           </div>
 
           {/* Buscador + botones */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+          <div className="mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border text-gray-500 border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
 
               <input
@@ -615,20 +522,11 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton
-                event={() =>
-                  exportPurchasesToPdf({
-                    rows: filtered,
-                    filename: "compras.pdf",
-                  })
-                }
-              >
-                PDF
-              </ExportPDFButton>
+              <div className="hidden xl:block" />
 
               <button
                 onClick={() => navigate("/app/purchases/register")}
-                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition"
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition w-full xl:w-auto"
                 hidden={!canCreate}
               >
                 Registrar Nueva Compra
@@ -744,6 +642,143 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                                 ${
                                   isAnulada(p.estado)
                                     ? "bg-red-100 text-red-700"
+                                    : p.estado === "Completada" || p.estado === "Completado"
+                                    ? "bg-green-50 text-green-700"
+                                    : p.estado === "Pendiente"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {p.estado}
+                              </span>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Paginación */}
+          <Paginator
+            currentPage={page}
+            totalPages={totalPages}
+            goToPage={(p) => setPage(p)}
+          />
+        </div>
+      </div>
+
+          {/* Tabla */}
+          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
+                <colgroup>
+                  <col className="w-[160px]" />
+                  <col className="w-[260px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
+
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                    <th className="px-4 py-4">N° Factura</th>
+                    <th className="px-4 py-4">Proveedor</th>
+                    <th className="px-4 py-4">NIT</th>
+                    <th className="px-4 py-4 text-right">Total</th>
+                    <th className="px-4 py-4">Fecha</th>
+                    <th className="px-4 py-4">Estado</th>
+                    <th className="px-4 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+                  <AnimatePresence>
+                    {isLoadingApi ? (
+                      <motion.tr
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          Cargando compras...
+                        </td>
+                      </motion.tr>
+                    ) : pageItems.length === 0 ? (
+                      <motion.tr
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          No se encontraron compras.
+                        </td>
+                      </motion.tr>
+                    ) : (
+                      pageItems.map((p) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
+                            {p.factura}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 truncate">
+                            {p.proveedor}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
+                            {p.nit}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                            {money(p.total)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {onlyDate(p.fecha)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAnnulPurchase(p)}
+                              disabled={!canAnnular || isAnulada(p.estado)}
+                              title={
+                                !canAnnular
+                                  ? "No tienes permiso para anular"
+                                  : isAnulada(p.estado)
+                                  ? "Esta compra ya está anulada"
+                                  : canAnnulPurchase(p)
+                                  ? "Click para anular (menos de 30 min)"
+                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                              }
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
+                                ${
+                                  !canAnnular || isAnulada(p.estado)
+                                    ? "opacity-70 cursor-not-allowed"
+                                    : "cursor-pointer hover:opacity-90"
+                                }
+                                ${
+                                  isAnulada(p.estado)
+                                    ? "bg-red-100 text-red-700"
                                     : p.estado === "Completada" ||
                                       p.estado === "Completado"
                                     ? "bg-green-50 text-green-700"
@@ -781,9 +816,11 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
 
           {/* Paginación */}
           <Paginator
-            currentPage={page}
+            currentPage={currentPage}
+            perPage={perPage}
             totalPages={totalPages}
-            goToPage={(p) => setPage(p)}
+            filteredLength={filtered.length}
+            goToPage={goToPage}
           />
         </div>
       </div>

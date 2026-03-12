@@ -17,6 +17,7 @@ import { exportCategoriesToPDF } from "../../features/categories/helpers/exportT
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
+import { useSearchCategories } from "../../shared/components/hooks/categories/useSearchCategories.js";
 import { useAuth } from "../../context/useAtuh.jsx";
 // 🔔 Alerts para mostrar mensajes claros
 import {
@@ -77,16 +78,23 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexCategories() {
+  const [searchTerm, setSearchTerm] = useState("");
   const {
     categories,
+    totalPages: backendTotalPages,
+    totalItems,
     loading,
     error,
+    refresh,
     createCategory,
     updateCategory,
     deleteCategory,
   } = useCategories();
-
-  const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedCategories,
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchCategories(searchTerm);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
@@ -99,10 +107,20 @@ export default function IndexCategories() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
+
   const { hasPermission } = useAuth();
+
   const canDelete = hasPermission("Eliminar categorias");
   const canCreate = hasPermission("Crear categorias");
   const canEdit = hasPermission("Editar categorias");
+  const isSearching = searchTerm.trim() !== "";
+
+  React.useEffect(() => {
+    if (!isSearching) {
+      refresh(currentPage, perPage);
+    }
+  }, [currentPage, isSearching]);
+
   // Acordeón (móvil/desktop)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
@@ -115,35 +133,42 @@ export default function IndexCategories() {
 
   // Filtro
   const filtered = useMemo(() => {
+    const source = isSearching ? searchedCategories : categories;
     const s = searchTerm.trim().toLowerCase();
-    if (!s) return categories;
+    if (!s) return source;
 
     if (/^activos?$/.test(s)) {
-      return categories.filter(
+      return source.filter(
         (c) => String(c.estado).toLowerCase() === "activo"
       );
     }
     if (/^inactivos?$/.test(s)) {
-      return categories.filter(
+      return source.filter(
         (c) => String(c.estado).toLowerCase() === "inactivo"
       );
     }
 
-    return categories.filter((c) =>
+    return source.filter((c) =>
       Object.values(c).some((value) =>
         String(value ?? "")
           .toLowerCase()
           .includes(s)
       )
     );
-  }, [categories, searchTerm]);
+  }, [categories, searchedCategories, searchTerm, isSearching]);
 
   // Paginación
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : Math.max(1, backendTotalPages || 1);
   const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
+  }, [filtered, currentPage, perPage, isSearching]);
+  const filteredLength = isSearching
+    ? filtered.length
+    : Number(totalItems) || filtered.length;
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // Helpers para sacar mensaje de error del backend
@@ -239,12 +264,12 @@ export default function IndexCategories() {
     }
   };
 
-  if (error) {
+  if (error || searchError) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <p className="text-red-600 text-center">
-          {typeof error === "string"
-            ? error
+          {typeof (searchError || error) === "string"
+            ? (searchError || error)
             : "Error al cargar categorías."}
         </p>
       </div>
@@ -341,7 +366,7 @@ export default function IndexCategories() {
             initial="hidden"
             animate="visible"
           >
-            {loading ? (
+            {loading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
@@ -506,7 +531,7 @@ export default function IndexCategories() {
                   initial="hidden"
                   animate="visible"
                 >
-                  {loading ? (
+                  {loading || (isSearching && searchLoading) ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
@@ -668,7 +693,7 @@ export default function IndexCategories() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

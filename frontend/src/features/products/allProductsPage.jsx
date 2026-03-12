@@ -119,11 +119,13 @@ export default function AllProductsPage() {
   const perPage = 5;
 
   const {
-    data: backendDetails = [],
+    data,
     isLoading,
     error,
-  } = useDetailProductsByProduct(productId);
+  } = useDetailProductsByProduct(productId, currentPage, perPage);
 
+  const backendDetails = data?.data || [];
+const totalPages = data?.totalPages || 1;
   const errorMessage = error
     ? getErrorMessage(error, "Error al cargar los detalles del producto.")
     : null;
@@ -185,12 +187,6 @@ export default function AllProductsPage() {
     );
   }, [searchTerm, allProducts]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
@@ -301,21 +297,21 @@ export default function AllProductsPage() {
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
-                  ) : pageItems.length === 0 ? (
+                  ) : filtered.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                         No se encontraron detalles.
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((p) => (
+                    filtered.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">{p.id}</td>
-                        <td className="px-6 py-4">{p.barcode}</td>
-                        <td className="px-6 py-4">{p.vencimiento}</td>
-                        <td className="px-6 py-4">{p.cantidad}</td>
-                        <td className="px-6 py-4">{p.consumido}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-black">{p.id}</td>
+                        <td className="px-6 py-4 text-black">{p.barcode}</td>
+                        <td className="px-6 py-4 text-black">{p.vencimiento}</td>
+                        <td className="px-6 py-4 text-black">{p.cantidad}</td>
+                        <td className="px-6 py-4 text-black">{p.consumido}</td>
+                        <td className="px-6 py-4 text-black">
                           ${Number(p.precio || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4">

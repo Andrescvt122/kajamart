@@ -15,10 +15,9 @@ import {
   ExportPDFButton,
 } from "../../shared/components/buttons";
 import SaleDetailModal from "./SaleDetailModal";
-import { exportSalesToExcel } from "./helper/exportSalesExcel";
-import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
+import { useExportSales } from "../../shared/components/hooks/sales/useExportSales";
 import { useAuth } from "../../context/useAtuh";
 import Loading from "../../features/onboarding/loading.jsx";
 

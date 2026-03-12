@@ -481,15 +481,17 @@ export default function RegisterUsers({ isOpen, onClose, onRegisterSuccess }) {
                                 onClick={() => {
                                   setForm((p) => ({
                                     ...p,
-                                    rol: opt.rol_nombre,
+                                    rol: opt.estado_rol === false ? `${opt.rol_nombre} (Desactivado)` : opt.rol_nombre,
                                     rol_id: opt.rol_id,
+                                    // Si el rol está desactivado, el usuario también queda inactivo
+                                    estado: opt.estado_rol === false ? false : p.estado,
                                   }));
                                   setRolOpen(false);
                                   setErrors((p)=>({...p, rol: ""}));
                                 }}
                                 className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
                               >
-                                {opt.rol_nombre}
+                                {opt.rol_nombre} {opt.estado_rol === false && <span className="text-red-500 text-xs font-semibold ml-2">(Desactivado)</span>}
                               </motion.li>
                             ))}
                           </motion.ul>
@@ -507,9 +509,14 @@ export default function RegisterUsers({ isOpen, onClose, onRegisterSuccess }) {
                     <div className="flex items-center gap-3 mt-2">
                       <EstadoToggle
                         enabled={form.estado}
-                        onChange={() =>
+                        onChange={() => {
+                          const selectedRole = roles.find(r => r.rol_id === form.rol_id);
+                          if (selectedRole && selectedRole.estado_rol === false && !form.estado) {
+                            showErrorAlert("No puedes activar un usuario con un rol desactivado.");
+                            return;
+                          }
                           setForm((p) => ({ ...p, estado: !p.estado }))
-                        }
+                        }}
                       />
                       <span className="text-sm text-gray-600">
                         {form.estado ? "Activo" : "Inactivo"}

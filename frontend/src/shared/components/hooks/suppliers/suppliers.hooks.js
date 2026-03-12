@@ -6,12 +6,16 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamar
 const API_URL = `${API_BASE}/suppliers`;
 
 // 🔹 Obtener todos los proveedores
-export const useSuppliers = () =>
+export const useSuppliers = (page = 1, limit = 6) =>
   useQuery({
-    queryKey: ["suppliers"],
+    queryKey: ["suppliers", page, limit],
     queryFn: async () => {
-      const { data } = await axios.get(API_URL);
-      return Array.isArray(data) ? data : [];
+
+      const { data } = await axios.get(API_URL, {
+        params: { page, limit }
+      });
+
+      return data;
     },
   });
 

@@ -28,6 +28,7 @@ import {
   useSuppliers as useSuppliersQuery,
   useDeleteSupplier,
 } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+import { useSearchSuppliers } from "../../shared/components/hooks/suppliers/useSearchSuppliers.js";
 
 // ==== utilidades de layout/texto ultra-responsive ====
 const LONG_TEXT_CLS =
@@ -71,13 +72,28 @@ function ChevronIcon({ open }) {
 
 export default function IndexSuppliers() {
   // === CARGA DESDE BACKEND ===
+  // Buscador + paginación
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
+
+  // === CARGA DESDE BACKEND ===
   const {
-    data: suppliersRaw = [],
+    data,
     isLoading,
     isError,
     error,
-  } = useSuppliersQuery();
+  } = useSuppliersQuery(currentPage, perPage);
+  const {
+    data: searchedSuppliers = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchSuppliers(searchTerm);
 
+  const isSearching = searchTerm.trim() !== "";
+  const suppliersRaw = isSearching ? searchedSuppliers : data?.data || [];
+  const backendTotalPages = data?.totalPages || 1;
+  const backendTotalItems = data?.totalItems || suppliersRaw.length;
   // Mapeo para UI
   const suppliers = useMemo(() => {
     if (!Array.isArray(suppliersRaw)) return [];
@@ -159,9 +175,6 @@ export default function IndexSuppliers() {
   }, [isDetailOpen]);
 
   // Buscador + paginación
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 6;
 
   // Modal de registro
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,11 +222,15 @@ export default function IndexSuppliers() {
   }, [suppliers, searchTerm]);
 
   // Paginación
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : backendTotalPages;
   const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
+  }, [filtered, currentPage, perPage, isSearching]);
+  const filteredLength = isSearching ? filtered.length : backendTotalItems;
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -231,8 +248,9 @@ export default function IndexSuppliers() {
   };
 
   // === Error global ===
-  if (isError) {
+  if (isError || searchError) {
     const msg =
+      searchError ||
       error?.response?.data?.message ||
       error?.message ||
       "Error al cargar proveedores.";
@@ -326,7 +344,7 @@ export default function IndexSuppliers() {
             initial="hidden"
             animate="visible"
           >
-            {isLoading ? (
+            {isLoading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
@@ -483,11 +501,8 @@ export default function IndexSuppliers() {
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  className="divide-y divide-gray-100"
-                  variants={tableVariants}
-                >
-                  {isLoading ? (
+                <tbody className="divide-y divide-gray-100 text-gray-700">
+                  {isLoading || (isSearching && searchLoading) ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
@@ -515,10 +530,9 @@ export default function IndexSuppliers() {
                             }`;
 
                       return (
-                        <motion.tr
+                        <tr
                           key={(s.id_proveedor ?? s.nit ?? i) + "-" + i}
                           className="hover:bg-gray-50 align-top"
-                          variants={rowVariants}
                         >
                           <td className="px-4 lg:px-6 py-4 align-top text-sm text-gray-600 whitespace-nowrap">
                             {s.nit ?? "—"}
@@ -574,11 +588,11 @@ export default function IndexSuppliers() {
                               />
                             </div>
                           </td>
-                        </motion.tr>
+                        </tr>
                       );
                     })
                   )}
-                </motion.tbody>
+                </tbody>
               </table>
             </div>
           </motion.div>
@@ -589,7 +603,7 @@ export default function IndexSuppliers() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

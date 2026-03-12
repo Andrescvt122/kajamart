@@ -1,6 +1,6 @@
 // src/pages/users/indexUsers.jsx
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
@@ -54,13 +54,14 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexUsers() {
-  const { usuarios, setUsuarios, loading, error, getUsuarios } = useUsuariosList();
-  const { deleteUser } = useUserActions();
-  const users = usuarios || [];
-
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
+
+  const { usuarios, total, totalPages, loading, error, getUsuarios, getAllUsuariosForExport } =
+    useUsuariosList({ page: currentPage, limit: perPage, search: searchTerm });
+  const { deleteUser } = useUserActions();
+  const pageItems = usuarios || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -69,7 +70,7 @@ export default function IndexUsers() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
-  const { hasPermission } = useAuth();
+  const { hasPermission, payload } = useAuth();
 
   const canCreate = hasPermission("Crear usuarios");
   console.log("can create en usuarios", canCreate);
@@ -116,36 +117,15 @@ export default function IndexUsers() {
     };
   }, []);
 
-  const normalizeText = (text) =>
-    text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    if (!s) return users;
-    return users.filter((p) =>
-      Object.values(p).some((value) => normalizeText(String(value)).includes(s))
-    );
-  }, [users, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
     setCurrentPage(p);
   };
 
   const handleRegisterSuccess = () => {
+    setCurrentPage(1);
     getUsuarios();
     setIsModalOpen(false);
-    setCurrentPage(1);
   };
 
   const openDeleteModal = (user) => {
@@ -156,41 +136,41 @@ export default function IndexUsers() {
   const handleDelete = async (userToDelete) => {
     try {
       await deleteUser(userToDelete.id);
-      
-      setUsuarios((prev) =>
-        (prev || []).filter((user) => user.id !== userToDelete.id)
-      );
-      
       showSuccessAlert("Usuario eliminado correctamente");
       setIsDeleteOpen(false);
       setUserToDelete(null);
-      
-      // ajustar página si hace falta
-      const affects = filtered.some((u) => u.id === userToDelete.id);
-      if (affects && pageItems.length === 1 && currentPage > 1) {
+      // Si era el último de la página, retroceder
+      if (pageItems.length === 1 && currentPage > 1) {
         setCurrentPage((p) => p - 1);
+      } else {
+        getUsuarios();
       }
     } catch (error) {
       console.error("Error al eliminar usuario:", error);
-      // El error ya es manejado por el hook (muestra alerta), 
-      // pero si quisieras manejo adicional va aquí.
     }
   };
 
-  const handleSaveUser = (updated) => {
-    setUsuarios((prev) =>
-      (prev || []).map((u) => (u.id === updated.id ? { ...u, ...updated } : u))
-    );
+  const handleSaveUser = () => {
+    getUsuarios();
     showSuccessAlert("Usuario actualizado correctamente");
     setIsEditOpen(false);
     setSelectedUser(null);
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(filtered, "usuarios", "Usuarios");
+  const handleExportExcel = async () => {
+    const allUsers = await getAllUsuariosForExport(searchTerm);
+    const dataToExport = allUsers.map((user) => ({
+      Nombre: user.Nombre,
+      Correo: user.Correo,
+      Documento: user.Documento,
+      Teléfono: user.Telefono || "N/A",
+      "Rol asignado": user.Rol,
+      Estado: user.Estado,
+    }));
+    exportToExcel(dataToExport, "usuarios", "Usuarios");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     const headers = [
       "Nombre",
       "Correo",
@@ -199,11 +179,12 @@ export default function IndexUsers() {
       "Rol asignado",
       "Estado",
     ];
-    const dataToExport = filtered.map((user) => ({
+    const allUsers = await getAllUsuariosForExport(searchTerm);
+    const dataToExport = allUsers.map((user) => ({
       Nombre: user.Nombre,
       Correo: user.Correo,
       Documento: user.Documento,
-      Telefono: user.Telefono,
+      Telefono: user.Telefono || "N/A",
       Rol: user.Rol,
       Estado: user.Estado,
     }));
@@ -311,7 +292,7 @@ export default function IndexUsers() {
                 No se encontraron usuarios.
               </div>
             ) : (
-              <motion.ul className="space-y-3" variants={tableVariants}>
+              <motion.ul className="space-y-3" variants={tableVariants} initial="hidden" animate="visible">
                 {pageItems.map((u, i) => {
                   const isExpanded = expanded.has(u.id);
                   return (
@@ -391,7 +372,7 @@ export default function IndexUsers() {
                                   <FiEye size={20} />
                                 </button>
 
-                                {canEdit && (
+                                {canEdit && u.id !== payload?.uid && (
                                   <button
                                     className="button-square edit-btn"
                                     onClick={() => {
@@ -403,7 +384,7 @@ export default function IndexUsers() {
                                   </button>
                                 )}
 
-                                {canDelete && (
+                                {canDelete && u.id !== payload?.uid && (
                                   <button
                                     className="button-square delete-btn"
                                     onClick={() => openDeleteModal(u)}
@@ -446,10 +427,7 @@ export default function IndexUsers() {
                   </tr>
                 </thead>
 
-                <motion.tbody
-                  className="divide-y divide-gray-100"
-                  variants={tableVariants}
-                >
+                <motion.tbody key={loading ? "loading" : "loaded"} initial="hidden" animate="visible" className="divide-y divide-gray-100" variants={tableVariants}>
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center">
@@ -469,11 +447,7 @@ export default function IndexUsers() {
                     </tr>
                   ) : (
                     pageItems.map((user) => (
-                      <motion.tr
-                        key={user.id}
-                        className="hover:bg-gray-50"
-                        variants={rowVariants}
-                      >
+                      <motion.tr key={user.id} className="hover:bg-gray-50" variants={rowVariants}>
                         <td className="px-6 py-4 align-top text-sm font-medium text-gray-900">
                           {user.Nombre}
                         </td>
@@ -484,7 +458,7 @@ export default function IndexUsers() {
                           {user.Documento}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-600">
-                          {user.Telefono}
+                          {user.Telefono || "N/A"}
                         </td>
                         <td className="px-6 py-4 align-top text-sm text-gray-600">
                           {user.Rol}
@@ -514,7 +488,7 @@ export default function IndexUsers() {
                             >
                               <FiEye size={20} />
                             </button>
-                            {canEdit && (
+                            {canEdit && user.id !== payload?.uid && (
                               <button
                                 className="button-square edit-btn"
                                 onClick={() =>
@@ -528,7 +502,7 @@ export default function IndexUsers() {
                                 <FiEdit2 size={20} />
                               </button>
                             )}
-                            {canDelete &&(
+                            {canDelete && user.id !== payload?.uid && (
                             <button
                               className="button-square delete-btn"
                               onClick={() => openDeleteModal(user)}
@@ -551,7 +525,7 @@ export default function IndexUsers() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={total}
               goToPage={goToPage}
             />
           </div>

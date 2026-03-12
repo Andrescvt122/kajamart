@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useProducts } from "../../../shared/components/hooks/products/products.hooks";
+import { useAllProducts } from "../../../shared/components/hooks/products/products.hooks";
 import { useAllDetailProducts } from "../../../shared/components/hooks/productDetails/productDetails.hooks";
 
 const pick = (...vals) => {
@@ -65,7 +65,7 @@ export default function Products() {
     isLoading: isLoadingProducts,
     isError: isErrorProducts,
     error: errorProducts,
-  } = useProducts();
+  } = useAllProducts();
 
   const {
     data: detailsRaw,

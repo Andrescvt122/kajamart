@@ -29,7 +29,7 @@ export default function Login() {
       // Redirigir a la ruta anterior o a /app
       navigate(from, { replace: true });
     } else {
-      setLoginError("Correo o contrasena incorrectas");
+      setLoginError(result.message || "Correo o contraseña incorrectas");
     }
   };
 
@@ -83,12 +83,13 @@ export default function Login() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-white drop-shadow">
+              <label htmlFor="email" className="block text-sm font-medium text-white drop-shadow">
                 Correo electrónico
               </label>
               <input
                 type="email"
                 name="email"
+                id="email"
                 placeholder="tu@email.com"
                 required
                 value={email}
@@ -99,12 +100,13 @@ export default function Login() {
 
             {/* Password */}
             <div className="relative">
-              <label className="block text-sm font-medium text-white drop-shadow">
+              <label htmlFor="password" className="block text-sm font-medium text-white drop-shadow">
                 Contraseña
               </label>
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
+                id="password"
                 placeholder="••••••••"
                 required
                 minLength={8}

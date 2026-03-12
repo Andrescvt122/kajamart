@@ -74,8 +74,7 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen, onReturnRegistered 
 
   const toggleProductReasonDropdown = (productId) => {
     setProductReasonDropdowns((prev) => ({
-      ...prev,
-      [productId]: !prev[productId]
+      [productId]: !prev[productId],
     }));
   };
 
@@ -225,25 +224,27 @@ const ReturnSalesComponent = ({ isModalOpen, setIsModalOpen, onReturnRegistered 
                                 <AnimatePresence>
                                   {productReasonDropdowns[p.id] && (
                                     <motion.div
-                                      initial={{ opacity: 0, y: -8 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, y: -8 }}
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      exit={{ opacity: 0, height: 0 }}
                                       transition={{ duration: 0.2 }}
-                                      className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto"
+                                      className="mt-2 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm"
                                     >
-                                      {returnReasons.map((reason) => (
-                                        <motion.button
-                                          key={reason.value}
-                                          initial={{ opacity: 0 }}
-                                          animate={{ opacity: 1 }}
-                                          exit={{ opacity: 0 }}
-                                          transition={{ duration: 0.15 }}
-                                          onClick={() => handleProductReasonSelect(p.id, reason)}
-                                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
-                                        >
-                                          <span className="text-gray-900">{reason.label}</span>
-                                        </motion.button>
-                                      ))}
+                                      <div className="max-h-56 overflow-y-auto">
+                                        {returnReasons.map((reason) => (
+                                          <motion.button
+                                            key={reason.value}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.15 }}
+                                            onClick={() => handleProductReasonSelect(p.id, reason)}
+                                            className="w-full border-b border-gray-100 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none last:border-b-0"
+                                          >
+                                            <span className="text-gray-900">{reason.label}</span>
+                                          </motion.button>
+                                        ))}
+                                      </div>
                                     </motion.div>
                                   )}
                                 </AnimatePresence>

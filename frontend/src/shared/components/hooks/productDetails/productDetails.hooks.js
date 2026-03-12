@@ -29,18 +29,25 @@ export const useAllDetailProducts = () =>
 
 
 // 🟣 Traer detalles de un producto específico (por id_producto)
-export const useDetailProductsByProduct = (id_producto) =>
+export const useDetailProductsByProduct = (id_producto, page = 1, limit = 5) =>
   useQuery({
-    queryKey: ["detailProductsByProduct", id_producto],
+    queryKey: ["detailProductsByProduct", id_producto, page, limit],
+
     queryFn: async () => {
       const { data } = await axios.get(
-        `${DETAILS_URL}/producto/${id_producto}`
+        `${DETAILS_URL}/producto/${id_producto}`,
+        {
+          params: { page, limit },
+        }
       );
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: !!id_producto,
-  });
 
+      return data;
+    },
+
+    enabled: !!id_producto,
+
+    keepPreviousData: true,
+  });
 // 🟠 Traer un detalle individual (por id_detalle_producto)
 export const useDetailProduct = (id_detalle_producto) =>
   useQuery({
