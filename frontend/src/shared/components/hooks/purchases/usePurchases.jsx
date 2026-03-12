@@ -11,7 +11,7 @@ export const usePurchases = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const limit = 10;
+  const limit = 6;
 
   const fetchPurchases = async (pageNumber = page) => {
     setLoading(true);

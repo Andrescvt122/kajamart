@@ -12,7 +12,7 @@ import { FiEdit, FiTrash2 } from "react-icons/fi";
 
 // ✅ Hooks reales (NO modificar hooks)
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-import { useProducts as useProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
+import { useAllProducts as useAllProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
 
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ export default function IndexRegisterPurchase() {
     isLoading: isProductsLoading,
     isError: isProductsError,
     error: productsError,
-  } = useProductsQuery();
+  } = useAllProductsQuery();
 
   // =========================
   // Estados de compra
@@ -128,6 +128,8 @@ export default function IndexRegisterPurchase() {
   const noSpinNumber =
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
 
+  const onlyDigits = (value) => String(value ?? "").replace(/\D/g, "");
+
   // =========================
   // Normalizadores
   // =========================
@@ -167,6 +169,33 @@ export default function IndexRegisterPurchase() {
     if (Number.isNaN(n)) return 0;
     return Math.max(0, Math.floor(n));
   };
+
+  const validatePositiveIntegerField = (value, label) => {
+    const raw = String(value ?? "").trim();
+
+    if (!raw) return `${label} es obligatorio.`;
+    if (!/^\d+$/.test(raw)) return `${label} solo permite numeros.`;
+
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return `${label} debe ser mayor a 0.`;
+
+    return "";
+  };
+
+  const getProductoCompraErrors = (prod) => ({
+    cantidad: validatePositiveIntegerField(
+      prod?.cantidadPaquetes ?? prod?.cantidad ?? "",
+      "La cantidad"
+    ),
+    precioCompra: validatePositiveIntegerField(
+      prod?.precioCompra ?? "",
+      "El precio de compra"
+    ),
+    precioVenta: validatePositiveIntegerField(
+      prod?.precioVenta ?? "",
+      "El precio de venta"
+    ),
+  });
 
   const getTotalUnidadesFromForm = (form) => {
     const paquetes = toNonNegIntFromString(form?.cantidad);
@@ -278,7 +307,19 @@ export default function IndexRegisterPurchase() {
     return errs;
   };
 
+  const normalizePackFormForValidation = (form) => ({
+    ...form,
+    cantidad: form?.cantidad === "" ? "0" : form?.cantidad,
+    unidadesPorPaquete:
+      form?.unidadesPorPaquete === "" ? "0" : form?.unidadesPorPaquete,
+  });
+
   const packHasErrors = (errs) => Object.keys(errs || {}).length > 0;
+
+  useEffect(() => {
+    if (!Object.keys(packTouched || {}).length) return;
+    setPackErrors(computePackErrors(normalizePackFormForValidation(packForm)));
+  }, [packForm, packTouched]);
 
   // =========================
   // ✅ Helpers select paquetes
@@ -354,9 +395,13 @@ export default function IndexRegisterPurchase() {
   }, [suppliersResponse]);
 
   const productosDB = useMemo(() => {
-    if (!Array.isArray(productsRaw)) return [];
+    const productsList = Array.isArray(productsRaw)
+      ? productsRaw
+      : Array.isArray(productsRaw?.data)
+        ? productsRaw.data
+        : [];
 
-    return productsRaw.map((p) => {
+    return productsList.map((p) => {
       const precio =
         Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
 
@@ -514,6 +559,29 @@ export default function IndexRegisterPurchase() {
     () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
     [productos]
   );
+
+  const productoErrors = useMemo(
+    () => productos.map((prod) => getProductoCompraErrors(prod)),
+    [productos]
+  );
+
+  const hasInvalidProductRows = useMemo(
+    () => productoErrors.some((errs) => Object.values(errs).some(Boolean)),
+    [productoErrors]
+  );
+
+  const updateProductoField = (index, field, rawValue) => {
+    const sanitizedValue = onlyDigits(rawValue);
+
+    setProductos((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        [field]: sanitizedValue,
+      };
+      return next;
+    });
+  };
 
   // =========================
   // ✅ Modal paquetes: abrir al seleccionar producto
@@ -1071,10 +1139,29 @@ export default function IndexRegisterPurchase() {
     }
 
     // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq
-    for (const p of productos) {
+    for (let index = 0; index < productos.length; index += 1) {
+      const p = productos[index];
       const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
       const unid = Number(p.unidadesPorPaquete ?? 0);
       const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
+      const rowErrors = getProductoCompraErrors(p);
+
+      if (rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta) {
+        const firstError =
+          rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta;
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": ${firstError}`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": ${firstError}`,
+        });
+        return;
+      }
 
       if (!cantPaquetes || cantPaquetes <= 0) {
         await Swal.fire({
@@ -1567,12 +1654,21 @@ export default function IndexRegisterPurchase() {
                 {/* ✅ Cantidad principal = PAQUETES */}
                 <td className="border px-3 py-2 text-center text-black">
                   <div className="leading-tight">
-                    <div className="font-semibold">
+                    <div
+                      className={`font-semibold ${
+                        productoErrors[i]?.cantidad ? "text-red-600" : ""
+                      }`}
+                    >
                       {Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0)}
                     </div>
                     <div className="text-xs text-gray-500">
                       {Number(prod.unidadesPorPaquete ?? 0)} unid/paq
                     </div>
+                    {productoErrors[i]?.cantidad && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].cantidad}
+                      </p>
+                    )}
                   </div>
                 </td>
 
@@ -1641,43 +1737,45 @@ export default function IndexRegisterPurchase() {
                 </td>
 
                 <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioCompra}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioCompra = e.target.value;
-                      setProductos(nueva);
-                    }}
-                    onBlur={() => {
-                      const nueva = [...productos];
-                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
-                      setProductos(nueva);
-                    }}
-                    disabled={isRegistrandoCompra}
-                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
-                  />
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioCompra}
+                      onChange={(e) => updateProductoField(i, "precioCompra", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioCompra ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioCompra && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioCompra}
+                      </p>
+                    )}
+                  </div>
                 </td>
 
                 <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioVenta}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioVenta = e.target.value;
-                      setProductos(nueva);
-                    }}
-                    onBlur={() => {
-                      const nueva = [...productos];
-                      if (nueva[i].precioVenta === "") nueva[i].precioVenta = "0";
-                      setProductos(nueva);
-                    }}
-                    disabled={isRegistrandoCompra}
-                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
-                  />
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioVenta}
+                      onChange={(e) => updateProductoField(i, "precioVenta", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioVenta ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioVenta && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioVenta}
+                      </p>
+                    )}
+                  </div>
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
@@ -1712,6 +1810,12 @@ export default function IndexRegisterPurchase() {
           )}
         </tbody>
       </table>
+
+      {hasInvalidProductRows && (
+        <p className="mb-4 text-sm text-red-600">
+          Corrige cantidad, precio de compra y precio de venta. Todos deben ser numeros mayores a 0.
+        </p>
+      )}
 
       {/* Comprobante + total */}
       <div className="flex justify-between items-center">
@@ -1759,11 +1863,18 @@ export default function IndexRegisterPurchase() {
 
         <button
           onClick={handleFinalizarCompra}
-          disabled={isRegistrandoCompra}
+          disabled={isRegistrandoCompra || hasInvalidProductRows}
           className={`px-4 py-2 rounded text-white ${
-            isRegistrandoCompra ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+            isRegistrandoCompra || hasInvalidProductRows
+              ? "bg-green-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
           }`}
           type="button"
+          title={
+            hasInvalidProductRows
+              ? "Corrige cantidad, precio de compra y precio de venta antes de finalizar."
+              : ""
+          }
         >
           {isRegistrandoCompra ? "Registrando..." : "Finalizar Compra"}
         </button>
@@ -1789,11 +1900,12 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.cantidad}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
 
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
@@ -1814,7 +1926,19 @@ export default function IndexRegisterPurchase() {
                         return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
                       });
 
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, cantidad: true }));
@@ -1839,17 +1963,30 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.unidadesPorPaquete}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, unidadesPorPaquete: "" };
                         const n = Math.max(0, Math.floor(Number(raw || 0)));
                         return { ...prev, unidadesPorPaquete: String(n) };
                       });
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
@@ -2044,11 +2181,12 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.cantidad}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
 
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
@@ -2062,7 +2200,19 @@ export default function IndexRegisterPurchase() {
                         return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
                       });
 
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, cantidad: true }));
@@ -2086,17 +2236,30 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.unidadesPorPaquete}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, unidadesPorPaquete: "" };
                         const n = Math.max(0, Math.floor(Number(raw || 0)));
                         return { ...prev, unidadesPorPaquete: String(n) };
                       });
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
