@@ -56,11 +56,9 @@ const getDateTs = (v) => {
 
 export default function IndexSales() {
   const navigate = useNavigate();
-  const { sales, loading, error, refetch } = useSales();
+  const { sales, loading, error, refetch, page, totalPages, setPage } = useSales();
   const { updateStatus } = useUpdateSaleStatus();
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 5;
   const [selectedSale, setSelectedSale] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const { hasPermission } = useAuth();
@@ -116,21 +114,6 @@ export default function IndexSales() {
     });
   }, [normalizedSales, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(1);
-  }, [currentPage, totalPages]);
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
 
   const tableVariants = {
     hidden: {},
@@ -302,7 +285,7 @@ export default function IndexSales() {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
+                setPage(1);
               }}
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
@@ -323,7 +306,7 @@ export default function IndexSales() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table key={currentPage} className="min-w-full">
+          <table key={page} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
                 <th className="px-6 py-4">#</th>
@@ -347,20 +330,20 @@ export default function IndexSales() {
                     <Loading inline heightClass="h-28" />
                   </td>
                 </tr>
-              ) : pageItems.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron ventas.
                   </td>
                 </tr>
               ) : (
-                pageItems.map((v, i) => {
+              filtered.map((v, i) => {
                   const rawId = v.raw?.id_venta ?? v.raw?.id;
                   const isUpdating = updatingId === rawId;
                   const isAnnulled = v.estado_ui === "Anulada";
 
                   // ✅ # consecutivo (1..N) en el orden por FECHA (vieja->nueva)
-                  const rowNumber = (currentPage - 1) * perPage + i + 1;
+                  const rowNumber = (page - 1) * 10 + i + 1;
 
                   return (
                     <motion.tr
@@ -423,12 +406,10 @@ export default function IndexSales() {
           </table>
         </div>
 
-        <Paginator
-          currentPage={currentPage}
-          perPage={perPage}
+       <Paginator
+          currentPage={page}
           totalPages={totalPages}
-          filteredLength={filtered.length}
-          goToPage={goToPage}
+          goToPage={(p) => setPage(p)}
         />
 
         <SaleDetailModal

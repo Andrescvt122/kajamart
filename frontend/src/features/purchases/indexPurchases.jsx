@@ -76,30 +76,38 @@ export default function IndexPurchases() {
   const [purchasesApi, setPurchasesApi] = useState([]);
   const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchPurchases = useCallback(async () => {
-    try {
-      setIsLoadingApi(true);
-      setApiError("");
 
-      const { data } = await api.get("/purchase");
-      const arr = Array.isArray(data) ? data : [];
-      setPurchasesApi(arr);
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Error cargando compras desde el servidor.";
-      setApiError(msg);
-      setPurchasesApi([]);
-    } finally {
-      setIsLoadingApi(false);
-    }
-  }, []);
+ const fetchPurchases = useCallback(async () => {
+  try {
+    setIsLoadingApi(true);
+    setApiError("");
 
-  useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases, comprasVersion]);
+    const { data } = await api.get(`/purchase?page=${page}&limit=10`);
+
+    const arr = Array.isArray(data.data) ? data.data : [];
+    setPurchasesApi(arr);
+    setTotalPages(data.pagination?.totalPages || 1);
+
+  } catch (e) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "Error cargando compras desde el servidor.";
+
+    setApiError(msg);
+    setPurchasesApi([]);
+  } finally {
+    setIsLoadingApi(false);
+  }
+}, [page]);
+
+useEffect(() => {
+  fetchPurchases();
+}, [fetchPurchases, comprasVersion, page]);
 
   // =========================
   // (Opcional) LocalStorage legacy
@@ -331,9 +339,6 @@ export default function IndexPurchases() {
   // =========================
   // UI State
   // =========================
-  const perPage = 5;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
@@ -353,27 +358,13 @@ export default function IndexPurchases() {
     );
   }, [purchases, searchTerm]);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filtered.length / perPage)),
-    [filtered.length]
-  );
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
-  }, [totalPages]);
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
   // =========================
   // Handlers
   // =========================
   const goToPage = useCallback(
     (n) => {
       const p = Math.min(Math.max(1, n), totalPages);
-      setCurrentPage(p);
+      setPage(p);
     },
     [totalPages]
   );
@@ -613,7 +604,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1);
+                  setPage(1);
                 }}
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
@@ -687,7 +678,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                           Cargando compras...
                         </td>
                       </motion.tr>
-                    ) : pageItems.length === 0 ? (
+                    ) : filtered.length === 0 ? (
                       <motion.tr
                         key="empty"
                         initial={{ opacity: 0 }}
@@ -702,7 +693,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                         </td>
                       </motion.tr>
                     ) : (
-                      pageItems.map((p) => (
+                      filtered.map((p) => (
                         <motion.tr
                           key={p.id}
                           initial={{ opacity: 0, y: 10 }}
@@ -790,11 +781,9 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
 
           {/* Paginación */}
           <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
+            currentPage={page}
             totalPages={totalPages}
-            filteredLength={filtered.length}
-            goToPage={goToPage}
+            goToPage={(p) => setPage(p)}
           />
         </div>
       </div>
