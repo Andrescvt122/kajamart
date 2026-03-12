@@ -615,7 +615,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="pl-12 pr-4 py-3 w-full rounded-full border text-gray-700 border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
 

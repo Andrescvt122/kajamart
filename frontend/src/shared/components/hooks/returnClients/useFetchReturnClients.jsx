@@ -15,24 +15,20 @@ const getProductName = (productNode) =>
 
 export const useFetchReturnClients = (initialLimit = 6) => {
   const [pagesCache, setPagesCache] = useState({});
-  const [pageCursors, setPageCursors] = useState({ 1: null });
   const [meta, setMeta] = useState({
     page: 1,
     limit: initialLimit,
     totalItems: 0,
     totalPages: 1,
-    nextCursor: null,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const pagesCacheRef = useRef({});
-  const pageCursorsRef = useRef({ 1: null });
   const metaRef = useRef({
     page: 1,
     limit: initialLimit,
     totalItems: 0,
     totalPages: 1,
-    nextCursor: null,
   });
 
   const mapItem = (item) => {
@@ -90,7 +86,7 @@ export const useFetchReturnClients = (initialLimit = 6) => {
 
     const loadedPages = Object.keys(pagesCache).map(Number);
     const lastLoadedPage = loadedPages.length ? Math.max(...loadedPages) : 0;
-    return Math.max(1, lastLoadedPage + (meta.nextCursor ? 1 : 0));
+    return Math.max(1, lastLoadedPage);
   };
 
   const getLoadedCount = () => {
@@ -101,10 +97,6 @@ export const useFetchReturnClients = (initialLimit = 6) => {
     const { force = false } = options;
     if (pageNumber < 1) return [];
 
-    if (pageNumber > 1 && pageCursorsRef.current[pageNumber] === undefined) {
-      await fetchPage(pageNumber - 1, options);
-    }
-
     if (!force && pagesCacheRef.current[pageNumber]) {
       return pagesCacheRef.current[pageNumber];
     }
@@ -114,10 +106,8 @@ export const useFetchReturnClients = (initialLimit = 6) => {
     try {
       const res = await api.get(API_PATH, {
         params: {
+          page: pageNumber,
           limit: metaRef.current.limit,
-          ...(pageCursorsRef.current[pageNumber]
-            ? { cursor: pageCursorsRef.current[pageNumber] }
-            : {}),
         },
       });
       const payload = res.data;
@@ -136,21 +126,12 @@ export const useFetchReturnClients = (initialLimit = 6) => {
       const nextMeta = {
         page: Number(responseMeta.page) || pageNumber,
         limit: Number(responseMeta.limit) || metaRef.current.limit,
-        totalItems: Number(responseMeta.totalItems) || mapped.length,
-        totalPages: Number(responseMeta.totalPages) || 0,
-        nextCursor: responseMeta.nextCursor ?? null,
+        totalItems: Number(responseMeta.totalItems) || 0,
+        totalPages: Number(responseMeta.totalPages) || 1,
       };
 
       metaRef.current = nextMeta;
       setMeta(nextMeta);
-
-      if (nextMeta.nextCursor) {
-        setPageCursors((prev) => {
-          const next = { ...prev, [pageNumber + 1]: nextMeta.nextCursor };
-          pageCursorsRef.current = next;
-          return next;
-        });
-      }
 
       return mapped;
     } catch (err) {
@@ -164,22 +145,18 @@ export const useFetchReturnClients = (initialLimit = 6) => {
 
   const reset = () => {
     pagesCacheRef.current = {};
-    pageCursorsRef.current = { 1: null };
     metaRef.current = {
       page: 1,
       limit: initialLimit,
       totalItems: 0,
       totalPages: 1,
-      nextCursor: null,
     };
     setPagesCache({});
-    setPageCursors({ 1: null });
     setMeta({
       page: 1,
       limit: initialLimit,
       totalItems: 0,
       totalPages: 1,
-      nextCursor: null,
     });
     setError(null);
   };
@@ -189,8 +166,8 @@ export const useFetchReturnClients = (initialLimit = 6) => {
   const fetchAll = async () => {
     reset();
     const firstPage = await fetchPage(1, { force: true });
-    const totalPages = Math.max(1, Number(metaRef.current.totalPages) || 1);
     let acc = [...firstPage];
+    const totalPages = Math.max(1, Number(metaRef.current.totalPages) || 1);
 
     for (let page = 2; page <= totalPages; page += 1) {
       const pageData = await fetchPage(page, { force: true });
@@ -203,7 +180,7 @@ export const useFetchReturnClients = (initialLimit = 6) => {
   return {
     fetchPage,
     pagesCache,
-    pageCursors,
+    pageCursors: {},
     meta,
     loading,
     error,

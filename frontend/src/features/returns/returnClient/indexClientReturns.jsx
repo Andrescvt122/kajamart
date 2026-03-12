@@ -14,6 +14,7 @@ import generateProductReturnsPDF from "./helpers/exportToPdf";
 import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
+import { useSearchReturnClients } from "../../../shared/components/hooks/returnClients/useSearchReturnClients";
 import Swal from "sweetalert2";
 import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
@@ -31,11 +32,16 @@ export default function IndexClientReturns() {
     getTotalPages,
     getLoadedCount,
   } = useFetchReturnClients(perPage);
+  const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedReturnClients = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchReturnClients(searchTerm);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [annulledMap, setAnnulledMap] = useState({});
@@ -44,15 +50,18 @@ export default function IndexClientReturns() {
   const canAnnul = hasPermission('Anular devolucion cliente');
   const { annulReturnClient, loading: annulling } = useAnnulReturnClient();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
 
   // data-fetching effect
   React.useEffect(() => {
-    fetchPage(currentPage);
-  }, [currentPage]);
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
 
   // Función para abrir el modal de detalles (busca sólo en página actual)
   const handleViewDetails = (rowData) => {
-    const pageData = pagesCache[currentPage] || [];
+    const pageData = isSearching ? searchedReturnClients : pagesCache[currentPage] || [];
     const found = pageData.find((r) => r.idReturn === rowData.idReturn);
     setSelectedReturn(found || rowData);
     setIsDetailsModalOpen(true);
@@ -73,8 +82,8 @@ export default function IndexClientReturns() {
       .toLowerCase();
 
   // build items for UI from current page and apply filters locally
-  const pageItems = useMemo(() => {
-    const pageData = pagesCache[currentPage] || [];
+  const filteredItems = useMemo(() => {
+    const pageData = isSearching ? searchedReturnClients : pagesCache[currentPage] || [];
     return pageData
       .flatMap((returnItem) => {
         const returnedRows = (returnItem.productsReturned || []).map((product) => ({
@@ -109,10 +118,17 @@ export default function IndexClientReturns() {
           normalizeText(row.currentProduct?.name).includes(s)
         );
       });
-  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap]);
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedReturnClients]);
 
-  const totalPages = getTotalPages();
-  const filteredLength = getLoadedCount();
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filteredItems.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? filteredItems.length : getLoadedCount();
+  const pageItems = useMemo(() => {
+    if (!isSearching) return filteredItems;
+    const start = (currentPage - 1) * perPage;
+    return filteredItems.slice(start, start + perPage);
+  }, [filteredItems, currentPage, perPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -285,7 +301,7 @@ export default function IndexClientReturns() {
               className="divide-y divide-gray-100 text-gray-700"
               variants={tableVariants}
             >
-              {loading ? (
+              {loading || (isSearching && searchLoading) ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -300,7 +316,7 @@ export default function IndexClientReturns() {
                     colSpan={8}
                     className="px-6 py-8 text-center text-gray-400"
                   >
-                    {error || "No se encontraron devoluciones."}
+                    {searchError || error || "No se encontraron devoluciones."}
                   </td>
                 </tr>
               ) : (
