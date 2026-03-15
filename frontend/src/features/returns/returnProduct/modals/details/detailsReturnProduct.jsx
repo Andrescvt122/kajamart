@@ -127,6 +127,27 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
                   {products.length} productos devueltos
                 </p>
               </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <FileText className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Comprobante
+                  </span>
+                </div>
+                {returnData?.comprobante?.url ? (
+                  <a
+                    href={returnData.comprobante.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-semibold text-emerald-700 hover:underline"
+                  >
+                    Ver comprobante
+                  </a>
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900">Sin comprobante</p>
+                )}
+              </div>
             </div>
 
             {/* Lista de Productos */}

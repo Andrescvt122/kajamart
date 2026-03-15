@@ -4,6 +4,7 @@ import axios from "axios";
 const API_URL = "http://localhost:3000/kajamart/api/sales";
 
 export const useSales = () => {
+  const limit = 6;
 
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -11,8 +12,8 @@ export const useSales = () => {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-
-  const limit = 10;
+  const [totalItems, setTotalItems] = useState(0);
+  const [perPage, setPerPage] = useState(limit);
 
   const fetchSales = async (pageNumber = page) => {
 
@@ -26,8 +27,10 @@ export const useSales = () => {
       );
 
       setSales(response.data.data);
-      setTotalPages(response.data.pagination.totalPages);
-      setPage(response.data.pagination.page);
+      setTotalPages(response.data.pagination.totalPages ?? 1);
+      setPage(response.data.pagination.page ?? pageNumber);
+      setTotalItems(response.data.pagination.total ?? 0);
+      setPerPage(response.data.pagination.limit ?? limit);
 
     } catch (err) {
 
@@ -52,6 +55,8 @@ export const useSales = () => {
     error,
     page,
     totalPages,
+    totalItems,
+    perPage,
     setPage: fetchSales, // 👈 cambiar página
     refetch: fetchSales
   };
