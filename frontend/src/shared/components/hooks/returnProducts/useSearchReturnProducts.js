@@ -53,6 +53,12 @@ const mapReturnProduct = (r) => {
     isActive: Boolean(r.estado ?? r.activo ?? r.isActive ?? r.is_active ?? true),
     responsable: r.nombre_responsable,
     numeroFactura: r.numero_factura,
+    comprobante: {
+      name: r.comprobante_nombre ?? null,
+      type: r.comprobante_mime ?? null,
+      url: r.comprobante_url ?? null,
+      size: r.comprobante_size ?? null,
+    },
     products: normalizedProducts,
   };
 };

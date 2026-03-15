@@ -199,6 +199,7 @@ export default function IndexProducts() {
     precioVenta: "",
     iva: "",
     stock: "",
+    cantidadUnitaria: "",
     estado: "",
     categoria: "",
     imagenes: [],
@@ -221,6 +222,8 @@ export default function IndexProducts() {
           ? `${p.iva}%`
           : "",
       stock: p.stock_actual != null ? String(p.stock_actual) : "",
+      cantidadUnitaria:
+        p.cantidad_unitaria != null ? String(p.cantidad_unitaria) : "",
       estado: p.estado ? "Activo" : "Inactivo",
       categoria:
         p.categoria ||
@@ -271,6 +274,12 @@ export default function IndexProducts() {
           String(Number(editedForm.precioCompra) || 0)
         );
         fd.append("precio_venta", String(Number(editedForm.precioVenta) || 0));
+        fd.append(
+          "cantidad_unitaria",
+          editedForm.cantidadUnitaria !== ""
+            ? String(Number(editedForm.cantidadUnitaria))
+            : ""
+        );
         fd.append("imagen", newFile);
 
         await updateMutation.mutateAsync({ id, data: fd });
@@ -283,6 +292,10 @@ export default function IndexProducts() {
           iva: String(ivaVal || "0"),
           costo_unitario: String(Number(editedForm.precioCompra) || 0),
           precio_venta: String(Number(editedForm.precioVenta) || 0),
+          cantidad_unitaria:
+            editedForm.cantidadUnitaria !== ""
+              ? String(Number(editedForm.cantidadUnitaria))
+              : "",
         };
         if (id_categoria) payload.id_categoria = String(id_categoria);
 
@@ -790,7 +803,7 @@ export default function IndexProducts() {
           const files = Array.from(e.target.files || []);
           setSelectedProduct((prev) => ({
             ...prev,
-            imagenes: [...prev.imagenes, ...files].slice(0, 6),
+            imagenes: files.slice(0, 1),
           }));
         }}
         removeImageAt={(index) => {

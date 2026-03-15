@@ -13,9 +13,15 @@ import { FiEdit, FiTrash2 } from "react-icons/fi";
 // ✅ Hooks reales (NO modificar hooks)
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
 import { useAllProducts as useAllProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
+import {
+  useCreatePurchase,
+  useValidatePurchaseInvoiceNumber,
+} from "../../shared/components/hooks/purchases/purchase.hooks.js";
 
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
+  const createPurchaseMutation = useCreatePurchase();
+  const validateInvoiceMutation = useValidatePurchaseInvoiceNumber();
 
   // =========================
   // Carga real desde backend
@@ -80,8 +86,14 @@ export default function IndexRegisterPurchase() {
   // =========================
   // Estados de factura
   // =========================
-  const [numFactura, setNumFactura] = useState(null);
-  const [fechaFactura] = useState(() => new Date());
+  const [numeroFactura, setNumeroFactura] = useState("");
+  const [fechaCompra, setFechaCompra] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [facturaEstado, setFacturaEstado] = useState({
+    tipo: "idle",
+    texto: "",
+  });
 
   // =========================
   // Filtros / buscadores
@@ -1009,34 +1021,47 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // ✅ Generar número de factura: 001..999 (solo UI local)
+  // ✅ Validación de factura en tiempo real
   // =========================
-  const generarNumeroFactura = () => {
-    const facturas = JSON.parse(localStorage.getItem("facturas")) || [];
+  const validarNumeroFactura = async (rawValue = numeroFactura) => {
+    const normalizedInvoiceNumber = String(rawValue ?? "").trim();
 
-    const ultimoNumero = facturas.length
-      ? Math.max(...facturas.map((f) => Number(f.num_factura || 0)))
-      : 0;
-
-    const siguiente = ultimoNumero + 1;
-
-    if (siguiente > 999) {
-      // ✅ Swal igual a ventas
-      Swal.fire({
-        icon: "warning",
-        title: "Cuidado",
-        text: "Se alcanzó el límite de numeración de facturas (999).",
-        confirmButtonColor: "#16a34a",
-      });
-
-      setMensajeComprobante({
-        tipo: "error",
-        texto: "⚠️ Se alcanzó el límite de numeración de facturas (999)",
-      });
-      return null;
+    if (!normalizedInvoiceNumber) {
+      const message = "Debe ingresar el numero de factura.";
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
     }
 
-    return String(siguiente).padStart(3, "0");
+    setFacturaEstado({
+      tipo: "info",
+      texto: "Validando numero de factura...",
+    });
+
+    try {
+      const data = await validateInvoiceMutation.mutateAsync(normalizedInvoiceNumber);
+
+      if (!data?.isUnique) {
+        const message = "El numero de factura ya existe.";
+        setFacturaEstado({ tipo: "error", texto: message });
+        return { ok: false, message };
+      }
+
+      setNumeroFactura(normalizedInvoiceNumber);
+      setFacturaEstado({
+        tipo: "ok",
+        texto: "Numero de factura disponible.",
+      });
+
+      return { ok: true, message: "" };
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "No se pudo validar el numero de factura.";
+
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
+    }
   };
 
   // =========================
@@ -1116,6 +1141,16 @@ export default function IndexRegisterPurchase() {
 
     setMensajeComprobante(null);
 
+    if (!fechaCompra) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe seleccionar la fecha de la compra.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
     if (!proveedor) {
       await Swal.fire({
         icon: "warning",
@@ -1135,6 +1170,17 @@ export default function IndexRegisterPurchase() {
         confirmButtonColor: "#16a34a",
       });
       setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+      return;
+    }
+
+    const invoiceValidation = await validarNumeroFactura(numeroFactura);
+    if (!invoiceValidation.ok) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: invoiceValidation.message,
+        confirmButtonColor: "#16a34a",
+      });
       return;
     }
 
@@ -1204,13 +1250,10 @@ export default function IndexRegisterPurchase() {
     // ✅ comprobante debe ser válido
     if (!(await validarComprobante(comprobante))) return;
 
-    const num = generarNumeroFactura();
-    if (!num) return;
-    setNumFactura(num);
-
     // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
     const payload = {
-      fecha_compra: fechaFactura.toISOString(),
+      fecha_compra: fechaCompra,
+      numero_factura: String(numeroFactura).trim(),
       id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
 
       comprobante: comprobante
@@ -1270,31 +1313,10 @@ export default function IndexRegisterPurchase() {
     });
 
     try {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify(payload));
-      if (comprobante) formData.append("comprobante", comprobante);
-
-      const resp = await fetch("http://localhost:3000/kajamart/api/purchase", {
-        method: "POST",
-        body: formData,
+      const data = await createPurchaseMutation.mutateAsync({
+        jsonPayload: payload,
+        comprobanteFile: comprobante,
       });
-
-      const data = await resp.json().catch(() => null);
-
-      if (!resp.ok) {
-        const msg = data?.message || data?.error || "Error al registrar la compra (backend).";
-        Swal.close();
-
-        await Swal.fire({
-          icon: "error",
-          title: "No se pudo registrar",
-          text: msg,
-          confirmButtonColor: "#16a34a",
-        });
-
-        setMensajeComprobante({ tipo: "error", texto: `❌ ${msg}` });
-        return;
-      }
 
       Swal.close();
 
@@ -1315,29 +1337,26 @@ export default function IndexRegisterPurchase() {
         texto: "✅ Compra registrada correctamente en el sistema",
       });
 
-      const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
-      facturasGuardadas.push({
-        num_factura: num,
-        fecha_registro: fechaFactura.toISOString(),
-        valor_factura: total,
-        id_compra: data?.compra?.id_compra ?? null,
-      });
-      localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
-
       navigate("/app/purchases");
     } catch (err) {
       Swal.close();
 
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.";
+
       await Swal.fire({
         icon: "error",
         title: "No se pudo registrar",
-        text: "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+        text: message,
         confirmButtonColor: "#16a34a",
       });
 
       setMensajeComprobante({
         tipo: "error",
-        texto: "❌ No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+        texto: `❌ ${message}`,
       });
     } finally {
       setIsRegistrandoCompra(false);
@@ -1402,13 +1421,51 @@ export default function IndexRegisterPurchase() {
         <p className="text-sm text-gray-500 mt-1">
           Completa la información para registrar una nueva compra
         </p>
+      </div>
 
-        {numFactura && (
-          <p className="mt-2 text-sm">
-            N° Factura generado:{" "}
-            <span className="font-bold text-green-700">{numFactura}</span>
-          </p>
-        )}
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Fecha de compra</label>
+          <input
+            type="date"
+            value={fechaCompra}
+            onChange={(e) => setFechaCompra(e.target.value)}
+            disabled={isRegistrandoCompra}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">N° Factura</label>
+          <input
+            type="text"
+            value={numeroFactura}
+            onChange={(e) => {
+              setNumeroFactura(e.target.value);
+              setFacturaEstado({ tipo: "idle", texto: "" });
+            }}
+            onBlur={() => {
+              if (numeroFactura.trim()) validarNumeroFactura(numeroFactura);
+            }}
+            placeholder="Ingrese el numero de factura"
+            disabled={isRegistrandoCompra || validateInvoiceMutation.isPending}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+
+          {facturaEstado.texto ? (
+            <p
+              className={`mt-1 text-sm ${
+                facturaEstado.tipo === "ok"
+                  ? "text-green-600"
+                  : facturaEstado.tipo === "info"
+                    ? "text-blue-600"
+                    : "text-red-600"
+              }`}
+            >
+              {facturaEstado.texto}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {/* Buscar proveedor */}
@@ -1863,9 +1920,13 @@ export default function IndexRegisterPurchase() {
 
         <button
           onClick={handleFinalizarCompra}
-          disabled={isRegistrandoCompra || hasInvalidProductRows}
+          disabled={
+            isRegistrandoCompra ||
+            hasInvalidProductRows ||
+            validateInvoiceMutation.isPending
+          }
           className={`px-4 py-2 rounded text-white ${
-            isRegistrandoCompra || hasInvalidProductRows
+            isRegistrandoCompra || hasInvalidProductRows || validateInvoiceMutation.isPending
               ? "bg-green-400 cursor-not-allowed"
               : "bg-green-600 hover:bg-green-700"
           }`}
@@ -1873,7 +1934,9 @@ export default function IndexRegisterPurchase() {
           title={
             hasInvalidProductRows
               ? "Corrige cantidad, precio de compra y precio de venta antes de finalizar."
-              : ""
+              : validateInvoiceMutation.isPending
+                ? "Espera a que termine la validacion del numero de factura."
+                : ""
           }
         >
           {isRegistrandoCompra ? "Registrando..." : "Finalizar Compra"}
