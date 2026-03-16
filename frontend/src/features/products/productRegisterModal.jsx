@@ -41,6 +41,7 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
     stockMin: "",
     stockMax: "",
     categoriaId: "",
+    ventaUnitaria: false,
     cantidadUnitaria: "",
   });
 
@@ -71,6 +72,7 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
       stockMin: "",
       stockMax: "",
       categoriaId: "",
+      ventaUnitaria: false,
       cantidadUnitaria: "",
     });
     setImagenFile(null);
@@ -302,9 +304,8 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                       onChange={handleChange}
                       onBlur={(e) => validateField("nombre", e.target.value)}
                       placeholder="Nombre del producto"
-                      className={`${inputClass} ${
-                        errors.nombre ? "border-red-500" : "border-gray-300"
-                      }`}
+                      className={`${inputClass} ${errors.nombre ? "border-red-500" : "border-gray-300"
+                        }`}
                       required
                     />
                     {errors.nombre && (
@@ -375,7 +376,10 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                 </div>
 
                 {/* Stock min/max */}
+                {/* Stock min/max + venta unitaria + categoría */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  {/* Stock mínimo */}
                   <div>
                     <label className="block text-sm font-semibold">
                       Stock Mínimo
@@ -388,12 +392,10 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                       onChange={handleChange}
                       onBlur={(e) => validateField("stockMin", e.target.value)}
                       placeholder="0"
-                      className={`${inputClass} ${
-                        errors.stockMin ? "border-red-500" : "border-gray-300"
-                      }`}
+                      className={`${inputClass} ${errors.stockMin ? "border-red-500" : "border-gray-300"
+                        }`}
                       onKeyDown={(e) =>
-                        ["e", "E", "+", "-"].includes(e.key) &&
-                        e.preventDefault()
+                        ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
                       }
                     />
                     {errors.stockMin && (
@@ -402,6 +404,8 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                       </p>
                     )}
                   </div>
+
+                  {/* Stock máximo */}
                   <div>
                     <label className="block text-sm font-semibold">
                       Stock Máximo
@@ -414,12 +418,10 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                       onChange={handleChange}
                       onBlur={(e) => validateField("stockMax", e.target.value)}
                       placeholder="(auto) stockMin * 5"
-                      className={`${inputClass} ${
-                        errors.stockMax ? "border-red-500" : "border-gray-300"
-                      }`}
+                      className={`${inputClass} ${errors.stockMax ? "border-red-500" : "border-gray-300"
+                        }`}
                       onKeyDown={(e) =>
-                        ["e", "E", "+", "-"].includes(e.key) &&
-                        e.preventDefault()
+                        ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
                       }
                     />
                     {errors.stockMax && (
@@ -428,68 +430,103 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="block text-sm font-semibold text-gray-800">
-                      Cantidad unitaria (opcional)
-                    </label>
 
-                    {/* Icono info */}
-                    <div className="relative group">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-300 text-xs font-bold text-gray-600 cursor-help bg-white">
-                        i
-                      </span>
+                  {/* Venta unitaria */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <label className="block text-sm font-semibold text-gray-800">
+                        ¿Desea vender el contenido del producto de forma unitaria?
+                      </label>
 
-                      {/* Tooltip */}
-                      <div className="absolute left-0 top-7 hidden group-hover:block z-50">
-                        <div className="max-w-xs text-xs text-gray-700 bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2">
-                          Si el producto contiene unidades adentro, indícalo. Si
-                          no, déjalo en blanco.
+                      <div className="relative group">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-gray-300 text-xs font-bold text-gray-600 cursor-help bg-white">
+                          i
+                        </span>
+
+                        <div className="absolute left-0 top-7 hidden group-hover:block z-50">
+                          <div className="max-w-xs text-xs text-gray-700 bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2">
+                            Si el producto contiene varias unidades dentro y deseas venderlas
+                            por separado, selecciona "Sí".
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            ventaUnitaria: true,
+                          }))
+                        }
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${form.ventaUnitaria
+                          ? "bg-green-600 text-white border-green-600"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        Sí
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            ventaUnitaria: false,
+                            cantidadUnitaria: "",
+                          }))
+                        }
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${!form.ventaUnitaria
+                          ? "bg-gray-800 text-white border-gray-800"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        No
+                      </button>
+                    </div>
+
+                    {form.ventaUnitaria && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-800">
+                          Cantidad unitaria
+                        </label>
+                        <input
+                          name="cantidadUnitaria"
+                          type="number"
+                          min="1"
+                          value={form.cantidadUnitaria}
+                          onChange={handleChange}
+                          onBlur={(e) =>
+                            validateField("cantidadUnitaria", e.target.value)
+                          }
+                          placeholder="Ej: 20"
+                          className={`${inputClass} ${errors.cantidadUnitaria ? "border-red-500" : "border-gray-300"
+                            }`}
+                          onKeyDown={(e) =>
+                            ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+                          }
+                        />
+
+                        {errors.cantidadUnitaria && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {errors.cantidadUnitaria}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-                {/* Cantidad unitaria (opcional) */}
-                <div>
-                  <input
-                    name="cantidadUnitaria"
-                    type="number"
-                    min="1"
-                    value={form.cantidadUnitaria}
-                    onChange={handleChange}
-                    onBlur={(e) =>
-                      validateField("cantidadUnitaria", e.target.value)
-                    }
-                    placeholder="Ej: 20"
-                    className={`${inputClass} ${
-                      errors.cantidadUnitaria
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    onKeyDown={(e) =>
-                      ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
-                    }
-                  />
 
-                  {errors.cantidadUnitaria && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.cantidadUnitaria}
-                    </p>
-                  )}
-                </div>
-
-                {/* Categoría */}
-                <div className="grid grid-cols-1 gap-4">
+                  {/* Categoría */}
                   <div className="relative" ref={categoriaRef}>
                     <label className="block text-sm font-semibold">
                       Categoría*
                     </label>
+
                     <div
-                      className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${
-                        errors.categoriaId
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } bg-white`}
+                      className={`mt-1 w-full flex items-center justify-between px-3 py-2 rounded-md border ${errors.categoriaId ? "border-red-500" : "border-gray-300"
+                        } bg-white`}
                     >
                       <button
                         type="button"
@@ -511,15 +548,16 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                           {catLoading
                             ? "Cargando categorías…"
                             : activeCategories.length === 0
-                            ? "No hay categorías activas"
-                            : form.categoriaId
-                            ? activeCategories.find(
-                                (c) =>
-                                  String(c.id_categoria ?? c.id) ===
-                                  String(form.categoriaId)
-                              )?.nombre || "Seleccionar categoría"
-                            : "Seleccionar categoría"}
+                              ? "No hay categorías activas"
+                              : form.categoriaId
+                                ? activeCategories.find(
+                                  (c) =>
+                                    String(c.id_categoria ?? c.id) ===
+                                    String(form.categoriaId)
+                                )?.nombre || "Seleccionar categoría"
+                                : "Seleccionar categoría"}
                         </span>
+
                         <motion.span
                           animate={{ rotate: categoriaOpen ? 180 : 0 }}
                           transition={{ duration: 0.18 }}
@@ -528,11 +566,13 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                         </motion.span>
                       </button>
                     </div>
+
                     {errors.categoriaId && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.categoriaId}
                       </p>
                     )}
+
                     <AnimatePresence>
                       {categoriaOpen && (
                         <motion.ul
@@ -556,11 +596,10 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                                   validateField("categoriaId", catId);
                                   setCategoriaOpen(false);
                                 }}
-                                className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${
-                                  String(form.categoriaId) === String(catId)
-                                    ? "bg-green-100 font-medium"
-                                    : ""
-                                }`}
+                                className={`px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50 ${String(form.categoriaId) === String(catId)
+                                  ? "bg-green-100 font-medium"
+                                  : ""
+                                  }`}
                               >
                                 {c.nombre}
                               </motion.li>
@@ -571,6 +610,7 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
                     </AnimatePresence>
                   </div>
                 </div>
+
               </div>
 
               {/* Footer */}

@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Pencil,
 } from "lucide-react";
+import { Calendar } from "primereact/calendar";
 import ProductRegistrationModal from "./ProductRegistrationModal";
 import PurchaseSearchSelect from "../../../../../shared/components/searchBars/PurchaseSearchSelect";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
@@ -37,6 +38,9 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const [invoiceError, setInvoiceError] = useState("");
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [paymentReceiptMessage, setPaymentReceiptMessage] = useState("");
+  const [returnDate, setReturnDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   // ?Y???? Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
@@ -96,6 +100,29 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     if (!value) return null;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const parseYmdToDate = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setHours(0, 0, 0, 0);
+    return dateObj;
+  };
+
+  const handleReturnDateChange = (e) => {
+    if (!e.value) {
+      setReturnDate("");
+      return;
+    }
+
+    const localDate = new Date(e.value);
+    localDate.setHours(0, 0, 0, 0);
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, "0");
+    const day = String(localDate.getDate()).padStart(2, "0");
+    setReturnDate(`${year}-${month}-${day}`);
   };
 
   const getPurchaseExpiryStatus = (purchase) => {
@@ -398,6 +425,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setInvoiceError(""); // ????? limpiar error
     setPaymentReceipt(null);
     setPaymentReceiptMessage("");
+    setReturnDate(new Date().toISOString().slice(0, 10));
     onClose();
   };
 
@@ -424,6 +452,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     }
 
     if (!validatePaymentReceipt(paymentReceipt)) {
+      return;
+    }
+
+    if (!returnDate) {
+      alert("Selecciona la fecha de la devolución.");
       return;
     }
 
@@ -556,6 +589,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       const payload = {
         id_responsable,
         id_compra: selectedPurchase?.id_compra,
+        fecha_devolucion: returnDate,
         numero_factura: invoiceNumber.trim(),
         products: productsPayload,
         comprobante: paymentReceipt
@@ -723,33 +757,55 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3, duration: 0.5 }}
                   >
-                    <motion.div
-                      className="space-y-2"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25, duration: 0.3 }}
-                    >
-                      <label className="block text-sm font-medium text-gray-700">
-                        Número de factura
-                      </label>
-                      <input
-                        type="text"
-                        value={invoiceNumber}
-                        onChange={handleInvoiceChange}
-                        maxLength={20}
-                        className={`w-full px-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
-                          invoiceError
-                            ? "border-red-500 focus:ring-1 focus:ring-red-500"
-                            : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
-                        }`}
-                        placeholder="Ej. 0001-2025"
-                      />
-                      {invoiceError && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {invoiceError}
-                        </p>
-                      )}
-                    </motion.div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <motion.div
+                        className="space-y-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.26, duration: 0.3 }}
+                      >
+                        <label className="block text-sm font-medium text-gray-700">
+                          Fecha de devolución
+                        </label>
+                        <Calendar
+                          value={parseYmdToDate(returnDate)}
+                          onChange={handleReturnDateChange}
+                          dateFormat="dd/mm/yy"
+                          showIcon
+                          maxDate={new Date()}
+                          placeholder="Selecciona una fecha"
+                          className="w-full"
+                          inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none text-gray-700 focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </motion.div>
+                      <motion.div
+                        className="space-y-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.3 }}
+                      >
+                        <label className="block text-sm font-medium text-gray-700">
+                          Número de factura
+                        </label>
+                        <input
+                          type="text"
+                          value={invoiceNumber}
+                          onChange={handleInvoiceChange}
+                          maxLength={20}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
+                            invoiceError
+                              ? "border-red-500 focus:ring-1 focus:ring-red-500"
+                              : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                          }`}
+                          placeholder="Ej. 0001-2025"
+                        />
+                        {invoiceError && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {invoiceError}
+                          </p>
+                        )}
+                      </motion.div>
+                    </div>
                     <motion.div
                       className="space-y-2"
                       initial={{ opacity: 0, y: 10 }}

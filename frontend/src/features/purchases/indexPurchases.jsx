@@ -39,7 +39,7 @@ const diffMinutesFromNow = (isoDate) => {
   return (Date.now() - t) / 60000;
 };
 const canAnnulPurchase = (purchase) => {
-  const mins = diffMinutesFromNow(purchase?.fecha);
+  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
   return mins >= 0 && mins < MAX_MINUTES_ANNUL;
 };
 const isAnulada = (estado) => {
@@ -88,6 +88,12 @@ const normalizeApiPurchasesForUI = (list) => {
       c?.fecha ??
       c?.created_at ??
       new Date().toISOString();
+
+    const createdAt =
+      c?.created_at ??
+      c?.fecha_creacion ??
+      c?.fecha_registro ??
+      fecha;
 
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
@@ -181,6 +187,10 @@ const normalizeApiPurchasesForUI = (list) => {
       nit: String(proveedorNit),
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt:
+        typeof createdAt === "string"
+          ? createdAt
+          : new Date(createdAt).toISOString(),
       estado,
       productos,
       comprobante,
@@ -291,6 +301,7 @@ useEffect(() => {
 
       const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
       const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+      const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
       const estado = c?.estado ?? "Completada";
 
       return {
@@ -300,6 +311,7 @@ useEffect(() => {
         nit: String(proveedorNit ?? "—"),
         total: Number(c?.total ?? 0),
         fecha,
+        createdAt,
         estado,
         productos: Array.isArray(c?.productos) ? c.productos : [],
         comprobante: c?.comprobante ?? null,
@@ -450,7 +462,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({
