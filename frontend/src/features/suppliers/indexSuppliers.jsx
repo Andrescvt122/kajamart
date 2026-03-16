@@ -28,8 +28,7 @@ import {
   useSuppliers as useSuppliersQuery,
   useDeleteSupplier,
 } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-import { useSearchSuppliers } from "../../shared/components/hooks/suppliers/useSearchSuppliers.js";
-
+import { getAllSuppliersForExport } from "../../shared/components/hooks/suppliers/suppliers.hooks";
 // ==== utilidades de layout/texto ultra-responsive ====
 const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
@@ -83,17 +82,40 @@ export default function IndexSuppliers() {
     isLoading,
     isError,
     error,
-  } = useSuppliersQuery(currentPage, perPage);
-  const {
-    data: searchedSuppliers = [],
-    loading: searchLoading,
-    error: searchError,
-  } = useSearchSuppliers(searchTerm);
+  } = useSuppliersQuery(currentPage, perPage, searchTerm);
+const handleExportExcel = async () => {
+  try {
+    showLoadingAlert("Preparando exportación...");
 
-  const isSearching = searchTerm.trim() !== "";
-  const suppliersRaw = isSearching ? searchedSuppliers : data?.data || [];
-  const backendTotalPages = data?.totalPages || 1;
-  const backendTotalItems = data?.totalItems || suppliersRaw.length;
+    const allSuppliers = await getAllSuppliersForExport(searchTerm);
+
+    console.log("SUPPLIERS PARA EXPORT:", allSuppliers);
+
+    exportSuppliersToExcel(allSuppliers);
+
+    Swal.close();
+  } catch (error) {
+    console.error(error);
+    Swal.close();
+    showErrorAlert("Error al exportar proveedores");
+  }
+};
+const handleExportPDF = async () => {
+  try {
+    showLoadingAlert("Preparando exportación...");
+
+    const allSuppliers = await getAllSuppliersForExport(searchTerm);
+
+    exportSuppliersToPDF(allSuppliers);
+
+    Swal.close();
+  } catch (error) {
+    Swal.close();
+    showErrorAlert("Error al exportar proveedores");
+  }
+};
+  const suppliersRaw = data?.data || [];
+  const totalPages = data?.totalPages || 1;
   // Mapeo para UI
   const suppliers = useMemo(() => {
     if (!Array.isArray(suppliersRaw)) return [];
@@ -131,7 +153,7 @@ export default function IndexSuppliers() {
       onSuccess: () => {
         try {
           Swal.close();
-        } catch (_) {}
+        } catch (_) { }
         Swal.fire({
           icon: "success",
           title: "Proveedor eliminado",
@@ -148,7 +170,7 @@ export default function IndexSuppliers() {
       onError: (err) => {
         try {
           Swal.close();
-        } catch (_) {}
+        } catch (_) { }
         const msg =
           err?.response?.data?.message ||
           err?.message ||
@@ -194,32 +216,6 @@ export default function IndexSuppliers() {
   };
 
   // Filtro
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    if (!s) return suppliers;
-
-    if (/^activos?$/.test(s)) {
-      return suppliers.filter(
-        (p) => normalizeText(String(p.estado)) === "activo"
-      );
-    }
-    if (/^inactivos?$/.test(s)) {
-      return suppliers.filter(
-        (p) => normalizeText(String(p.estado)) === "inactivo"
-      );
-    }
-
-    return suppliers.filter((p) => {
-      const inSupplier = Object.entries(p).some(([key, value]) => {
-        if (key === "categorias") return false;
-        return normalizeText(String(value ?? "")).includes(s);
-      });
-      if (inSupplier) return true;
-
-      const catNames = getSupplierCategoryNames(p).map((n) => normalizeText(n));
-      return catNames.some((name) => name.includes(s));
-    });
-  }, [suppliers, searchTerm]);
 
   // Paginación
   const totalPages = isSearching
@@ -308,16 +304,14 @@ export default function IndexSuppliers() {
 
               {/* Exportar Excel */}
               <div className="flex justify-end">
-                <ExportExcelButton
-                  event={() => exportSuppliersToExcel(filtered)}
-                >
+                <ExportExcelButton event={handleExportExcel}>
                   Excel
                 </ExportExcelButton>
               </div>
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportSuppliersToPDF(filtered)}>
+                <ExportPDFButton event={handleExportPDF}>
                   PDF
                 </ExportPDFButton>
               </div>
@@ -348,13 +342,13 @@ export default function IndexSuppliers() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : pageItems.length === 0 ? (
+            ) : suppliers.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron proveedores.
               </div>
             ) : (
               <motion.ul className="space-y-3" variants={tableVariants}>
-                {pageItems.map((s, i) => {
+                {suppliers.map((s, i) => {
                   const isOpen = expanded.has(s.id_proveedor ?? s.nit ?? i);
                   const pid = `sup-${s.id_proveedor ?? s.nit ?? i}`;
                   const catNames = getSupplierCategoryNames(s);
@@ -362,9 +356,8 @@ export default function IndexSuppliers() {
                     catNames.length === 0
                       ? "—"
                       : catNames.length <= 2
-                      ? catNames.join(", ")
-                      : `${catNames.slice(0, 2).join(", ")} +${
-                          catNames.length - 2
+                        ? catNames.join(", ")
+                        : `${catNames.slice(0, 2).join(", ")} +${catNames.length - 2
                         }`;
 
                   return (
@@ -389,11 +382,10 @@ export default function IndexSuppliers() {
                                 NIT {s.nit || "—"}
                               </span>
                               <span
-                                className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${
-                                  s.estado === "Activo"
+                                className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${s.estado === "Activo"
                                     ? "bg-green-50 text-green-700"
                                     : "bg-red-100 text-red-600"
-                                }`}
+                                  }`}
                               >
                                 {s.estado}
                               </span>
@@ -508,7 +500,7 @@ export default function IndexSuppliers() {
                         <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
-                  ) : pageItems.length === 0 ? (
+                  ) : suppliers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -518,15 +510,14 @@ export default function IndexSuppliers() {
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((s, i) => {
+                    suppliers.map((s, i) => {
                       const catNames = getSupplierCategoryNames(s);
                       const displayCats =
                         catNames.length === 0
                           ? "—"
                           : catNames.length <= 2
-                          ? catNames.join(", ")
-                          : `${catNames.slice(0, 2).join(", ")} +${
-                              catNames.length - 2
+                            ? catNames.join(", ")
+                            : `${catNames.slice(0, 2).join(", ")} +${catNames.length - 2
                             }`;
 
                       return (
@@ -603,7 +594,7 @@ export default function IndexSuppliers() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filteredLength}
+              filteredLength={suppliers.length}
               goToPage={goToPage}
             />
           </div>

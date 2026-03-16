@@ -130,45 +130,68 @@ export default function IndexCategories() {
       return next;
     });
   };
+const handleExportExcel = async () => {
 
+  try {
+
+    const allCategories = await getAllCategoriesForExport(searchTerm);
+
+    exportCategoriesToExcel(allCategories);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const allCategories = await getAllCategoriesForExport(searchTerm);
+
+    exportCategoriesToPDF(allCategories);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   // Filtro
   const filtered = useMemo(() => {
-    const source = isSearching ? searchedCategories : categories;
     const s = searchTerm.trim().toLowerCase();
-    if (!s) return source;
+    if (!s) return categories;
 
     if (/^activos?$/.test(s)) {
-      return source.filter(
+      return categories.filter(
         (c) => String(c.estado).toLowerCase() === "activo"
       );
     }
     if (/^inactivos?$/.test(s)) {
-      return source.filter(
+      return categories.filter(
         (c) => String(c.estado).toLowerCase() === "inactivo"
       );
     }
 
-    return source.filter((c) =>
+    return categories.filter((c) =>
       Object.values(c).some((value) =>
         String(value ?? "")
           .toLowerCase()
           .includes(s)
       )
     );
-  }, [categories, searchedCategories, searchTerm, isSearching]);
+  }, [categories, searchTerm]);
 
   // Paginación
-  const totalPages = isSearching
-    ? Math.max(1, Math.ceil(filtered.length / perPage))
-    : Math.max(1, backendTotalPages || 1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const pageItems = useMemo(() => {
-    if (!isSearching) return filtered;
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage, isSearching]);
-  const filteredLength = isSearching
-    ? filtered.length
-    : Number(totalItems) || filtered.length;
+  }, [filtered, currentPage, perPage]);
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // Helpers para sacar mensaje de error del backend

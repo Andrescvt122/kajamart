@@ -1,29 +1,20 @@
 // frontend/src/shared/components/hooks/products/products.hooks.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
 const API_URL = `${API_BASE}/products`;
 
-// 🔹 Obtener todos los productos sin paginación
-export const useAllProducts = () =>
-  useQuery({
-    queryKey: ["products", "all"],
-    queryFn: async () => {
-      const { data } = await axios.get(`${API_URL}/all`);
-      return Array.isArray(data) ? data : [];
-    },
-  });
-
 // 🔹 Obtener todos los productos
-export const useProducts = (page = 1, limit = 6) =>
+export const useProducts = (page = 1, limit = 6, search = "") =>
   useQuery({
-    queryKey: ["products", page],
+    queryKey: ["products", page, search],
     queryFn: async () => {
 
       const { data } = await axios.get(
-        `${API_URL}?page=${page}&limit=${limit}`
+        `${API_URL}?page=${page}&limit=${limit}&search=${search}`
       );
 
       return data;
@@ -31,7 +22,60 @@ export const useProducts = (page = 1, limit = 6) =>
     },
     keepPreviousData: true
   });
+export const getAllProductsForExport = async (search = "") => {
 
+  const { data } = await axios.get(
+    `${API_URL}?page=1&limit=10000&search=${search}`
+  );
+
+  return data.data;
+
+};
+
+
+export const exportProductsToExcel = (products) => {
+
+  const formatted = products.map((p) => ({
+    ID: p.id_producto,
+    Nombre: p.nombre,
+    Categoría: p.categoria,
+    Stock: p.stock_actual,
+    Precio: p.precio_venta,
+    Estado: p.estado ? "Activo" : "Inactivo",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(formatted);
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+  XLSX.writeFile(wb, "productos.xlsx");
+
+};
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export const exportProductsToPDF = (products) => {
+
+  const doc = new jsPDF();
+
+  const tableData = products.map((p) => [
+    p.id_producto,
+    p.nombre,
+    p.categoria,
+    p.stock_actual,
+    p.precio_venta,
+    p.estado ? "Activo" : "Inactivo",
+  ]);
+
+  autoTable(doc, {
+    head: [["ID", "Nombre", "Categoría", "Stock", "Precio", "Estado"]],
+    body: tableData,
+  });
+
+  doc.save("productos.pdf");
+
+};
 // 🔹 Obtener producto por ID
 export const useProduct = (id) =>
   useQuery({
