@@ -1,5 +1,21 @@
 import { useMutation } from "@tanstack/react-query";
-import api from "../../../api/axiosConfig";
+import api from "../../../../api/axiosConfig";
+
+export async function validatePurchaseInvoiceNumber(numeroFactura) {
+  const normalizedInvoiceNumber = String(numeroFactura ?? "").trim();
+
+  const { data } = await api.get("/purchase/validate-invoice", {
+    params: { numero_factura: normalizedInvoiceNumber },
+  });
+
+  return data;
+}
+
+export function useValidatePurchaseInvoiceNumber() {
+  return useMutation({
+    mutationFn: validatePurchaseInvoiceNumber,
+  });
+}
 
 export function useCreatePurchase() {
   return useMutation({

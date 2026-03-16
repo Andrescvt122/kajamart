@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import api from "../../../../api/axiosConfig";
 
 const API_PATH = "/lowProducts"; // relative to baseURL in axios config
@@ -10,6 +10,21 @@ export const useGetLowProducts = (initialLimit = 6) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const lastNextCursor = useRef(null);
+  const pagesCacheRef = useRef({});
+  const pageCursorsRef = useRef({ 1: null });
+  const metaRef = useRef({ limit: initialLimit, nextCursor: null });
+
+  useEffect(() => {
+    pagesCacheRef.current = pagesCache;
+  }, [pagesCache]);
+
+  useEffect(() => {
+    pageCursorsRef.current = pageCursors;
+  }, [pageCursors]);
+
+  useEffect(() => {
+    metaRef.current = meta;
+  }, [meta]);
 
   const mapItem = (low) => ({
     idLow: low.id_baja_productos,
@@ -30,7 +45,10 @@ export const useGetLowProducts = (initialLimit = 6) => {
       if (details.length > 0) {
         return details.map((p) => ({
           id: p.id_detalle_productos,
-          name: p.nombre_producto,
+          name:
+            p.nombre_producto ||
+            p.detalle_productos?.productos?.nombre ||
+            "Sin producto",
           lowQuantity: Number(p.cantidad) || 0,
           reason: p.motivo,
           category:
@@ -40,6 +58,7 @@ export const useGetLowProducts = (initialLimit = 6) => {
             p.nombre_categoria ||
             p.nombreCategoria ||
             p.category ||
+            p.detalle_productos?.productos?.categorias?.nombre_categoria ||
             "Sin categoría",
           totalValue: Number(p.total_producto_baja ?? 0),
         }));
@@ -68,19 +87,20 @@ export const useGetLowProducts = (initialLimit = 6) => {
     return Object.values(pagesCache).reduce((acc, arr) => acc + arr.length, 0);
   };
 
-  const fetchPage = async (pageNumber) => {
+  const fetchPage = async (pageNumber, options = {}) => {
+    const { force = false } = options;
     if (pageNumber < 1) return [];
-    if (pageNumber > 1 && pageCursors[pageNumber] === undefined) {
-      await fetchPage(pageNumber - 1);
+    if (pageNumber > 1 && pageCursorsRef.current[pageNumber] === undefined) {
+      await fetchPage(pageNumber - 1, options);
     }
-    if (pagesCache[pageNumber]) {
-      return pagesCache[pageNumber];
+    if (!force && pagesCacheRef.current[pageNumber]) {
+      return pagesCacheRef.current[pageNumber];
     }
     setLoading(true);
     setError(null);
     try {
-      const params = { limit: meta.limit };
-      const cursor = pageCursors[pageNumber];
+      const params = { limit: metaRef.current.limit };
+      const cursor = pageCursorsRef.current[pageNumber];
       if (cursor) params.cursor = cursor;
 
       const response = await api.get(API_PATH, { params });
@@ -90,13 +110,25 @@ export const useGetLowProducts = (initialLimit = 6) => {
 
       const adaptedData = rawData.map(mapItem);
 
-      setPagesCache((prev) => ({ ...prev, [pageNumber]: adaptedData }));
+      setPagesCache((prev) => {
+        const next = { ...prev, [pageNumber]: adaptedData };
+        pagesCacheRef.current = next;
+        return next;
+      });
 
       const newNext = response.data?.meta?.nextCursor ?? null;
       lastNextCursor.current = newNext;
-      setMeta((prev) => ({ ...prev, nextCursor: newNext }));
+      setMeta((prev) => {
+        const next = { ...prev, nextCursor: newNext };
+        metaRef.current = next;
+        return next;
+      });
       if (newNext) {
-        setPageCursors((prev) => ({ ...prev, [pageNumber + 1]: newNext }));
+        setPageCursors((prev) => {
+          const next = { ...prev, [pageNumber + 1]: newNext };
+          pageCursorsRef.current = next;
+          return next;
+        });
       }
 
       return adaptedData;
@@ -112,6 +144,10 @@ export const useGetLowProducts = (initialLimit = 6) => {
   };
 
   const reset = () => {
+    pagesCacheRef.current = {};
+    pageCursorsRef.current = { 1: null };
+    metaRef.current = { limit: initialLimit, nextCursor: null };
+    lastNextCursor.current = null;
     setPagesCache({});
     setPageCursors({ 1: null });
     setMeta({ limit: initialLimit, nextCursor: null });

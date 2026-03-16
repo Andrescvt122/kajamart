@@ -3,7 +3,11 @@ import { Search, Package, CheckCircle, AlertCircle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFetchProduct } from "../hooks/searchBars/useFetchProducts";
 
-const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
+const ProductSearch = ({
+  onAddProduct,
+  excludedProducts = [],
+  disabled = false,
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -21,6 +25,12 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
     }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
+
+  useEffect(() => {
+    if (disabled) {
+      setShowDropdown(false);
+    }
+  }, [disabled]);
 
   // Hook que llama la API
   const { data: products, loading, error } = useFetchProduct(debouncedTerm);
@@ -91,7 +101,7 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
   return (
     <div className="relative mb-6">
       <motion.div
-        className="flex items-center gap-4"
+        className={`flex items-center gap-4 ${disabled ? "pointer-events-none opacity-60" : ""}`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -112,7 +122,10 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
             placeholder="Buscar por producto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setShowDropdown(true)}
+            onFocus={() => {
+              if (!disabled) setShowDropdown(true);
+            }}
+            disabled={disabled}
             autoComplete="off"
             whileFocus={{ scale: 1.0 }}
             transition={{ duration: 0.2 }}
@@ -134,6 +147,7 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
             value={quantity}
             onChange={(e) => setQuantity(parseInt(e.target.value))}
             min="1"
+            disabled={disabled}
             className="w-16 mt-1 px-3 py-2 rounded-lg border-2 border-gray-300 bg-white text-black text-center focus:ring-2 focus:ring-green-400 focus:outline-none"
             whileFocus={{ scale: 1.05, borderColor: "#16a34a" }}
           />
@@ -142,14 +156,14 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
         {/* Botón agregar con loader + check */}
         <motion.button
           onClick={handleAddProduct}
-          disabled={isAdding || showCheck}
+          disabled={disabled || isAdding || showCheck}
           className={`px-6 py-3 font-semibold rounded-lg shadow-md transition-all duration-200 flex items-center justify-center gap-2 ${
-            isAdding || showCheck
+            disabled || isAdding || showCheck
               ? "bg-green-500 cursor-not-allowed opacity-90"
               : "bg-green-600 hover:bg-green-700 text-white"
           }`}
-          whileHover={!isAdding && !showCheck ? { scale: 1.05 } : {}}
-          whileTap={!isAdding && !showCheck ? { scale: 0.95 } : {}}
+          whileHover={!disabled && !isAdding && !showCheck ? { scale: 1.05 } : {}}
+          whileTap={!disabled && !isAdding && !showCheck ? { scale: 0.95 } : {}}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
@@ -233,7 +247,7 @@ const ProductSearch = ({ onAddProduct, excludedProducts = [] }) => {
       </AnimatePresence>
       {/* Dropdown de resultados */}
       <AnimatePresence>
-        {showDropdown && searchTerm && (
+        {!disabled && showDropdown && searchTerm && (
           <motion.div
             className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"
             initial={{ opacity: 0, y: -10, scale: 0.95 }}

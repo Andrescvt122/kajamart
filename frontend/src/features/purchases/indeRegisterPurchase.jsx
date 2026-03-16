@@ -12,27 +12,33 @@ import { FiEdit, FiTrash2 } from "react-icons/fi";
 
 // ✅ Hooks reales (NO modificar hooks)
 import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-import { useProducts as useProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
+import { useAllProducts as useAllProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
+import {
+  useCreatePurchase,
+  useValidatePurchaseInvoiceNumber,
+} from "../../shared/components/hooks/purchases/purchase.hooks.js";
 
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
+  const createPurchaseMutation = useCreatePurchase();
+  const validateInvoiceMutation = useValidatePurchaseInvoiceNumber();
 
   // =========================
   // Carga real desde backend
   // =========================
   const {
-    data: suppliersRaw = [],
+    data: suppliersResponse,
     isLoading: isSuppliersLoading,
     isError: isSuppliersError,
     error: suppliersError,
-  } = useSuppliersQuery();
+  } = useSuppliersQuery(1, 1000);
 
   const {
     data: productsRaw = [],
     isLoading: isProductsLoading,
     isError: isProductsError,
     error: productsError,
-  } = useProductsQuery();
+  } = useAllProductsQuery();
 
   // =========================
   // Estados de compra
@@ -80,8 +86,14 @@ export default function IndexRegisterPurchase() {
   // =========================
   // Estados de factura
   // =========================
-  const [numFactura, setNumFactura] = useState(null);
-  const [fechaFactura] = useState(() => new Date());
+  const [numeroFactura, setNumeroFactura] = useState("");
+  const [fechaCompra, setFechaCompra] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [facturaEstado, setFacturaEstado] = useState({
+    tipo: "idle",
+    texto: "",
+  });
 
   // =========================
   // Filtros / buscadores
@@ -128,6 +140,8 @@ export default function IndexRegisterPurchase() {
   const noSpinNumber =
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
 
+  const onlyDigits = (value) => String(value ?? "").replace(/\D/g, "");
+
   // =========================
   // Normalizadores
   // =========================
@@ -167,6 +181,33 @@ export default function IndexRegisterPurchase() {
     if (Number.isNaN(n)) return 0;
     return Math.max(0, Math.floor(n));
   };
+
+  const validatePositiveIntegerField = (value, label) => {
+    const raw = String(value ?? "").trim();
+
+    if (!raw) return `${label} es obligatorio.`;
+    if (!/^\d+$/.test(raw)) return `${label} solo permite numeros.`;
+
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return `${label} debe ser mayor a 0.`;
+
+    return "";
+  };
+
+  const getProductoCompraErrors = (prod) => ({
+    cantidad: validatePositiveIntegerField(
+      prod?.cantidadPaquetes ?? prod?.cantidad ?? "",
+      "La cantidad"
+    ),
+    precioCompra: validatePositiveIntegerField(
+      prod?.precioCompra ?? "",
+      "El precio de compra"
+    ),
+    precioVenta: validatePositiveIntegerField(
+      prod?.precioVenta ?? "",
+      "El precio de venta"
+    ),
+  });
 
   const getTotalUnidadesFromForm = (form) => {
     const paquetes = toNonNegIntFromString(form?.cantidad);
@@ -278,7 +319,19 @@ export default function IndexRegisterPurchase() {
     return errs;
   };
 
+  const normalizePackFormForValidation = (form) => ({
+    ...form,
+    cantidad: form?.cantidad === "" ? "0" : form?.cantidad,
+    unidadesPorPaquete:
+      form?.unidadesPorPaquete === "" ? "0" : form?.unidadesPorPaquete,
+  });
+
   const packHasErrors = (errs) => Object.keys(errs || {}).length > 0;
+
+  useEffect(() => {
+    if (!Object.keys(packTouched || {}).length) return;
+    setPackErrors(computePackErrors(normalizePackFormForValidation(packForm)));
+  }, [packForm, packTouched]);
 
   // =========================
   // ✅ Helpers select paquetes
@@ -338,6 +391,10 @@ export default function IndexRegisterPurchase() {
   // Normalizar data REAL (backend)
   // =========================
   const proveedoresDB = useMemo(() => {
+    const suppliersRaw = Array.isArray(suppliersResponse?.data)
+      ? suppliersResponse.data
+      : [];
+
     if (!Array.isArray(suppliersRaw)) return [];
     return suppliersRaw.map((s) => ({
       ...s,
@@ -347,12 +404,16 @@ export default function IndexRegisterPurchase() {
       telefono: s?.telefono ?? "",
       estado: s?.estado,
     }));
-  }, [suppliersRaw]);
+  }, [suppliersResponse]);
 
   const productosDB = useMemo(() => {
-    if (!Array.isArray(productsRaw)) return [];
+    const productsList = Array.isArray(productsRaw)
+      ? productsRaw
+      : Array.isArray(productsRaw?.data)
+        ? productsRaw.data
+        : [];
 
-    return productsRaw.map((p) => {
+    return productsList.map((p) => {
       const precio =
         Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
 
@@ -396,6 +457,26 @@ export default function IndexRegisterPurchase() {
       .filter((p) => normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q))
       .slice(0, 8);
   }, [proveedorQuery, proveedoresDB]);
+
+  const proveedorExacto = useMemo(() => {
+    const val = proveedorQuery.trim();
+    if (!val) return null;
+
+    return (
+      proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      ) ?? null
+    );
+  }, [proveedorQuery, proveedoresDB]);
+
+  const shouldShowRegisterSupplier = useMemo(() => {
+    return Boolean(
+      proveedorQuery.trim() &&
+        !proveedor &&
+        !proveedorExacto &&
+        proveedoresFiltrados.length === 0
+    );
+  }, [proveedorQuery, proveedor, proveedorExacto, proveedoresFiltrados]);
 
   // =========================
   // ✅ Productos: SET seleccionados
@@ -490,6 +571,29 @@ export default function IndexRegisterPurchase() {
     () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
     [productos]
   );
+
+  const productoErrors = useMemo(
+    () => productos.map((prod) => getProductoCompraErrors(prod)),
+    [productos]
+  );
+
+  const hasInvalidProductRows = useMemo(
+    () => productoErrors.some((errs) => Object.values(errs).some(Boolean)),
+    [productoErrors]
+  );
+
+  const updateProductoField = (index, field, rawValue) => {
+    const sanitizedValue = onlyDigits(rawValue);
+
+    setProductos((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        [field]: sanitizedValue,
+      };
+      return next;
+    });
+  };
 
   // =========================
   // ✅ Modal paquetes: abrir al seleccionar producto
@@ -843,7 +947,15 @@ export default function IndexRegisterPurchase() {
       const val = proveedorQuery.trim();
       if (!val) return;
 
-      const exacto = proveedoresDB.find((p) => p.nit === val);
+      if (proveedoresFiltrados.length > 0) {
+        e.preventDefault();
+        seleccionarProveedor(proveedoresFiltrados[0]);
+        return;
+      }
+
+      const exacto = proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      );
       if (exacto) seleccionarProveedor(exacto);
       else {
         setMensajeProveedor({
@@ -909,34 +1021,47 @@ export default function IndexRegisterPurchase() {
   };
 
   // =========================
-  // ✅ Generar número de factura: 001..999 (solo UI local)
+  // ✅ Validación de factura en tiempo real
   // =========================
-  const generarNumeroFactura = () => {
-    const facturas = JSON.parse(localStorage.getItem("facturas")) || [];
+  const validarNumeroFactura = async (rawValue = numeroFactura) => {
+    const normalizedInvoiceNumber = String(rawValue ?? "").trim();
 
-    const ultimoNumero = facturas.length
-      ? Math.max(...facturas.map((f) => Number(f.num_factura || 0)))
-      : 0;
-
-    const siguiente = ultimoNumero + 1;
-
-    if (siguiente > 999) {
-      // ✅ Swal igual a ventas
-      Swal.fire({
-        icon: "warning",
-        title: "Cuidado",
-        text: "Se alcanzó el límite de numeración de facturas (999).",
-        confirmButtonColor: "#16a34a",
-      });
-
-      setMensajeComprobante({
-        tipo: "error",
-        texto: "⚠️ Se alcanzó el límite de numeración de facturas (999)",
-      });
-      return null;
+    if (!normalizedInvoiceNumber) {
+      const message = "Debe ingresar el numero de factura.";
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
     }
 
-    return String(siguiente).padStart(3, "0");
+    setFacturaEstado({
+      tipo: "info",
+      texto: "Validando numero de factura...",
+    });
+
+    try {
+      const data = await validateInvoiceMutation.mutateAsync(normalizedInvoiceNumber);
+
+      if (!data?.isUnique) {
+        const message = "El numero de factura ya existe.";
+        setFacturaEstado({ tipo: "error", texto: message });
+        return { ok: false, message };
+      }
+
+      setNumeroFactura(normalizedInvoiceNumber);
+      setFacturaEstado({
+        tipo: "ok",
+        texto: "Numero de factura disponible.",
+      });
+
+      return { ok: true, message: "" };
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "No se pudo validar el numero de factura.";
+
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
+    }
   };
 
   // =========================
@@ -958,19 +1083,19 @@ export default function IndexRegisterPurchase() {
       return false;
     }
 
-    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "image/webp"];
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
     if (!allowed.includes(file.type)) {
       await Swal.fire({
         icon: "warning",
         title: "Formato no válido",
-        text: "Sube PDF o imagen (JPG/PNG/WebP).",
+        text: "Solo se permiten imágenes JPG, PNG o WebP.",
         confirmButtonColor: "#16a34a",
       });
 
       setMensajeComprobante({
         tipo: "error",
-        texto: "⚠️ Formato no válido. Sube PDF o imagen (JPG/PNG/WebP).",
+        texto: "⚠️ Formato no válido. Solo se permiten imágenes JPG, PNG o WebP.",
       });
       return false;
     }
@@ -1000,8 +1125,12 @@ export default function IndexRegisterPurchase() {
 
   const handleComprobanteUpload = async (e) => {
     const file = e.target.files?.[0] || null;
-    setComprobante(file);
-    await validarComprobante(file);
+    const isValid = await validarComprobante(file);
+    setComprobante(isValid ? file : null);
+
+    if (!isValid && e.target) {
+      e.target.value = "";
+    }
   };
 
   // =========================
@@ -1011,6 +1140,16 @@ export default function IndexRegisterPurchase() {
     if (isRegistrandoCompra) return;
 
     setMensajeComprobante(null);
+
+    if (!fechaCompra) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe seleccionar la fecha de la compra.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
 
     if (!proveedor) {
       await Swal.fire({
@@ -1034,11 +1173,41 @@ export default function IndexRegisterPurchase() {
       return;
     }
 
+    const invoiceValidation = await validarNumeroFactura(numeroFactura);
+    if (!invoiceValidation.ok) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: invoiceValidation.message,
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
     // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq
-    for (const p of productos) {
+    for (let index = 0; index < productos.length; index += 1) {
+      const p = productos[index];
       const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
       const unid = Number(p.unidadesPorPaquete ?? 0);
       const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
+      const rowErrors = getProductoCompraErrors(p);
+
+      if (rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta) {
+        const firstError =
+          rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta;
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": ${firstError}`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": ${firstError}`,
+        });
+        return;
+      }
 
       if (!cantPaquetes || cantPaquetes <= 0) {
         await Swal.fire({
@@ -1076,19 +1245,15 @@ export default function IndexRegisterPurchase() {
         });
         return;
       }
-
     }
 
     // ✅ comprobante debe ser válido
     if (!(await validarComprobante(comprobante))) return;
 
-    const num = generarNumeroFactura();
-    if (!num) return;
-    setNumFactura(num);
-
     // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
     const payload = {
-      fecha_compra: fechaFactura.toISOString(),
+      fecha_compra: fechaCompra,
+      numero_factura: String(numeroFactura).trim(),
       id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
 
       comprobante: comprobante
@@ -1148,31 +1313,10 @@ export default function IndexRegisterPurchase() {
     });
 
     try {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify(payload));
-      if (comprobante) formData.append("comprobante", comprobante);
-
-      const resp = await fetch("http://localhost:3000/kajamart/api/purchase", {
-        method: "POST",
-        body: formData,
+      const data = await createPurchaseMutation.mutateAsync({
+        jsonPayload: payload,
+        comprobanteFile: comprobante,
       });
-
-      const data = await resp.json().catch(() => null);
-
-      if (!resp.ok) {
-        const msg = data?.message || data?.error || "Error al registrar la compra (backend).";
-        Swal.close();
-
-        await Swal.fire({
-          icon: "error",
-          title: "No se pudo registrar",
-          text: msg,
-          confirmButtonColor: "#16a34a",
-        });
-
-        setMensajeComprobante({ tipo: "error", texto: `❌ ${msg}` });
-        return;
-      }
 
       Swal.close();
 
@@ -1193,29 +1337,26 @@ export default function IndexRegisterPurchase() {
         texto: "✅ Compra registrada correctamente en el sistema",
       });
 
-      const facturasGuardadas = JSON.parse(localStorage.getItem("facturas")) || [];
-      facturasGuardadas.push({
-        num_factura: num,
-        fecha_registro: fechaFactura.toISOString(),
-        valor_factura: total,
-        id_compra: data?.compra?.id_compra ?? null,
-      });
-      localStorage.setItem("facturas", JSON.stringify(facturasGuardadas));
-
       navigate("/app/purchases");
     } catch (err) {
       Swal.close();
 
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.";
+
       await Swal.fire({
         icon: "error",
         title: "No se pudo registrar",
-        text: "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+        text: message,
         confirmButtonColor: "#16a34a",
       });
 
       setMensajeComprobante({
         tipo: "error",
-        texto: "❌ No se pudo conectar con el servidor. Revisa que el backend esté corriendo.",
+        texto: `❌ ${message}`,
       });
     } finally {
       setIsRegistrandoCompra(false);
@@ -1280,13 +1421,51 @@ export default function IndexRegisterPurchase() {
         <p className="text-sm text-gray-500 mt-1">
           Completa la información para registrar una nueva compra
         </p>
+      </div>
 
-        {numFactura && (
-          <p className="mt-2 text-sm">
-            N° Factura generado:{" "}
-            <span className="font-bold text-green-700">{numFactura}</span>
-          </p>
-        )}
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Fecha de compra</label>
+          <input
+            type="date"
+            value={fechaCompra}
+            onChange={(e) => setFechaCompra(e.target.value)}
+            disabled={isRegistrandoCompra}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">N° Factura</label>
+          <input
+            type="text"
+            value={numeroFactura}
+            onChange={(e) => {
+              setNumeroFactura(e.target.value);
+              setFacturaEstado({ tipo: "idle", texto: "" });
+            }}
+            onBlur={() => {
+              if (numeroFactura.trim()) validarNumeroFactura(numeroFactura);
+            }}
+            placeholder="Ingrese el numero de factura"
+            disabled={isRegistrandoCompra || validateInvoiceMutation.isPending}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+
+          {facturaEstado.texto ? (
+            <p
+              className={`mt-1 text-sm ${
+                facturaEstado.tipo === "ok"
+                  ? "text-green-600"
+                  : facturaEstado.tipo === "info"
+                    ? "text-blue-600"
+                    : "text-red-600"
+              }`}
+            >
+              {facturaEstado.texto}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {/* Buscar proveedor */}
@@ -1299,25 +1478,27 @@ export default function IndexRegisterPurchase() {
             value={proveedorQuery}
             onChange={(e) => {
               const val = e.target.value;
-              setProveedorQuery(val);
-              setIsProvOpen(true);
+              const trimmedVal = val.trim();
 
-              if (!val.trim()) {
+              setProveedorQuery(val);
+              setIsProvOpen(Boolean(trimmedVal));
+
+              if (!trimmedVal) {
                 setProveedor(null);
                 setMensajeProveedor(null);
                 setIsProvOpen(false);
                 return;
               }
 
-              const exacto = proveedoresDB.find((p) => p.nit === val.trim());
+              setProveedor(null);
+              setMensajeProveedor(null);
+
+              const exacto = proveedoresDB.find(
+                (p) =>
+                  p.nit === trimmedVal ||
+                  normalizeText(p.nombre) === normalizeText(trimmedVal)
+              );
               if (exacto) seleccionarProveedor(exacto);
-              else {
-                setProveedor(null);
-                setMensajeProveedor({
-                  tipo: "error",
-                  texto: "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
-                });
-              }
             }}
             onFocus={() => {
               if (proveedorQuery.trim()) setIsProvOpen(true);
@@ -1328,7 +1509,7 @@ export default function IndexRegisterPurchase() {
             className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
 
-          {mensajeProveedor?.tipo === "error" && (
+          {shouldShowRegisterSupplier && (
             <button
               onClick={() => {
                 prevSupplierIdsRef.current = new Set(
@@ -1366,13 +1547,14 @@ export default function IndexRegisterPurchase() {
           </div>
         )}
 
-        {mensajeProveedor && (
+        {(mensajeProveedor || shouldShowRegisterSupplier) && (
           <p
             className={`mt-1 text-sm ${
-              mensajeProveedor.tipo === "ok" ? "text-green-600" : "text-red-600"
+              mensajeProveedor?.tipo === "ok" ? "text-green-600" : "text-red-600"
             }`}
           >
-            {mensajeProveedor.texto}
+            {mensajeProveedor?.texto ??
+              "❌ Proveedor no encontrado. Puedes registrarlo desde aquí."}
           </p>
         )}
       </div>
@@ -1518,8 +1700,7 @@ export default function IndexRegisterPurchase() {
               </td>
             </tr>
           ) : (
-            productos.map((prod, i) => {
-              return (
+            productos.map((prod, i) => (
               <tr key={`${prod.productoId ?? getProductoId(prod)}-${i}`}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
 
@@ -1530,12 +1711,21 @@ export default function IndexRegisterPurchase() {
                 {/* ✅ Cantidad principal = PAQUETES */}
                 <td className="border px-3 py-2 text-center text-black">
                   <div className="leading-tight">
-                    <div className="font-semibold">
+                    <div
+                      className={`font-semibold ${
+                        productoErrors[i]?.cantidad ? "text-red-600" : ""
+                      }`}
+                    >
                       {Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0)}
                     </div>
                     <div className="text-xs text-gray-500">
                       {Number(prod.unidadesPorPaquete ?? 0)} unid/paq
                     </div>
+                    {productoErrors[i]?.cantidad && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].cantidad}
+                      </p>
+                    )}
                   </div>
                 </td>
 
@@ -1604,43 +1794,45 @@ export default function IndexRegisterPurchase() {
                 </td>
 
                 <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioCompra}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioCompra = e.target.value;
-                      setProductos(nueva);
-                    }}
-                    onBlur={() => {
-                      const nueva = [...productos];
-                      if (nueva[i].precioCompra === "") nueva[i].precioCompra = "0";
-                      setProductos(nueva);
-                    }}
-                    disabled={isRegistrandoCompra}
-                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
-                  />
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioCompra}
+                      onChange={(e) => updateProductoField(i, "precioCompra", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioCompra ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioCompra && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioCompra}
+                      </p>
+                    )}
+                  </div>
                 </td>
 
                 <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioVenta}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioVenta = e.target.value;
-                      setProductos(nueva);
-                    }}
-                    onBlur={() => {
-                      const nueva = [...productos];
-                      if (nueva[i].precioVenta === "") nueva[i].precioVenta = "0";
-                      setProductos(nueva);
-                    }}
-                    disabled={isRegistrandoCompra}
-                    className="w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60"
-                  />
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioVenta}
+                      onChange={(e) => updateProductoField(i, "precioVenta", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioVenta ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioVenta && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioVenta}
+                      </p>
+                    )}
+                  </div>
                 </td>
 
                 <td className="border px-3 py-2 text-center text-black">
@@ -1671,11 +1863,16 @@ export default function IndexRegisterPurchase() {
                   </div>
                 </td>
               </tr>
-            );
-            })
+            ))
           )}
         </tbody>
       </table>
+
+      {hasInvalidProductRows && (
+        <p className="mb-4 text-sm text-red-600">
+          Corrige cantidad, precio de compra y precio de venta. Todos deben ser numeros mayores a 0.
+        </p>
+      )}
 
       {/* Comprobante + total */}
       <div className="flex justify-between items-center">
@@ -1684,7 +1881,7 @@ export default function IndexRegisterPurchase() {
 
           <input
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/jpeg,image/png,image/jpg,image/webp"
             onChange={handleComprobanteUpload}
             disabled={isRegistrandoCompra}
           />
@@ -1723,11 +1920,24 @@ export default function IndexRegisterPurchase() {
 
         <button
           onClick={handleFinalizarCompra}
-          disabled={isRegistrandoCompra}
+          disabled={
+            isRegistrandoCompra ||
+            hasInvalidProductRows ||
+            validateInvoiceMutation.isPending
+          }
           className={`px-4 py-2 rounded text-white ${
-            isRegistrandoCompra ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+            isRegistrandoCompra || hasInvalidProductRows || validateInvoiceMutation.isPending
+              ? "bg-green-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
           }`}
           type="button"
+          title={
+            hasInvalidProductRows
+              ? "Corrige cantidad, precio de compra y precio de venta antes de finalizar."
+              : validateInvoiceMutation.isPending
+                ? "Espera a que termine la validacion del numero de factura."
+                : ""
+          }
         >
           {isRegistrandoCompra ? "Registrando..." : "Finalizar Compra"}
         </button>
@@ -1753,11 +1963,12 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.cantidad}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
 
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
@@ -1778,7 +1989,19 @@ export default function IndexRegisterPurchase() {
                         return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
                       });
 
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, cantidad: true }));
@@ -1803,17 +2026,30 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.unidadesPorPaquete}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, unidadesPorPaquete: "" };
                         const n = Math.max(0, Math.floor(Number(raw || 0)));
                         return { ...prev, unidadesPorPaquete: String(n) };
                       });
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
@@ -2008,11 +2244,12 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.cantidad}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
 
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
@@ -2026,7 +2263,19 @@ export default function IndexRegisterPurchase() {
                         return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
                       });
 
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, cantidad: true }));
@@ -2050,17 +2299,30 @@ export default function IndexRegisterPurchase() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={packForm.unidadesPorPaquete}
                     onChange={(e) => {
-                      const raw = e.target.value;
+                      const raw = onlyDigits(e.target.value);
                       setPackForm((prev) => {
                         if (raw === "") return { ...prev, unidadesPorPaquete: "" };
                         const n = Math.max(0, Math.floor(Number(raw || 0)));
                         return { ...prev, unidadesPorPaquete: String(n) };
                       });
-                      setPackErrors({});
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
                     }}
                     onBlur={() => {
                       setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));

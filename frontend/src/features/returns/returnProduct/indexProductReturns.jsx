@@ -13,6 +13,8 @@ import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
+import { useSearchReturnProducts } from "../../../shared/components/hooks/returnProducts/useSearchReturnProducts";
+import { useExportReturnProducts } from "../../../shared/components/hooks/returnProducts/useExportReturnProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../../features/onboarding/loading.jsx";
 import Swal from "sweetalert2";
@@ -77,6 +79,13 @@ export default function IndexProductReturns() {
     getLoadedCount,
   } = useFetchReturnProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedReturnProducts = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchReturnProducts(searchTerm);
+  const { exportReturnProductsExcel, exportReturnProductsPdf } =
+    useExportReturnProducts();
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -87,8 +96,10 @@ export default function IndexProductReturns() {
   const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
   const canCreate = hasPermission('Crear devolucion productos');
+  const canAnnul = hasPermission('Anular devolucion Productos');
   const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
 
   const buildAnnulErrorMessage = (err) => {
     const payload = err?.response?.data ?? {};
@@ -130,7 +141,7 @@ export default function IndexProductReturns() {
 
   // items computed from current page only
   const flattenedProducts = useMemo(() => {
-    const pageData = pagesCache[currentPage] || [];
+    const pageData = isSearching ? searchedReturnProducts : pagesCache[currentPage] || [];
     return pageData.flatMap((returnItem) =>
       (returnItem.products || []).map((product, idx) => ({
         idReturn: returnItem.idReturn,
@@ -145,7 +156,7 @@ export default function IndexProductReturns() {
         ...product,
       }))
     );
-  }, [pagesCache, currentPage]);
+  }, [pagesCache, currentPage, isSearching, searchedReturnProducts]);
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
@@ -162,13 +173,53 @@ export default function IndexProductReturns() {
     );
   }, [flattenedProducts, searchTerm, statusFilter, annulledMap]);
 
-  const totalPages = getTotalPages();
-  const filteredLength = getLoadedCount();
-  const pageItems = filtered; // already one page worth after filter
+  const filterReturnProductsForExport = (items) => {
+    const s = normalizeText(searchTerm.trim());
+    const flattened = items.flatMap((returnItem) =>
+      (returnItem.products || []).map((product, idx) => ({
+        idReturn: returnItem.idReturn,
+        dateReturn: returnItem.dateReturn,
+        responsable: returnItem.responsable,
+        createdAt: returnItem.createdAt,
+        dateISO: returnItem.dateISO,
+        isActive: returnItem.isActive,
+        _rowId:
+          `${returnItem.idReturn}-` +
+          (product.idProduct ?? product.id ?? product.name ?? idx),
+        ...product,
+      }))
+    );
+
+    const byStatus = flattened.filter((product) => {
+      const isActive = annulledMap[product.idReturn] ?? product.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive" || statusFilter === "annulled")
+        return isActive === false;
+      return true;
+    });
+
+    if (!s) return byStatus;
+
+    return byStatus.filter((product) =>
+      Object.values(product).some((value) => normalizeText(value).includes(s))
+    );
+  };
+
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? filtered.length : getLoadedCount();
+  const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
+    const start = (currentPage - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, currentPage, perPage, isSearching]);
 
   useEffect(() => {
-    fetchPage(currentPage);
-  }, [currentPage]);
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -189,11 +240,11 @@ export default function IndexProductReturns() {
     // reset cache and fetch first page on new registration
     reset();
     setCurrentPage(1);
-    fetchPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleOpenDetailsModal = (productData) => {
-    const pageData = pagesCache[currentPage] || [];
+    const pageData = isSearching ? searchedReturnProducts : pagesCache[currentPage] || [];
     const returnItem = pageData.find((r) => r.idReturn === productData.idReturn);
     if (returnItem) {
       setSelectedReturnData(returnItem);
@@ -229,7 +280,7 @@ export default function IndexProductReturns() {
           await annulReturnProduct(item.idReturn);
           setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
           // refresh current page
-          await fetchPage(currentPage);
+          await fetchPage(currentPage, { force: true });
           return { ok: true };
         } catch (err) {
           const payload = err?.response?.data ?? {};
@@ -335,10 +386,22 @@ export default function IndexProductReturns() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductReturnsXLS(filtered)}>
+              <ExportExcelButton
+                event={() =>
+                  exportReturnProductsExcel({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
-              <ExportPDFButton event={() => generateProductReturnsPDF(filtered)}>
+              <ExportPDFButton
+                event={() =>
+                  exportReturnProductsPdf({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
               <motion.button
@@ -360,13 +423,13 @@ export default function IndexProductReturns() {
 
           {/* Móvil: tarjetas / acordeón */}
           <motion.div className="md:hidden" variants={tableVariants}>
-            {loading ? (
+                {loading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : error ? (
+            ) : error || searchError ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                Error al cargar las devoluciones
+                {searchError || error || "Error al cargar las devoluciones"}
               </div>
             ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
@@ -506,7 +569,7 @@ export default function IndexProductReturns() {
                   className="divide-y divide-gray-100 text-gray-700"
                   variants={tableVariants}
                 >
-                  {loading ? (
+                  {loading || (isSearching && searchLoading) ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center">
                         <Loading inline heightClass="h-28" />
@@ -516,6 +579,12 @@ export default function IndexProductReturns() {
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-red-500">
                         Error al cargar las devoluciones
+                      </td>
+                    </tr>
+                  ) : error || searchError ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-8 text-center text-red-500">
+                        {searchError || error || "Error al cargar las devoluciones"}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
@@ -619,7 +688,7 @@ export default function IndexProductReturns() {
                               <ToggleSwitch
                                 checked={annulledMap[item.idReturn] ?? item.isActive}
                                 disabled={
-                                  getAnnulmentMeta(
+                                  !canAnnul || getAnnulmentMeta(
                                     item.createdAt || item.dateISO,
                                     annulledMap[item.idReturn] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]

@@ -11,8 +11,6 @@ import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { exportProductsToExcel } from "./helpers/exportToXls";
-import { exportProductsToPDF } from "./helpers/exportToPdf";
 import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
@@ -31,6 +29,8 @@ import {
   useDeleteProduct,
   useUpdateProduct,
 } from "../../shared/components/hooks/products/products.hooks.js";
+import { useSearchProducts } from "../../shared/components/hooks/products/useSearchProducts.js";
+import { useExportProducts } from "../../shared/components/hooks/products/useExportProducts.js";
 
 // ===== Texto seguro / anti-overflow
 const LONG_TEXT_CLS =
@@ -96,9 +96,17 @@ export default function IndexProducts() {
 
   // Datos
   const { data, isLoading, isError, error } = useProducts(currentPage, perPage);
-
-  const productsRaw = data?.data || [];
-  const totalPages = data?.totalPages || 1;
+  const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedProducts = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchProducts(searchTerm);
+  const { exportProductsExcel, exportProductsPdf } = useExportProducts();
+  const isSearching = searchTerm.trim() !== "";
+  const productsRaw = isSearching ? searchedProducts : data?.data || [];
+  const backendTotalPages = data?.totalPages || 1;
+  const backendTotalItems = data?.totalItems || productsRaw.length;
   const catHook =
     (typeof useCategories === "function" ? useCategories() : null) || {};
   const categoriesRaw = Array.isArray(catHook.categories)
@@ -222,6 +230,7 @@ const handleExportPDF = async () => {
     precioVenta: "",
     iva: "",
     stock: "",
+    cantidadUnitaria: "",
     estado: "",
     categoria: "",
     imagenes: [],
@@ -244,6 +253,8 @@ const handleExportPDF = async () => {
           ? `${p.iva}%`
           : "",
       stock: p.stock_actual != null ? String(p.stock_actual) : "",
+      cantidadUnitaria:
+        p.cantidad_unitaria != null ? String(p.cantidad_unitaria) : "",
       estado: p.estado ? "Activo" : "Inactivo",
       categoria:
         p.categoria ||
@@ -294,6 +305,12 @@ const handleExportPDF = async () => {
           String(Number(editedForm.precioCompra) || 0)
         );
         fd.append("precio_venta", String(Number(editedForm.precioVenta) || 0));
+        fd.append(
+          "cantidad_unitaria",
+          editedForm.cantidadUnitaria !== ""
+            ? String(Number(editedForm.cantidadUnitaria))
+            : ""
+        );
         fd.append("imagen", newFile);
 
         await updateMutation.mutateAsync({ id, data: fd });
@@ -306,6 +323,10 @@ const handleExportPDF = async () => {
           iva: String(ivaVal || "0"),
           costo_unitario: String(Number(editedForm.precioCompra) || 0),
           precio_venta: String(Number(editedForm.precioVenta) || 0),
+          cantidad_unitaria:
+            editedForm.cantidadUnitaria !== ""
+              ? String(Number(editedForm.cantidadUnitaria))
+              : "",
         };
         if (id_categoria) payload.id_categoria = String(id_categoria);
 
@@ -323,9 +344,6 @@ const handleExportPDF = async () => {
       showErrorAlert && showErrorAlert(msg);
     }
   };
-
-  // UI local
-  const [searchTerm, setSearchTerm] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [estadoOpen, setEstadoOpen] = useState(false);
@@ -370,13 +388,36 @@ const handleExportPDF = async () => {
     );
   }, [products, searchTerm]);
 
-  
+  const filterProductsForExport = (items) => {
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return items;
+    if (/^activos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "activo");
+    if (/^inactivos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "inactivo");
+
+    return items.filter((item) =>
+      `${item.id} ${item.nombre} ${item.descripcion || ""} ${item.categoria} ${item.estado}`
+        .toLowerCase()
+        .includes(s)
+    );
+  };
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : backendTotalPages;
+  const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
+    const start = (currentPage - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, currentPage, perPage, isSearching]);
+  const filteredLength = isSearching ? filtered.length : backendTotalItems;
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // Errores globales
-  if (isError || isCatError) {
+  if (isError || isCatError || searchError) {
     const msg =
+      searchError ||
       error?.response?.data?.message ||
       error?.message ||
       "Error al cargar productos.";
@@ -442,7 +483,9 @@ const handleExportPDF = async () => {
               {/* Exportar Excel */}
               <div className="flex justify-end">
                 <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
+                  event={() =>
+                    exportProductsExcel({ transform: filterProductsForExport })
+                  }
                 >
                   Excel
                 </ExportExcelButton>
@@ -450,7 +493,11 @@ const handleExportPDF = async () => {
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                <ExportPDFButton
+                  event={() =>
+                    exportProductsPdf({ transform: filterProductsForExport })
+                  }
+                >
                   PDF
                 </ExportPDFButton>
               </div>
@@ -476,11 +523,11 @@ const handleExportPDF = async () => {
             initial="hidden"
             animate="visible"
           >
-            {isLoading || isCatLoading ? (
+            {isLoading || isCatLoading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
-            ) : filtered.length === 0 ? (
+            ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron productos.
               </div>
@@ -492,7 +539,7 @@ const handleExportPDF = async () => {
                 initial="hidden"
                 animate="visible"
               >
-                {filtered.map((p, i) => {
+                {pageItems.map((p, i) => {
                   const key = p.id ?? i;
                   const isOpen = expanded.has(key);
                   const pid = `prod-${key}`;
@@ -659,13 +706,13 @@ const handleExportPDF = async () => {
                 key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
                 className="divide-y divide-gray-100 text-gray-700"
               >
-                {isLoading || isCatLoading ? (
+                {isLoading || isCatLoading || (isSearching && searchLoading) ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12">
                       <Loading inline heightClass="h-28" />
                     </td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : pageItems.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -675,7 +722,7 @@ const handleExportPDF = async () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((p, i) => (
+                  pageItems.map((p, i) => (
                     <tr
                       key={p.id + "-" + i}
                       className="hover:bg-gray-50 align-top"
@@ -762,7 +809,7 @@ const handleExportPDF = async () => {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>
@@ -787,7 +834,7 @@ const handleExportPDF = async () => {
           const files = Array.from(e.target.files || []);
           setSelectedProduct((prev) => ({
             ...prev,
-            imagenes: [...prev.imagenes, ...files].slice(0, 6),
+            imagenes: files.slice(0, 1),
           }));
         }}
         removeImageAt={(index) => {

@@ -35,6 +35,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   // ?Y???? NUEVOS estados para la factura
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
+  const [paymentReceipt, setPaymentReceipt] = useState(null);
+  const [paymentReceiptMessage, setPaymentReceiptMessage] = useState("");
   // ?Y???? Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
@@ -197,6 +199,38 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const value = e.target.value;
     setInvoiceNumber(value);
     setInvoiceError(validateInvoiceNumber(value)); // ?Y???? validaci?n en tiempo real
+  };
+
+  const validatePaymentReceipt = (file) => {
+    if (!file) {
+      setPaymentReceiptMessage("Debe subir el comprobante de pago.");
+      return false;
+    }
+
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setPaymentReceiptMessage("Solo se permiten imágenes JPG, PNG o WebP.");
+      return false;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setPaymentReceiptMessage("El comprobante no puede superar los 5MB.");
+      return false;
+    }
+
+    setPaymentReceiptMessage(`Comprobante cargado: ${file.name}`);
+    return true;
+  };
+
+  const handlePaymentReceiptChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    const isValid = validatePaymentReceipt(file);
+    setPaymentReceipt(isValid ? file : null);
+
+    if (!isValid && e.target) {
+      e.target.value = "";
+    }
   };
 
   // Helper: encontrar detalle para un producto
@@ -362,6 +396,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setPendingDetails([]);
     setInvoiceNumber(""); // ????? limpiar n?mero de factura
     setInvoiceError(""); // ????? limpiar error
+    setPaymentReceipt(null);
+    setPaymentReceiptMessage("");
     onClose();
   };
 
@@ -384,6 +420,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
     if (selectedProducts.some((p) => !p.actionType)) {
       setShowErrors(true);
+      return;
+    }
+
+    if (!validatePaymentReceipt(paymentReceipt)) {
       return;
     }
 
@@ -518,11 +558,22 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         id_compra: selectedPurchase?.id_compra,
         numero_factura: invoiceNumber.trim(),
         products: productsPayload,
+        comprobante: paymentReceipt
+          ? {
+              url: null,
+              nombre: paymentReceipt.name,
+              mime: paymentReceipt.type,
+              size: paymentReceipt.size,
+            }
+          : null,
       };
 
       console.log("Payload FINAL antes de POST:", payload);
 
-      const result = await postReturnProducts(payload);
+      const result = await postReturnProducts({
+        jsonPayload: payload,
+        comprobanteFile: paymentReceipt,
+      });
 
       console.log("Resultado de postReturnProducts:", result);
 
@@ -696,6 +747,33 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                       {invoiceError && (
                         <p className="text-xs text-red-500 mt-1">
                           {invoiceError}
+                        </p>
+                      )}
+                    </motion.div>
+                    <motion.div
+                      className="space-y-2"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.28, duration: 0.3 }}
+                    >
+                      <label className="block text-sm font-medium text-gray-700">
+                        Comprobante de pago
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                        onChange={handlePaymentReceiptChange}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-emerald-700"
+                      />
+                      {paymentReceiptMessage && (
+                        <p
+                          className={`text-xs mt-1 ${
+                            paymentReceipt
+                              ? "text-emerald-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {paymentReceiptMessage}
                         </p>
                       )}
                     </motion.div>
@@ -1411,4 +1489,3 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 };
 
 export default ProductReturnModal;
-

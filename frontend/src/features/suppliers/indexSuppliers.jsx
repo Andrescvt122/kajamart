@@ -218,6 +218,15 @@ const handleExportPDF = async () => {
   // Filtro
 
   // Paginación
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : backendTotalPages;
+  const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
+    const start = (currentPage - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, currentPage, perPage, isSearching]);
+  const filteredLength = isSearching ? filtered.length : backendTotalItems;
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -235,8 +244,9 @@ const handleExportPDF = async () => {
   };
 
   // === Error global ===
-  if (isError) {
+  if (isError || searchError) {
     const msg =
+      searchError ||
       error?.response?.data?.message ||
       error?.message ||
       "Error al cargar proveedores.";
@@ -328,7 +338,7 @@ const handleExportPDF = async () => {
             initial="hidden"
             animate="visible"
           >
-            {isLoading ? (
+            {isLoading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
@@ -484,7 +494,7 @@ const handleExportPDF = async () => {
                 </thead>
 
                 <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {isLoading ? (
+                  {isLoading || (isSearching && searchLoading) ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
