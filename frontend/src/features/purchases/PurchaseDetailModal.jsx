@@ -133,7 +133,14 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     pick(purchase, "numero_factura", "num_factura", "factura") ??
     (purchaseId !== "—" ? String(purchaseId).padStart(3, "0") : "—");
 
-  const fechaRaw = pick(purchase, "fecha", "fecha_compra", "fecha_registro", "createdAt");
+  const fechaRaw = pick(
+    purchase,
+    "fecha",
+    "fecha_compra",
+    "fecha_registro",
+    "createdAt",
+    "created_at"
+  );
   const fecha = fechaRaw
     ? new Date(fechaRaw).toLocaleString("es-CO", {
         year: "numeric",

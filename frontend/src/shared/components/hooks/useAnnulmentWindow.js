@@ -10,7 +10,7 @@ export const useAnnulmentWindow = () => {
   const getAnnulmentMeta = (createdAt, isActive) => {
     const createdDate = toDate(createdAt);
     const hasExpired = createdDate
-      ? (Date.now() - 1 * 24 * 60 * 60 * 1000) - createdDate.getTime() > THIRTY_MINUTES_MS
+      ? Date.now() - createdDate.getTime() > THIRTY_MINUTES_MS
       : false;
 
     return {
