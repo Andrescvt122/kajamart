@@ -1,6 +1,9 @@
 // src/hooks/useDetailProducts.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
@@ -9,25 +12,102 @@ const API_BASE =
 const DETAILS_URL = `${API_BASE}/detailsProducts`;
 
 // 🔵 Traer TODOS los detalles (opcional, para listados globales)
-export const useAllDetailProducts = () =>
+export const useAllDetailProducts = (page = 1, limit = 6, search = "") =>
   useQuery({
-    queryKey: ["detailProducts"],
+    queryKey: ["detailProducts", page, search],
+
     queryFn: async () => {
-      const { data } = await axios.get(DETAILS_URL);
+      const { data } = await axios.get(DETAILS_URL, {
+        params: { page, limit, search },
+      });
 
-      // ✅ soporta respuestas tipo: [] | {data: []} | {rows: []} | {results: []}
-      const arr =
-        (Array.isArray(data) && data) ||
-        (Array.isArray(data?.data) && data.data) ||
-        (Array.isArray(data?.rows) && data.rows) ||
-        (Array.isArray(data?.results) && data.results) ||
-        [];
+      return data;
+    },
 
-      return arr;
+    keepPreviousData: true,
+  });
+  export const getAllDetailProductsForExport = async (search = "") => {
+
+  const { data } = await axios.get(DETAILS_URL, {
+    params: {
+      page: 1,
+      limit: 10000,
+      search,
     },
   });
 
+  return data.data;
 
+};
+
+export const exportDetailProductsToExcel = async (details) => {
+
+  const formatted = details.map((d) => ({
+    ID: d.id_detalle_producto,
+    Producto: d.productos?.nombre,
+    "Código Barras": d.codigo_barras_producto_compra,
+    Stock: d.stock_producto,
+    "Precio Venta": d.precio_venta,
+    IVA: d.iva_porcentaje,
+    ICU: d.icu_porcentaje,
+    Estado: d.estado ? "Activo" : "Inactivo",
+  }));
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Detalle Productos");
+
+  worksheet.columns = [
+    { header: "ID", key: "ID", width: 12 },
+    { header: "Producto", key: "Producto", width: 28 },
+    { header: "Código Barras", key: "Código Barras", width: 22 },
+    { header: "Stock", key: "Stock", width: 12 },
+    { header: "Precio Venta", key: "Precio Venta", width: 14 },
+    { header: "IVA", key: "IVA", width: 10 },
+    { header: "ICU", key: "ICU", width: 10 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
+
+  formatted.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "detalle_productos.xlsx");
+
+};
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export const exportDetailProductsToPDF = (details) => {
+
+  const doc = new jsPDF();
+
+  const tableData = details.map((d) => [
+    d.id_detalle_producto,
+    d.productos?.nombre,
+    d.codigo_barras_producto_compra,
+    d.stock_producto,
+    d.precio_venta,
+    d.iva_porcentaje,
+    d.icu_porcentaje,
+  ]);
+
+  autoTable(doc, {
+    head: [
+      [
+        "ID",
+        "Producto",
+        "Código Barras",
+        "Stock",
+        "Precio",
+        "IVA",
+        "ICU",
+      ],
+    ],
+    body: tableData,
+  });
+
+  doc.save("detalle_productos.pdf");
+
+};
 // 🟣 Traer detalles de un producto específico (por id_producto)
 export const useDetailProductsByProduct = (id_producto, page = 1, limit = 5) =>
   useQuery({

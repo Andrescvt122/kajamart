@@ -123,7 +123,37 @@ export default function AllProductsPage() {
     isLoading,
     error,
   } = useDetailProductsByProduct(productId, currentPage, perPage);
+const handleExportExcel = async () => {
 
+  try {
+
+    const details = await getAllDetailProductsForExport(searchTerm);
+
+    exportDetailProductsToExcel(details);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const details = await getAllDetailProductsForExport(searchTerm);
+
+    exportDetailProductsToPDF(details);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   const backendDetails = data?.data || [];
 const totalPages = data?.totalPages || 1;
   const errorMessage = error
@@ -283,7 +313,6 @@ const totalPages = data?.totalPages || 1;
                     <th className="px-6 py-4">Código</th>
                     <th className="px-6 py-4">Vencimiento</th>
                     <th className="px-6 py-4">Cantidad</th>
-                    <th className="px-6 py-4">Consumido</th>
                     <th className="px-6 py-4">Precio</th>
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
@@ -310,7 +339,6 @@ const totalPages = data?.totalPages || 1;
                         <td className="px-6 py-4 text-black">{p.barcode}</td>
                         <td className="px-6 py-4 text-black">{p.vencimiento}</td>
                         <td className="px-6 py-4 text-black">{p.cantidad}</td>
-                        <td className="px-6 py-4 text-black">{p.consumido}</td>
                         <td className="px-6 py-4 text-black">
                           ${Number(p.precio || 0).toLocaleString()}
                         </td>

@@ -1,26 +1,36 @@
 import { useState } from "react";
-import axios from "axios";
-
-const API_URL = "http://localhost:3000/kajamart/api/returnProducts";
+import api from "../../../../api/axiosConfig";
 
 export const usePostReturnProducts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Ahora recibe el payload completo ya armado en el modal
-  const postReturnProducts = async (payload) => {
+  const postReturnProducts = async ({ jsonPayload, comprobanteFile }) => {
     setLoading(true);
     setError(null);
     setSuccess(false);
     try {
-      const response = await axios.post(API_URL, payload, {
-        headers: { "Content-Type": "application/json" },
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(jsonPayload));
+
+      if (comprobanteFile) {
+        formData.append("comprobante", comprobanteFile);
+      }
+
+      const response = await api.post("/returnProducts", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       setSuccess(true);
       return response.data;
     } catch (err) {
       console.error("❌ Error al registrar devolución:", err);
+      setError(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Error al registrar la devolución"
+      );
       return null;
     } finally {
       setLoading(false);

@@ -34,10 +34,54 @@ export default function Paginator({
   perPage,
   totalPages,
   filteredLength,
+  totalItems,
   goToPage,
   maxButtons = 7,
 }) {
-  const pages = buildPages(totalPages, currentPage, maxButtons);
+  const rawFilteredLength = Number(filteredLength);
+  const rawTotalItems = Number(totalItems);
+  const hasFilteredLength =
+    Number.isFinite(rawFilteredLength) && rawFilteredLength >= 0;
+  const hasTotalItems =
+    Number.isFinite(rawTotalItems) && rawTotalItems >= 0;
+  const safeCurrentPage = Number.isFinite(Number(currentPage)) && Number(currentPage) > 0
+    ? Number(currentPage)
+    : 1;
+  const safeTotalPages = Number.isFinite(Number(totalPages)) && Number(totalPages) > 0
+    ? Number(totalPages)
+    : 1;
+  const safePerPage = Number.isFinite(Number(perPage)) && Number(perPage) > 0
+    ? Number(perPage)
+    : hasFilteredLength
+      ? rawFilteredLength
+      : 0;
+  const safeTotalItems = hasTotalItems
+    ? Math.max(rawTotalItems, hasFilteredLength ? rawFilteredLength : 0)
+    : hasFilteredLength
+      ? rawFilteredLength
+      : 0;
+
+  const fallbackCurrentItems = safePerPage > 0
+    ? Math.max(
+        0,
+        Math.min(safePerPage, safeTotalItems - (safeCurrentPage - 1) * safePerPage)
+      )
+    : 0;
+
+  const safeCurrentItems = hasFilteredLength
+    ? rawFilteredLength
+    : fallbackCurrentItems;
+
+  const startItem =
+    safeTotalItems > 0 && safeCurrentItems > 0 && safePerPage > 0
+      ? (safeCurrentPage - 1) * safePerPage + 1
+      : 0;
+  const endItem =
+    startItem > 0
+      ? Math.min(startItem + safeCurrentItems - 1, safeTotalItems)
+      : 0;
+
+  const pages = buildPages(safeTotalPages, safeCurrentPage, maxButtons);
 
   // estilo inline: texto negro con sombra blanca
   const blackText = { color: "#000000", textShadow: "1px 1px 2px #ffffff" };
@@ -54,24 +98,24 @@ export default function Paginator({
         <div className="paginator-range" style={blackText}>
           Mostrando{" "}
           <span className="p-strong" style={blackStrong}>
-            {(currentPage - 1) * perPage + 1}
+            {startItem}
           </span>{" "}
           -{" "}
           <span className="p-strong" style={blackStrong}>
-            {Math.min(currentPage * perPage, filteredLength)}
+            {endItem}
           </span>{" "}
           de{" "}
           <span className="p-strong" style={blackStrong}>
-            {filteredLength}
+            {safeTotalItems}
           </span>
         </div>
 
         <div className="paginator-smpage" style={blackText}>
           Página{" "}
           <span className="p-strong" style={blackStrong}>
-            {currentPage}
+            {safeCurrentPage}
           </span>{" "}
-          / {totalPages}
+          / {safeTotalPages}
         </div>
       </div>
 
@@ -79,8 +123,8 @@ export default function Paginator({
       <nav className="paginator-nav" aria-label="Paginación">
         <button
           className="p-btn p-nav"
-          onClick={() => goToPage(currentPage - 1)}
-          disabled={currentPage === 1}
+          onClick={() => goToPage(safeCurrentPage - 1)}
+          disabled={safeCurrentPage === 1}
           aria-label="Página anterior"
         >
           ‹
@@ -95,9 +139,9 @@ export default function Paginator({
             ) : (
               <button
                 key={p}
-                className={`p-btn p-page ${p === currentPage ? "active" : ""}`}
+                className={`p-btn p-page ${p === safeCurrentPage ? "active" : ""}`}
                 onClick={() => goToPage(p)}
-                aria-current={p === currentPage ? "page" : undefined}
+                aria-current={p === safeCurrentPage ? "page" : undefined}
               >
                 {p}
               </button>
@@ -107,8 +151,8 @@ export default function Paginator({
 
         <button
           className="p-btn p-nav"
-          onClick={() => goToPage(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          onClick={() => goToPage(safeCurrentPage + 1)}
+          disabled={safeCurrentPage === safeTotalPages}
           aria-label="Página siguiente"
         >
           ›

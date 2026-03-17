@@ -65,22 +65,28 @@ export const useFetchReturnProducts = (initialLimit = 6) => {
             },
           ];
 
-    return {
-      idReturn: r.id_devolucion_product,
-      dateReturn: date ? date.toLocaleDateString("es-CO") : "",
+  return {
+    idReturn: r.id_devolucion_product,
+    dateReturn: date ? date.toLocaleDateString("es-CO") : "",
       dateISO: date ? date.toISOString() : null,
-      createdAt:
-        r.fecha_creacion ||
-        r.fecha_devolucion ||
-        r.createdAt ||
-        r.created_at ||
-        null,
-      isActive: Boolean(r.estado ?? r.activo ?? r.isActive ?? r.is_active ?? true),
-      responsable: r.nombre_responsable,
-      numeroFactura: r.numero_factura,
-      products: normalizedProducts,
-    };
+    createdAt:
+      r.created_at ||
+      r.createdAt ||
+      r.fecha_creacion ||
+      r.fecha_devolucion ||
+      null,
+    isActive: Boolean(r.estado ?? r.activo ?? r.isActive ?? r.is_active ?? true),
+    responsable: r.nombre_responsable,
+    numeroFactura: r.numero_factura,
+    comprobante: {
+      name: r.comprobante_nombre ?? null,
+      type: r.comprobante_mime ?? null,
+      url: r.comprobante_url ?? null,
+      size: r.comprobante_size ?? null,
+    },
+    products: normalizedProducts,
   };
+};
 
   const getTotalPages = () => {
     const loaded = Object.keys(pagesCache).map(Number);

@@ -1,6 +1,5 @@
 // src/features/sales/helper/exportSalesExcel.js
-// Requiere: npm i xlsx file-saver
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const formatMoney = (value) =>
@@ -10,7 +9,7 @@ const formatMoney = (value) =>
     minimumFractionDigits: 0,
   }).format(Number(value) || 0);
 
-export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
+export async function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
   const data = rows.map((v) => ({
     "ID Venta": v.id,
     Fecha: v.fecha,
@@ -20,7 +19,6 @@ export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
     Estado: v.estado,
   }));
 
-  // Totales (solo del total en COP)
   const totalCop = rows.reduce((acc, x) => acc + Number(x.total || 0), 0);
 
   data.push({
@@ -32,13 +30,25 @@ export function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
     Estado: "",
   });
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Ventas");
 
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([wbout], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  saveAs(blob, filename);
+  worksheet.columns = [
+    { header: "ID Venta", key: "ID Venta", width: 14 },
+    { header: "Fecha", key: "Fecha", width: 14 },
+    { header: "Cliente", key: "Cliente", width: 28 },
+    { header: "Total", key: "Total", width: 16 },
+    { header: "Medio de Pago", key: "Medio de Pago", width: 20 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
+
+  data.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(
+    new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    filename,
+  );
 }

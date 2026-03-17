@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAtuh";
 import { exportPurchaseReceiptPDF } from "../purchases/helper/eportPurchaseReceiptPDF";
+import { useFetchPurchases as useSearchPurchases } from "../../shared/components/hooks/search/useFetchPruchases";
 
 
 import ondas from "../../assets/ondasHorizontal.png";
@@ -38,7 +39,7 @@ const diffMinutesFromNow = (isoDate) => {
   return (Date.now() - t) / 60000;
 };
 const canAnnulPurchase = (purchase) => {
-  const mins = diffMinutesFromNow(purchase?.fecha);
+  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
   return mins >= 0 && mins < MAX_MINUTES_ANNUL;
 };
 const isAnulada = (estado) => {
@@ -60,6 +61,144 @@ const uniqueKeepOrder = (arr) => {
   return out;
 };
 
+const normalizeApiPurchasesForUI = (list) => {
+  return (list || []).map((c) => {
+    const id = c?.id_compra ?? c?.id ?? c?._id ?? "";
+
+    const factura =
+      c?.numero_factura ??
+      c?.num_factura ??
+      c?.factura ??
+      (id ? String(id).padStart(3, "0") : "—");
+
+    const proveedorNombre =
+      c?.proveedores?.nombre ??
+      c?.proveedor?.nombre ??
+      c?.proveedor_nombre ??
+      "—";
+
+    const proveedorNit =
+      c?.proveedores?.nit ??
+      c?.proveedor?.nit ??
+      c?.proveedor_nit ??
+      "—";
+
+    const fecha =
+      c?.fecha_compra ??
+      c?.fecha ??
+      c?.created_at ??
+      new Date().toISOString();
+
+    const createdAt =
+      c?.created_at ??
+      c?.fecha_creacion ??
+      c?.fecha_registro ??
+      fecha;
+
+    const estado = c?.estado_compra ?? c?.estado ?? "Completada";
+    const total = Number(c?.total ?? 0);
+
+    const productos = (() => {
+      const det = Array.isArray(c?.detalle_compra) ? c.detalle_compra : [];
+      const map = new Map();
+
+      for (const d of det) {
+        const idProducto =
+          d?.detalle_productos?.productos?.id_producto ??
+          d?.detalle_productos?.id_producto ??
+          d?.id_producto ??
+          d?.productoId ??
+          null;
+
+        const nombre =
+          d?.detalle_productos?.productos?.nombre ??
+          d?.productos?.nombre ??
+          d?.nombre ??
+          "—";
+
+        const key = idProducto ?? nombre;
+        const paquetes = Number(d?.cantidad_paquetes ?? d?.cantidad ?? 1) || 1;
+        const unidPorPaq = Number(d?.unidades_por_paquete ?? 0) || 0;
+        const totalUnid =
+          Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
+        const iva = Number(d?.iva_porcentaje ?? 0) || 0;
+        const icu = Number(d?.icu_porcentaje ?? 0) || 0;
+        const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
+        const precioVenta = Number(d?.precio_venta ?? 0) || 0;
+
+        const fechaVenc =
+          d?.detalle_productos?.fecha_vencimiento ??
+          d?.fecha_vencimiento ??
+          "";
+
+        const codigo =
+          d?.detalle_productos?.codigo_barras_producto_compra ??
+          d?.codigo_barras_producto_compra ??
+          "";
+
+        if (!map.has(key)) {
+          map.set(key, {
+            productoId: idProducto,
+            nombre,
+            cantidad_paquetes: 0,
+            unidades_por_paquete: unidPorPaq,
+            cantidad_total_unidades: 0,
+            precioCompra,
+            precioVenta,
+            iva_porcentaje: iva,
+            icu_porcentaje: icu,
+            vencimientos: [],
+            codigosBarras: [],
+          });
+        }
+
+        const acc = map.get(key);
+
+        acc.cantidad_paquetes += paquetes;
+        acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
+        acc.cantidad_total_unidades += totalUnid;
+        acc.precioCompra = precioCompra;
+        acc.precioVenta = precioVenta;
+        acc.iva_porcentaje = iva;
+        acc.icu_porcentaje = icu;
+
+        if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
+        if (codigo) acc.codigosBarras.push(String(codigo));
+      }
+
+      return Array.from(map.values()).map((p) => ({
+        ...p,
+        vencimientos: (p.vencimientos || []).filter(Boolean),
+        codigosBarras: uniqueKeepOrder(p.codigosBarras),
+      }));
+    })();
+
+    const comprobante = {
+      name: c?.comprobante_nombre ?? null,
+      type: c?.comprobante_mime ?? null,
+      url: c?.comprobante_url ?? null,
+      size: c?.comprobante_size ?? null,
+    };
+
+    return {
+      id: String(id),
+      factura: String(factura),
+      proveedor: proveedorNombre,
+      nit: String(proveedorNit),
+      total,
+      fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt:
+        typeof createdAt === "string"
+          ? createdAt
+          : new Date(createdAt).toISOString(),
+      estado,
+      productos,
+      comprobante,
+      raw: c,
+    };
+  });
+};
+
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -76,30 +215,50 @@ export default function IndexPurchases() {
   const [purchasesApi, setPurchasesApi] = useState([]);
   const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [perPage, setPerPage] = useState(10);
+  const trimmedSearchTerm = searchTerm.trim();
+  const isSearchMode = trimmedSearchTerm.length > 0;
+  const {
+    data: searchedPurchasesApi,
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchPurchases(trimmedSearchTerm);
 
-  const fetchPurchases = useCallback(async () => {
-    try {
-      setIsLoadingApi(true);
-      setApiError("");
 
-      const { data } = await api.get("/purchase");
-      const arr = Array.isArray(data) ? data : [];
-      setPurchasesApi(arr);
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Error cargando compras desde el servidor.";
-      setApiError(msg);
-      setPurchasesApi([]);
-    } finally {
-      setIsLoadingApi(false);
-    }
-  }, []);
+ const fetchPurchases = useCallback(async () => {
+  try {
+    setIsLoadingApi(true);
+    setApiError("");
 
-  useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases, comprasVersion]);
+    const { data } = await api.get(`/purchase?page=${page}&limit=10`);
+
+    const arr = Array.isArray(data.data) ? data.data : [];
+    setPurchasesApi(arr);
+    setTotalPages(data.pagination?.totalPages || 1);
+    setTotalItems(data.pagination?.total || 0);
+    setPerPage(data.pagination?.limit || 10);
+
+  } catch (e) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "Error cargando compras desde el servidor.";
+
+    setApiError(msg);
+    setPurchasesApi([]);
+  } finally {
+    setIsLoadingApi(false);
+  }
+}, [page]);
+
+useEffect(() => {
+  fetchPurchases();
+}, [fetchPurchases, comprasVersion, page]);
 
   // =========================
   // (Opcional) LocalStorage legacy
@@ -118,161 +277,14 @@ export default function IndexPurchases() {
   // ✅ AGRUPA detalle_compra por producto (sin duplicar)
   // ✅ GUARDA vencimientos/códigos por paquete (arrays)
   // =========================
-  const normalizedApiPurchases = useMemo(() => {
-    return purchasesApi.map((c) => {
-      const id = c?.id_compra ?? c?.id ?? c?._id ?? "";
-
-      // factura fallback: id_compra => 003 etc.
-      const factura =
-        c?.numero_factura ??
-        c?.num_factura ??
-        c?.factura ??
-        (id ? String(id).padStart(3, "0") : "—");
-
-      const proveedorNombre =
-        c?.proveedores?.nombre ??
-        c?.proveedor?.nombre ??
-        c?.proveedor_nombre ??
-        "—";
-
-      const proveedorNit =
-        c?.proveedores?.nit ??
-        c?.proveedor?.nit ??
-        c?.proveedor_nit ??
-        "—";
-
-      const fecha =
-        c?.fecha_compra ??
-        c?.fecha ??
-        c?.created_at ??
-        new Date().toISOString();
-
-      const estado = c?.estado_compra ?? c?.estado ?? "Completada";
-      const total = Number(c?.total ?? 0);
-
-      // ✅ AGRUPAR detalle_compra por producto
-      const productos = (() => {
-        const det = Array.isArray(c?.detalle_compra) ? c.detalle_compra : [];
-        const map = new Map();
-
-        for (const d of det) {
-          // id producto (si existe)
-          const idProducto =
-            d?.detalle_productos?.productos?.id_producto ??
-            d?.detalle_productos?.id_producto ??
-            d?.id_producto ??
-            d?.productoId ??
-            null;
-
-          const nombre =
-            d?.detalle_productos?.productos?.nombre ??
-            d?.productos?.nombre ??
-            d?.nombre ??
-            "—";
-
-          // key estable para agrupar
-          const key = idProducto ?? nombre;
-
-          // cantidades de este detalle
-          const paquetes = Number(d?.cantidad_paquetes ?? d?.cantidad ?? 1) || 1;
-          const unidPorPaq = Number(d?.unidades_por_paquete ?? 0) || 0;
-
-          const totalUnid =
-            Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
-
-          // impuestos
-          const iva = Number(d?.iva_porcentaje ?? 0) || 0;
-          const icu = Number(d?.icu_porcentaje ?? 0) || 0;
-
-          // precios
-          const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
-          const precioVenta = Number(d?.precio_venta ?? 0) || 0;
-
-          // vencimiento y codigo (por paquete)
-          const fechaVenc =
-            d?.detalle_productos?.fecha_vencimiento ??
-            d?.fecha_vencimiento ??
-            "";
-
-          const codigo =
-            d?.detalle_productos?.codigo_barras_producto_compra ??
-            d?.codigo_barras_producto_compra ??
-            "";
-
-          if (!map.has(key)) {
-            map.set(key, {
-              productoId: idProducto,
-              nombre,
-
-              // ✅ cantidades agregadas
-              cantidad_paquetes: 0,
-              unidades_por_paquete: unidPorPaq,
-              cantidad_total_unidades: 0,
-
-              precioCompra,
-              precioVenta,
-              iva_porcentaje: iva,
-              icu_porcentaje: icu,
-
-              // ✅ arrays por paquete
-              vencimientos: [],
-              codigosBarras: [],
-            });
-          }
-
-          const acc = map.get(key);
-
-          // acumuladores
-          acc.cantidad_paquetes += paquetes;
-          acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
-          acc.cantidad_total_unidades += totalUnid;
-
-          // últimos valores “actuales”
-          acc.precioCompra = precioCompra;
-          acc.precioVenta = precioVenta;
-          acc.iva_porcentaje = iva;
-          acc.icu_porcentaje = icu;
-
-          // push vencimientos/códigos (1 por cada detalle/paquete)
-          if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
-          if (codigo) acc.codigosBarras.push(String(codigo));
-        }
-
-        // ✅ IMPORTANTE:
-        // - vencimientos NO se deduplican (para que salgan 2 fechas aunque sean iguales)
-        // - codigos sí se puede deduplicar si quieres
-        return Array.from(map.values()).map((p) => ({
-          ...p,
-          vencimientos: (p.vencimientos || []).filter(Boolean),
-          codigosBarras: uniqueKeepOrder(p.codigosBarras),
-        }));
-      })();
-
-      // comprobante
-      const comprobante = {
-        name: c?.comprobante_nombre ?? null,
-        type: c?.comprobante_mime ?? null,
-        url: c?.comprobante_url ?? null,
-        size: c?.comprobante_size ?? null,
-      };
-
-      return {
-        id: String(id),
-        factura: String(factura),
-        proveedor: proveedorNombre,
-        nit: String(proveedorNit),
-        total,
-        fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-        estado,
-
-        // ✅ lo que consume el modal
-        productos,
-
-        comprobante,
-        raw: c,
-      };
-    });
-  }, [purchasesApi]);
+  const normalizedApiPurchases = useMemo(
+    () => normalizeApiPurchasesForUI(purchasesApi),
+    [purchasesApi]
+  );
+  const normalizedSearchedApiPurchases = useMemo(
+    () => normalizeApiPurchasesForUI(searchedPurchasesApi),
+    [searchedPurchasesApi]
+  );
 
   // =========================
   // Normalizar Local => UI shape (legacy)
@@ -289,6 +301,7 @@ export default function IndexPurchases() {
 
       const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
       const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+      const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
       const estado = c?.estado ?? "Completada";
 
       return {
@@ -298,6 +311,7 @@ export default function IndexPurchases() {
         nit: String(proveedorNit ?? "—"),
         total: Number(c?.total ?? 0),
         fecha,
+        createdAt,
         estado,
         productos: Array.isArray(c?.productos) ? c.productos : [],
         comprobante: c?.comprobante ?? null,
@@ -331,9 +345,6 @@ export default function IndexPurchases() {
   // =========================
   // UI State
   // =========================
-  const perPage = 5;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
@@ -353,29 +364,64 @@ export default function IndexPurchases() {
     );
   }, [purchases, searchTerm]);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filtered.length / perPage)),
-    [filtered.length]
-  );
+  const searchedLocalPurchases = useMemo(() => {
+    if (!isSearchMode) return [];
 
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
-  }, [totalPages]);
+    const s = trimmedSearchTerm.toLowerCase();
 
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    return normalizedLocalPurchases.filter((p) =>
+      `${p.proveedor} ${p.estado} ${onlyDate(p.fecha)} ${p.factura} ${p.nit} ${p.total}`
+        .toLowerCase()
+        .includes(s)
+    );
+  }, [isSearchMode, normalizedLocalPurchases, trimmedSearchTerm]);
+
+  const searchedPurchases = useMemo(() => {
+    if (!isSearchMode) return [];
+
+    const apiIds = new Set(normalizedSearchedApiPurchases.map((p) => String(p.id)));
+    const localNoDup = searchedLocalPurchases.filter(
+      (p) => !apiIds.has(String(p.id))
+    );
+
+    return [...normalizedSearchedApiPurchases, ...localNoDup].sort((a, b) => {
+      const fa = Number(a.factura) || 0;
+      const fb = Number(b.factura) || 0;
+      return fa - fb;
+    });
+  }, [isSearchMode, normalizedSearchedApiPurchases, searchedLocalPurchases]);
+
+  const pageSize = perPage || 10;
+  const searchTotalPages = Math.max(1, Math.ceil(searchedPurchases.length / pageSize));
+  const safeSearchPage = Math.min(searchPage, searchTotalPages);
+  const searchPageStart = (safeSearchPage - 1) * pageSize;
+
+  const displayedPurchases = useMemo(() => {
+    if (!isSearchMode) return filtered;
+    return searchedPurchases.slice(searchPageStart, searchPageStart + pageSize);
+  }, [filtered, isSearchMode, searchedPurchases, searchPageStart, pageSize]);
+
+  const currentPageValue = isSearchMode ? safeSearchPage : page;
+  const currentTotalPages = isSearchMode ? searchTotalPages : totalPages;
+  const currentTotalItems = isSearchMode ? searchedPurchases.length : totalItems;
+  const currentLoading = isSearchMode ? searchLoading : isLoadingApi;
+  const currentError = isSearchMode ? searchError : apiError;
 
   // =========================
   // Handlers
   // =========================
   const goToPage = useCallback(
     (n) => {
+      if (isSearchMode) {
+        const p = Math.min(Math.max(1, n), searchTotalPages);
+        setSearchPage(p);
+        return;
+      }
+
       const p = Math.min(Math.max(1, n), totalPages);
-      setCurrentPage(p);
+      setPage(p);
     },
-    [totalPages]
+    [isSearchMode, searchTotalPages, totalPages]
   );
 
   const handleViewDetails = useCallback((purchase) => {
@@ -416,7 +462,7 @@ export default function IndexPurchases() {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({
@@ -594,8 +640,8 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
               <p className="text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
-              {apiError ? (
-                <p className="text-sm text-red-600 mt-2">{apiError}</p>
+              {currentError ? (
+                <p className="text-sm text-red-600 mt-2">{currentError}</p>
               ) : null}
             </div>
           </div>
@@ -613,21 +659,27 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1);
+                  setSearchPage(1);
                 }}
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => exportPurchasesToExcel(filtered)}>
+              <ExportExcelButton
+                event={() =>
+                  exportPurchasesToExcel(
+                    isSearchMode ? searchedPurchases : filtered
+                  )
+                }
+              >
                 Excel
               </ExportExcelButton>
 
               <ExportPDFButton
                 event={() =>
                   exportPurchasesToPdf({
-                    rows: filtered,
+                    rows: isSearchMode ? searchedPurchases : filtered,
                     filename: "compras.pdf",
                   })
                 }
@@ -673,7 +725,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
 
                 <tbody className="divide-y divide-gray-100">
                   <AnimatePresence>
-                    {isLoadingApi ? (
+                    {currentLoading ? (
                       <motion.tr
                         key="loading"
                         initial={{ opacity: 0 }}
@@ -687,7 +739,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                           Cargando compras...
                         </td>
                       </motion.tr>
-                    ) : pageItems.length === 0 ? (
+                    ) : displayedPurchases.length === 0 ? (
                       <motion.tr
                         key="empty"
                         initial={{ opacity: 0 }}
@@ -702,7 +754,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                         </td>
                       </motion.tr>
                     ) : (
-                      pageItems.map((p) => (
+                      displayedPurchases.map((p) => (
                         <motion.tr
                           key={p.id}
                           initial={{ opacity: 0, y: 10 }}
@@ -790,10 +842,11 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
 
           {/* Paginación */}
           <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
+            currentPage={currentPageValue}
+            perPage={pageSize}
+            totalPages={currentTotalPages}
+            filteredLength={displayedPurchases.length}
+            totalItems={currentTotalItems}
             goToPage={goToPage}
           />
         </div>

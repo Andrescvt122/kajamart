@@ -45,7 +45,10 @@ export const useGetLowProducts = (initialLimit = 6) => {
       if (details.length > 0) {
         return details.map((p) => ({
           id: p.id_detalle_productos,
-          name: p.nombre_producto,
+          name:
+            p.nombre_producto ||
+            p.detalle_productos?.productos?.nombre ||
+            "Sin producto",
           lowQuantity: Number(p.cantidad) || 0,
           reason: p.motivo,
           category:
@@ -55,6 +58,7 @@ export const useGetLowProducts = (initialLimit = 6) => {
             p.nombre_categoria ||
             p.nombreCategoria ||
             p.category ||
+            p.detalle_productos?.productos?.categorias?.nombre_categoria ||
             "Sin categoría",
           totalValue: Number(p.total_producto_baja ?? 0),
         }));

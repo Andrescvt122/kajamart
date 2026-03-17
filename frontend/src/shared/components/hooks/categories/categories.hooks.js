@@ -12,6 +12,7 @@ const mapFromApi = (cat) => ({
   nombre: cat.nombre_categoria,
   descripcion: cat.descripcion_categoria,
   estado: cat.estado ? "Activo" : "Inactivo",
+  productos: Array.isArray(cat.productos) ? cat.productos : [],
 });
 
 // Normaliza cualquier forma de "estado" a boolean
@@ -31,6 +32,63 @@ const toBoolEstado = (v, fallback = true) => {
 
 // Limita descripción a 80 chars
 const clampDesc = (s = "", max = 80) => String(s ?? "").slice(0, max);
+export const getAllCategoriesForExport = async (search = "") => {
+
+  const { data } = await axios.get(`${API}?page=1&limit=10000&search=${search}`);
+
+  return data.data;
+
+};
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+
+export const exportCategoriesToExcel = async (data) => {
+
+  const formatted = data.map((c) => ({
+    ID: c.id_categoria,
+    Nombre: c.nombre_categoria,
+    Descripción: c.descripcion_categoria,
+    Estado: c.estado ? "Activo" : "Inactivo",
+  }));
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Categorias");
+
+  worksheet.columns = [
+    { header: "ID", key: "ID", width: 12 },
+    { header: "Nombre", key: "Nombre", width: 30 },
+    { header: "Descripción", key: "Descripción", width: 40 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
+
+  formatted.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "categorias.xlsx");
+
+};
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export const exportCategoriesToPDF = (data) => {
+
+  const doc = new jsPDF();
+
+  const tableData = data.map((c) => [
+    c.id_categoria,
+    c.nombre_categoria,
+    c.descripcion_categoria,
+    c.estado ? "Activo" : "Inactivo",
+  ]);
+
+  autoTable(doc, {
+    head: [["ID", "Nombre", "Descripción", "Estado"]],
+    body: tableData,
+  });
+
+  doc.save("categorias.pdf");
+
+};
 
 export function useCategories() {
 
@@ -46,7 +104,7 @@ export function useCategories() {
   // ==============================
   // GET categorías (paginadas)
   // ==============================
-  const fetchCategories = useCallback(async (page = 1, limit = 6) => {
+  const fetchCategories = useCallback(async (page = 1, limit = 6, search = "") => {
     try {
 
       setLoading(true);
@@ -57,11 +115,11 @@ export function useCategories() {
       abortRef.current = new AbortController();
 
       const { data } = await axios.get(
-        `${API}?page=${page}&limit=${limit}`,
+        `${API}?page=${page}&limit=${limit}&search=${search}`,
         { signal: abortRef.current.signal }
       );
-
-      setCategories(data.data.map(mapFromApi));
+      
+      setCategories(Array.isArray(data.data) ? data.data.map(mapFromApi) : []);
       setTotalPages(data.totalPages);
       setTotalItems(data.totalItems);
 
@@ -283,6 +341,67 @@ export function useCategories() {
     addLocal,
     updateLocal,
     removeLocal,
+  };
+
+}
+
+export function useAllCategories() {
+
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const abortRef = useRef(null);
+
+  const fetchAllCategories = useCallback(async () => {
+    try {
+
+      setLoading(true);
+      setError(null);
+
+      if (abortRef.current) abortRef.current.abort();
+
+      abortRef.current = new AbortController();
+
+      const { data } = await axios.get(`${API}/all`, {
+        signal: abortRef.current.signal,
+      });
+
+      setCategories(
+        Array.isArray(data) ? data.map(mapFromApi) : []
+      );
+
+    } catch (err) {
+
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
+
+      console.error("❌ useAllCategories - fetchAllCategories:", err);
+
+      setError(
+        err.response?.data?.error ||
+        "Error al obtener todas las categorías."
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+  }, []);
+
+  useEffect(() => {
+
+    fetchAllCategories();
+
+    return () => abortRef.current?.abort();
+
+  }, [fetchAllCategories]);
+
+  return {
+    categories,
+    loading,
+    error,
+    refresh: fetchAllCategories,
   };
 
 }
