@@ -39,7 +39,7 @@ const diffMinutesFromNow = (isoDate) => {
   return (Date.now() - t) / 60000;
 };
 const canAnnulPurchase = (purchase) => {
-  const mins = diffMinutesFromNow(purchase?.fecha);
+  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
   return mins >= 0 && mins < MAX_MINUTES_ANNUL;
 };
 const isAnulada = (estado) => {
@@ -58,6 +58,7 @@ const uniqueKeepOrder = (arr) => {
     seen.add(v);
     out.push(v);
   }
+<<<<<<< HEAD
   return out;
 };
 
@@ -188,6 +189,148 @@ const normalizeApiPurchasesForUI = (list) => {
     };
   });
 };
+=======
+  return out;
+};
+
+const normalizeApiPurchasesForUI = (list) => {
+  return (list || []).map((c) => {
+    const id = c?.id_compra ?? c?.id ?? c?._id ?? "";
+
+    const factura =
+      c?.numero_factura ??
+      c?.num_factura ??
+      c?.factura ??
+      (id ? String(id).padStart(3, "0") : "—");
+
+    const proveedorNombre =
+      c?.proveedores?.nombre ??
+      c?.proveedor?.nombre ??
+      c?.proveedor_nombre ??
+      "—";
+
+    const proveedorNit =
+      c?.proveedores?.nit ??
+      c?.proveedor?.nit ??
+      c?.proveedor_nit ??
+      "—";
+
+    const fecha =
+      c?.fecha_compra ??
+      c?.fecha ??
+      c?.created_at ??
+      new Date().toISOString();
+
+    const createdAt =
+      c?.created_at ??
+      c?.fecha_creacion ??
+      c?.fecha_registro ??
+      fecha;
+
+    const estado = c?.estado_compra ?? c?.estado ?? "Completada";
+    const total = Number(c?.total ?? 0);
+
+    const productos = (() => {
+      const det = Array.isArray(c?.detalle_compra) ? c.detalle_compra : [];
+      const map = new Map();
+
+      for (const d of det) {
+        const idProducto =
+          d?.detalle_productos?.productos?.id_producto ??
+          d?.detalle_productos?.id_producto ??
+          d?.id_producto ??
+          d?.productoId ??
+          null;
+
+        const nombre =
+          d?.detalle_productos?.productos?.nombre ??
+          d?.productos?.nombre ??
+          d?.nombre ??
+          "—";
+
+        const key = idProducto ?? nombre;
+        const paquetes = Number(d?.cantidad_paquetes ?? d?.cantidad ?? 1) || 1;
+        const unidPorPaq = Number(d?.unidades_por_paquete ?? 0) || 0;
+        const totalUnid =
+          Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
+        const iva = Number(d?.iva_porcentaje ?? 0) || 0;
+        const icu = Number(d?.icu_porcentaje ?? 0) || 0;
+        const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
+        const precioVenta = Number(d?.precio_venta ?? 0) || 0;
+
+        const fechaVenc =
+          d?.detalle_productos?.fecha_vencimiento ??
+          d?.fecha_vencimiento ??
+          "";
+
+        const codigo =
+          d?.detalle_productos?.codigo_barras_producto_compra ??
+          d?.codigo_barras_producto_compra ??
+          "";
+
+        if (!map.has(key)) {
+          map.set(key, {
+            productoId: idProducto,
+            nombre,
+            cantidad_paquetes: 0,
+            unidades_por_paquete: unidPorPaq,
+            cantidad_total_unidades: 0,
+            precioCompra,
+            precioVenta,
+            iva_porcentaje: iva,
+            icu_porcentaje: icu,
+            vencimientos: [],
+            codigosBarras: [],
+          });
+        }
+
+        const acc = map.get(key);
+
+        acc.cantidad_paquetes += paquetes;
+        acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
+        acc.cantidad_total_unidades += totalUnid;
+        acc.precioCompra = precioCompra;
+        acc.precioVenta = precioVenta;
+        acc.iva_porcentaje = iva;
+        acc.icu_porcentaje = icu;
+
+        if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
+        if (codigo) acc.codigosBarras.push(String(codigo));
+      }
+
+      return Array.from(map.values()).map((p) => ({
+        ...p,
+        vencimientos: (p.vencimientos || []).filter(Boolean),
+        codigosBarras: uniqueKeepOrder(p.codigosBarras),
+      }));
+    })();
+
+    const comprobante = {
+      name: c?.comprobante_nombre ?? null,
+      type: c?.comprobante_mime ?? null,
+      url: c?.comprobante_url ?? null,
+      size: c?.comprobante_size ?? null,
+    };
+
+    return {
+      id: String(id),
+      factura: String(factura),
+      proveedor: proveedorNombre,
+      nit: String(proveedorNit),
+      total,
+      fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt:
+        typeof createdAt === "string"
+          ? createdAt
+          : new Date(createdAt).toISOString(),
+      estado,
+      productos,
+      comprobante,
+      raw: c,
+    };
+  });
+};
+>>>>>>> 223ccda0b34417e5613f56a2164ee0d1f3fca6dd
 
 export default function IndexPurchases() {
   const navigate = useNavigate();
@@ -291,6 +434,7 @@ useEffect(() => {
 
       const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
       const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+      const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
       const estado = c?.estado ?? "Completada";
 
       return {
@@ -300,6 +444,7 @@ useEffect(() => {
         nit: String(proveedorNit ?? "—"),
         total: Number(c?.total ?? 0),
         fecha,
+        createdAt,
         estado,
         productos: Array.isArray(c?.productos) ? c.productos : [],
         comprobante: c?.comprobante ?? null,
@@ -450,7 +595,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({

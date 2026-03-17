@@ -123,7 +123,37 @@ export default function AllProductsPage() {
     isLoading,
     error,
   } = useDetailProductsByProduct(productId, currentPage, perPage);
+const handleExportExcel = async () => {
 
+  try {
+
+    const details = await getAllDetailProductsForExport(searchTerm);
+
+    exportDetailProductsToExcel(details);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const details = await getAllDetailProductsForExport(searchTerm);
+
+    exportDetailProductsToPDF(details);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   const backendDetails = data?.data || [];
 const totalPages = data?.totalPages || 1;
   const errorMessage = error

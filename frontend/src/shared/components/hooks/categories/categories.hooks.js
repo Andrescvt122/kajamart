@@ -32,6 +32,54 @@ const toBoolEstado = (v, fallback = true) => {
 
 // Limita descripción a 80 chars
 const clampDesc = (s = "", max = 80) => String(s ?? "").slice(0, max);
+export const getAllCategoriesForExport = async (search = "") => {
+
+  const { data } = await axios.get(`${API}?page=1&limit=10000&search=${search}`);
+
+  return data.data;
+
+};
+import * as XLSX from "xlsx";
+
+export const exportCategoriesToExcel = (data) => {
+
+  const formatted = data.map((c) => ({
+    ID: c.id_categoria,
+    Nombre: c.nombre_categoria,
+    Descripción: c.descripcion_categoria,
+    Estado: c.estado ? "Activo" : "Inactivo",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(formatted);
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, "Categorias");
+
+  XLSX.writeFile(wb, "categorias.xlsx");
+
+};
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export const exportCategoriesToPDF = (data) => {
+
+  const doc = new jsPDF();
+
+  const tableData = data.map((c) => [
+    c.id_categoria,
+    c.nombre_categoria,
+    c.descripcion_categoria,
+    c.estado ? "Activo" : "Inactivo",
+  ]);
+
+  autoTable(doc, {
+    head: [["ID", "Nombre", "Descripción", "Estado"]],
+    body: tableData,
+  });
+
+  doc.save("categorias.pdf");
+
+};
 
 export function useCategories() {
 
@@ -47,7 +95,7 @@ export function useCategories() {
   // ==============================
   // GET categorías (paginadas)
   // ==============================
-  const fetchCategories = useCallback(async (page = 1, limit = 6) => {
+  const fetchCategories = useCallback(async (page = 1, limit = 6, search = "") => {
     try {
 
       setLoading(true);
@@ -58,11 +106,11 @@ export function useCategories() {
       abortRef.current = new AbortController();
 
       const { data } = await axios.get(
-        `${API}?page=${page}&limit=${limit}`,
+        `${API}?page=${page}&limit=${limit}&search=${search}`,
         { signal: abortRef.current.signal }
       );
-
-      setCategories(data.data.map(mapFromApi));
+      
+      setCategories(Array.isArray(data.data) ? data.data.map(mapFromApi) : []);
       setTotalPages(data.totalPages);
       setTotalItems(data.totalItems);
 

@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const PURCHASES_URL = "http://localhost:3000/kajamart/api/purchase";
-//KAROL, NO LO MODIFIQUE, ES NECESARIO PARA DEVOLUCION DE PRODUTOS Y TAMBIEN SERVIRA PARA LISTAR COMPRAS EN EL FUTURO.
 /**
  * Hook para obtener todas las compras.
  *
