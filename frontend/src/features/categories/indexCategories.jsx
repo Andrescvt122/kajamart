@@ -17,7 +17,6 @@ import { exportCategoriesToPDF } from "../../features/categories/helpers/exportT
 import { exportCategoriesToExcel } from "../../features/categories/helpers/exportToXls";
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
-import { useSearchCategories } from "../../shared/components/hooks/categories/useSearchCategories.js";
 import { useAuth } from "../../context/useAtuh.jsx";
 // 🔔 Alerts para mostrar mensajes claros
 import {
@@ -78,11 +77,8 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexCategories() {
-  const [searchTerm, setSearchTerm] = useState("");
   const {
     categories,
-    totalPages: backendTotalPages,
-    totalItems,
     loading,
     error,
     refresh,
@@ -90,11 +86,8 @@ export default function IndexCategories() {
     updateCategory,
     deleteCategory,
   } = useCategories();
-  const {
-    data: searchedCategories,
-    loading: searchLoading,
-    error: searchError,
-  } = useSearchCategories(searchTerm);
+
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
 
@@ -113,14 +106,6 @@ export default function IndexCategories() {
   const canDelete = hasPermission("Eliminar categorias");
   const canCreate = hasPermission("Crear categorias");
   const canEdit = hasPermission("Editar categorias");
-  const isSearching = searchTerm.trim() !== "";
-
-  React.useEffect(() => {
-    if (!isSearching) {
-      refresh(currentPage, perPage);
-    }
-  }, [currentPage, isSearching]);
-
   // Acordeón (móvil/desktop)
   const [expanded, setExpanded] = useState(new Set());
   const toggleExpand = (id) => {
@@ -130,37 +115,7 @@ export default function IndexCategories() {
       return next;
     });
   };
-const handleExportExcel = async () => {
 
-  try {
-
-    const allCategories = await getAllCategoriesForExport(searchTerm);
-
-    exportCategoriesToExcel(allCategories);
-
-  } catch (error) {
-
-    console.error(error);
-
-  }
-
-};
-
-const handleExportPDF = async () => {
-
-  try {
-
-    const allCategories = await getAllCategoriesForExport(searchTerm);
-
-    exportCategoriesToPDF(allCategories);
-
-  } catch (error) {
-
-    console.error(error);
-
-  }
-
-};
   // Filtro
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
@@ -287,12 +242,12 @@ const handleExportPDF = async () => {
     }
   };
 
-  if (error || searchError) {
+  if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <p className="text-red-600 text-center">
-          {typeof (searchError || error) === "string"
-            ? (searchError || error)
+          {typeof error === "string"
+            ? error
             : "Error al cargar categorías."}
         </p>
       </div>
@@ -389,7 +344,7 @@ const handleExportPDF = async () => {
             initial="hidden"
             animate="visible"
           >
-            {loading || (isSearching && searchLoading) ? (
+            {loading ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
@@ -554,7 +509,7 @@ const handleExportPDF = async () => {
                   initial="hidden"
                   animate="visible"
                 >
-                  {loading || (isSearching && searchLoading) ? (
+                  {loading ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-12">
                         <Loading inline heightClass="h-28" />
@@ -716,7 +671,7 @@ const handleExportPDF = async () => {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filteredLength}
+              filteredLength={filtered.length}
               goToPage={goToPage}
             />
           </div>
