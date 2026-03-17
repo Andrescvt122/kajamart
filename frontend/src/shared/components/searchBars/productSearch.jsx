@@ -1,94 +1,54 @@
-import React, { useState, useEffect } from "react";
-import { Search, Package, CheckCircle, AlertCircle, Check } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Search, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFetchProduct } from "../hooks/searchBars/useFetchProducts";
 
-const ProductSearch = ({
-  onAddProduct,
-  excludedProducts = [],
-  disabled = false,
+/**
+ * ProductSearchSelect
+ * - UI igual a productSearch.jsx
+ * - Dropdown se renderiza AFUERA con Portal (no lo recorta el overflow del modal)
+ * - Click en item => onSelect(item)
+ */
+const ProductSearchSelect = ({
+  onSelect,
+  placeholder = "Buscar por producto...",
+  filterOutOfStock = true,
+  onCreateProduct,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
-  const [isAdding, setIsAdding] = useState(false); // loader del botón
-  const [showCheck, setShowCheck] = useState(false); // ✅ animación de check
 
-  // ⏳ Debounce de 500 ms
+  const anchorRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  const [dropdownPos, setDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  // ⏳ Debounce (igual que productSearch.jsx)
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedTerm(searchTerm.trim());
-    }, 500);
+    const handler = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  useEffect(() => {
-    if (disabled) {
-      setShowDropdown(false);
-    }
-  }, [disabled]);
-
-  // Hook que llama la API
   const { data: products, loading, error } = useFetchProduct(debouncedTerm);
 
-  const handleSelectProduct = (product) => {
-    // 🚫 Si no tiene stock, no permitimos seleccionarlo
-    if (product.stock_producto <= 0) {
-      showTemporaryAlert(
-        `El producto "${
-          product.productos?.nombre || "sin nombre"
-        }" no tiene stock disponible.`
-      );
-      return;
-    }
+  const filteredProducts = useMemo(() => {
+    const list = Array.isArray(products) ? products : [];
+    return list;
+  }, [products]);
 
-    setSelectedProduct(product);
-    setSearchTerm(product.productos?.nombre || "");
-    setShowDropdown(false);
-    setQuantity(1);
-  };
-
-  const handleAddProduct = async () => {
-    if (!selectedProduct)
-      return showTemporaryAlert("Por favor, selecciona un producto.");
-    if (quantity <= 0)
-      return showTemporaryAlert("La cantidad debe ser mayor a 0.");
-    if (quantity > selectedProduct.stock_producto)
-      return showTemporaryAlert(
-        `No hay suficiente stock. Solo quedan ${selectedProduct.stock_producto} unidades disponibles.`
-      );
-
-    setIsAdding(true);
-    setShowCheck(false);
-
-    // Simula el proceso de agregado
-    setTimeout(() => {
-      const newProduct = { ...selectedProduct, requestedQuantity: quantity };
-      onAddProduct(newProduct);
-      showTemporaryAlert(
-        `${selectedProduct.productos?.nombre} añadido exitosamente`,
-        true
-      );
-
-      // ✅ Mostrar check animado
-      setShowCheck(true);
-      setIsAdding(false);
-      setTimeout(() => setShowCheck(false), 1000);
-
-      setSelectedProduct(null);
-      setSearchTerm("");
-      setQuantity(1);
-    }, 900);
-  };
-
-  const showTemporaryAlert = (msg, success = false) => {
+  const showTemporaryAlert = (msg) => {
     setAlertMessage(msg);
     setShowAlert(true);
-    setTimeout(() => setShowAlert(false), success ? 2500 : 3500);
+    setTimeout(() => setShowAlert(false), 3500);
   };
 
   const formatPrice = (price) =>
@@ -96,17 +56,216 @@ const ProductSearch = ({
       style: "currency",
       currency: "COP",
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(price || 0);
+
+  const updateDropdownPosition = () => {
+    const el = anchorRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    // posición base debajo del input
+    let top = rect.bottom + 8;
+    let left = rect.left;
+    const width = rect.width;
+
+    // Ajuste si no cabe hacia abajo (evitar que se salga de pantalla)
+    const approxHeight = Math.min(
+      320,
+      56 + (filteredProducts?.length || 0) * 64,
+    ); // aprox max-h-80
+    const viewportH = window.innerHeight;
+    if (top + approxHeight > viewportH - 8) {
+      // si no cabe abajo, lo mostramos arriba
+      top = Math.max(8, rect.top - 8 - approxHeight);
+    }
+
+    // Ajuste horizontal básico
+    const viewportW = window.innerWidth;
+    if (left + width > viewportW - 8) {
+      left = Math.max(8, viewportW - 8 - width);
+    }
+
+    setDropdownPos({ top, left, width });
+  };
+
+  const handleSelectProduct = (product) => {
+    const isOutOfStock = product.stock_producto <= 0;
+
+    if (filterOutOfStock && isOutOfStock) {
+      showTemporaryAlert(
+        `El producto "${
+          product.productos?.nombre || "sin nombre"
+        }" no tiene stock disponible.`,
+      );
+      return;
+    }
+
+    onSelect?.(product);
+    setSearchTerm(product.productos?.nombre || "");
+    setShowDropdown(false);
+  };
+
+  // abrir dropdown y posicionarlo
+  const openDropdown = () => {
+    setShowDropdown(true);
+    // en el próximo tick calculamos bien el rect
+    requestAnimationFrame(updateDropdownPosition);
+  };
+
+  // Reposicionar en scroll/resize mientras esté abierto
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const handler = () => updateDropdownPosition();
+    window.addEventListener("resize", handler);
+    window.addEventListener("scroll", handler, true); // captura scroll dentro de modales
+    handler();
+
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("scroll", handler, true);
+    };
+  }, [showDropdown, filteredProducts?.length]);
+
+  // Cerrar al click fuera (input + dropdown)
+  useEffect(() => {
+    if (!showDropdown) return;
+
+    const onMouseDown = (e) => {
+      const a = anchorRef.current;
+      const d = dropdownRef.current;
+      if (a?.contains(e.target)) return;
+      if (d?.contains(e.target)) return;
+      setShowDropdown(false);
+    };
+
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [showDropdown]);
+
+  const dropdownUI = (
+    <AnimatePresence>
+      {showDropdown && searchTerm && (
+        <motion.div
+          ref={dropdownRef}
+          style={{
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 50, // debajo del modal que tiene z-[55]
+          }}
+          className="bg-white border border-gray-200 rounded-xl shadow-lg max-h-80 overflow-y-auto"
+          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          {loading ? (
+            <div className="p-6 flex justify-center items-center">
+              <motion.div
+                className="flex gap-2"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.15,
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                    },
+                  },
+                }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="w-3 h-3 bg-green-500 rounded-full"
+                    variants={{
+                      hidden: { opacity: 0.3, y: 0 },
+                      visible: { opacity: 1, y: -6 },
+                    }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                  />
+                ))}
+              </motion.div>
+            </div>
+          ) : error ? (
+            <div className="p-4 text-center text-red-500">{error}</div>
+          ) : filteredProducts && filteredProducts.length > 0 ? (
+            filteredProducts.map((item) => {
+              const isOutOfStock = item.stock_producto <= 0;
+
+              return (
+                <motion.div
+                  key={item.id_detalle_producto}
+                  className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 ${
+                    isOutOfStock
+                      ? "bg-gray-50 cursor-not-allowed opacity-60"
+                      : "hover:bg-green-50 cursor-pointer"
+                  }`}
+                  onClick={() => handleSelectProduct(item)}
+                  whileHover={
+                    !isOutOfStock
+                      ? {
+                          scale: 1.01,
+                          backgroundColor: "#dcfce7",
+                          transition: { duration: 0.2 },
+                        }
+                      : {}
+                  }
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      {item.productos?.url_imagen ? (
+                        <img src={item.productos.url_imagen} alt="" />
+                      ) : null}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.productos?.nombre}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Cód. {item.codigo_barras_producto_compra} •{" "}
+                        {formatPrice(item.productos?.precio_venta || 0)}
+                      </p>
+                      {isOutOfStock && (
+                        <p className="text-xs text-red-500 font-semibold mt-1">
+                          Sin stock disponible
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="flex justify-center mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  onCreateProduct?.(searchTerm);
+                  setShowDropdown(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-green-400 text-white text-sm font-semibold hover:bg-green-500 transition"
+              >
+                Crear producto
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
-    <div className="relative mb-6">
+    <div className="relative mb-6" ref={anchorRef}>
       <motion.div
-        className={`flex items-center gap-4 ${disabled ? "pointer-events-none opacity-60" : ""}`}
+        className="flex items-center gap-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Campo de búsqueda */}
         <div className="relative flex-1">
           <motion.div
             className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none"
@@ -116,124 +275,31 @@ const ProductSearch = ({
           >
             <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
           </motion.div>
+
           <motion.input
             type="text"
             className="block w-full rounded-lg border-0 py-3 pl-10 pr-4 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-green-400 transition-all bg-white"
-            placeholder="Buscar por producto..."
+            placeholder={placeholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => {
-              if (!disabled) setShowDropdown(true);
-            }}
-            disabled={disabled}
+            onFocus={openDropdown}
             autoComplete="off"
             whileFocus={{ scale: 1.0 }}
             transition={{ duration: 0.2 }}
           />
         </div>
-
-        {/* Campo de cantidad */}
-        <motion.div
-          className="flex-shrink-0"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
-        >
-          <label className="text-sm font-semibold text-gray-700 p-6">
-            Cantidad:
-          </label>
-          <motion.input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(parseInt(e.target.value))}
-            min="1"
-            disabled={disabled}
-            className="w-16 mt-1 px-3 py-2 rounded-lg border-2 border-gray-300 bg-white text-black text-center focus:ring-2 focus:ring-green-400 focus:outline-none"
-            whileFocus={{ scale: 1.05, borderColor: "#16a34a" }}
-          />
-        </motion.div>
-
-        {/* Botón agregar con loader + check */}
-        <motion.button
-          onClick={handleAddProduct}
-          disabled={disabled || isAdding || showCheck}
-          className={`px-6 py-3 font-semibold rounded-lg shadow-md transition-all duration-200 flex items-center justify-center gap-2 ${
-            disabled || isAdding || showCheck
-              ? "bg-green-500 cursor-not-allowed opacity-90"
-              : "bg-green-600 hover:bg-green-700 text-white"
-          }`}
-          whileHover={!disabled && !isAdding && !showCheck ? { scale: 1.05 } : {}}
-          whileTap={!disabled && !isAdding && !showCheck ? { scale: 0.95 } : {}}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.4 }}
-        >
-          {isAdding ? (
-            // 🔄 Loader animado dentro del botón
-            <motion.div
-              className="flex gap-2 items-center"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.15,
-                    repeat: Infinity,
-                    repeatType: "reverse",
-                  },
-                },
-              }}
-            >
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="w-2 h-2 bg-white rounded-full"
-                  variants={{
-                    hidden: { opacity: 0.3, y: 0 },
-                    visible: { opacity: 1, y: -5 },
-                  }}
-                  transition={{ duration: 0.4, ease: "easeInOut" }}
-                />
-              ))}
-            </motion.div>
-          ) : showCheck ? (
-            // ✅ Check animado con Framer Motion
-            <motion.div
-              initial={{ scale: 0, rotate: -90 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <Check className="w-6 h-6 text-white" />
-            </motion.div>
-          ) : (
-            "Añadir producto"
-          )}
-        </motion.button>
       </motion.div>
 
-      {/* Alerta */}
       <AnimatePresence>
         {showAlert && (
           <motion.div
-            className={`mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm ${
-              alertMessage.includes("exitosamente")
-                ? "bg-green-100 text-green-700 border border-green-200"
-                : "bg-red-100 text-red-700 border border-red-200"
-            }`}
+            className="mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm bg-red-100 text-red-700 border border-red-200"
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{
-              type: "spring",
-              stiffness: 300,
-              damping: 25,
-            }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
-            {alertMessage.includes("exitosamente") ? (
-              <CheckCircle size={20} />
-            ) : (
-              <AlertCircle size={20} />
-            )}
+            <AlertCircle size={20} />
             <motion.p
               className="text-sm font-medium"
               initial={{ opacity: 0, x: -10 }}
@@ -245,105 +311,11 @@ const ProductSearch = ({
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Dropdown de resultados */}
-      <AnimatePresence>
-        {!disabled && showDropdown && searchTerm && (
-          <motion.div
-            className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            {loading ? (
-              <div className="p-6 flex justify-center items-center">
-                {/* Loader animado */}
-                <motion.div
-                  className="flex gap-2"
-                  initial="hidden"
-                  animate="visible"
-                  variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.15,
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                      },
-                    },
-                  }}
-                >
-                  {[0, 1, 2].map((i) => (
-                    <motion.span
-                      key={i}
-                      className="w-3 h-3 bg-green-500 rounded-full"
-                      variants={{
-                        hidden: { opacity: 0.3, y: 0 },
-                        visible: { opacity: 1, y: -6 },
-                      }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                    />
-                  ))}
-                </motion.div>
-              </div>
-            ) : error ? (
-              <div className="p-4 text-center text-red-500">{error}</div>
-            ) : products && products.length > 0 ? (
-              products
-                .filter((item) => !excludedProducts.includes(item.id_detalle_producto))
-                .map((item) => {
-                const isOutOfStock = item.stock_producto <= 0;
 
-                return (
-                  <motion.div
-                    key={item.id_detalle_producto}
-                    className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors duration-200 ${
-                      isOutOfStock
-                        ? "bg-gray-50 cursor-not-allowed opacity-60"
-                        : "hover:bg-green-50 cursor-pointer"
-                    }`}
-                    onClick={() => handleSelectProduct(item)}
-                    whileHover={
-                      !isOutOfStock
-                        ? {
-                            scale: 1.01,
-                            backgroundColor: "#dcfce7",
-                            transition: { duration: 0.2 },
-                          }
-                        : {}
-                    }
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <img src={item.productos?.url_imagen} alt="" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {item.productos?.nombre}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Cód. {item.codigo_barras_producto_compra} •{" "}
-                          {formatPrice(item.productos?.precio_venta || 0)}
-                        </p>
-                        {isOutOfStock && (
-                          <p className="text-xs text-red-500 font-semibold mt-1">
-                            Sin stock disponible
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })
-            ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                No se encontraron coincidencias.
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ✅ Dropdown AFUERA */}
+      {createPortal(dropdownUI, document.body)}
     </div>
   );
 };
 
-export default ProductSearch;
+export default ProductSearchSelect;
