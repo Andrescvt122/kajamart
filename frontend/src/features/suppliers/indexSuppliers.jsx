@@ -72,30 +72,50 @@ function ChevronIcon({ open }) {
 export default function IndexSuppliers() {
   // === CARGA DESDE BACKEND ===
   // Buscador + paginación
-const [searchTerm, setSearchTerm] = useState("");
-const [currentPage, setCurrentPage] = useState(1);
-const perPage = 6;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
 
-// === CARGA DESDE BACKEND ===
-const {
-  data,
-  isLoading,
-  isError,
-  error,
-} = useSuppliersQuery(currentPage, perPage);
+  // === CARGA DESDE BACKEND ===
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+  } = useSuppliersQuery(currentPage, perPage, searchTerm);
+const handleExportExcel = async () => {
+  try {
+    showLoadingAlert("Preparando exportación...");
 
-const suppliersRaw = data?.data || [];
-const totalPages = data?.totalPages || 1;
-  // Mapeo para UI
-  const suppliers = useMemo(() => {
-    if (!Array.isArray(suppliersRaw)) return [];
-    return suppliersRaw.map((s) => ({
-      ...s,
-      nit: s?.nit != null ? String(s.nit) : "",
-      estado: s?.estado ? "Activo" : "Inactivo",
-      categorias: Array.isArray(s?.categorias) ? s.categorias : [],
-    }));
-  }, [suppliersRaw]);
+    const allSuppliers = await getAllSuppliersForExport(searchTerm);
+
+    console.log("SUPPLIERS PARA EXPORT:", allSuppliers);
+
+    exportSuppliersToExcel(allSuppliers);
+
+    Swal.close();
+  } catch (error) {
+    console.error(error);
+    Swal.close();
+    showErrorAlert("Error al exportar proveedores");
+  }
+};
+const handleExportPDF = async () => {
+  try {
+    showLoadingAlert("Preparando exportación...");
+
+    const allSuppliers = await getAllSuppliersForExport(searchTerm);
+
+    exportSuppliersToPDF(allSuppliers);
+
+    Swal.close();
+  } catch (error) {
+    Swal.close();
+    showErrorAlert("Error al exportar proveedores");
+  }
+};
+  const suppliersRaw = data?.data || [];
+
 
   const deleteMutation = useDeleteSupplier();
 
