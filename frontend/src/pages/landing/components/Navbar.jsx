@@ -1,5 +1,6 @@
 import React from "react";
 import logo from "../../../assets/logo.png";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const navLinks = [
@@ -39,12 +40,12 @@ export default function Navbar() {
 
       {/* Botón login */}
       <div className="hidden md:block">
-        <a
-          href="/auth"
+        <Link
+          to="/login"
           className="px-6 py-2 rounded-full bg-green-900 text-white font-semibold shadow-md hover:bg-green-700 transition-colors"
         >
           Ingresar
-        </a>
+        </Link>
       </div>
     </nav>
   );

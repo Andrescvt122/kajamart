@@ -1,5 +1,5 @@
 // src/features/sales/indexSales.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
@@ -15,23 +15,19 @@ import {
   ExportPDFButton,
 } from "../../shared/components/buttons";
 import SaleDetailModal from "./SaleDetailModal";
-import { exportSalesToExcel } from "./helper/exportSalesExcel";
-import { exportSalesToPDF } from "./helper/exportSalesPDF";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
+import { useExportSales } from "../../shared/components/hooks/sales/useExportSales";
+import { useFetchSales } from "../../shared/components/hooks/search/useFetchSales";
 import { useAuth } from "../../context/useAtuh";
+import Loading from "../../features/onboarding/loading.jsx";
+
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency: "COP",
     minimumFractionDigits: 0,
   }).format(Number(value) || 0);
-
-const normalizeText = (text) =>
-  String(text ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -44,73 +40,108 @@ const formatDate = (value) => {
   }
 };
 
+// ✅ para ordenar seguro por fecha (si falta fecha, lo manda al final)
+const getDateTs = (v) => {
+  const raw = v?.fecha_venta ?? v?.fecha ?? null;
+  const d = raw ? new Date(raw) : null;
+  const ts = d && !Number.isNaN(d.getTime()) ? d.getTime() : Number.POSITIVE_INFINITY;
+  return ts;
+};
+
+const mapSalesForUI = (list) => {
+  const arr = (list || []).map((v) => {
+    const idVenta = v.id_venta ?? v.id ?? "";
+    const idCliente = v?.id_cliente ?? null;
+
+    const clienteNombre =
+      v?.clientes?.nombre_cliente ??
+      v?.clientes?.nombre ??
+      v?.cliente ??
+      (idCliente ? `Cliente #${idCliente}` : "Cliente de Caja");
+
+    return {
+      raw: v,
+      id_ui: String(idVenta),
+      fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
+      cliente_ui: clienteNombre,
+      medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
+      estado_ui: v.estado_venta ?? v.estado ?? "",
+      total_ui: Number(v.total || 0),
+      productos_ui: v.detalle_venta ?? v.productos ?? [],
+      _ts: getDateTs(v),
+    };
+  });
+
+  arr.sort((a, b) => {
+    if (a._ts !== b._ts) return a._ts - b._ts;
+    const ia = Number(a.raw?.id_venta ?? a.raw?.id ?? 0);
+    const ib = Number(b.raw?.id_venta ?? b.raw?.id ?? 0);
+    return ia - ib;
+  });
+
+  return arr.map(({ _ts, ...rest }) => rest);
+};
+
 export default function IndexSales() {
   const navigate = useNavigate();
-  const { sales, loading, error, refetch } = useSales();
+  const {
+    sales,
+    loading,
+    error,
+    refetch,
+    page,
+    totalPages,
+    totalItems,
+    perPage,
+    setPage,
+  } = useSales();
   const { updateStatus } = useUpdateSaleStatus();
+  const { exportSalesToExcel, exportSalesToPDF } = useExportSales();
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 5;
+  const [searchPage, setSearchPage] = useState(1);
   const [selectedSale, setSelectedSale] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const { hasPermission } = useAuth();
   const canCreate= hasPermission("Crear venta");
-  const canAnnular= hasPermission('Anular una venta');
+  const canAnnular= hasPermission('Anular venta');
   console.log("poder anular venta", canAnnular);
-  const normalizedSales = useMemo(() => {
-    return (sales || []).map((v) => {
-      const idVenta = v.id_venta ?? v.id ?? "";
-      const idCliente = v?.id_cliente ?? null;
+  const trimmedSearchTerm = searchTerm.trim();
+  const isSearchMode = trimmedSearchTerm.length > 0;
+  const { data: searchedSales, loading: searchLoading, error: searchError } =
+    useFetchSales(trimmedSearchTerm);
 
-      const clienteNombre =
-        v?.clientes?.nombre_cliente ??
-        v?.clientes?.nombre ??
-        v?.cliente ??
-        (idCliente ? `Cliente #${idCliente}` : "Cliente de Caja");
+  const normalizedSales = useMemo(() => mapSalesForUI(sales), [sales]);
+  const normalizedSearchedSales = useMemo(
+    () => mapSalesForUI(searchedSales),
+    [searchedSales]
+  );
 
-      return {
-        raw: v,
-        id_ui: String(idVenta),
-        fecha_ui: formatDate(v.fecha_venta ?? v.fecha ?? ""),
-        cliente_ui: clienteNombre,
-        medioPago_ui: v.metodo_pago ?? v.medioPago ?? v.metodoPago ?? "",
-        estado_ui: v.estado_venta ?? v.estado ?? "",
-        total_ui: Number(v.total || 0),
-        productos_ui: v.detalle_venta ?? v.productos ?? [],
-      };
-    });
-  }, [sales]);
+  const pageSize = perPage || 6;
+  const searchTotalPages = Math.max(
+    1,
+    Math.ceil(normalizedSearchedSales.length / pageSize)
+  );
+  const safeSearchPage = Math.min(searchPage, searchTotalPages);
+  const searchPageStart = (safeSearchPage - 1) * pageSize;
 
-  const filtered = useMemo(() => {
-    const s = normalizeText(searchTerm.trim());
-    if (!s) return normalizedSales;
+  const displayedSales = useMemo(() => {
+    if (!isSearchMode) return normalizedSales;
+    return normalizedSearchedSales.slice(searchPageStart, searchPageStart + pageSize);
+  }, [
+    isSearchMode,
+    normalizedSales,
+    normalizedSearchedSales,
+    searchPageStart,
+    pageSize,
+  ]);
 
-    return normalizedSales.filter((v) => {
-      const target = normalizeText(
-        `${v.id_ui} ${v.fecha_ui} ${v.cliente_ui} ${v.medioPago_ui} ${v.estado_ui} ${v.total_ui}`
-      );
-      return target.includes(s);
-    });
-  }, [normalizedSales, searchTerm]);
+  const currentPageValue = isSearchMode ? safeSearchPage : page;
+  const currentTotalPages = isSearchMode ? searchTotalPages : totalPages;
+  const currentTotalItems = isSearchMode ? normalizedSearchedSales.length : totalItems;
+  const currentLoading = isSearchMode ? searchLoading : loading;
+  const currentError = isSearchMode ? searchError : error;
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
 
-  // ✅ evita página inválida
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(1);
-  }, [currentPage, totalPages]);
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
-
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
-
-  // ✅ IMPORTANTE: NO uses opacity:0 en el contenedor (causa filas invisibles)
   const tableVariants = {
     hidden: {},
     visible: { transition: { staggerChildren: 0.08 } },
@@ -134,7 +165,7 @@ export default function IndexSales() {
   );
 
   const exportRows = useMemo(() => {
-    return filtered.map((v) => ({
+    return displayedSales.map((v) => ({
       id: v.id_ui,
       fecha: v.fecha_ui,
       cliente: v.cliente_ui,
@@ -142,7 +173,7 @@ export default function IndexSales() {
       medioPago: v.medioPago_ui,
       estado: v.estado_ui,
     }));
-  }, [filtered]);
+  }, [displayedSales]);
 
   const handleExportExcel = () => {
     exportSalesToExcel({
@@ -242,6 +273,16 @@ export default function IndexSales() {
     }
   };
 
+  const handlePageChange = (nextPage) => {
+    if (isSearchMode) {
+      const targetPage = Math.min(Math.max(1, nextPage), searchTotalPages);
+      setSearchPage(targetPage);
+      return;
+    }
+
+    setPage(nextPage);
+  };
+
   return (
     <>
       <div
@@ -265,10 +306,10 @@ export default function IndexSales() {
           </div>
         </div>
 
-        {loading && (
+        {currentLoading && (
           <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>
         )}
-        {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+        {currentError && <p className="text-sm text-red-600 mb-3">{currentError}</p>}
 
         <div className="mb-6 flex items-center gap-3">
           <div className="relative flex-1">
@@ -281,7 +322,7 @@ export default function IndexSales() {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
+                setSearchPage(1);
               }}
               className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
             />
@@ -294,7 +335,7 @@ export default function IndexSales() {
             <button
               onClick={() => navigate("/app/sales/register")}
               className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              disabled={!canCreate}
+              hidden={!canCreate}
             >
               Registrar Nueva Venta
             </button>
@@ -302,10 +343,10 @@ export default function IndexSales() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table key={currentPage} className="min-w-full">
+          <table key={page} className="min-w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">ID Venta</th>
+                <th className="px-6 py-4">#</th>
                 <th className="px-6 py-4">Fecha</th>
                 <th className="px-6 py-4">Cliente</th>
                 <th className="px-6 py-4">Total</th>
@@ -315,23 +356,31 @@ export default function IndexSales() {
               </tr>
             </thead>
 
-            {/* ✅ tbody animado explícitamente (evita quedar invisible) */}
             <motion.tbody
               className="divide-y divide-gray-100"
               variants={tableVariants}
               animate="visible"
             >
-              {pageItems.length === 0 ? (
+              {currentLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center">
+                    <Loading inline heightClass="h-28" />
+                  </td>
+                </tr>
+              ) : displayedSales.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                     No se encontraron ventas.
                   </td>
                 </tr>
               ) : (
-                pageItems.map((v, i) => {
+              displayedSales.map((v, i) => {
                   const rawId = v.raw?.id_venta ?? v.raw?.id;
                   const isUpdating = updatingId === rawId;
                   const isAnnulled = v.estado_ui === "Anulada";
+
+                  // ✅ # consecutivo (1..N) en el orden por FECHA (vieja->nueva)
+                  const rowNumber = (currentPageValue - 1) * pageSize + i + 1;
 
                   return (
                     <motion.tr
@@ -339,11 +388,13 @@ export default function IndexSales() {
                       className="hover:bg-gray-50"
                       variants={rowVariants}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">{v.id_ui}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {rowNumber}
+                      </td>
+
                       <td className="px-6 py-4 text-sm text-gray-600">{v.fecha_ui}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {v.cliente_ui}
-                        
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {formatMoney(v.total_ui)}
@@ -358,7 +409,9 @@ export default function IndexSales() {
                           onClick={(event) => handleAnnulSale(event, v.raw)}
                           disabled={isUpdating || isAnnulled || !canAnnular}
                           title={
-                            isAnnulled ? "Esta venta ya está anulada" : "Click para anular"
+                            isAnnulled
+                              ? "Esta venta ya está anulada"
+                              : "Click para anular"
                           }
                           className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
                             ${
@@ -390,15 +443,19 @@ export default function IndexSales() {
           </table>
         </div>
 
-        <Paginator
-          currentPage={currentPage}
-          perPage={perPage}
-          totalPages={totalPages}
-          filteredLength={filtered.length}
-          goToPage={goToPage}
+       <Paginator
+          currentPage={currentPageValue}
+          perPage={pageSize}
+          totalPages={currentTotalPages}
+          filteredLength={displayedSales.length}
+          totalItems={currentTotalItems}
+          goToPage={handlePageChange}
         />
 
-        <SaleDetailModal sale={selectedSale} onClose={() => setSelectedSale(null)} />
+        <SaleDetailModal
+          sale={selectedSale}
+          onClose={() => setSelectedSale(null)}
+        />
       </div>
     </>
   );

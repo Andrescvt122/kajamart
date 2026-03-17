@@ -4,11 +4,11 @@ import axios from "axios";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
-const API_URL = `${API_BASE}/suppliers`;
+const API_URL = `${API_BASE}/suppliers/all`;
 
 /**
  * Hook para el Dashboard de Proveedores
- * - Consume GET /suppliers (debe traer compras y proveedor_categoria)
+ * - Consume GET /suppliers/all
  * - Normaliza:
  *   - lastDelivery = última fecha_compra (Date)
  *   - totalPurchases = suma de total en compras (Number)

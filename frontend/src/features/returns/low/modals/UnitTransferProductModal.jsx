@@ -4,7 +4,6 @@ import { X, Package, CheckCircle, AlertTriangle } from "lucide-react";
 import ProductSearchSelect from "../../../../shared/components/searchBars/productSearchSelect";
 import ProductRegisterModal from "../modals/productRegisterModal";
 import ProductRegistrationModal from "../modals/ProductRegistrationModal";
-import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 const UnitTransferProductModal = ({
   isOpen,
   onClose,
@@ -12,27 +11,17 @@ const UnitTransferProductModal = ({
   currentBoxProductName, // opcional para mostrar contexto
   transferQuantity
 }) => {
-  const isReturnModal = false;
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [error, setError] = useState("");
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
   const [isDetailRegistrationOpen, setIsDetailRegistrationOpen] =
     useState(false);
   const [createdProduct, setCreatedProduct] = useState(null); // producto base creado
-  const [existingBarcodes, setExistingBarcodes] = useState([]); // opcional, si lo usas
-  const { postDetailProduct } = usePostDetailProduct();
-  console.log("transferQuantity", transferQuantity);
-  const handlePickDestination = (detalleProducto) => {
-    setSelectedDestination(detalleProducto);
-    setError("");
-  };
-
   const handleConfirm = () => {
     if (!selectedDestination) {
       setError("Selecciona el producto (unidad) destino del traslado.");
       return;
     }
-    console.log("DESTINO ENVIADO A REGISTERLOW:", selectedDestination);
     onConfirmDestination(selectedDestination);
     setSelectedDestination(null);
     setError("");
@@ -44,7 +33,6 @@ const UnitTransferProductModal = ({
     setError("");
     onClose();
   };
-  console.log("si", createdProduct);
   const adaptedCreatedForRegistration = createdProduct
     ? {
         id_producto:
@@ -58,7 +46,6 @@ const UnitTransferProductModal = ({
         },
       }
     : null;
-  console.log(adaptedCreatedForRegistration);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -123,7 +110,7 @@ const UnitTransferProductModal = ({
                     setSelectedDestination(detalle);
                     setError("");
                   }}
-                  onCreateProduct={() => setIsCreateProductOpen(true)}  
+                  onCreateProduct={() => setIsCreateProductOpen(true)}
                 />
 
                 {/* Preview seleccionado */}
@@ -147,9 +134,10 @@ const UnitTransferProductModal = ({
                     <button
                       type="button"
                       onClick={() => setSelectedDestination(null)}
-                      className="px-3 py-2 text-xs rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition"
+                      className="flex items-center justify-center px-2 py-1 text-xs rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition text-gray-700"
+                      title="Eliminar selección"
                     >
-                      Cambiar
+                      <X size={16} />
                     </button>
                   </div>
                 )}
@@ -183,6 +171,7 @@ const UnitTransferProductModal = ({
           </motion.div>
           <ProductRegisterModal
             isOpen={isCreateProductOpen}
+            deferSubmit
             onClose={() => setIsCreateProductOpen(false)}
             onCreated={(newProduct) => {
               // 1) guardar producto creado
@@ -197,6 +186,7 @@ const UnitTransferProductModal = ({
           />
           <ProductRegistrationModal
             isOpen={isDetailRegistrationOpen}
+            deferSubmit
             onClose={() => setIsDetailRegistrationOpen(false)}
             onCancelRegistration={() => {
               setIsDetailRegistrationOpen(false);
@@ -207,8 +197,15 @@ const UnitTransferProductModal = ({
             existingBarcodes={[]}
             transferQuantity={transferQuantity}
             onConfirm={(createdDetail) => {
-              // el modal puede llamarte con createdDetail (si posteó internamente)
-              setSelectedDestination(createdDetail);
+              setSelectedDestination({
+                ...createdDetail,
+                isPendingRegistration: true,
+                pendingProduct: createdProduct,
+                pendingDetail: createdDetail,
+                productos:
+                  createdDetail?.productos ||
+                  adaptedCreatedForRegistration?.productos,
+              });
               setError("");
             }}
           />

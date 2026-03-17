@@ -19,6 +19,7 @@ export default function SuplliersRegisterModal({
   onClose,
   onSubmit,
   categoriasOptions = [],
+  existingSuppliers = [], // 👈 lista de proveedores existentes para validar duplicados
 }) {
   const [form, setForm] = useState({
     nombre: "",
@@ -86,15 +87,42 @@ export default function SuplliersRegisterModal({
   const personaRef = useRef();
   const categoriasRef = useRef();
 
+  // --- helpers de normalización/validación ---
+  const normalizeNit = (v = "") => String(v).trim().replace(/[.\-\s]/g, ""); // quita . - espacios
+  const normalizePhone = (v = "") => String(v).trim().replace(/[^\d]/g, "");
+  const normalizeEmail = (v = "") => String(v).trim().toLowerCase();
+  const normalizeAddress = (v = "") =>
+    String(v).trim().toLowerCase().replace(/\s+/g, " ");
+
+  const isValidNitOrCedula = (v = "") => {
+    const value = String(v).trim();
+
+    // Solo caracteres permitidos
+    if (!/^[0-9.\-\s]+$/.test(value)) return false;
+
+    const plain = normalizeNit(value); // solo dígitos
+    if (!plain) return false;
+
+    // Cédula / ID: solo dígitos (sin formato)
+    if (/^\d{5,15}$/.test(plain) && !value.includes("-") && !value.includes(".")) {
+      return true;
+    }
+
+    // NIT con puntos y guion: XXX.XXX.XXX-Y (acepta 1..3 grupos .xxx)
+    const nitDots = /^\d{1,3}(\.\d{3}){1,3}-\d$/.test(value);
+    if (nitDots) return true;
+
+    // NIT sin puntos pero con guion: 900123456-7
+    const nitDash = /^\d{5,15}-\d$/.test(value);
+    return nitDash;
+  };
+
   // Cierra dropdowns si haces click afuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (personaRef.current && !personaRef.current.contains(event.target))
         setPersonaOpen(false);
-      if (
-        categoriasRef.current &&
-        !categoriasRef.current.contains(event.target)
-      )
+      if (categoriasRef.current && !categoriasRef.current.contains(event.target))
         setCategoriasOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -105,10 +133,19 @@ export default function SuplliersRegisterModal({
     const { name, value } = e.target;
     let newValue = value;
 
-    // Solo campos numéricos: quitar 'e' o 'E'
-    if (name === "nit" || name === "telefono") {
-      newValue = value.replace(/[eE]/g, "");
+    if (name === "telefono") {
+      // teléfono: solo dígitos
+      newValue = value.replace(/[eE]/g, "").replace(/[^\d]/g, "");
     }
+
+    if (name === "nit") {
+      // nit: permite dígitos, '.', '-', espacios
+      newValue = value
+        .replace(/[eE]/g, "")
+        .replace(/[^0-9.\-\s]/g, "")
+        .replace(/\s+/g, " ");
+    }
+
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
 
@@ -121,16 +158,43 @@ export default function SuplliersRegisterModal({
     } else if (name === "correo") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (value && !emailRegex.test(value)) error = "Correo inválido";
-    } else if (name === "telefono" || name === "nit") {
+    } else if (name === "telefono") {
       if (value && !/^\d+$/.test(value)) error = "Solo se permiten números";
+    } else if (name === "nit") {
+      if (value && !isValidNitOrCedula(value)) {
+        error = "NIT/CC inválido. Ej: 900.123.456-7 o 123456789";
+      }
     }
 
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  const handleNumericKeyDown = (e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab")
-      e.preventDefault();
+  const handleTelefonoKeyDown = (e) => {
+    const allowed = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+    if (allowed.includes(e.key)) return;
+    if (!/[0-9]/.test(e.key)) e.preventDefault();
+  };
+
+  const handleNitKeyDown = (e) => {
+    const allowed = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+    if (allowed.includes(e.key)) return;
+    if (!/[0-9.\-]/.test(e.key)) e.preventDefault();
   };
 
   // Toggle por ID
@@ -168,24 +232,79 @@ export default function SuplliersRegisterModal({
       } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
-      } else if (key === "telefono" || key === "nit") {
+      } else if (key === "telefono") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
+      } else if (key === "nit") {
+        if (value && !isValidNitOrCedula(value))
+          newErrors[key] = "NIT/CC inválido. Ej: 900.123.456-7 o 123456789";
       }
     });
+
     if (!Array.isArray(form.categorias) || form.categorias.length === 0)
       newErrors.categorias = "Seleccione al menos una categoría";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const validateDuplicates = () => {
+    if (!Array.isArray(existingSuppliers) || existingSuppliers.length === 0)
+      return {};
+
+    const nitN = normalizeNit(form.nit);
+    const telN = normalizePhone(form.telefono);
+    const mailN = normalizeEmail(form.correo);
+    const dirN = normalizeAddress(form.direccion);
+
+    const dup = {
+      nit:
+        !!nitN &&
+        existingSuppliers.some((s) => normalizeNit(s?.nit) === nitN),
+      telefono:
+        !!telN &&
+        existingSuppliers.some((s) => normalizePhone(s?.telefono) === telN),
+      correo:
+        !!mailN &&
+        existingSuppliers.some((s) => normalizeEmail(s?.correo) === mailN),
+      // dirección es opcional: solo valida si el usuario escribió algo
+      direccion:
+        !!dirN &&
+        existingSuppliers.some(
+          (s) => normalizeAddress(s?.direccion) === dirN
+        ),
+    };
+
+    const newErrors = {};
+    if (dup.nit) newErrors.nit = "Ya existe un proveedor con este NIT/CC";
+    if (dup.telefono)
+      newErrors.telefono = "Ya existe un proveedor con este teléfono";
+    if (dup.correo) newErrors.correo = "Ya existe un proveedor con este correo";
+    if (dup.direccion)
+      newErrors.direccion = "Ya existe un proveedor con esta dirección";
+
+    return newErrors;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateAll()) return;
 
+    const dupErrors = validateDuplicates();
+    if (Object.keys(dupErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...dupErrors }));
+      showErrorAlert &&
+        showErrorAlert(
+          "Hay datos repetidos. Revisa NIT/Teléfono/Correo/Dirección."
+        );
+      return;
+    }
+
+    const nitNormalized = normalizeNit(form.nit);
+
     // payload al backend (estado SIEMPRE activo, sin max_porcentaje_de_devolucion)
     const payload = {
       nombre: form.nombre.trim(),
-      nit: Number(form.nit),
+      nit: nitNormalized, // 👈 ahora se manda normalizado (string)
       tipo_persona: form.personaType,
       contacto: form.contacto.trim(),
       telefono: form.telefono.trim(),
@@ -297,8 +416,8 @@ export default function SuplliersRegisterModal({
                   value={form.nit}
                   onChange={handleFormChange}
                   onBlur={handleBlur}
-                  onKeyDown={handleNumericKeyDown}
-                  inputMode="numeric"
+                  onKeyDown={handleNitKeyDown}
+                  inputMode="tel"
                   placeholder="NIT / Identificación"
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
@@ -398,7 +517,7 @@ export default function SuplliersRegisterModal({
                   value={form.telefono}
                   onChange={handleFormChange}
                   onBlur={handleBlur}
-                  onKeyDown={handleNumericKeyDown}
+                  onKeyDown={handleTelefonoKeyDown}
                   inputMode="numeric"
                   placeholder="Teléfono"
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
@@ -548,9 +667,13 @@ export default function SuplliersRegisterModal({
                 name="direccion"
                 value={form.direccion}
                 onChange={handleFormChange}
+                onBlur={handleBlur}
                 placeholder="Dirección del proveedor"
                 className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
               />
+              {errors.direccion && (
+                <span className="text-red-500 text-xs">{errors.direccion}</span>
+              )}
             </div>
 
             {/* Botones */}

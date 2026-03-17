@@ -43,6 +43,59 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
   // Estado para rastrear el estado original para ver si hubo cambios
   const [originalForm, setOriginalForm] = useState(null);
 
+  // --- Nuevo: estado de errores y validez ---
+  const [errors, setErrors] = useState({
+    nombre: "",
+    apellido: "",
+    documento: "",
+    telefono: "",
+    correo: "",
+  });
+
+  // Helpers de validación
+  const validators = {
+    nombre: (v) => {
+      if (!v || v.trim().length < 2) return "El nombre debe tener al menos 2 caracteres.";
+      if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s'-]+$/.test(v)) return "Nombre contiene caracteres inválidos.";
+      return "";
+    },
+    apellido: (v) => {
+      if (v && v.trim().length > 0 && v.trim().length < 2) return "El apellido debe tener al menos 2 caracteres si se ingresa.";
+      if (v && !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s'-]+$/.test(v)) return "Apellido contiene caracteres inválidos.";
+      return "";
+    },
+    documento: (v) => {
+      if (!v || v.trim().length === 0) return "El documento es obligatorio.";
+      if (!/^\d{6,12}$/.test(v)) return "Documento debe tener entre 6 y 12 dígitos numéricos.";
+      return "";
+    },
+    telefono: (v) => {
+      if (!v) return "";
+      if (!/^\+?\d{7,15}$/.test(v)) return "Teléfono inválido (7-15 dígitos, opcional '+').";
+      return "";
+    },
+    correo: (v) => {
+      if (!v) return "Correo inválido.";
+      // formato simple
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Formato de correo inválido.";
+      return "";
+    },
+  };
+
+  const validateField = (name, value) => {
+    if (validators[name]) return validators[name](value);
+    return "";
+  };
+
+  const validateAll = (obj) => {
+    const newErrors = {};
+    Object.keys(errors).forEach((k) => {
+      newErrors[k] = validateField(k, obj[k]);
+    });
+    setErrors(newErrors);
+    return Object.values(newErrors).every((e) => !e);
+  };
+
   useEffect(() => {
     if (!user) {
         // ... (limpiar formulario)
@@ -65,11 +118,18 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
 
     setForm(initialForm);
     setOriginalForm(initialForm);
+
+    // Validar al cargar
+    validateAll(initialForm);
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    const newForm = { ...form, [name]: value };
+    setForm(newForm);
+    // Validación en tiempo real
+    const fieldError = validateField(name, value);
+    setErrors((p) => ({ ...p, [name]: fieldError }));
   };
 
   const handleEstadoChange = () => {
@@ -86,6 +146,13 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (apiLoading || !user || !originalForm) return;
+
+    // Validar antes de enviar
+    const valid = validateAll(form);
+    if (!valid) {
+      showErrorAlert("Corrige los errores del formulario antes de enviar.");
+      return;
+    }
 
     const confirmed = await showConfirmAlert("¿Confirmas actualizar este usuario?");
     if (!confirmed) return;
@@ -190,8 +257,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       value={form.nombre}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none ${errors.nombre ? "border-red-400" : ""}`}
                     />
+                    {errors.nombre && <p className="text-xs text-red-600 mt-1">{errors.nombre}</p>}
                   </div>
                   
                   {/* Apellido */}
@@ -201,8 +269,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       name="apellido"
                       value={form.apellido}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none ${errors.apellido ? "border-red-400" : ""}`}
                     />
+                    {errors.apellido && <p className="text-xs text-red-600 mt-1">{errors.apellido}</p>}
                   </div>
 
                   {/* Documento */}
@@ -214,8 +283,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       value={form.documento}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none ${errors.documento ? "border-red-400" : ""}`}
                     />
+                    {errors.documento && <p className="text-xs text-red-600 mt-1">{errors.documento}</p>}
                   </div>
 
                   {/* Teléfono */}
@@ -226,8 +296,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       name="telefono"
                       value={form.telefono}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black border-gray-200 focus:ring-2 focus:ring-green-200 focus:outline-none ${errors.telefono ? "border-red-400" : ""}`}
                     />
+                    {errors.telefono && <p className="text-xs text-red-600 mt-1">{errors.telefono}</p>}
                   </div>
 
                   {/* Correo (Solo Lectura) */}
@@ -238,8 +309,9 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                       name="correo"
                       value={form.correo}
                       readOnly
-                      className="w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-gray-600 focus:outline-none"
+                      className={`w-full px-4 py-2.5 border rounded-lg bg-gray-100 text-gray-600 focus:outline-none ${errors.correo ? "border-red-400" : ""}`}
                     />
+                    {errors.correo && <p className="text-xs text-red-600 mt-1">{errors.correo}</p>}
                   </div>
 
                   {/* Rol (Solo Lectura) */}
@@ -282,7 +354,7 @@ export default function EditUsers({ isOpen, onClose, user, onSave }) {
                   </button>
                   <button
                     type="submit"
-                    disabled={apiLoading}
+                    disabled={apiLoading || Object.values(errors).some(Boolean)}
                     className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition disabled:bg-green-300"
                   >
                     {apiLoading ? "Actualizando..." : "Actualizar Usuario"}

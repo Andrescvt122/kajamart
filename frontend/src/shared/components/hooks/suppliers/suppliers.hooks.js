@@ -5,13 +5,29 @@ import axios from "axios";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
 const API_URL = `${API_BASE}/suppliers`;
 
+
+export const getAllSuppliersForExport = async (search = "") => {
+  const res = await axios.get(API_URL, {
+    params: {
+      page: 1,
+      limit: 10000,
+      search: search,
+    },
+  });
+
+  return res.data.data;
+};
 // 🔹 Obtener todos los proveedores
-export const useSuppliers = () =>
+export const useSuppliers = (page = 1, limit = 6, search = "") =>
   useQuery({
-    queryKey: ["suppliers"],
+    queryKey: ["suppliers", page, limit, search],
     queryFn: async () => {
-      const { data } = await axios.get(API_URL);
-      return Array.isArray(data) ? data : [];
+
+      const { data } = await axios.get(API_URL, {
+        params: { page, limit, search },
+      });
+
+      return data;
     },
   });
 

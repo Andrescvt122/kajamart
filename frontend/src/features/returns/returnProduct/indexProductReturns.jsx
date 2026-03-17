@@ -1,13 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  ViewButton,
-  EditButton,
-  DeleteButton,
   ExportExcelButton,
   ExportPDFButton,
   ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search, Check, XCircle, Loader2 } from "lucide-react";
+import { Search, Check, XCircle } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +13,14 @@ import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
 import { generateProductReturnsPDF } from "./helper/exportToPdf";
 import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
+import { useSearchReturnProducts } from "../../../shared/components/hooks/returnProducts/useSearchReturnProducts";
+import { useExportReturnProducts } from "../../../shared/components/hooks/returnProducts/useExportReturnProducts";
 import { useAuth } from "../../../context/useAtuh";
+import Loading from "../../../features/onboarding/loading.jsx";
+import Swal from "sweetalert2";
+import { useAnnulReturnProduct } from "../../../shared/components/hooks/returnProducts/useAnnulReturnProduct";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 // ===== Helpers de responsive (tomados de IndexLow) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -63,16 +67,70 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexProductReturns() {
-  const { returns = [], loading, error, refetch } = useFetchReturnProducts();
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useFetchReturnProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedReturnProducts = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchReturnProducts(searchTerm);
+  const { exportReturnProductsExcel, exportReturnProductsPdf } =
+    useExportReturnProducts();
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedReturnData, setSelectedReturnData] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
-  const perPage = 6;
+  const [annulledMap, setAnnulledMap] = useState({});
+  const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
-  const canCreate = hasPermission('Crear devolución productos');
+  const canCreate = hasPermission('Crear devolucion productos');
+  const canAnnul = hasPermission('Anular devolucion Productos');
+  const { annulReturnProduct, loading: annulling } = useAnnulReturnProduct();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
+
+  const buildAnnulErrorMessage = (err) => {
+    const payload = err?.response?.data ?? {};
+    const baseMessage =
+      payload.error || payload.message || "No se pudo anular el registro.";
+
+    const code = payload.code ? `Codigo: ${payload.code}` : null;
+    const relatedTables = Array.isArray(payload.tablas_relacionadas)
+      ? payload.tablas_relacionadas
+      : [];
+
+    if (!code && !relatedTables.length) return baseMessage;
+
+    const parts = [baseMessage];
+    if (code) parts.push(code);
+    if (relatedTables.length) {
+      parts.push(`Tablas relacionadas: ${relatedTables.join(", ")}`);
+    }
+
+    return parts.join("<br/>");
+  };
+
+  const isRelationConflict = (payload = {}) => {
+    const text = `${payload.error || ""} ${payload.message || ""}`.toLowerCase();
+    return (
+      payload.code === "RETURN_PRODUCT_DETAIL_RELATION_CONFLICT" ||
+      text.includes("relacionad")
+    );
+  };
+
+  const getBlockKey = (id) => String(id);
   // Normalización de texto
   const normalizeText = (text) =>
     (text ?? "")
@@ -81,35 +139,87 @@ export default function IndexProductReturns() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Aplanar datos y mostrar productos individuales con un id de fila estable
+  // items computed from current page only
   const flattenedProducts = useMemo(() => {
-    return (returns || []).flatMap((returnItem) =>
+    const pageData = isSearching ? searchedReturnProducts : pagesCache[currentPage] || [];
+    return pageData.flatMap((returnItem) =>
       (returnItem.products || []).map((product, idx) => ({
         idReturn: returnItem.idReturn,
         dateReturn: returnItem.dateReturn,
         responsable: returnItem.responsable,
+        createdAt: returnItem.createdAt,
+        dateISO: returnItem.dateISO,
+        isActive: returnItem.isActive,
         _rowId:
           `${returnItem.idReturn}-` +
           (product.idProduct ?? product.id ?? product.name ?? idx),
         ...product,
       }))
     );
-  }, [returns]);
+  }, [pagesCache, currentPage, isSearching, searchedReturnProducts]);
 
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    if (!s) return flattenedProducts;
+    const byStatus = flattenedProducts.filter((product) => {
+      const isActive = annulledMap[product.idReturn] ?? product.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive" || statusFilter === "annulled") return isActive === false;
+      return true;
+    });
+    if (!s) return byStatus;
 
-    return flattenedProducts.filter((product) =>
+    return byStatus.filter((product) =>
       Object.values(product).some((value) => normalizeText(value).includes(s))
     );
-  }, [flattenedProducts, searchTerm]);
+  }, [flattenedProducts, searchTerm, statusFilter, annulledMap]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const filterReturnProductsForExport = (items) => {
+    const s = normalizeText(searchTerm.trim());
+    const flattened = items.flatMap((returnItem) =>
+      (returnItem.products || []).map((product, idx) => ({
+        idReturn: returnItem.idReturn,
+        dateReturn: returnItem.dateReturn,
+        responsable: returnItem.responsable,
+        createdAt: returnItem.createdAt,
+        dateISO: returnItem.dateISO,
+        isActive: returnItem.isActive,
+        _rowId:
+          `${returnItem.idReturn}-` +
+          (product.idProduct ?? product.id ?? product.name ?? idx),
+        ...product,
+      }))
+    );
+
+    const byStatus = flattened.filter((product) => {
+      const isActive = annulledMap[product.idReturn] ?? product.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive" || statusFilter === "annulled")
+        return isActive === false;
+      return true;
+    });
+
+    if (!s) return byStatus;
+
+    return byStatus.filter((product) =>
+      Object.values(product).some((value) => normalizeText(value).includes(s))
+    );
+  };
+
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? filtered.length : getLoadedCount();
   const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+  }, [filtered, currentPage, perPage, isSearching]);
+
+  useEffect(() => {
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -127,13 +237,15 @@ export default function IndexProductReturns() {
   const handleOpenReturnModal = () => setIsReturnModalOpen(true);
   const handleCloseReturnModal = () => {
     setIsReturnModalOpen(false);
-    refetch?.();
+    // reset cache and fetch first page on new registration
+    reset();
+    setCurrentPage(1);
+    fetchPage(1, { force: true });
   };
 
   const handleOpenDetailsModal = (productData) => {
-    const returnItem = (returns || []).find(
-      (r) => r.idReturn === productData.idReturn
-    );
+    const pageData = isSearching ? searchedReturnProducts : pagesCache[currentPage] || [];
+    const returnItem = pageData.find((r) => r.idReturn === productData.idReturn);
     if (returnItem) {
       setSelectedReturnData(returnItem);
       setIsDetailsModalOpen(true);
@@ -143,6 +255,82 @@ export default function IndexProductReturns() {
     setIsDetailsModalOpen(false);
     setSelectedReturnData(null);
   };
+
+  const handleAnnulReturn = async (item) => {
+    const itemKey = getBlockKey(item.idReturn);
+    const status = annulledMap[item.idReturn] ?? item.isActive;
+    const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
+    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateISO, status);
+    if (isDisabled || isBlockedByRelation) return;
+
+    let relationConflictDetected = false;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      allowEscapeKey: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          await annulReturnProduct(item.idReturn);
+          setAnnulledMap((prev) => ({ ...prev, [item.idReturn]: false }));
+          // refresh current page
+          await fetchPage(currentPage, { force: true });
+          return { ok: true };
+        } catch (err) {
+          const payload = err?.response?.data ?? {};
+          relationConflictDetected = isRelationConflict(payload);
+          return {
+            ok: false,
+            relationConflict: relationConflictDetected,
+            message: buildAnnulErrorMessage(err),
+          };
+        }
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    if (result.value?.ok) {
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+      return;
+    }
+
+    await Swal.fire({
+      title: "No se pudo anular",
+      html: result.value?.message || "No se pudo anular el registro.",
+      icon: "error",
+      confirmButtonText: "Aceptar",
+    });
+
+    if (relationConflictDetected || result.value?.relationConflict) {
+      setBlockedAnnulMap((prev) => ({ ...prev, [itemKey]: true }));
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
@@ -163,7 +351,7 @@ export default function IndexProductReturns() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">Devoluciones de productos</h2>
@@ -172,26 +360,48 @@ export default function IndexProductReturns() {
 
           {/* Toolbar responsive */}
           <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="relative w-full min-w-0">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+            <div className="w-full min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar productos en devoluciones..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Buscar productos en devoluciones..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+              <StatusFilterDropdown
+                value={statusFilter}
+                onChange={(nextStatus) => {
+                  setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="w-full sm:w-[220px]"
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductReturnsXLS(filtered)}>
+              <ExportExcelButton
+                event={() =>
+                  exportReturnProductsExcel({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
-              <ExportPDFButton event={() => generateProductReturnsPDF(filtered)}>
+              <ExportPDFButton
+                event={() =>
+                  exportReturnProductsPdf({
+                    transform: filterReturnProductsForExport,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
               <motion.button
@@ -212,14 +422,14 @@ export default function IndexProductReturns() {
           {/* ===== LISTADO RESPONSIVE ===== */}
 
           {/* Móvil: tarjetas / acordeón */}
-          <motion.div className="md:hidden" variants={tableVariants} initial="hidden" animate="visible">
-            {loading ? (
+          <motion.div className="md:hidden" variants={tableVariants}>
+                {loading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loader2 size={24} className="animate-spin" />
+                <Loading inline heightClass="h-28" />
               </div>
-            ) : error ? (
+            ) : error || searchError ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                Error al cargar las devoluciones
+                {searchError || error || "Error al cargar las devoluciones"}
               </div>
             ) : pageItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
@@ -307,10 +517,23 @@ export default function IndexProductReturns() {
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="mt-4 flex items-center justify-between gap-2">
                                 <ViewDetailsButton
                                   event={() => handleOpenDetailsModal(item)}
                                 />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Anular</span>
+                                  <ToggleSwitch
+                                    checked={annulledMap[item.idReturn] ?? item.isActive}
+                                    disabled={
+                                      getAnnulmentMeta(
+                                        item.createdAt || item.dateISO,
+                                        annulledMap[item.idReturn] ?? item.isActive
+                                      ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]
+                                    }
+                                    onChange={() => handleAnnulReturn(item)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -327,8 +550,6 @@ export default function IndexProductReturns() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -340,27 +561,35 @@ export default function IndexProductReturns() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Descuento</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Razón</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Responsable</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <motion.tbody className="divide-y divide-gray-100" variants={tableVariants}>
-                  {loading ? (
+                <motion.tbody
+                  className="divide-y divide-gray-100 text-gray-700"
+                  variants={tableVariants}
+                >
+                  {loading || (isSearching && searchLoading) ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12">
-                        <div className="flex items-center justify-center">
-                          <Loader2 size={24} className="animate-spin" />
-                        </div>
+                      <td colSpan={8} className="px-6 py-12 text-center">
+                        <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-red-500">
+                      <td colSpan={8} className="px-6 py-12 text-center text-red-500">
                         Error al cargar las devoluciones
+                      </td>
+                    </tr>
+                  ) : error || searchError ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-8 text-center text-red-500">
+                        {searchError || error || "Error al cargar las devoluciones"}
                       </td>
                     </tr>
                   ) : pageItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                         No se encontraron productos en devoluciones.
                       </td>
                     </tr>
@@ -390,7 +619,7 @@ export default function IndexProductReturns() {
                           <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {item.quantity}
                           </td>
-                          <td className="px-4 lg:px-6 py-4 text-sm whitespace-nowrap">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {item.discount ? (
                               <Check size={18} className="text-green-600 inline-block align-middle" />
                             ) : (
@@ -449,10 +678,27 @@ export default function IndexProductReturns() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsable}
                             </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <ToggleSwitch
+                                checked={annulledMap[item.idReturn] ?? item.isActive}
+                                disabled={
+                                  !canAnnul || getAnnulmentMeta(
+                                    item.createdAt || item.dateISO,
+                                    annulledMap[item.idReturn] ?? item.isActive
+                                  ).isDisabled || blockedAnnulMap[getBlockKey(item.idReturn)]
+                                }
+                                onChange={() => handleAnnulReturn(item)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {(annulledMap[item.idReturn] ?? item.isActive) ? "Activo" : "Anulado"}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-right">
                             <div className="inline-flex items-center gap-2">
@@ -474,7 +720,7 @@ export default function IndexProductReturns() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

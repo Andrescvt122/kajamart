@@ -1,163 +1,1420 @@
 // IndexRegisterPurchase.jsx
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductRegisterModal from "../products/productRegisterModal";
 import SuplliersRegisterModal from "../suppliers/SuplliersRegisterModal";
 
+// ✅ NUEVO: SweetAlert2 (igual que ventas)
+import Swal from "sweetalert2";
+
+// ✅ Iconos
+import { FiEdit, FiTrash2 } from "react-icons/fi";
+
+// ✅ Hooks reales (NO modificar hooks)
+import { useSuppliers as useSuppliersQuery } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
+import { useAllProducts as useAllProductsQuery } from "../../shared/components/hooks/products/products.hooks.js";
+import {
+  useCreatePurchase,
+  useValidatePurchaseInvoiceNumber,
+} from "../../shared/components/hooks/purchases/purchase.hooks.js";
+
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
+  const createPurchaseMutation = useCreatePurchase();
+  const validateInvoiceMutation = useValidatePurchaseInvoiceNumber();
 
-  // Estados
+  // =========================
+  // Carga real desde backend
+  // =========================
+  const {
+    data: suppliersResponse,
+    isLoading: isSuppliersLoading,
+    isError: isSuppliersError,
+    error: suppliersError,
+  } = useSuppliersQuery(1, 1000);
+
+  const {
+    data: productsRaw = [],
+    isLoading: isProductsLoading,
+    isError: isProductsError,
+    error: productsError,
+  } = useAllProductsQuery();
+
+  // =========================
+  // Estados de compra
+  // =========================
   const [proveedor, setProveedor] = useState(null);
-  const [codigoProveedor, setCodigoProveedor] = useState("");
-  const [codigoProducto, setCodigoProducto] = useState("");
   const [productos, setProductos] = useState([]);
   const [mensajeProveedor, setMensajeProveedor] = useState(null);
   const [mensajeProducto, setMensajeProducto] = useState(null);
   const [comprobante, setComprobante] = useState(null);
-  const [showModalProducto, setShowModalProducto] = useState(false);
-  const [showModalProveedor, setShowModalProveedor] = useState(false);
 
-  // Simulación BD
-  const proveedoresDB = [
-    { nit: "900123456", nombre: "Proveedor A" },
-    { nit: "800987654", nombre: "Proveedor B" },
-    { nit: "901654321", nombre: "Proveedor C" },
-  ];
+  // ✅ Alertas (estilo como las otras)
+  const [mensajeComprobante, setMensajeComprobante] = useState(null);
 
-  const productosDB = [
-    { codigo: "P001", nombre: "Producto 1", precio: 10 },
-    { codigo: "P002", nombre: "Producto 2", precio: 20 },
-    { codigo: "P003", nombre: "Producto 3", precio: 30 },
-  ];
+  // ✅ loading registrar compra
+  const [isRegistrandoCompra, setIsRegistrandoCompra] = useState(false);
 
-  // Buscar proveedor (tiempo real)
-  const handleProveedorChange = (valor) => {
-    setCodigoProveedor(valor);
+  // ✅ Modales
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
 
-    if (!valor.trim()) {
-      setProveedor(null);
-      setMensajeProveedor(null);
-      return;
-    }
+  // =========================
+  // ✅ MODAL PAQUETES + unidades/paq
+  // ✅ SIN CAMPO "MARCA"
+  // - cantidad (paquetes) inicia vacío (se puede borrar)
+  // - unidadesPorPaquete inicia vacío (se puede borrar)
+  // - CÁLCULO (subtotal/total) SE HACE POR PAQUETES, NO POR UNIDADES
+  // =========================
+  const [isPackModalOpen, setIsPackModalOpen] = useState(false);
+  const [productoPackPendiente, setProductoPackPendiente] = useState(null);
 
-    const provEncontrado = proveedoresDB.find((p) => p.nit === valor.trim());
+  const [packForm, setPackForm] = useState({
+    cantidad: "", // paquetes
+    unidadesPorPaquete: "", // informativo
+    selectedIndex: 0,
+    paquetes: [],
+  });
 
-    if (provEncontrado) {
-      setProveedor(provEncontrado);
-      setMensajeProveedor({
-        tipo: "ok",
-        texto: `✅ Proveedor encontrado: ${provEncontrado.nombre}`,
-      });
-    } else {
-      setProveedor(null);
-      setMensajeProveedor({
-        tipo: "error",
-        texto: "❌ Proveedor no encontrado. Puedes crearlo.",
-      });
-    }
+  const [packTouched, setPackTouched] = useState({});
+  const [packErrors, setPackErrors] = useState({});
+
+  // ✅ Modal editar desde tabla (mismo formulario)
+  const [isPackEditOpen, setIsPackEditOpen] = useState(false);
+  const [packEditIndex, setPackEditIndex] = useState(null);
+
+  // =========================
+  // Estados de factura
+  // =========================
+  const [numeroFactura, setNumeroFactura] = useState("");
+  const [fechaCompra, setFechaCompra] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [facturaEstado, setFacturaEstado] = useState({
+    tipo: "idle",
+    texto: "",
+  });
+
+  // =========================
+  // Filtros / buscadores
+  // =========================
+  const [proveedorQuery, setProveedorQuery] = useState("");
+  const [productoQuery, setProductoQuery] = useState("");
+  const [isProvOpen, setIsProvOpen] = useState(false);
+  const [isProdOpen, setIsProdOpen] = useState(false);
+  const [provActiveIndex, setProvActiveIndex] = useState(-1);
+  const [prodActiveIndex, setProdActiveIndex] = useState(-1);
+
+  const provWrapRef = useRef(null);
+  const prodWrapRef = useRef(null);
+
+  // =========================
+  // ✅ Auto-seleccionar proveedor recién creado (SIN tocar modal)
+  // =========================
+  const prevSupplierIdsRef = useRef(new Set());
+  const pendingAutoSelectSupplierRef = useRef(false);
+
+  // =========================
+  // ✅ Bloquear scroll mientras modal abierto
+  // =========================
+  const anyModalOpen =
+    isProductModalOpen || isSupplierModalOpen || isPackModalOpen || isPackEditOpen;
+
+  useEffect(() => {
+    document.body.style.overflow = anyModalOpen ? "hidden" : "auto";
+
+    const cls = "purchase-modal-open";
+    document.documentElement.classList.toggle(cls, anyModalOpen);
+    document.body.classList.toggle(cls, anyModalOpen);
+
+    return () => {
+      document.body.style.overflow = "auto";
+      document.documentElement.classList.remove(cls);
+      document.body.classList.remove(cls);
+    };
+  }, [anyModalOpen]);
+
+  // =========================
+  // ✅ Quitar flechas (spinners) en inputs number
+  // =========================
+  const noSpinNumber =
+    " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
+
+  const onlyDigits = (value) => String(value ?? "").replace(/\D/g, "");
+
+  // =========================
+  // Normalizadores
+  // =========================
+  const normalizeText = (text) =>
+    String(text ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+  // =========================
+  // ✅ Helpers FECHA (vencimiento)
+  // =========================
+  const startOfDay = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
   };
 
-  // Buscar producto (tiempo real)
-  const handleProductoChange = (valor) => {
-    setCodigoProducto(valor);
+  const addDays = (d, days) => {
+    const x = startOfDay(d);
+    x.setDate(x.getDate() + days);
+    return x;
+  };
 
-    if (!valor.trim()) {
-      setMensajeProducto(null);
-      return;
+  const toISODate = (d) => startOfDay(d).toISOString().slice(0, 10);
+
+  // ✅ mínimo permitido: hoy + 4 días
+  const minExpiryDateStr = useMemo(() => toISODate(addDays(new Date(), 4)), []);
+
+  // =========================
+  // ✅ Helpers cantidad (paquetes x unidades) (SOLO INFORMATIVO)
+  // =========================
+  const toNonNegIntFromString = (s) => {
+    if (s === "" || s == null) return 0;
+    const n = Number(s);
+    if (Number.isNaN(n)) return 0;
+    return Math.max(0, Math.floor(n));
+  };
+
+  const validatePositiveIntegerField = (value, label) => {
+    const raw = String(value ?? "").trim();
+
+    if (!raw) return `${label} es obligatorio.`;
+    if (!/^\d+$/.test(raw)) return `${label} solo permite numeros.`;
+
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return `${label} debe ser mayor a 0.`;
+
+    return "";
+  };
+
+  const getProductoCompraErrors = (prod) => ({
+    cantidad: validatePositiveIntegerField(
+      prod?.cantidadPaquetes ?? prod?.cantidad ?? "",
+      "La cantidad"
+    ),
+    precioCompra: validatePositiveIntegerField(
+      prod?.precioCompra ?? "",
+      "El precio de compra"
+    ),
+    precioVenta: validatePositiveIntegerField(
+      prod?.precioVenta ?? "",
+      "El precio de venta"
+    ),
+  });
+
+  const getTotalUnidadesFromForm = (form) => {
+    const paquetes = toNonNegIntFromString(form?.cantidad);
+    const unid = toNonNegIntFromString(form?.unidadesPorPaquete);
+    return paquetes * unid;
+  };
+
+  // =========================
+  // ✅ Validación por campo (paquete)
+  // SOLO:
+  // - codigoBarrasIngreso: numérico, 13 dígitos, obligatorio
+  // - fechaVencimiento: NO obligatoria; si existe, >= hoy+4
+  // =========================
+  const validateOne = (field, form) => {
+    const v = String(form?.[field] ?? "").trim();
+
+    if (field === "codigoBarrasIngreso") {
+      if (!v) return "El código de barras es obligatorio.";
+      if (!/^\d+$/.test(v)) return "El código de barras debe ser solo numérico.";
+      if (v.length !== 13) return "Debe tener exactamente 13 dígitos.";
+      return "";
     }
 
-    const productoEncontrado = productosDB.find(
-      (p) =>
-        p.codigo.toLowerCase() === valor.toLowerCase() ||
-        p.nombre.toLowerCase() === valor.toLowerCase()
+    if (field === "fechaVencimiento") {
+      if (!v) return ""; // ✅ NO obligatoria
+      const picked = startOfDay(new Date(v));
+      const minDate = startOfDay(addDays(new Date(), 4));
+      if (Number.isNaN(picked.getTime())) return "Fecha inválida.";
+      if (picked < minDate)
+        return `Debe ser igual o posterior a ${toISODate(minDate)} (mínimo 4 días).`;
+      return "";
+    }
+
+    return "";
+  };
+
+  const computeErrors = (form) => ({
+    codigoBarrasIngreso: validateOne("codigoBarrasIngreso", form),
+    fechaVencimiento: validateOne("fechaVencimiento", form),
+  });
+
+  // =========================
+  // ✅ Paquetes (array) helpers
+  // =========================
+  const makeEmptyPack = () => ({
+    codigoBarrasIngreso: "",
+    fechaVencimiento: "",
+  });
+
+  const syncPaquetesLength = (prevPaquetes, n, fallbackBarcode = "") => {
+    const N = Math.max(0, Number(n || 0));
+    const next = [...(prevPaquetes || [])];
+
+    if (N === 0) return [];
+
+    if (N > next.length) {
+      while (next.length < N) {
+        next.push({
+          ...makeEmptyPack(),
+          codigoBarrasIngreso: next.length === 0 ? String(fallbackBarcode || "") : "",
+        });
+      }
+    } else {
+      next.length = N;
+    }
+    return next;
+  };
+
+  const computePackErrors = (form) => {
+    const errs = {};
+    const paquetesCount = toNonNegIntFromString(form?.cantidad);
+    const unidCount = toNonNegIntFromString(form?.unidadesPorPaquete);
+    const paquetes = form?.paquetes || [];
+
+    if (paquetesCount <= 0) errs["cantidad"] = "Debes ingresar una cantidad de paquetes mayor a 0.";
+    if (unidCount <= 0)
+      errs["unidadesPorPaquete"] = "Debes ingresar unidades por paquete mayor a 0.";
+
+    if (paquetesCount <= 0) return errs;
+
+    if (paquetes.length !== paquetesCount) {
+      errs["req"] = "La cantidad de paquetes no coincide con los paquetes generados.";
+      return errs;
+    }
+
+    paquetes.forEach((p, idx) => {
+      const e = computeErrors(p);
+      Object.entries(e).forEach(([k, msg]) => {
+        if (msg) errs[`${idx}.${k}`] = msg;
+      });
+    });
+
+    const codes = paquetes.map((p) => String(p.codigoBarrasIngreso || "").trim());
+    const seen = new Set();
+    for (const c of codes) {
+      if (!c) continue;
+      if (seen.has(c)) {
+        errs["dup"] = "Hay códigos de barras repetidos. Cada paquete debe ser único.";
+        break;
+      }
+      seen.add(c);
+    }
+
+    const filled = codes.filter(Boolean).length;
+    if (paquetes.length > 0 && filled !== paquetes.length) {
+      errs["req"] = "Debes ingresar un código de barras por cada paquete.";
+    }
+
+    return errs;
+  };
+
+  const normalizePackFormForValidation = (form) => ({
+    ...form,
+    cantidad: form?.cantidad === "" ? "0" : form?.cantidad,
+    unidadesPorPaquete:
+      form?.unidadesPorPaquete === "" ? "0" : form?.unidadesPorPaquete,
+  });
+
+  const packHasErrors = (errs) => Object.keys(errs || {}).length > 0;
+
+  useEffect(() => {
+    if (!Object.keys(packTouched || {}).length) return;
+    setPackErrors(computePackErrors(normalizePackFormForValidation(packForm)));
+  }, [packForm, packTouched]);
+
+  // =========================
+  // ✅ Helpers select paquetes
+  // =========================
+  const makePackLabel = (p, idx) => {
+    const code = String(p?.codigoBarrasIngreso || "").trim();
+    return code ? `Paquete ${idx + 1} — ${code}` : `Paquete ${idx + 1} — (sin código)`;
+  };
+
+  const onSelectPaquete = (idx) => {
+    setPackForm((prev) => {
+      const len = prev.paquetes.length;
+      const nextIdx = Math.max(0, Math.min(Number(idx || 0), Math.max(0, len - 1)));
+      return { ...prev, selectedIndex: nextIdx };
+    });
+  };
+
+  // =========================
+  // ✅ Stock + Código (compat)
+  // =========================
+  const getStock = (p) => {
+    const s =
+      p?.stock_actual ??
+      p?.stock_producto ??
+      p?.stock ??
+      p?.existencias ??
+      p?.cantidad ??
+      p?.inventario ??
+      p?.inventario_actual ??
+      p?.productos?.stock_actual ??
+      p?.detalle_productos?.stock_producto ??
+      p?.detalle_productos?.productos?.stock_actual ??
+      0;
+
+    return Number(s || 0);
+  };
+
+  const getCodigoBarras = (p) => {
+    return (
+      p?.codigo_barras ??
+      p?.codigo_barras_producto_compra ??
+      p?.barcode ??
+      p?.codigoBarra ??
+      p?.codigo_barras_producto ??
+      p?.productos?.codigo_barras ??
+      p?.productos?.codigo_barras_producto_compra ??
+      p?.detalle_productos?.codigo_barras ??
+      p?.detalle_productos?.codigo_barras_producto_compra ??
+      ""
+    );
+  };
+
+  const getProductoId = (p) =>
+    String(p?.id_producto ?? p?.id ?? p?.ID ?? p?.id_detalle_producto ?? "");
+
+  // =========================
+  // Normalizar data REAL (backend)
+  // =========================
+  const proveedoresDB = useMemo(() => {
+    const suppliersRaw = Array.isArray(suppliersResponse?.data)
+      ? suppliersResponse.data
+      : [];
+
+    if (!Array.isArray(suppliersRaw)) return [];
+    return suppliersRaw.map((s) => ({
+      ...s,
+      id_proveedor: s?.id_proveedor ?? s?.id ?? s?.ID ?? null,
+      nit: s?.nit != null ? String(s.nit) : "",
+      nombre: s?.nombre ?? "",
+      telefono: s?.telefono ?? "",
+      estado: s?.estado,
+    }));
+  }, [suppliersResponse]);
+
+  const productosDB = useMemo(() => {
+    const productsList = Array.isArray(productsRaw)
+      ? productsRaw
+      : Array.isArray(productsRaw?.data)
+        ? productsRaw.data
+        : [];
+
+    return productsList.map((p) => {
+      const precio =
+        Number(p?.precio ?? p?.precio_compra ?? p?.costo ?? p?.valor ?? 0) || 0;
+
+      const precioVenta =
+        Number(
+          p?.precio_venta ??
+            p?.precioVenta ??
+            p?.precio_publico ??
+            p?.precio_lista ??
+            p?.valor_venta ??
+            0
+        ) || 0;
+
+      const stock = getStock(p);
+      const codigoBarras = getCodigoBarras(p);
+
+      const id_producto = p?.id_producto ?? p?.id ?? p?.ID ?? null;
+      const productoId = String(id_producto ?? p?.id_detalle_producto ?? p?.id ?? "");
+
+      return {
+        ...p,
+        id_producto,
+        productoId,
+        codigo: p?.codigo != null ? String(p.codigo) : "",
+        nombre: p?.nombre ?? p?.productos?.nombre ?? "",
+        precio,
+        precioVenta,
+        stock,
+        codigoBarras,
+      };
+    });
+  }, [productsRaw]);
+
+  // =========================
+  // Filtrados (proveedor)
+  // =========================
+  const proveedoresFiltrados = useMemo(() => {
+    const q = normalizeText(proveedorQuery);
+    if (!q) return [];
+    return proveedoresDB
+      .filter((p) => normalizeText(p.nit).includes(q) || normalizeText(p.nombre).includes(q))
+      .slice(0, 8);
+  }, [proveedorQuery, proveedoresDB]);
+
+  const proveedorExacto = useMemo(() => {
+    const val = proveedorQuery.trim();
+    if (!val) return null;
+
+    return (
+      proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      ) ?? null
+    );
+  }, [proveedorQuery, proveedoresDB]);
+
+  const shouldShowRegisterSupplier = useMemo(() => {
+    return Boolean(
+      proveedorQuery.trim() &&
+        !proveedor &&
+        !proveedorExacto &&
+        proveedoresFiltrados.length === 0
+    );
+  }, [proveedorQuery, proveedor, proveedorExacto, proveedoresFiltrados]);
+
+  // =========================
+  // ✅ Productos: SET seleccionados
+  // =========================
+  const selectedProductIds = useMemo(() => {
+    return new Set(productos.map((p) => String(p.productoId)));
+  }, [productos]);
+
+  // =========================
+  // ✅ Productos filtrados
+  // =========================
+  const productosFiltrados = useMemo(() => {
+    const q = normalizeText(productoQuery);
+    if (!q) return [];
+
+    return productosDB
+      .filter((p) => {
+        const match =
+          normalizeText(p.codigo).includes(q) ||
+          normalizeText(p.nombre).includes(q) ||
+          normalizeText(p.codigoBarras).includes(q);
+
+        if (!match) return false;
+
+        const id = getProductoId(p);
+        if (!id) return true;
+        return !selectedProductIds.has(String(id));
+      })
+      .slice(0, 10);
+  }, [productoQuery, productosDB, selectedProductIds]);
+
+  // =========================
+  // Selección proveedor
+  // =========================
+  const seleccionarProveedor = (prov) => {
+    setProveedor(prov);
+    setProveedorQuery(`${prov.nombre} (${prov.nit})`);
+    setMensajeProveedor({ tipo: "ok", texto: `✅ Proveedor seleccionado: ${prov.nombre}` });
+    setIsProvOpen(false);
+    setProvActiveIndex(-1);
+  };
+
+  // Snapshot inicial IDs proveedores
+  useEffect(() => {
+    if (!prevSupplierIdsRef.current.size && proveedoresDB.length > 0) {
+      prevSupplierIdsRef.current = new Set(
+        proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
+      );
+    }
+  }, [proveedoresDB]);
+
+  // Auto-selección proveedor creado
+  useEffect(() => {
+    if (!pendingAutoSelectSupplierRef.current) return;
+    if (!proveedoresDB.length) return;
+
+    const prevIds = prevSupplierIdsRef.current;
+    const currentIds = new Set(
+      proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
     );
 
-    if (productoEncontrado) {
-      const yaExiste = productos.some(
-        (p) => p.codigo === productoEncontrado.codigo
-      );
-      if (!yaExiste) {
-        setProductos((prev) => [
-          ...prev,
-          {
-            ...productoEncontrado,
-            cantidad: 1,
-            subida: 0,
-            descuento: 0,
-            precioVenta: productoEncontrado.precio,
-            subtotal: productoEncontrado.precio,
-          },
-        ]);
-      }
-      setMensajeProducto({
-        tipo: "ok",
-        texto: `✅ Producto encontrado: ${productoEncontrado.nombre}`,
-      });
-    } else {
-      setMensajeProducto({
-        tipo: "error",
-        texto: "❌ Producto no encontrado. Puedes crearlo.",
-      });
-    }
-  };
+    const nuevo = proveedoresDB.find((p) => {
+      const id = String(p.id_proveedor ?? p.nit ?? "");
+      return id && !prevIds.has(id);
+    });
 
-  // Calcular subtotal
+    if (nuevo) {
+      seleccionarProveedor(nuevo);
+      pendingAutoSelectSupplierRef.current = false;
+      prevSupplierIdsRef.current = currentIds;
+    }
+  }, [proveedoresDB]);
+
+  // =========================
+  // ✅ Cálculos (POR PAQUETES)
+  // =========================
   const calcularSubtotal = (prod) => {
-    const precioBase = prod.precio + (prod.precio * prod.subida) / 100;
-    const precioConDescuento =
-      precioBase - (precioBase * prod.descuento) / 100;
-    return precioConDescuento * prod.cantidad;
+    const paquetes = Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0); // ✅ PAQUETES
+    const precioCompra = Number(prod.precioCompra || 0);
+
+    const ivaPct = Number(prod.subida || 0);
+    const icuPct = Number(prod.descuento || 0);
+
+    const base = precioCompra * paquetes;
+    const iva = (base * ivaPct) / 100;
+    const icu = (base * icuPct) / 100;
+
+    return base + iva + icu;
   };
 
-  // Finalizar compra
-  const handleFinalizarCompra = () => {
-    if (!proveedor) {
-      setMensajeProveedor({
-        tipo: "error",
-        texto: "⚠️ Debe seleccionar un proveedor",
-      });
-      return;
-    }
-    if (productos.length === 0) {
-      setMensajeProducto({
-        tipo: "error",
-        texto: "⚠️ Debe agregar al menos un producto",
-      });
-      return;
-    }
-    if (!comprobante) {
-      alert("⚠️ Debe subir el comprobante original de la compra");
-      return;
-    }
+  const total = useMemo(
+    () => productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
+    [productos]
+  );
 
-    const nuevaCompra = {
-      id: Date.now(),
-      proveedor,
-      productos,
-      comprobante,
-      total: productos.reduce((acc, p) => acc + calcularSubtotal(p), 0),
-      fecha: new Date().toLocaleString(),
-      estado: "Completado",
+  const productoErrors = useMemo(
+    () => productos.map((prod) => getProductoCompraErrors(prod)),
+    [productos]
+  );
+
+  const hasInvalidProductRows = useMemo(
+    () => productoErrors.some((errs) => Object.values(errs).some(Boolean)),
+    [productoErrors]
+  );
+
+  const updateProductoField = (index, field, rawValue) => {
+    const sanitizedValue = onlyDigits(rawValue);
+
+    setProductos((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        [field]: sanitizedValue,
+      };
+      return next;
+    });
+  };
+
+  // =========================
+  // ✅ Modal paquetes: abrir al seleccionar producto
+  // =========================
+  const abrirModalPaquetesProducto = (productoEncontrado) => {
+    setProductoPackPendiente(productoEncontrado);
+
+    setPackForm({
+      cantidad: "",
+      unidadesPorPaquete: "",
+      selectedIndex: 0,
+      paquetes: [],
+    });
+
+    setPackTouched({});
+    setPackErrors({});
+    setIsPackModalOpen(true);
+  };
+
+  const cancelarModalPaquetes = () => {
+    setIsPackModalOpen(false);
+    setProductoPackPendiente(null);
+    setPackTouched({});
+    setPackErrors({});
+  };
+
+  const guardarModalPaquetesYAgregar = () => {
+    if (!productoPackPendiente) return;
+
+    setPackTouched((prev) => ({
+      ...prev,
+      cantidad: true,
+      unidadesPorPaquete: true,
+      ...packForm.paquetes.reduce((acc, _p, idx) => {
+        acc[`${idx}.codigoBarrasIngreso`] = true;
+        acc[`${idx}.fechaVencimiento`] = true;
+        return acc;
+      }, {}),
+    }));
+
+    const normalized = {
+      ...packForm,
+      cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+      unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
     };
 
-    const comprasGuardadas = JSON.parse(localStorage.getItem("compras")) || [];
-    comprasGuardadas.push(nuevaCompra);
-    localStorage.setItem("compras", JSON.stringify(comprasGuardadas));
+    const errs = computePackErrors(normalized);
+    setPackErrors(errs);
+    if (packHasErrors(errs)) return;
 
-    navigate("/app/purchases");
+    const cantidadPaquetesNum = toNonNegIntFromString(normalized.cantidad);
+    const unidadesPorPaqueteNum = toNonNegIntFromString(normalized.unidadesPorPaquete);
+    const totalUnidades = cantidadPaquetesNum * unidadesPorPaqueteNum;
+
+    const paquetesNormalized = normalized.paquetes.map((p) => ({
+      codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
+      fechaVencimiento: p.fechaVencimiento || "",
+    }));
+
+    const enriched = {
+      ...productoPackPendiente,
+
+      cantidadPaquetes: String(cantidadPaquetesNum),
+      unidadesPorPaquete: String(unidadesPorPaqueteNum),
+      cantidadTotalUnidades: String(totalUnidades),
+
+      // ✅ LO PRINCIPAL (para cálculos): PAQUETES
+      cantidad: String(cantidadPaquetesNum),
+
+      // ✅ IMPORTANTÍSIMO: mandar paquetes[] al backend
+      paquetes: paquetesNormalized,
+
+      // compat: paquete “principal”
+      codigoBarrasIngreso: String(
+        paquetesNormalized[normalized.selectedIndex]?.codigoBarrasIngreso ||
+          paquetesNormalized[0]?.codigoBarrasIngreso ||
+          ""
+      ).trim(),
+      fechaVencimiento:
+        paquetesNormalized[normalized.selectedIndex]?.fechaVencimiento ||
+        paquetesNormalized[0]?.fechaVencimiento ||
+        "",
+    };
+
+    setIsPackModalOpen(false);
+    setProductoPackPendiente(null);
+    agregarProducto(enriched);
   };
 
-  // Manejar carga de comprobante
-  const handleComprobanteUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setComprobante(file);
+  // =========================
+  // ✅ Editar desde tabla
+  // =========================
+  const abrirPackEditDesdeTabla = (prod, index) => {
+    const cantPaquetes = Math.max(0, Number(prod?.cantidadPaquetes ?? prod?.cantidad ?? 0));
+    const unid = Math.max(0, Number(prod?.unidadesPorPaquete ?? 0));
+
+    const base =
+      Array.isArray(prod?.paquetes) && prod.paquetes.length
+        ? prod.paquetes.map((p) => ({
+            codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
+            fechaVencimiento: p?.fechaVencimiento || "",
+          }))
+        : [];
+
+    setPackEditIndex(index);
+
+    setPackForm({
+      cantidad: String(cantPaquetes),
+      unidadesPorPaquete: String(unid),
+      selectedIndex: 0,
+      paquetes: syncPaquetesLength(base, cantPaquetes, ""),
+    });
+
+    setPackTouched({});
+    setPackErrors({});
+    setIsPackEditOpen(true);
+  };
+
+  const cancelarPackEdit = () => {
+    setIsPackEditOpen(false);
+    setPackEditIndex(null);
+    setPackTouched({});
+    setPackErrors({});
+  };
+
+  const guardarPackEdit = () => {
+    if (packEditIndex == null) return;
+
+    setPackTouched((prev) => ({
+      ...prev,
+      cantidad: true,
+      unidadesPorPaquete: true,
+      ...packForm.paquetes.reduce((acc, _p, idx) => {
+        acc[`${idx}.codigoBarrasIngreso`] = true;
+        acc[`${idx}.fechaVencimiento`] = true;
+        return acc;
+      }, {}),
+    }));
+
+    const normalized = {
+      ...packForm,
+      cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+      unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+    };
+
+    const errs = computePackErrors(normalized);
+    setPackErrors(errs);
+    if (packHasErrors(errs)) return;
+
+    const cantidadPaquetesNum = toNonNegIntFromString(normalized.cantidad);
+    const unidadesPorPaqueteNum = toNonNegIntFromString(normalized.unidadesPorPaquete);
+    const totalUnidades = cantidadPaquetesNum * unidadesPorPaqueteNum;
+
+    setProductos((prev) => {
+      const copia = [...prev];
+      const actual = copia[packEditIndex];
+
+      const paquetesNormalized = normalized.paquetes.map((p) => ({
+        codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
+        fechaVencimiento: p.fechaVencimiento || "",
+      }));
+
+      const paquetes = syncPaquetesLength(paquetesNormalized, cantidadPaquetesNum, "");
+
+      copia[packEditIndex] = {
+        ...actual,
+
+        cantidadPaquetes: String(cantidadPaquetesNum),
+        unidadesPorPaquete: String(unidadesPorPaqueteNum),
+        cantidadTotalUnidades: String(totalUnidades),
+
+        // ✅ principal
+        cantidad: String(cantidadPaquetesNum),
+
+        // ✅ IMPORTANTÍSIMO: mantener paquetes[]
+        paquetes,
+
+        codigoBarrasIngreso:
+          paquetes[normalized.selectedIndex]?.codigoBarrasIngreso ||
+          paquetes[0]?.codigoBarrasIngreso ||
+          "",
+        fechaVencimiento:
+          paquetes[normalized.selectedIndex]?.fechaVencimiento ||
+          paquetes[0]?.fechaVencimiento ||
+          "",
+      };
+
+      return copia;
+    });
+
+    setIsPackEditOpen(false);
+    setPackEditIndex(null);
+  };
+
+  // =========================
+  // Agregar producto
+  // =========================
+  const agregarProducto = (productoEncontrado) => {
+    const id = String(
+      productoEncontrado?.id_producto ??
+        productoEncontrado?.id ??
+        getProductoId(productoEncontrado)
+    );
+
+    if (id && selectedProductIds.has(String(id))) {
+      // ✅ (opcional) Swal parecido a ventas
+      Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Este producto ya fue agregado.",
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Este producto ya fue agregado." });
+      setProductoQuery("");
+      setIsProdOpen(false);
+      setProdActiveIndex(-1);
+      return;
+    }
+
+    const cantPaquetesNum = Math.max(
+      0,
+      Number(productoEncontrado?.cantidadPaquetes ?? productoEncontrado?.cantidad ?? 0)
+    );
+    const unidNum = Math.max(0, Number(productoEncontrado?.unidadesPorPaquete ?? 0));
+    const totalUnidades = cantPaquetesNum * unidNum;
+
+    const paquetesSafe = Array.isArray(productoEncontrado?.paquetes)
+      ? syncPaquetesLength(
+          productoEncontrado.paquetes.map((p) => ({
+            codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
+            fechaVencimiento: p?.fechaVencimiento || "",
+          })),
+          cantPaquetesNum,
+          ""
+        )
+      : syncPaquetesLength([], cantPaquetesNum, "");
+
+    setProductos((prev) => [
+      ...prev,
+      {
+        ...productoEncontrado,
+        productoId: id,
+
+        // ✅ lo principal: PAQUETES
+        cantidad: String(cantPaquetesNum),
+        cantidadPaquetes: String(cantPaquetesNum),
+
+        // ✅ NUEVO
+        unidadesPorPaquete: String(unidNum),
+        cantidadTotalUnidades: String(totalUnidades),
+
+        subida: "0",
+        descuento: "0",
+        precioCompra: String(Number(productoEncontrado.precio ?? 0)),
+
+        // ✅ precio venta editable
+        precioVenta: String(Number(productoEncontrado.precioVenta ?? 0)),
+
+        // compat
+        codigoBarrasIngreso: productoEncontrado.codigoBarrasIngreso ?? "",
+        fechaVencimiento: productoEncontrado.fechaVencimiento ?? "",
+
+        // ✅ paquetes
+        paquetes: paquetesSafe,
+      },
+    ]);
+
+    setMensajeProducto({ tipo: "ok", texto: `✅ Producto agregado: ${productoEncontrado.nombre}` });
+
+    setProductoQuery("");
+    setIsProdOpen(false);
+    setProdActiveIndex(-1);
+  };
+
+  // =========================
+  // Producto creado desde modal => abrir formulario paquetes
+  // =========================
+  const onProductoCreado = (created) => {
+    const id_producto = created?.id_producto ?? created?.id ?? created?.ID ?? null;
+
+    const mapped = {
+      ...created,
+      id_producto,
+      productoId: String(id_producto ?? created?.id_detalle_producto ?? created?.id ?? ""),
+      codigo: created?.codigo != null ? String(created.codigo) : "",
+      nombre: created?.nombre ?? created?.productos?.nombre ?? "",
+      precio: Number(created?.precio ?? created?.precio_compra ?? created?.costo ?? 0) || 0,
+      precioVenta:
+        Number(
+          created?.precio_venta ??
+            created?.precioVenta ??
+            created?.precio_publico ??
+            created?.precio_lista ??
+            created?.valor_venta ??
+            0
+        ) || 0,
+      stock: getStock(created),
+      codigoBarras: getCodigoBarras(created),
+    };
+
+    setIsProductModalOpen(false);
+    abrirModalPaquetesProducto(mapped);
+  };
+
+  // =========================
+  // Cerrar dropdown al click afuera
+  // =========================
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (provWrapRef.current && !provWrapRef.current.contains(e.target)) {
+        setIsProvOpen(false);
+        setProvActiveIndex(-1);
+      }
+      if (prodWrapRef.current && !prodWrapRef.current.contains(e.target)) {
+        setIsProdOpen(false);
+        setProdActiveIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  // =========================
+  // Teclas proveedor
+  // =========================
+  const onProveedorKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setIsProvOpen(false);
+      setProvActiveIndex(-1);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsProvOpen(true);
+      setProvActiveIndex((prev) => Math.min(prev + 1, proveedoresFiltrados.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setProvActiveIndex((prev) => Math.max(prev - 1, 0));
+      return;
+    }
+    if (e.key === "Enter") {
+      if (isProvOpen && provActiveIndex >= 0 && proveedoresFiltrados[provActiveIndex]) {
+        e.preventDefault();
+        seleccionarProveedor(proveedoresFiltrados[provActiveIndex]);
+        return;
+      }
+
+      const val = proveedorQuery.trim();
+      if (!val) return;
+
+      if (proveedoresFiltrados.length > 0) {
+        e.preventDefault();
+        seleccionarProveedor(proveedoresFiltrados[0]);
+        return;
+      }
+
+      const exacto = proveedoresDB.find(
+        (p) => p.nit === val || normalizeText(p.nombre) === normalizeText(val)
+      );
+      if (exacto) seleccionarProveedor(exacto);
+      else {
+        setMensajeProveedor({
+          tipo: "error",
+          texto: "❌ Proveedor no encontrado. Selecciónalo de la lista o créalo.",
+        });
+
+        // ✅ Swal igual a ventas (opcional)
+        Swal.fire({
+          icon: "error",
+          title: "Proveedor no encontrado",
+          text: "Selecciónalo de la lista o créalo.",
+          confirmButtonColor: "#16a34a",
+        });
+      }
     }
   };
 
+  // =========================
+  // Teclas producto
+  // =========================
+  const onProductoKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setIsProdOpen(false);
+      setProdActiveIndex(-1);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsProdOpen(true);
+      setProdActiveIndex((prev) => Math.min(prev + 1, productosFiltrados.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setProdActiveIndex((prev) => Math.max(prev - 1, 0));
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+
+      if (isProdOpen && prodActiveIndex >= 0 && productosFiltrados[prodActiveIndex]) {
+        abrirModalPaquetesProducto(productosFiltrados[prodActiveIndex]);
+        return;
+      }
+
+      if (productosFiltrados.length > 0) abrirModalPaquetesProducto(productosFiltrados[0]);
+      else {
+        setMensajeProducto({
+          tipo: "error",
+          texto: "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
+        });
+
+        // ✅ Swal igual a ventas (opcional)
+        Swal.fire({
+          icon: "error",
+          title: "Producto no encontrado",
+          text: "Selecciónalo de la lista o regístralo.",
+          confirmButtonColor: "#16a34a",
+        });
+      }
+    }
+  };
+
+  // =========================
+  // ✅ Validación de factura en tiempo real
+  // =========================
+  const validarNumeroFactura = async (rawValue = numeroFactura) => {
+    const normalizedInvoiceNumber = String(rawValue ?? "").trim();
+
+    if (!normalizedInvoiceNumber) {
+      const message = "Debe ingresar el numero de factura.";
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
+    }
+
+    setFacturaEstado({
+      tipo: "info",
+      texto: "Validando numero de factura...",
+    });
+
+    try {
+      const data = await validateInvoiceMutation.mutateAsync(normalizedInvoiceNumber);
+
+      if (!data?.isUnique) {
+        const message = "El numero de factura ya existe.";
+        setFacturaEstado({ tipo: "error", texto: message });
+        return { ok: false, message };
+      }
+
+      setNumeroFactura(normalizedInvoiceNumber);
+      setFacturaEstado({
+        tipo: "ok",
+        texto: "Numero de factura disponible.",
+      });
+
+      return { ok: true, message: "" };
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "No se pudo validar el numero de factura.";
+
+      setFacturaEstado({ tipo: "error", texto: message });
+      return { ok: false, message };
+    }
+  };
+
+  // =========================
+  // ✅ Comprobante (validación + alerta estilo ventas)
+  // =========================
+  const validarComprobante = async (file) => {
+    if (!file) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe subir el comprobante original de la compra.",
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ Debe subir el comprobante original de la compra",
+      });
+      return false;
+    }
+
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+
+    if (!allowed.includes(file.type)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Formato no válido",
+        text: "Solo se permiten imágenes JPG, PNG o WebP.",
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ Formato no válido. Solo se permiten imágenes JPG, PNG o WebP.",
+      });
+      return false;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Archivo muy grande",
+        text: "Máximo 5MB.",
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeComprobante({
+        tipo: "error",
+        texto: "⚠️ El archivo es muy grande. Máximo 5MB.",
+      });
+      return false;
+    }
+
+    setMensajeComprobante({
+      tipo: "ok",
+      texto: `✅ Comprobante cargado: ${file.name}`,
+    });
+    return true;
+  };
+
+  const handleComprobanteUpload = async (e) => {
+    const file = e.target.files?.[0] || null;
+    const isValid = await validarComprobante(file);
+    setComprobante(isValid ? file : null);
+
+    if (!isValid && e.target) {
+      e.target.value = "";
+    }
+  };
+
+  // =========================
+  // ✅ Finalizar compra (FRONT) con Swal (igual a ventas)
+  // =========================
+  const handleFinalizarCompra = async () => {
+    if (isRegistrandoCompra) return;
+
+    setMensajeComprobante(null);
+
+    if (!fechaCompra) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe seleccionar la fecha de la compra.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    if (!proveedor) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe seleccionar un proveedor.",
+        confirmButtonColor: "#16a34a",
+      });
+      setMensajeProveedor({ tipo: "error", texto: "⚠️ Debe seleccionar un proveedor" });
+      return;
+    }
+
+    if (productos.length === 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: "Debe agregar al menos un producto.",
+        confirmButtonColor: "#16a34a",
+      });
+      setMensajeProducto({ tipo: "error", texto: "⚠️ Debe agregar al menos un producto" });
+      return;
+    }
+
+    const invoiceValidation = await validarNumeroFactura(numeroFactura);
+    if (!invoiceValidation.ok) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Cuidado",
+        text: invoiceValidation.message,
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    // ✅ VALIDAR: cada producto debe tener paquetes y unid/paq
+    for (let index = 0; index < productos.length; index += 1) {
+      const p = productos[index];
+      const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
+      const unid = Number(p.unidadesPorPaquete ?? 0);
+      const packs = Array.isArray(p.paquetes) ? p.paquetes : [];
+      const rowErrors = getProductoCompraErrors(p);
+
+      if (rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta) {
+        const firstError =
+          rowErrors.cantidad || rowErrors.precioCompra || rowErrors.precioVenta;
+
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": ${firstError}`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": ${firstError}`,
+        });
+        return;
+      }
+
+      if (!cantPaquetes || cantPaquetes <= 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": faltan paquetes.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({ tipo: "error", texto: `⚠️ Revisa "${p.nombre}": faltan paquetes.` });
+        return;
+      }
+      if (!unid || unid <= 0) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": faltan unidades por paquete.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": faltan unidades por paquete.`,
+        });
+        return;
+      }
+      if (packs.length !== cantPaquetes) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Cuidado",
+          text: `Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
+          confirmButtonColor: "#16a34a",
+        });
+        setMensajeProducto({
+          tipo: "error",
+          texto: `⚠️ Revisa "${p.nombre}": la lista de paquetes no coincide con la cantidad.`,
+        });
+        return;
+      }
+    }
+
+    // ✅ comprobante debe ser válido
+    if (!(await validarComprobante(comprobante))) return;
+
+    // ✅ payload JSON (sin enviar el file aquí; el file va en FormData aparte)
+    const payload = {
+      fecha_compra: fechaCompra,
+      numero_factura: String(numeroFactura).trim(),
+      id_proveedor: Number(proveedor.id_proveedor ?? proveedor.id),
+
+      comprobante: comprobante
+        ? {
+            url: null,
+            nombre: comprobante.name,
+            mime: comprobante.type,
+            size: comprobante.size,
+          }
+        : null,
+
+      items: productos.map((p) => {
+        const cantPaquetes = Number(p.cantidadPaquetes ?? p.cantidad ?? 0);
+        const unid = Number(p.unidadesPorPaquete ?? 0);
+        const totalUnid = cantPaquetes * unid;
+
+        return {
+          id_producto: Number(p.id_producto ?? p.productoId),
+
+          // ✅ paquetes
+          cantidad: cantPaquetes,
+
+          // ✅ NUEVO
+          cantidad_paquetes: cantPaquetes,
+          unidades_por_paquete: unid,
+          cantidad_total_unidades: totalUnid,
+
+          precio_unitario: Number(p.precioCompra),
+          precio_venta: Number(p.precioVenta ?? 0),
+          iva_porcentaje: Number(p.subida ?? 0),
+          icu_porcentaje: Number(p.descuento ?? 0),
+
+          // ✅ lista paquetes
+          paquetes: Array.isArray(p.paquetes)
+            ? p.paquetes.map((x) => ({
+                codigoBarrasIngreso: String(x.codigoBarrasIngreso || "").trim(),
+                fechaVencimiento: x.fechaVencimiento ? x.fechaVencimiento : null,
+              }))
+            : [],
+
+          // ✅ compat
+          codigo_barras_producto_compra: String(p.codigoBarrasIngreso ?? "").trim(),
+          fecha_vencimiento: p.fechaVencimiento ? p.fechaVencimiento : null,
+        };
+      }),
+    };
+
+    setIsRegistrandoCompra(true);
+
+    // ✅ Swal loading igual a ventas
+    Swal.fire({
+      title: "Registrando compra...",
+      text: "Por favor espera",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const data = await createPurchaseMutation.mutateAsync({
+        jsonPayload: payload,
+        comprobanteFile: comprobante,
+      });
+
+      Swal.close();
+
+      // ✅ Swal success igual a ventas
+      Swal.fire({
+        icon: "success",
+        title: "Compra registrada",
+        text: "✅ La compra se registró correctamente.",
+        timer: 1200,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        timerProgressBar: true,
+      });
+
+      setMensajeComprobante({
+        tipo: "ok",
+        texto: "✅ Compra registrada correctamente en el sistema",
+      });
+
+      navigate("/app/purchases");
+    } catch (err) {
+      Swal.close();
+
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo conectar con el servidor. Revisa que el backend esté corriendo.";
+
+      await Swal.fire({
+        icon: "error",
+        title: "No se pudo registrar",
+        text: message,
+        confirmButtonColor: "#16a34a",
+      });
+
+      setMensajeComprobante({
+        tipo: "error",
+        texto: `❌ ${message}`,
+      });
+    } finally {
+      setIsRegistrandoCompra(false);
+    }
+  };
+
+  // =========================
+  // Errores de carga
+  // =========================
+  if (isSuppliersError) {
+    const msg =
+      suppliersError?.response?.data?.message ||
+      suppliersError?.message ||
+      "Error al cargar proveedores.";
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <p className="text-red-600 text-center">{msg}</p>
+      </div>
+    );
+  }
+
+  if (isProductsError) {
+    const msg =
+      productsError?.response?.data?.message ||
+      productsError?.message ||
+      "Error al cargar productos.";
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <p className="text-red-600 text-center">{msg}</p>
+      </div>
+    );
+  }
+
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
+      {/* ✅ Overrides SOLO desde este archivo */}
+      <style>{`
+        .purchase-modal-open .z-\\[55\\] { z-index: 9999 !important; }
+        .purchase-modal-open aside,
+        .purchase-modal-open #sidebar,
+        .purchase-modal-open .sidebar,
+        .purchase-modal-open [data-sidebar] {
+          opacity: 1 !important;
+          pointer-events: none !important;
+          z-index: 0 !important;
+        }
+        .purchase-supplier-open .z-\\[55\\] {
+          padding-top: 10px !important;
+          align-items: flex-start !important;
+        }
+        @media (min-width: 640px) {
+          .purchase-supplier-open .z-\\[55\\] { padding-top: 14px !important; }
+        }
+      `}</style>
+
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">Registro de Compras</h2>
@@ -166,69 +1423,252 @@ export default function IndexRegisterPurchase() {
         </p>
       </div>
 
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Fecha de compra</label>
+          <input
+            type="date"
+            value={fechaCompra}
+            onChange={(e) => setFechaCompra(e.target.value)}
+            disabled={isRegistrandoCompra}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">N° Factura</label>
+          <input
+            type="text"
+            value={numeroFactura}
+            onChange={(e) => {
+              setNumeroFactura(e.target.value);
+              setFacturaEstado({ tipo: "idle", texto: "" });
+            }}
+            onBlur={() => {
+              if (numeroFactura.trim()) validarNumeroFactura(numeroFactura);
+            }}
+            placeholder="Ingrese el numero de factura"
+            disabled={isRegistrandoCompra || validateInvoiceMutation.isPending}
+            className="w-full rounded border bg-white px-3 py-2 text-black disabled:opacity-60"
+          />
+
+          {facturaEstado.texto ? (
+            <p
+              className={`mt-1 text-sm ${
+                facturaEstado.tipo === "ok"
+                  ? "text-green-600"
+                  : facturaEstado.tipo === "info"
+                    ? "text-blue-600"
+                    : "text-red-600"
+              }`}
+            >
+              {facturaEstado.texto}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
       {/* Buscar proveedor */}
-      <div className="mb-4">
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Proveedor por NIT
-        </label>
+      <div className="mb-4 relative" ref={provWrapRef}>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Proveedor</label>
+
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={codigoProveedor}
-            onChange={(e) => handleProveedorChange(e.target.value)}
-            placeholder="Ingrese el NIT del proveedor"
-            className="flex-1 border rounded px-3 py-2 bg-white text-black"
+            value={proveedorQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              const trimmedVal = val.trim();
+
+              setProveedorQuery(val);
+              setIsProvOpen(Boolean(trimmedVal));
+
+              if (!trimmedVal) {
+                setProveedor(null);
+                setMensajeProveedor(null);
+                setIsProvOpen(false);
+                return;
+              }
+
+              setProveedor(null);
+              setMensajeProveedor(null);
+
+              const exacto = proveedoresDB.find(
+                (p) =>
+                  p.nit === trimmedVal ||
+                  normalizeText(p.nombre) === normalizeText(trimmedVal)
+              );
+              if (exacto) seleccionarProveedor(exacto);
+            }}
+            onFocus={() => {
+              if (proveedorQuery.trim()) setIsProvOpen(true);
+            }}
+            onKeyDown={onProveedorKeyDown}
+            placeholder={isSuppliersLoading ? "Cargando proveedores..." : "Ingrese NIT o nombre"}
+            disabled={isSuppliersLoading || isRegistrandoCompra}
+            className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
-          {mensajeProveedor?.tipo === "error" && (
+
+          {shouldShowRegisterSupplier && (
             <button
-              onClick={() => setShowModalProveedor(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={() => {
+                prevSupplierIdsRef.current = new Set(
+                  proveedoresDB.map((p) => String(p.id_proveedor ?? p.nit ?? ""))
+                );
+                pendingAutoSelectSupplierRef.current = true;
+                window.scrollTo({ top: 0, behavior: "auto" });
+                setIsSupplierModalOpen(true);
+              }}
+              disabled={isRegistrandoCompra}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
+              type="button"
             >
               Registrar Proveedor
             </button>
           )}
         </div>
-        {mensajeProveedor && (
+
+        {isProvOpen && proveedoresFiltrados.length > 0 && !proveedor && (
+          <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden">
+            {proveedoresFiltrados.map((p, idx) => (
+              <button
+                key={p.id_proveedor ?? p.nit ?? idx}
+                type="button"
+                onMouseEnter={() => setProvActiveIndex(idx)}
+                onClick={() => seleccionarProveedor(p)}
+                className={`w-full text-left px-3 py-2 ${
+                  idx === provActiveIndex ? "bg-gray-100" : "hover:bg-gray-100"
+                }`}
+              >
+                <span className="font-medium text-gray-900">{p.nombre}</span>{" "}
+                <span className="text-gray-500 text-sm">({p.nit})</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(mensajeProveedor || shouldShowRegisterSupplier) && (
           <p
             className={`mt-1 text-sm ${
-              mensajeProveedor.tipo === "ok"
-                ? "text-green-600"
-                : "text-red-600"
+              mensajeProveedor?.tipo === "ok" ? "text-green-600" : "text-red-600"
             }`}
           >
-            {mensajeProveedor.texto}
+            {mensajeProveedor?.texto ??
+              "❌ Proveedor no encontrado. Puedes registrarlo desde aquí."}
           </p>
         )}
       </div>
 
       {/* Buscar producto */}
-      <div className="mb-4">
-        <label className="block text-sm text-gray-600 mb-1">
-          Buscar Producto
-        </label>
+      <div className="mb-4 relative" ref={prodWrapRef}>
+        <label className="block text-sm text-gray-600 mb-1">Buscar Producto</label>
+
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={codigoProducto}
-            onChange={(e) => handleProductoChange(e.target.value)}
-            placeholder="Ingrese código o nombre del producto"
-            className="flex-1 border rounded px-3 py-2 bg-white text-black"
+            value={productoQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              setProductoQuery(val);
+              setIsProdOpen(true);
+
+              if (!val.trim()) {
+                setMensajeProducto(null);
+                setIsProdOpen(false);
+                setProdActiveIndex(-1);
+                return;
+              }
+
+              const q = normalizeText(val);
+              const hay = productosDB.some((p) => {
+                const match =
+                  normalizeText(p.codigo).includes(q) ||
+                  normalizeText(p.nombre).includes(q) ||
+                  normalizeText(p.codigoBarras).includes(q);
+                if (!match) return false;
+                const id = getProductoId(p);
+                if (!id) return true;
+                return !selectedProductIds.has(String(id));
+              });
+
+              if (!hay) {
+                setMensajeProducto({
+                  tipo: "error",
+                  texto: "❌ Producto no encontrado. Selecciónalo de la lista o regístralo.",
+                });
+              } else {
+                setMensajeProducto(null);
+              }
+
+              setProdActiveIndex(-1);
+            }}
+            onFocus={() => {
+              if (productoQuery.trim()) setIsProdOpen(true);
+            }}
+            onKeyDown={onProductoKeyDown}
+            placeholder={isProductsLoading ? "Cargando productos..." : "Ingrese código, barras o nombre"}
+            disabled={isProductsLoading || isRegistrandoCompra}
+            className="flex-1 border rounded px-3 py-2 bg-white text-black disabled:opacity-60"
           />
+
           {mensajeProducto?.tipo === "error" && (
             <button
-              onClick={() => setShowModalProducto(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: "auto" });
+                setIsProductModalOpen(true);
+              }}
+              disabled={isRegistrandoCompra}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
+              type="button"
             >
               Registrar Producto
             </button>
           )}
         </div>
+
+        {/* Dropdown */}
+        {isProdOpen && productosFiltrados.length > 0 && (
+          <div className="absolute z-20 mt-2 w-full bg-white border rounded shadow overflow-hidden max-h-56 overflow-auto">
+            {productosFiltrados.slice(0, 7).map((p, idx) => {
+              const stock = Number(p.stock ?? 0);
+              const sinStock = stock <= 0;
+              const codigoMostrar = p.codigoBarras || p.codigo || "N/A";
+
+              return (
+                <div
+                  key={String(getProductoId(p) || codigoMostrar || idx)}
+                  onMouseEnter={() => setProdActiveIndex(idx)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    abrirModalPaquetesProducto(p);
+                  }}
+                  className={`px-3 py-2 text-black ${
+                    idx === prodActiveIndex ? "bg-green-50" : "hover:bg-green-50"
+                  } cursor-pointer`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>{p.nombre}</div>
+
+                    <span
+                      className={`text-[11px] px-2 py-[2px] rounded-full font-semibold ${
+                        sinStock ? "bg-red-100 text-red-700" : "bg-green-50 text-green-700"
+                      }`}
+                    >
+                      Stock: {stock}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-gray-500">Código: {codigoMostrar}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {mensajeProducto && (
           <p
             className={`mt-1 text-sm ${
-              mensajeProducto.tipo === "ok"
-                ? "text-green-600"
-                : "text-red-600"
+              mensajeProducto.tipo === "ok" ? "text-green-600" : "text-red-600"
             }`}
           >
             {mensajeProducto.texto}
@@ -241,98 +1681,186 @@ export default function IndexRegisterPurchase() {
         <thead className="bg-gray-100">
           <tr>
             <th className="border px-3 py-2">Nombre</th>
+            <th className="border px-3 py-2">Stock</th>
             <th className="border px-3 py-2">Cantidad</th>
-            <th className="border px-3 py-2">% Subida</th>
-            <th className="border px-3 py-2">Descuento (%)</th>
+            <th className="border px-3 py-2">Iva %</th>
+            <th className="border px-3 py-2">Icu %</th>
             <th className="border px-3 py-2">Precio Compra</th>
             <th className="border px-3 py-2">Precio Venta</th>
             <th className="border px-3 py-2">Subtotal</th>
             <th className="border px-3 py-2">Acciones</th>
           </tr>
         </thead>
+
         <tbody>
           {productos.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center text-gray-400 py-4">
+              <td colSpan="9" className="text-center text-gray-400 py-4">
                 No hay productos agregados
               </td>
             </tr>
           ) : (
             productos.map((prod, i) => (
-              <tr key={i}>
+              <tr key={`${prod.productoId ?? getProductoId(prod)}-${i}`}>
                 <td className="border px-3 py-2 text-black">{prod.nombre}</td>
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="1"
-                    value={prod.cantidad}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].cantidad = parseInt(e.target.value) || 1;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
-                      setProductos(nueva);
-                    }}
-                    className="w-16 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.subida}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].subida = parseFloat(e.target.value) || 0;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
-                      setProductos(nueva);
-                    }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.descuento}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].descuento =
-                        parseFloat(e.target.value) || 0;
-                      nueva[i].subtotal = calcularSubtotal(nueva[i]);
-                      setProductos(nueva);
-                    }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
+
                 <td className="border px-3 py-2 text-center text-black">
-                  ${prod.precio}
+                  {Number(prod.stock ?? 0)}
                 </td>
-                <td className="border px-3 py-2 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    value={prod.precioVenta}
-                    onChange={(e) => {
-                      const nueva = [...productos];
-                      nueva[i].precioVenta =
-                        parseFloat(e.target.value) || 0;
-                      setProductos(nueva);
-                    }}
-                    className="w-20 border rounded px-2 py-1 text-center bg-white text-black"
-                  />
-                </td>
+
+                {/* ✅ Cantidad principal = PAQUETES */}
                 <td className="border px-3 py-2 text-center text-black">
-                  ${calcularSubtotal(prod).toFixed(2)}
+                  <div className="leading-tight">
+                    <div
+                      className={`font-semibold ${
+                        productoErrors[i]?.cantidad ? "text-red-600" : ""
+                      }`}
+                    >
+                      {Number(prod.cantidadPaquetes ?? prod.cantidad ?? 0)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {Number(prod.unidadesPorPaquete ?? 0)} unid/paq
+                    </div>
+                    {productoErrors[i]?.cantidad && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].cantidad}
+                      </p>
+                    )}
+                  </div>
                 </td>
+
                 <td className="border px-3 py-2 text-center">
-                  <button
-                    onClick={() =>
-                      setProductos(productos.filter((_, index) => index !== i))
-                    }
-                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                  >
-                    Eliminar
-                  </button>
+                  <div className="inline-flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={prod.subida}
+                      onChange={(e) => {
+                        const nueva = [...productos];
+                        nueva[i].subida = e.target.value;
+                        setProductos(nueva);
+                      }}
+                      onBlur={() => {
+                        const nueva = [...productos];
+                        if (nueva[i].subida === "") nueva[i].subida = "0";
+                        setProductos(nueva);
+                      }}
+                      inputMode="decimal"
+                      disabled={isRegistrandoCompra}
+                      className={
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black disabled:opacity-60" +
+                        noSpinNumber
+                      }
+                      style={{ MozAppearance: "textfield" }}
+                    />
+                    <span className="border border-l-0 rounded-r px-2 py-1 bg-gray-50 text-gray-700">
+                      %
+                    </span>
+                  </div>
+                </td>
+
+                <td className="border px-3 py-2 text-center">
+                  <div className="inline-flex items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={prod.descuento}
+                      onChange={(e) => {
+                        const nueva = [...productos];
+                        nueva[i].descuento = e.target.value;
+                        setProductos(nueva);
+                      }}
+                      onBlur={() => {
+                        const nueva = [...productos];
+                        if (nueva[i].descuento === "") nueva[i].descuento = "0";
+                        setProductos(nueva);
+                      }}
+                      inputMode="decimal"
+                      disabled={isRegistrandoCompra}
+                      className={
+                        "w-16 border rounded-l px-2 py-1 text-center bg-white text-black disabled:opacity-60" +
+                        noSpinNumber
+                      }
+                      style={{ MozAppearance: "textfield" }}
+                    />
+                    <span className="border border-l-0 rounded-r px-2 py-1 bg-gray-50 text-gray-700">
+                      %
+                    </span>
+                  </div>
+                </td>
+
+                <td className="border px-3 py-2 text-center">
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioCompra}
+                      onChange={(e) => updateProductoField(i, "precioCompra", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioCompra ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioCompra && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioCompra}
+                      </p>
+                    )}
+                  </div>
+                </td>
+
+                <td className="border px-3 py-2 text-center">
+                  <div className="flex flex-col items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={prod.precioVenta}
+                      onChange={(e) => updateProductoField(i, "precioVenta", e.target.value)}
+                      disabled={isRegistrandoCompra}
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
+                        productoErrors[i]?.precioVenta ? "border-red-500" : ""
+                      }`}
+                    />
+                    {productoErrors[i]?.precioVenta && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {productoErrors[i].precioVenta}
+                      </p>
+                    )}
+                  </div>
+                </td>
+
+                <td className="border px-3 py-2 text-center text-black">
+                  ${calcularSubtotal(prod).toLocaleString("es-CO")}
+                </td>
+
+                <td className="border px-3 py-2">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => abrirPackEditDesdeTabla(prod, i)}
+                      title="Ver / editar paquetes"
+                      className="text-blue-600 hover:text-blue-800 disabled:opacity-60"
+                      type="button"
+                      disabled={isRegistrandoCompra}
+                    >
+                      <FiEdit size={18} />
+                    </button>
+
+                    <button
+                      onClick={() => setProductos(productos.filter((_, idx) => idx !== i))}
+                      title="Eliminar"
+                      className="text-red-600 hover:text-red-800 disabled:opacity-60"
+                      type="button"
+                      disabled={isRegistrandoCompra}
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -340,32 +1868,42 @@ export default function IndexRegisterPurchase() {
         </tbody>
       </table>
 
-      {/* Campo de comprobante y total */}
+      {hasInvalidProductRows && (
+        <p className="mb-4 text-sm text-red-600">
+          Corrige cantidad, precio de compra y precio de venta. Todos deben ser numeros mayores a 0.
+        </p>
+      )}
+
+      {/* Comprobante + total */}
       <div className="flex justify-between items-center">
         <div className="flex flex-col">
-          <label className="font-semibold text-gray-700 mb-1">
-            Subir comprobante original
-          </label>
+          <label className="font-semibold text-gray-700 mb-1">Subir comprobante original</label>
+
           <input
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/jpeg,image/png,image/jpg,image/webp"
             onChange={handleComprobanteUpload}
+            disabled={isRegistrandoCompra}
           />
-          {comprobante && (
-            <p className="text-sm text-green-600 mt-1">
-              Archivo cargado: {comprobante.name}
+
+          {mensajeComprobante && (
+            <p
+              className={`mt-1 text-sm ${
+                mensajeComprobante.tipo === "ok"
+                  ? "text-green-600"
+                  : mensajeComprobante.tipo === "info"
+                  ? "text-blue-600"
+                  : "text-red-600"
+              }`}
+            >
+              {mensajeComprobante.texto}
             </p>
           )}
         </div>
 
         <div className="text-right bg-gray-100 px-4 py-2 rounded shadow-md">
           <p className="text-sm text-gray-600">Total a pagar</p>
-          <p className="text-2xl font-bold text-green-700">
-            $
-            {productos
-              .reduce((acc, p) => acc + calcularSubtotal(p), 0)
-              .toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-green-700">${total.toLocaleString("es-CO")}</p>
         </div>
       </div>
 
@@ -373,24 +1911,594 @@ export default function IndexRegisterPurchase() {
       <div className="flex justify-end mt-4 space-x-2">
         <button
           onClick={() => navigate("/app/purchases")}
-          className="px-4 py-2 rounded bg-gray-500 text-white"
+          className="px-4 py-2 rounded bg-gray-500 text-white disabled:opacity-60"
+          type="button"
+          disabled={isRegistrandoCompra}
         >
           Cancelar
         </button>
+
         <button
           onClick={handleFinalizarCompra}
-          className="px-4 py-2 rounded bg-green-600 text-white"
+          disabled={
+            isRegistrandoCompra ||
+            hasInvalidProductRows ||
+            validateInvoiceMutation.isPending
+          }
+          className={`px-4 py-2 rounded text-white ${
+            isRegistrandoCompra || hasInvalidProductRows || validateInvoiceMutation.isPending
+              ? "bg-green-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
+          type="button"
+          title={
+            hasInvalidProductRows
+              ? "Corrige cantidad, precio de compra y precio de venta antes de finalizar."
+              : validateInvoiceMutation.isPending
+                ? "Espera a que termine la validacion del numero de factura."
+                : ""
+          }
         >
-          Finalizar Compra
+          {isRegistrandoCompra ? "Registrando..." : "Finalizar Compra"}
         </button>
       </div>
 
-      {/* Modales */}
-      {showModalProducto && (
-        <ProductRegisterModal onClose={() => setShowModalProducto(false)} />
+      {/* =========================
+          MODAL PAQUETES (AGREGAR)
+         ========================= */}
+      {isPackModalOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900">Datos del producto</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Completa la información antes de agregarlo a la compra
+            </p>
+
+            {/* Paquetes + Unid/paq */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">Cantidad</label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Paquetes */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={packForm.cantidad}
+                    onChange={(e) => {
+                      const raw = onlyDigits(e.target.value);
+
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
+
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+
+                        const fallbackBarcode =
+                          productoPackPendiente?.codigoBarras ??
+                          getCodigoBarras(productoPackPendiente) ??
+                          "";
+
+                        const paquetes = syncPaquetesLength(prev.paquetes, n, fallbackBarcode);
+                        const sel = Math.max(
+                          0,
+                          Math.min(prev.selectedIndex, Math.max(0, paquetes.length - 1))
+                        );
+
+                        return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
+                      });
+
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.cantidad && packErrors.cantidad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.cantidad && packErrors.cantidad && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.cantidad}</p>
+                  )}
+                </div>
+
+                {/* Unid/paq */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={packForm.unidadesPorPaquete}
+                    onChange={(e) => {
+                      const raw = onlyDigits(e.target.value);
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, unidadesPorPaquete: "" };
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        return { ...prev, unidadesPorPaquete: String(n) };
+                      });
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.unidadesPorPaquete}</p>
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Total unidades (informativo): <b>{getTotalUnidadesFromForm(packForm)}</b>
+              </p>
+            </div>
+
+            {/* Códigos de barras */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm text-gray-600 mb-1">Códigos de barras</label>
+                <span className="text-xs text-gray-500">
+                  Editando:{" "}
+                  <b>Paquete {packForm.paquetes.length ? packForm.selectedIndex + 1 : 0}</b> de{" "}
+                  <b>{packForm.paquetes.length}</b>
+                </span>
+              </div>
+
+              <select
+                value={packForm.selectedIndex}
+                onChange={(e) => onSelectPaquete(e.target.value)}
+                disabled={packForm.paquetes.length === 0}
+                className="w-full border rounded px-3 py-2 bg-white text-black mb-2 disabled:opacity-60"
+              >
+                {packForm.paquetes.map((p, idx) => (
+                  <option key={`sel-add-${idx}`} value={idx}>
+                    {makePackLabel(p, idx)}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={13}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      codigoBarrasIngreso: value,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                  packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                placeholder={
+                  packForm.paquetes.length ? "Ej: 7701234567890" : "Primero ingresa cantidad de paquetes"
+                }
+              />
+
+              {packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`] && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]}
+                  </p>
+                )}
+
+              {(packErrors.req || packErrors.dup) && (
+                <p className="mt-2 text-xs text-red-600">{packErrors.req || packErrors.dup}</p>
+              )}
+            </div>
+
+            {/* Fecha vencimiento */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                min={minExpiryDateStr}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      fechaVencimiento: v,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              {packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                packErrors[`${packForm.selectedIndex}.fechaVencimiento`] && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {packErrors[`${packForm.selectedIndex}.fechaVencimiento`]}
+                  </p>
+                )}
+              <p className="mt-1 text-[11px] text-gray-400">
+                Permitido desde: <b>{minExpiryDateStr}</b>
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelarModalPaquetes}
+                className="px-4 py-2 rounded bg-gray-500 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={guardarModalPaquetesYAgregar}
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      {showModalProveedor && (
-        <SuplliersRegisterModal onClose={() => setShowModalProveedor(false)} />
+
+      {/* =========================
+          MODAL PAQUETES (EDITAR)
+         ========================= */}
+      {isPackEditOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900">Editar datos del producto</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Ajusta paquetes, unid/paq, códigos y vencimiento
+            </p>
+
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">Cantidad</label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Paquetes</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={packForm.cantidad}
+                    onChange={(e) => {
+                      const raw = onlyDigits(e.target.value);
+
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, cantidad: "", paquetes: [], selectedIndex: 0 };
+
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        const paquetes = syncPaquetesLength(prev.paquetes, n, "");
+                        const sel = Math.max(
+                          0,
+                          Math.min(prev.selectedIndex, Math.max(0, paquetes.length - 1))
+                        );
+                        return { ...prev, cantidad: String(n), paquetes, selectedIndex: sel };
+                      });
+
+                      const nextForm = {
+                        ...packForm,
+                        cantidad: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, cantidad: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.cantidad && packErrors.cantidad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.cantidad && packErrors.cantidad && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.cantidad}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Unid/paquete</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={packForm.unidadesPorPaquete}
+                    onChange={(e) => {
+                      const raw = onlyDigits(e.target.value);
+                      setPackForm((prev) => {
+                        if (raw === "") return { ...prev, unidadesPorPaquete: "" };
+                        const n = Math.max(0, Math.floor(Number(raw || 0)));
+                        return { ...prev, unidadesPorPaquete: String(n) };
+                      });
+                      const nextForm = {
+                        ...packForm,
+                        unidadesPorPaquete: raw,
+                      };
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      setPackErrors(
+                        computePackErrors({
+                          ...nextForm,
+                          cantidad: nextForm.cantidad === "" ? "0" : nextForm.cantidad,
+                          unidadesPorPaquete:
+                            nextForm.unidadesPorPaquete === "" ? "0" : nextForm.unidadesPorPaquete,
+                        })
+                      );
+                    }}
+                    onBlur={() => {
+                      setPackTouched((t) => ({ ...t, unidadesPorPaquete: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none ${
+                      packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched.unidadesPorPaquete && packErrors.unidadesPorPaquete && (
+                    <p className="mt-1 text-xs text-red-600">{packErrors.unidadesPorPaquete}</p>
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Total unidades (informativo): <b>{getTotalUnidadesFromForm(packForm)}</b>
+              </p>
+            </div>
+
+            {/* Códigos de barras */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm text-gray-600 mb-1">Códigos de barras</label>
+                <span className="text-xs text-gray-500">
+                  Editando:{" "}
+                  <b>Paquete {packForm.paquetes.length ? packForm.selectedIndex + 1 : 0}</b> de{" "}
+                  <b>{packForm.paquetes.length}</b>
+                </span>
+              </div>
+
+              <select
+                value={packForm.selectedIndex}
+                onChange={(e) => onSelectPaquete(e.target.value)}
+                disabled={packForm.paquetes.length === 0}
+                className="w-full border rounded px-3 py-2 bg-white text-black mb-2 disabled:opacity-60"
+              >
+                {packForm.paquetes.map((p, idx) => (
+                  <option key={`sel-edit-${idx}`} value={idx}>
+                    {makePackLabel(p, idx)}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={13}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      codigoBarrasIngreso: value,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
+                  packErrors[`${packForm.selectedIndex}.codigoBarrasIngreso`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+
+              {(packErrors.req || packErrors.dup) && (
+                <p className="mt-2 text-xs text-red-600">{packErrors.req || packErrors.dup}</p>
+              )}
+            </div>
+
+            {/* Fecha vencimiento */}
+            <div className="mb-3">
+              <label className="block text-sm text-gray-600 mb-1">
+                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                min={minExpiryDateStr}
+                disabled={packForm.paquetes.length === 0}
+                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPackForm((prev) => {
+                    const paquetes = [...prev.paquetes];
+                    if (!paquetes.length) return prev;
+                    paquetes[prev.selectedIndex] = {
+                      ...paquetes[prev.selectedIndex],
+                      fechaVencimiento: v,
+                    };
+                    return { ...prev, paquetes };
+                  });
+                }}
+                onBlur={() => {
+                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                  setPackTouched((t) => ({ ...t, [key]: true }));
+                  const normalized = {
+                    ...packForm,
+                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                    unidadesPorPaquete:
+                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                  };
+                  setPackErrors(computePackErrors(normalized));
+                }}
+                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Permitido desde: <b>{minExpiryDateStr}</b>
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelarPackEdit}
+                className="px-4 py-2 rounded bg-gray-500 text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={guardarPackEdit}
+                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          MODALES
+         ========================= */}
+      <ProductRegisterModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        onCreated={onProductoCreado}
+      />
+
+      {isSupplierModalOpen && (
+        <div className="purchase-supplier-open">
+          <SuplliersRegisterModal
+            isOpen={isSupplierModalOpen}
+            onClose={() => setIsSupplierModalOpen(false)}
+          />
+        </div>
       )}
     </div>
   );

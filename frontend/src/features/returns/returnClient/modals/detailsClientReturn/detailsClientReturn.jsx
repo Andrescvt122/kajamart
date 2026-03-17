@@ -18,21 +18,31 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
   // Estado para paginación de Productos devueltos
   const [salePage, setSalePage] = useState(1);
   const salePerPage = 5;
-  const saleProducts = returnData?.productsToReturn || [];
+  const saleProducts = returnData?.productsReturned || [];
   const saleTotalPages = Math.ceil(saleProducts.length / salePerPage);
   const salePageProducts = saleProducts.slice(
     (salePage - 1) * salePerPage,
-    salePage * salePerPage
+    salePage * salePerPage,
   );
 
   // Estado para paginación de Productos cliente devueltos
   const [returnPage, setReturnPage] = useState(1);
   const returnPerPage = 5;
-  const returnProducts = returnData?.productsClientReturn || [];
+  const returnProducts = returnData?.productsDelivered || [];
   const returnTotalPages = Math.ceil(returnProducts.length / returnPerPage);
   const returnPageProducts = returnProducts.slice(
     (returnPage - 1) * returnPerPage,
-    returnPage * returnPerPage
+    returnPage * returnPerPage,
+  );
+
+  const totalSaleProducts = saleProducts.reduce(
+    (acc, product) => acc + (Number(product.totalValue) || 0),
+    0,
+  );
+
+  const totalReturnProducts = returnProducts.reduce(
+    (acc, product) => acc + (Number(product.totalValue) || 0),
+    0,
   );
 
   if (!isOpen || !returnData) return null;
@@ -45,16 +55,20 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
     }).format(amount);
   };
 
-  const calculateProductTotal = (product) => {
-    return product.quantity * product.price;
+  const calculateUnitPrice = (product) => {
+    if (!product?.quantity) return 0;
+    return product.totalValue / product.quantity;
   };
 
-  const calculateTotalReturn = () => {
-    return returnData.productsClientReturn.reduce((total, product) => {
-      return total + calculateProductTotal(product);
-    }, 0);
-  };
-
+  const totalDevolucionCliente = Number(returnData.totalDevolucionCliente || 0);
+  const totalDevolucionProducto = Number(
+    returnData.totalDevolucionProducto || 0,
+  );
+  const difference = Math.abs(totalDevolucionCliente - totalDevolucionProducto);
+  const balanceLabel =
+    totalDevolucionCliente >= totalDevolucionProducto
+      ? "Total a devolver"
+      : "Total a cobrar";
   return (
     <>
       {/* Estilos CSS para animaciones */}
@@ -146,17 +160,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 <div className="flex items-center gap-3 mb-2">
                   <RefreshCw className="text-green-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
-                    Tipo de Devolución
-                  </span>
-                </div>
-                <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                  {returnData.typeReturn}
-                </span>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <RefreshCw className="text-green-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">
                     Responsable
                   </span>
                 </div>
@@ -164,15 +167,37 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   {returnData.responsable}
                 </span>
               </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Total devoluciones cliente
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {formatCurrency(totalDevolucionCliente)}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="text-green-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">
+                    Total devoluciones producto
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {formatCurrency(totalDevolucionProducto)}
+                </p>
+              </div>
               <div className="bg-gray-50 rounded-lg p-4 lg:col-span-full">
                 <div className="flex items-center gap-3 mb-2">
                   <DollarSign className="text-green-600" size={20} />
                   <span className="text-sm font-medium text-gray-700">
-                    Total
+                    {balanceLabel}
                   </span>
                 </div>
                 <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(returnData.total)}
+                  {formatCurrency(difference)}
                 </p>
               </div>
             </div>
@@ -190,7 +215,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos devueltos
+                    Productos recibidos
                   </button>
                   <button
                     onClick={() => setCurrentCarouselStep(1)}
@@ -200,7 +225,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                   >
-                    Productos cliente devueltos
+                    Productos devueltos
                   </button>
                 </div>
 
@@ -208,7 +233,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   <button
                     onClick={() =>
                       setCurrentCarouselStep(
-                        Math.max(0, currentCarouselStep - 1)
+                        Math.max(0, currentCarouselStep - 1),
                       )
                     }
                     disabled={currentCarouselStep === 0}
@@ -226,7 +251,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                   <button
                     onClick={() =>
                       setCurrentCarouselStep(
-                        Math.min(1, currentCarouselStep + 1)
+                        Math.min(1, currentCarouselStep + 1),
                       )
                     }
                     disabled={currentCarouselStep === 1}
@@ -247,7 +272,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 {currentCarouselStep === 0 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos devueltos
+                      Productos recibidos
                     </h3>
                     <div className="bg-green-50 rounded-lg border border-green-200 overflow-hidden">
                       <table className="min-w-full">
@@ -277,13 +302,24 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                                 {product.quantity}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
-                                {formatCurrency(product.price)}
+                                {formatCurrency(calculateUnitPrice(product))}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                                {formatCurrency(calculateProductTotal(product))}
+                                {formatCurrency(product.totalValue)}
                               </td>
                             </tr>
                           ))}
+                          <tr className="bg-green-100 font-bold">
+                            <td
+                              colSpan="3"
+                              className="px-4 py-3 text-sm text-green-700 text-right"
+                            >
+                              Total:
+                            </td>
+                            <td className="px-4 py-3 text-sm text-green-700 font-bold">
+                              {formatCurrency(totalSaleProducts)}
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
@@ -303,7 +339,7 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                 {currentCarouselStep === 1 && (
                   <div className="space-y-4 animate-fadeIn">
                     <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                      Productos cliente devueltos
+                      Productos devueltos
                     </h3>
                     <div className="bg-red-50 rounded-lg border border-red-200 overflow-hidden">
                       <table className="min-w-full">
@@ -317,9 +353,6 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                               Razon
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
-                              Proveedor
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-red-700 uppercase tracking-wider">
                               Precio Unitario
@@ -339,33 +372,28 @@ const DetailsClientReturn = ({ isOpen, onClose, returnData }) => {
                                 {product.quantity}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
-                                {product.reason}
+                                {product.reason || "N/A"}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700">
-                                {product.statusSuppliers}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-700">
-                                {formatCurrency(product.price)}
+                                {formatCurrency(calculateUnitPrice(product))}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                                {formatCurrency(calculateProductTotal(product))}
+                                {formatCurrency(product.totalValue)}
                               </td>
                             </tr>
                           ))}
-                        </tbody>
-                        <tfoot className="bg-red-100">
-                          <tr>
+                          <tr className="bg-red-100 font-bold">
                             <td
-                              colSpan="5"
-                              className="px-4 py-3 text-sm font-semibold text-right text-red-800"
+                              colSpan="4"
+                              className="px-4 py-3 text-sm text-red-700 text-right"
                             >
-                              Total a Devolver:
+                              Total:
                             </td>
-                            <td className="px-4 py-3 text-sm font-bold text-red-900">
-                              {formatCurrency(calculateTotalReturn())}
+                            <td className="px-4 py-3 text-sm text-red-700 font-bold">
+                              {formatCurrency(totalReturnProducts)}
                             </td>
                           </tr>
-                        </tfoot>
+                        </tbody>
                       </table>
                     </div>
                     <div className="flex justify-center mt-2">

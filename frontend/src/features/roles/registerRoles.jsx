@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, AlertCircle, CheckCircle } from "lucide-react";
 import { showConfirmAlert, showSuccessAlert } from "../../shared/components/alerts.jsx";
 import { useCreateRole } from "../../shared/components/hooks/roles/useCreateRole.js";
 
@@ -13,6 +13,42 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
     estado: true,
     permisos: {},
   });
+
+  // 🔍 Estado para validaciones en tiempo real
+  const [validations, setValidations] = useState({
+    nombreRol: { error: null, isValid: false },
+    descripcion: { error: null, isValid: false },
+  });
+
+  // 🔍 Funciones de validación
+  const validateNombreRol = (value) => {
+    if (!value || value.trim().length === 0) {
+      return { error: "El nombre del rol es requerido", isValid: false };
+    }
+    if (value.trim().length < 3) {
+      return { error: "El nombre debe tener al menos 3 caracteres", isValid: false };
+    }
+    if (value.trim().length > 50) {
+      return { error: "El nombre no debe exceder 50 caracteres", isValid: false };
+    }
+    if (!/^[a-zA-Z\s_-]+$/.test(value)) {
+      return { error: "Solo se permiten letras, espacios, guiones y guiones bajos", isValid: false };
+    }
+    return { error: null, isValid: true };
+  };
+
+  const validateDescripcion = (value) => {
+    if (!value || value.trim().length === 0) {
+      return { error: "La descripción es requerida", isValid: false };
+    }
+    if (value.trim().length < 10) {
+      return { error: "La descripción debe tener al menos 10 caracteres", isValid: false };
+    }
+    if (value.trim().length > 500) {
+      return { error: "La descripción no debe exceder 500 caracteres", isValid: false };
+    }
+    return { error: null, isValid: true };
+  };
 
   // 🧩 Normalización + inicialización de permisos
   useEffect(() => {
@@ -45,10 +81,19 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
     }
   }, [permisosAgrupados]);
 
-  // 🧩 Manejadores de cambios
+  // 🧩 Manejadores de cambios con validación en tiempo real
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    // 🔍 Ejecutar validación según el campo
+    if (name === "nombreRol") {
+      const validation = validateNombreRol(value);
+      setValidations((prev) => ({ ...prev, nombreRol: validation }));
+    } else if (name === "descripcion") {
+      const validation = validateDescripcion(value);
+      setValidations((prev) => ({ ...prev, descripcion: validation }));
+    }
   };
 
   const handlePermisoChange = (key) => {
@@ -125,6 +170,19 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 🔍 Validar antes de enviar
+    const validacionNombre = validateNombreRol(form.nombreRol);
+    const validacionDescripcion = validateDescripcion(form.descripcion);
+
+    setValidations({
+      nombreRol: validacionNombre,
+      descripcion: validacionDescripcion,
+    });
+
+    if (!validacionNombre.isValid || !validacionDescripcion.isValid) {
+      return;
+    }
+
     const permisosSeleccionados = Object.entries(form.permisos)
       .filter(([_, checked]) => checked)
       .map(([key]) => parseInt(key.split("-")[1], 10))
@@ -152,7 +210,7 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
         descripcion: form.descripcion,
         estado_rol: form.estado,
         // 💡 FIX: Añadir la propiedad de permisos para que la estructura del objeto sea consistente
-        rol_permisos: creado.rol_permisos ||[],
+        rol_permisos: creado.rol_permisos || [],
       };
       onRoleCreated(rolParaUI); // 🚀 Notifica al padre con el objeto completo para la UI
 
@@ -162,6 +220,10 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
         descripcion: "",
         estado: true,
         permisos: {},
+      });
+      setValidations({
+        nombreRol: { error: null, isValid: false },
+        descripcion: { error: null, isValid: false },
       });
     }
   };
@@ -219,28 +281,80 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del rol</label>
-                    <input
-                      type="text"
-                      name="nombreRol"
-                      value={form.nombreRol}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
-                      placeholder="Nombre del rol"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="nombreRol"
+                        value={form.nombreRol}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 text-black transition ${
+                          form.nombreRol
+                            ? validations.nombreRol.isValid
+                              ? "border-green-500 focus:ring-2 focus:ring-green-500"
+                              : "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-gray-300"
+                        }`}
+                        placeholder="Nombre del rol"
+                      />
+                      {form.nombreRol && (
+                        <div className="absolute right-3 top-3">
+                          {validations.nombreRol.isValid ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {form.nombreRol && validations.nombreRol.error && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validations.nombreRol.error}
+                      </p>
+                    )}
+                    {form.nombreRol && validations.nombreRol.isValid && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Nombre válido
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                    <textarea
-                      name="descripcion"
-                      value={form.descripcion}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
-                      rows={3}
-                      placeholder="Descripción del rol"
-                      required
-                    />
+                    <div className="relative">
+                      <textarea
+                        name="descripcion"
+                        value={form.descripcion}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 text-black transition ${
+                          form.descripcion
+                            ? validations.descripcion.isValid
+                              ? "border-green-500 focus:ring-2 focus:ring-green-500"
+                              : "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-gray-300"
+                        }`}
+                        rows={3}
+                        placeholder="Descripción del rol"
+                      />
+                      {form.descripcion && (
+                        <div className="absolute right-3 top-3">
+                          {validations.descripcion.isValid ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {form.descripcion && validations.descripcion.error && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validations.descripcion.error}
+                      </p>
+                    )}
+                    {form.descripcion && validations.descripcion.isValid && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Descripción válida
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -325,8 +439,8 @@ export default function RegisterRoles({ isOpen, onClose, permisosAgrupados, onRo
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition disabled:opacity-50"
+                    disabled={loading || !validations.nombreRol.isValid || !validations.descripcion.isValid}
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? "Creando..." : "Crear rol"}
                   </button>

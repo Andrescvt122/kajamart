@@ -50,6 +50,14 @@ export default function ProductEditModal({
       case "categoria":
         if (!value) error = "Selecciona una categoría.";
         break;
+      case "cantidadUnitaria":
+        if (
+          value !== "" &&
+          (value === null || Number.isNaN(Number(value)) || Number(value) < 1)
+        ) {
+          error = "Si se indica, debe ser un número válido (>= 1).";
+        }
+        break;
       default:
         break;
     }
@@ -77,6 +85,14 @@ export default function ProductEditModal({
         errs[f] = err;
       }
     });
+    const cantidadUnitariaError = validateField(
+      "cantidadUnitaria",
+      form.cantidadUnitaria
+    );
+    if (cantidadUnitariaError) {
+      ok = false;
+      errs.cantidadUnitaria = cantidadUnitariaError;
+    }
     setErrors(errs);
     if (!ok) return;
     handleSubmit(form); // <<<<<< pasa el form (no el evento)
@@ -124,7 +140,7 @@ export default function ProductEditModal({
       {isModalOpen && (
         <motion.div
           // 🔹 Igual overlay que el modal de Registrar: blur total + un poco más arriba
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/50 backdrop-blur-sm pt-10 sm:pt-16"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm pt-10 sm:pt-16"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -180,6 +196,34 @@ export default function ProductEditModal({
                   rows="3"
                   className="mt-1 w-full px-4 py-3 border rounded-lg bg-white border-gray-300"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800">
+                  Cantidad unitaria
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  name="cantidadUnitaria"
+                  value={form.cantidadUnitaria || ""}
+                  onChange={handleChange}
+                  onBlur={(e) =>
+                    validateField("cantidadUnitaria", e.target.value)
+                  }
+                  placeholder="Ej. 12"
+                  className={`mt-1 w-full px-4 py-3 border rounded-lg bg-white focus:ring-2 ${
+                    errors.cantidadUnitaria
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                />
+                {errors.cantidadUnitaria && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.cantidadUnitaria}
+                  </p>
+                )}
               </div>
 
               {/* Imagen única */}

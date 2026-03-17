@@ -2,8 +2,14 @@ import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAtuh";
+import { exportPurchaseReceiptPDF } from "../purchases/helper/eportPurchaseReceiptPDF";
+import { useFetchPurchases as useSearchPurchases } from "../../shared/components/hooks/search/useFetchPruchases";
+
+
 import ondas from "../../assets/ondasHorizontal.png";
+
 import Paginator from "../../shared/components/paginator";
 import {
   ViewButton,
@@ -11,159 +17,411 @@ import {
   ExportExcelButton,
   ExportPDFButton,
 } from "../../shared/components/buttons";
+
 import PurchaseDetailModal from "./PurchaseDetailModal";
+
+// ✅ Helpers exportación
+import { exportPurchasesToExcel } from "./helper/exportPurchasesExcel";
+import { exportPurchasesToPdf } from "./helper/exportPurchasesPdf";
+
+// ✅ API
+import api from "../../api/axiosConfig";
+
+// Helpers UI
+const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
+const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
+
+// ✅ Anulación (30 minutos) — solo UI por ahora
+const MAX_MINUTES_ANNUL = 30;
+const diffMinutesFromNow = (isoDate) => {
+  const t = new Date(isoDate).getTime();
+  if (Number.isNaN(t)) return Infinity;
+  return (Date.now() - t) / 60000;
+};
+const canAnnulPurchase = (purchase) => {
+  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
+  return mins >= 0 && mins < MAX_MINUTES_ANNUL;
+};
+const isAnulada = (estado) => {
+  const s = String(estado || "").toLowerCase();
+  return s === "anulada" || s === "anulado" || s === "cancelada" || s === "cancelado";
+};
+
+// ✅ util: unique conservando orden
+const uniqueKeepOrder = (arr) => {
+  const out = [];
+  const seen = new Set();
+  for (const x of arr) {
+    const v = String(x || "").trim();
+    if (!v) continue;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+};
+
+const normalizeApiPurchasesForUI = (list) => {
+  return (list || []).map((c) => {
+    const id = c?.id_compra ?? c?.id ?? c?._id ?? "";
+
+    const factura =
+      c?.numero_factura ??
+      c?.num_factura ??
+      c?.factura ??
+      (id ? String(id).padStart(3, "0") : "—");
+
+    const proveedorNombre =
+      c?.proveedores?.nombre ??
+      c?.proveedor?.nombre ??
+      c?.proveedor_nombre ??
+      "—";
+
+    const proveedorNit =
+      c?.proveedores?.nit ??
+      c?.proveedor?.nit ??
+      c?.proveedor_nit ??
+      "—";
+
+    const fecha =
+      c?.fecha_compra ??
+      c?.fecha ??
+      c?.created_at ??
+      new Date().toISOString();
+
+    const createdAt =
+      c?.created_at ??
+      c?.fecha_creacion ??
+      c?.fecha_registro ??
+      fecha;
+
+    const estado = c?.estado_compra ?? c?.estado ?? "Completada";
+    const total = Number(c?.total ?? 0);
+
+    const productos = (() => {
+      const det = Array.isArray(c?.detalle_compra) ? c.detalle_compra : [];
+      const map = new Map();
+
+      for (const d of det) {
+        const idProducto =
+          d?.detalle_productos?.productos?.id_producto ??
+          d?.detalle_productos?.id_producto ??
+          d?.id_producto ??
+          d?.productoId ??
+          null;
+
+        const nombre =
+          d?.detalle_productos?.productos?.nombre ??
+          d?.productos?.nombre ??
+          d?.nombre ??
+          "—";
+
+        const key = idProducto ?? nombre;
+        const paquetes = Number(d?.cantidad_paquetes ?? d?.cantidad ?? 1) || 1;
+        const unidPorPaq = Number(d?.unidades_por_paquete ?? 0) || 0;
+        const totalUnid =
+          Number(d?.cantidad_total_unidades ?? 0) || paquetes * unidPorPaq;
+        const iva = Number(d?.iva_porcentaje ?? 0) || 0;
+        const icu = Number(d?.icu_porcentaje ?? 0) || 0;
+        const precioCompra = Number(d?.precio_unitario ?? 0) || 0;
+        const precioVenta = Number(d?.precio_venta ?? 0) || 0;
+
+        const fechaVenc =
+          d?.detalle_productos?.fecha_vencimiento ??
+          d?.fecha_vencimiento ??
+          "";
+
+        const codigo =
+          d?.detalle_productos?.codigo_barras_producto_compra ??
+          d?.codigo_barras_producto_compra ??
+          "";
+
+        if (!map.has(key)) {
+          map.set(key, {
+            productoId: idProducto,
+            nombre,
+            cantidad_paquetes: 0,
+            unidades_por_paquete: unidPorPaq,
+            cantidad_total_unidades: 0,
+            precioCompra,
+            precioVenta,
+            iva_porcentaje: iva,
+            icu_porcentaje: icu,
+            vencimientos: [],
+            codigosBarras: [],
+          });
+        }
+
+        const acc = map.get(key);
+
+        acc.cantidad_paquetes += paquetes;
+        acc.unidades_por_paquete = Math.max(acc.unidades_por_paquete, unidPorPaq);
+        acc.cantidad_total_unidades += totalUnid;
+        acc.precioCompra = precioCompra;
+        acc.precioVenta = precioVenta;
+        acc.iva_porcentaje = iva;
+        acc.icu_porcentaje = icu;
+
+        if (fechaVenc) acc.vencimientos.push(String(fechaVenc).slice(0, 10));
+        if (codigo) acc.codigosBarras.push(String(codigo));
+      }
+
+      return Array.from(map.values()).map((p) => ({
+        ...p,
+        vencimientos: (p.vencimientos || []).filter(Boolean),
+        codigosBarras: uniqueKeepOrder(p.codigosBarras),
+      }));
+    })();
+
+    const comprobante = {
+      name: c?.comprobante_nombre ?? null,
+      type: c?.comprobante_mime ?? null,
+      url: c?.comprobante_url ?? null,
+      size: c?.comprobante_size ?? null,
+    };
+
+    return {
+      id: String(id),
+      factura: String(factura),
+      proveedor: proveedorNombre,
+      nit: String(proveedorNit),
+      total,
+      fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt:
+        typeof createdAt === "string"
+          ? createdAt
+          : new Date(createdAt).toISOString(),
+      estado,
+      productos,
+      comprobante,
+      raw: c,
+    };
+  });
+};
 
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+
   const canCreate = hasPermission("Crear compra");
   const canAnnular = hasPermission("Anular compra");
+
+  // ✅ fuerza refresh compras
+  const [comprasVersion, setComprasVersion] = useState(0);
+
   // =========================
-  // Mock (temporal) -> luego se reemplaza por hook/API
+  // Purchases desde BACKEND
   // =========================
-  const purchases = useMemo(
-    () => [
-      {
-        id: "C001",
-        factura: "FAC-0001",
-        proveedor: "Global Supplies Inc.",
-        nit: "900123456-1",
-        subtotal: 1200,
-        total: 1608,
-        fecha: "2024-07-26",
-        estado: "Completada",
-        productos: [
-          { nombre: "Papel A4", cantidad: 10, precio: 12 },
-          { nombre: "Tinta HP", cantidad: 3, precio: 45 },
-        ],
-      },
-      {
-        id: "C002",
-        factura: "FAC-0002",
-        proveedor: "Local Goods Co.",
-        nit: "900987654-2",
-        subtotal: 850,
-        total: 918,
-        fecha: "2024-07-25",
-        estado: "Anulada",
-        productos: [
-          { nombre: "Cajas de cartón", cantidad: 5, precio: 20 },
-          { nombre: "Cinta adhesiva", cantidad: 10, precio: 3 },
-        ],
-      },
-      {
-        id: "C003",
-        factura: "FAC-0003",
-        proveedor: "Tech Hardware Ltd.",
-        nit: "900112233-3",
-        subtotal: 2300,
-        total: 2777,
-        fecha: "2024-07-24",
-        estado: "Completada",
-        productos: [
-          { nombre: "Mouse inalámbrico", cantidad: 15, precio: 25 },
-          { nombre: "Teclado mecánico", cantidad: 10, precio: 75 },
-          { nombre: "USB 32GB", cantidad: 20, precio: 10 },
-        ],
-      },
-      {
-        id: "C004",
-        factura: "FAC-0004",
-        proveedor: "Office Essentials",
-        nit: "900445566-4",
-        subtotal: 1450,
-        total: 1705,
-        fecha: "2024-07-23",
-        estado: "Pendiente",
-        productos: [
-          { nombre: "Archivadores", cantidad: 12, precio: 15 },
-          { nombre: "Marcadores", cantidad: 30, precio: 2 },
-          { nombre: "Resmas de papel", cantidad: 8, precio: 14 },
-        ],
-      },
-      {
-        id: "C005",
-        factura: "FAC-0005",
-        proveedor: "Industrial Tools SA",
-        nit: "900667788-5",
-        subtotal: 3100,
-        total: 3725,
-        fecha: "2024-07-22",
-        estado: "Completada",
-        productos: [
-          { nombre: "Taladros eléctricos", cantidad: 5, precio: 200 },
-          { nombre: "Martillos", cantidad: 20, precio: 25 },
-          { nombre: "Destornilladores", cantidad: 50, precio: 5 },
-        ],
-      },
-      {
-        id: "C006",
-        factura: "FAC-0006",
-        proveedor: "Stationery World",
-        nit: "900998877-6",
-        subtotal: 600,
-        total: 708,
-        fecha: "2024-07-21",
-        estado: "Completada",
-        productos: [
-          { nombre: "Lápices", cantidad: 50, precio: 1 },
-          { nombre: "Gomas de borrar", cantidad: 20, precio: 2 },
-          { nombre: "Cuadernos", cantidad: 10, precio: 10 },
-        ],
-      },
-    ],
-    []
+  const [purchasesApi, setPurchasesApi] = useState([]);
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
+  const [apiError, setApiError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [perPage, setPerPage] = useState(10);
+  const trimmedSearchTerm = searchTerm.trim();
+  const isSearchMode = trimmedSearchTerm.length > 0;
+  const {
+    data: searchedPurchasesApi,
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchPurchases(trimmedSearchTerm);
+
+
+ const fetchPurchases = useCallback(async () => {
+  try {
+    setIsLoadingApi(true);
+    setApiError("");
+
+    const { data } = await api.get(`/purchase?page=${page}&limit=10`);
+
+    const arr = Array.isArray(data.data) ? data.data : [];
+    setPurchasesApi(arr);
+    setTotalPages(data.pagination?.totalPages || 1);
+    setTotalItems(data.pagination?.total || 0);
+    setPerPage(data.pagination?.limit || 10);
+
+  } catch (e) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "Error cargando compras desde el servidor.";
+
+    setApiError(msg);
+    setPurchasesApi([]);
+  } finally {
+    setIsLoadingApi(false);
+  }
+}, [page]);
+
+useEffect(() => {
+  fetchPurchases();
+}, [fetchPurchases, comprasVersion, page]);
+
+  // =========================
+  // (Opcional) LocalStorage legacy
+  // =========================
+  const purchasesLocal = useMemo(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("compras")) || [];
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  }, [comprasVersion]);
+
+  // =========================
+  // Normalizar compras API => UI shape
+  // ✅ AGRUPA detalle_compra por producto (sin duplicar)
+  // ✅ GUARDA vencimientos/códigos por paquete (arrays)
+  // =========================
+  const normalizedApiPurchases = useMemo(
+    () => normalizeApiPurchasesForUI(purchasesApi),
+    [purchasesApi]
   );
+  const normalizedSearchedApiPurchases = useMemo(
+    () => normalizeApiPurchasesForUI(searchedPurchasesApi),
+    [searchedPurchasesApi]
+  );
+
+  // =========================
+  // Normalizar Local => UI shape (legacy)
+  // =========================
+  const normalizedLocalPurchases = useMemo(() => {
+    return purchasesLocal.map((c) => {
+      const id = c?.id ?? c?._id ?? "";
+      const factura = c?.numero_factura ?? c?.num_factura ?? c?.factura ?? "—";
+
+      const proveedorNombre =
+        c?.proveedor?.nombre ??
+        (typeof c?.proveedor === "string" ? c.proveedor : null) ??
+        "—";
+
+      const proveedorNit = c?.proveedor?.nit ?? c?.nit ?? "—";
+      const fecha = c?.fecha ?? c?.created_at ?? new Date().toISOString();
+      const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
+      const estado = c?.estado ?? "Completada";
+
+      return {
+        id: String(id),
+        factura: String(factura),
+        proveedor: proveedorNombre,
+        nit: String(proveedorNit ?? "—"),
+        total: Number(c?.total ?? 0),
+        fecha,
+        createdAt,
+        estado,
+        productos: Array.isArray(c?.productos) ? c.productos : [],
+        comprobante: c?.comprobante ?? null,
+        raw: c,
+      };
+    });
+  }, [purchasesLocal]);
+
+  // =========================
+  // Lista final (API + Local sin duplicar)
+  // =========================
+  const purchases = useMemo(() => {
+  const apiIds = new Set(normalizedApiPurchases.map((p) => String(p.id)));
+
+  const localNoDup = normalizedLocalPurchases.filter(
+    (p) => !apiIds.has(String(p.id))
+  );
+
+  const merged = [...normalizedApiPurchases, ...localNoDup];
+
+  // ✅ Ordenar por número de factura ASC (001 → último)
+  return merged.sort((a, b) => {
+    const fa = Number(a.factura) || 0;
+    const fb = Number(b.factura) || 0;
+    return fa - fb;
+  });
+
+}, [normalizedApiPurchases, normalizedLocalPurchases]);
+
 
   // =========================
   // UI State
   // =========================
-  const perPage = 5;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
 
-  // Modal
+  // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // =========================
-  // Derived state (filtro + paginación)
+  // Filtro + Paginación
   // =========================
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
     if (!s) return purchases;
 
     return purchases.filter((p) =>
-      `${p.proveedor} ${p.estado} ${p.fecha} ${p.factura} ${p.nit}`
+      `${p.proveedor} ${p.estado} ${onlyDate(p.fecha)} ${p.factura} ${p.nit}`
         .toLowerCase()
         .includes(s)
     );
   }, [purchases, searchTerm]);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(filtered.length / perPage)),
-    [filtered.length]
-  );
+  const searchedLocalPurchases = useMemo(() => {
+    if (!isSearchMode) return [];
 
-  // Asegura que currentPage no quede fuera de rango si cambia el filtro
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(Math.max(1, prev), totalPages));
-  }, [totalPages]);
+    const s = trimmedSearchTerm.toLowerCase();
 
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    return normalizedLocalPurchases.filter((p) =>
+      `${p.proveedor} ${p.estado} ${onlyDate(p.fecha)} ${p.factura} ${p.nit} ${p.total}`
+        .toLowerCase()
+        .includes(s)
+    );
+  }, [isSearchMode, normalizedLocalPurchases, trimmedSearchTerm]);
+
+  const searchedPurchases = useMemo(() => {
+    if (!isSearchMode) return [];
+
+    const apiIds = new Set(normalizedSearchedApiPurchases.map((p) => String(p.id)));
+    const localNoDup = searchedLocalPurchases.filter(
+      (p) => !apiIds.has(String(p.id))
+    );
+
+    return [...normalizedSearchedApiPurchases, ...localNoDup].sort((a, b) => {
+      const fa = Number(a.factura) || 0;
+      const fb = Number(b.factura) || 0;
+      return fa - fb;
+    });
+  }, [isSearchMode, normalizedSearchedApiPurchases, searchedLocalPurchases]);
+
+  const pageSize = perPage || 10;
+  const searchTotalPages = Math.max(1, Math.ceil(searchedPurchases.length / pageSize));
+  const safeSearchPage = Math.min(searchPage, searchTotalPages);
+  const searchPageStart = (safeSearchPage - 1) * pageSize;
+
+  const displayedPurchases = useMemo(() => {
+    if (!isSearchMode) return filtered;
+    return searchedPurchases.slice(searchPageStart, searchPageStart + pageSize);
+  }, [filtered, isSearchMode, searchedPurchases, searchPageStart, pageSize]);
+
+  const currentPageValue = isSearchMode ? safeSearchPage : page;
+  const currentTotalPages = isSearchMode ? searchTotalPages : totalPages;
+  const currentTotalItems = isSearchMode ? searchedPurchases.length : totalItems;
+  const currentLoading = isSearchMode ? searchLoading : isLoadingApi;
+  const currentError = isSearchMode ? searchError : apiError;
 
   // =========================
   // Handlers
   // =========================
   const goToPage = useCallback(
     (n) => {
+      if (isSearchMode) {
+        const p = Math.min(Math.max(1, n), searchTotalPages);
+        setSearchPage(p);
+        return;
+      }
+
       const p = Math.min(Math.max(1, n), totalPages);
-      setCurrentPage(p);
+      setPage(p);
     },
-    [totalPages]
+    [isSearchMode, searchTotalPages, totalPages]
   );
 
   const handleViewDetails = useCallback((purchase) => {
@@ -176,6 +434,114 @@ export default function IndexPurchases() {
     setSelectedPurchase(null);
   }, []);
 
+  // ✅ Anular compra (solo UI por ahora)
+ const handleAnnulPurchase = useCallback(
+  async (purchase) => {
+    if (!purchase) return;
+
+    // 1) permisos
+    if (!canAnnular) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Sin permisos",
+        text: "No tienes permisos para anular compras.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    // 2) ya cancelada
+    if (isAnulada(purchase.estado)) {
+      await Swal.fire({
+        icon: "info",
+        title: "Compra cancelada",
+        text: "Esta compra ya fue cancelada previamente.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    // 3) ventana 30 min
+    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
+
+    if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Tiempo agotado",
+        text: `Han pasado más de ${MAX_MINUTES_ANNUL} minutos. Esta compra ya no puede anularse.`,
+        confirmButtonText: "Cerrar",
+        confirmButtonColor: "#6b7280",
+      });
+      return; // ⛔ NO permitir continuar
+    }
+    // 4) pedir motivo
+    const { value: motivo } = await Swal.fire({
+      title: "Motivo de anulación",
+      input: "textarea",
+      inputLabel: `Factura: ${purchase.factura}`,
+      inputPlaceholder: "Escriba el motivo de la anulación...",
+      inputAttributes: {
+        maxlength: 300,
+      },
+      showCancelButton: true,
+      confirmButtonText: "Confirmar anulación",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 5) {
+          return "Debe ingresar un motivo válido (mínimo 5 caracteres)";
+        }
+      },
+    });
+
+    if (!motivo) return;
+
+    // 5) llamar backend con motivo
+    try {
+      await api.put(`/purchase/${purchase.id}/cancel`, {
+        motivo: motivo.trim(),
+      });
+
+      // refrescar lista
+      setComprasVersion((v) => v + 1);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Compra anulada",
+        text: "La compra fue cancelada y el stock fue revertido.",
+        confirmButtonColor: "#16a34a",
+      });
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo cancelar la compra.";
+
+      await Swal.fire({
+        icon: status === 409 ? "info" : "error",
+        title: status === 409 ? "No se puede anular" : "No se pudo cancelar",
+        text: msg,
+        confirmButtonColor: "#16a34a",
+      });
+    }
+  },
+  [canAnnular]
+);
+  // =========================
+  // Print Compra
+  // =========================
+const handleDownloadReceiptPdf = useCallback((purchase) => {
+  console.log("CLICK PDF", purchase);
+  exportPurchaseReceiptPDF({
+    purchase,
+    filename: `recibo_compra_${purchase.factura}.pdf`,
+  });
+}, []);
+
+
   const handlePrint = useCallback((purchase) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
@@ -185,14 +551,19 @@ export default function IndexPurchases() {
     document.body.appendChild(iframe);
 
     const productosHtml = (purchase.productos || [])
-      .map(
-        (p) =>
-          `<tr>
-            <td>${p.nombre}</td>
-            <td>${p.cantidad}</td>
-            <td>$${Number(p.precio || 0).toFixed(2)}</td>
-          </tr>`
-      )
+      .map((p) => {
+        const nombre = p?.nombre ?? "—";
+        const paq = Number(p?.cantidad_paquetes ?? 0);
+        const precio = Number(p?.precioCompra ?? 0);
+
+        return `
+          <tr>
+            <td>${nombre}</td>
+            <td>${paq}</td>
+            <td>$${precio.toFixed(0)}</td>
+          </tr>
+        `;
+      })
       .join("");
 
     const contenido = `
@@ -203,19 +574,24 @@ export default function IndexPurchases() {
             body { font-family: Arial; padding: 20px; }
             h2 { text-align: center; color: #16a34a; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
             th { background-color: #f4f4f4; }
           </style>
         </head>
         <body>
           <h2>Detalle de Compra - ${purchase.factura}</h2>
-          <p><b>Fecha:</b> ${purchase.fecha}</p>
+          <p><b>Fecha:</b> ${onlyDate(purchase.fecha)}</p>
           <p><b>Proveedor:</b> ${purchase.proveedor}</p>
           <p><b>NIT:</b> ${purchase.nit}</p>
-          <p><b>Total:</b> $${Number(purchase.total || 0).toFixed(2)}</p>
+          <p><b>Total:</b> ${money(purchase.total)}</p>
+
           <table>
             <thead>
-              <tr><th>Producto</th><th>Cantidad</th><th>Precio</th></tr>
+              <tr>
+                <th>Producto</th>
+                <th>Paquetes</th>
+                <th>Precio</th>
+              </tr>
             </thead>
             <tbody>${productosHtml}</tbody>
           </table>
@@ -255,7 +631,6 @@ export default function IndexPurchases() {
         }}
       />
 
-      {/* Contenedor principal */}
       <div className="flex-1 relative min-h-screen p-8 overflow-auto">
         <div className="relative z-10">
           {/* Header */}
@@ -265,6 +640,9 @@ export default function IndexPurchases() {
               <p className="text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
+              {currentError ? (
+                <p className="text-sm text-red-600 mt-2">{currentError}</p>
+              ) : null}
             </div>
           </div>
 
@@ -281,15 +659,33 @@ export default function IndexPurchases() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1);
+                  setSearchPage(1);
                 }}
                 className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
               />
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton>Excel</ExportExcelButton>
-              <ExportPDFButton>PDF</ExportPDFButton>
+              <ExportExcelButton
+                event={() =>
+                  exportPurchasesToExcel(
+                    isSearchMode ? searchedPurchases : filtered
+                  )
+                }
+              >
+                Excel
+              </ExportExcelButton>
+
+              <ExportPDFButton
+                event={() =>
+                  exportPurchasesToPdf({
+                    rows: isSearchMode ? searchedPurchases : filtered,
+                    filename: "compras.pdf",
+                  })
+                }
+              >
+                PDF
+              </ExportPDFButton>
 
               <button
                 onClick={() => navigate("/app/purchases/register")}
@@ -303,97 +699,165 @@ export default function IndexPurchases() {
 
           {/* Tabla */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
-                  <th className="px-6 py-4">Fecha</th>
-                  <th className="px-6 py-4">N° Factura</th>
-                  <th className="px-6 py-4">Proveedor</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
+                <colgroup>
+                  <col className="w-[160px]" />
+                  <col className="w-[260px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[160px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
 
-              <tbody className="divide-y divide-gray-100">
-                <AnimatePresence>
-                  {pageItems.length === 0 ? (
-                    <motion.tr
-                      key="empty"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <td
-                        colSpan={6}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
-                        No se encontraron compras.
-                      </td>
-                    </motion.tr>
-                  ) : (
-                    pageItems.map((p) => (
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
+                    <th className="px-4 py-4">N° Factura</th>
+                    <th className="px-4 py-4">Proveedor</th>
+                    <th className="px-4 py-4">NIT</th>
+                    <th className="px-4 py-4 text-right">Total</th>
+                    <th className="px-4 py-4">Fecha</th>
+                    <th className="px-4 py-4">Estado</th>
+                    <th className="px-4 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+                  <AnimatePresence>
+                    {currentLoading ? (
                       <motion.tr
-                        key={p.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="hover:bg-gray-50"
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {p.fecha}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                          {p.factura}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {p.proveedor}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          ${Number(p.total || 0).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              p.estado === "Completada"
-                                ? "bg-green-50 text-green-700"
-                                : p.estado === "Pendiente"
-                                ? "bg-yellow-50 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                            disabled={!canAnnular}
-                          >
-                            {p.estado}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <ViewButton event={() => handleViewDetails(p)} />
-                            <PrinterButton alert={() => handlePrint(p)} />
-                          </div>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          Cargando compras...
                         </td>
                       </motion.tr>
-                    ))
-                  )}
-                </AnimatePresence>
-              </tbody>
-            </table>
+                    ) : displayedPurchases.length === 0 ? (
+                      <motion.tr
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          No se encontraron compras.
+                        </td>
+                      </motion.tr>
+                    ) : (
+                      displayedPurchases.map((p) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
+                            {p.factura}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 truncate">
+                            {p.proveedor}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
+                            {p.nit}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                            {money(p.total)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {onlyDate(p.fecha)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAnnulPurchase(p)}
+                              disabled={!canAnnular || isAnulada(p.estado)}
+                              title={
+                                !canAnnular
+                                  ? "No tienes permiso para anular"
+                                  : isAnulada(p.estado)
+                                  ? "Esta compra ya está anulada"
+                                  : canAnnulPurchase(p)
+                                  ? "Click para anular (menos de 30 min)"
+                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                              }
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
+                                ${
+                                  !canAnnular || isAnulada(p.estado)
+                                    ? "opacity-70 cursor-not-allowed"
+                                    : "cursor-pointer hover:opacity-90"
+                                }
+                                ${
+                                  isAnulada(p.estado)
+                                    ? "bg-red-100 text-red-700"
+                                    : p.estado === "Completada" ||
+                                      p.estado === "Completado"
+                                    ? "bg-green-50 text-green-700"
+                                    : p.estado === "Pendiente"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                            >
+                              {p.estado}
+                            </button>
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <ViewButton event={() => handleViewDetails(p)} />
+                              <PrinterButton
+                                event={() => {
+                                  console.log("CLICK PDF", p);
+                                  exportPurchaseReceiptPDF({
+                                    purchase: p,
+                                    filename: `recibo_compra_${p.factura}.pdf`,
+                                  });
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Paginación */}
           <Paginator
-            currentPage={currentPage}
-            perPage={perPage}
-            totalPages={totalPages}
-            filteredLength={filtered.length}
+            currentPage={currentPageValue}
+            perPage={pageSize}
+            totalPages={currentTotalPages}
+            filteredLength={displayedPurchases.length}
+            totalItems={currentTotalItems}
             goToPage={goToPage}
           />
         </div>
       </div>
 
-      {/* Modal de detalle */}
+      {/* Modal */}
       {isDetailOpen && (
-        <PurchaseDetailModal purchase={selectedPurchase} onClose={handleCloseModal} />
+        <PurchaseDetailModal
+          purchase={selectedPurchase}
+          onClose={handleCloseModal}
+        />
       )}
     </div>
   );

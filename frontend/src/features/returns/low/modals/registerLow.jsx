@@ -15,61 +15,45 @@ import {
 import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
-import ProductRegisterModal from "../../../products/productRegisterModal";
-import ProductRegistrationModal from "../../returnProduct/modals/register/ProductRegistrationModal";
-import { usePostDetailProduct } from "../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../context/useAtuh";
 import Swal from "sweetalert2";
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [productReasonDropdowns, setProductReasonDropdowns] = useState({});
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [openConfigProductId, setOpenConfigProductId] = useState(null);
   const [isUnitTransferModalOpen, setIsUnitTransferModalOpen] = useState(false);
   const [reasonLockAlertByProduct, setReasonLockAlertByProduct] = useState({});
-  const { postDetailProduct } = usePostDetailProduct();
+  const [isSubmittingLow, setIsSubmittingLow] = useState(false);
   const [activeUnitTransferProductId, setActiveUnitTransferProductId] =
     useState(null);
-  const {payload : payloadId} = useAuth();
+  const { payload: payloadId } = useAuth();
   const toggleConfigDropdown = (productId) => {
     setOpenConfigProductId((prev) => (prev === productId ? null : productId));
   };
 
   const { postLowProducts, loading } = usePostLowProducts();
   const id_responsable = payloadId.uid;
-
-  const normalizeDate = (rawDate) => {
-    if (!rawDate) return null;
-    const parsed = new Date(rawDate);
-    if (Number.isNaN(parsed.getTime())) return null;
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
+  const isBusy = loading || isSubmittingLow;
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
   };
 
-  const getExpiryStatus = (rawDate) => {
-    const expiryDate = normalizeDate(rawDate);
-    if (!expiryDate) return { expired: false, nearExpiry: false };
+  const isExpiredProduct = (expiryDateValue) => {
+    const expiryDate = parseDateSafe(expiryDateValue);
+    if (!expiryDate) return false;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const inAWeek = new Date(today);
-    inAWeek.setDate(inAWeek.getDate() + 7);
+    const normalizedExpiry = new Date(expiryDate);
+    normalizedExpiry.setHours(0, 0, 0, 0);
 
-    return {
-      expired: expiryDate < today,
-      nearExpiry: expiryDate >= today && expiryDate <= inAWeek,
-    };
+    return normalizedExpiry < today;
   };
 
-  const showWarningAlert = (title, text) =>
-    Swal.fire({
-      icon: "warning",
-      title,
-      text,
-      confirmButtonColor: "#16a34a",
-    });
 
   const reasonOptions = [
     { value: "vencido", label: "Superó fecha de vencimiento" },
@@ -93,11 +77,13 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               ...p,
               reason: "", // ✅ deselecciona "venta unitaria"
               id_producto_traslado: null,
+              id_producto_destino: null,
               cantidad_traslado: null,
               nombre_producto_traslado: "",
+              pending_transfer_registration: null,
             }
-          : p
-      )
+          : p,
+      ),
     );
   };
 
@@ -110,14 +96,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       requestedQuantity: 1,
       unitCost: product.productos?.costo_unitario || 0,
       cantidad_unitaria: product?.productos?.cantidad_unitaria ?? null,
-      expiryDate:
-        product?.fecha_vencimiento ||
-        product?.expiryDate ||
-        product?.fechaVencimiento ||
-        null,
       reason: "",
+      expiryDate: product.fecha_vencimiento || null,
+      isExpired: isExpiredProduct(product.fecha_vencimiento),
     };
     setSelectedProducts((prev) => [...prev, adaptedProduct]);
+    setOpenConfigProductId(adaptedProduct.id);
   };
 
   const handleRemoveProduct = (id) => {
@@ -127,24 +111,37 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
   const handleUpdateProductQuantity = (id, delta) =>
     setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              requestedQuantity: Math.max(
-                1,
-                Math.min(p.quantity, (p.requestedQuantity || 1) + delta)
-              ),
-            }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const newQuantity = Math.max(
+          1,
+          Math.min(p.quantity, (p.requestedQuantity || 1) + delta),
+        );
+
+        let newTransferQuantity = p.cantidad_traslado;
+        // Si es venta unitaria y tiene destino, actualizamos la cantidad a trasladar
+        if (
+          p.reason === "venta unitaria" &&
+          (p.id_producto_traslado != null || p.pending_transfer_registration) &&
+          p.cantidad_unitaria
+        ) {
+          newTransferQuantity = p.cantidad_unitaria * newQuantity;
+        }
+
+        return {
+          ...p,
+          requestedQuantity: newQuantity,
+          cantidad_traslado: newTransferQuantity,
+        };
+      }),
     );
 
   const handleProductReasonSelect = (productId, reason) => {
     const current = selectedProducts.find((p) => p.id === productId);
     const hasUnitTransferConfigured =
       current?.reason === "venta unitaria" &&
-      current?.id_producto_traslado != null;
+      (current?.id_producto_traslado != null ||
+        current?.pending_transfer_registration);
 
     // Si ya configuró traslado (destino confirmado), no permitimos cambiar a otro motivo
     if (hasUnitTransferConfigured && reason !== "venta unitaria") {
@@ -152,7 +149,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       return;
     }
     setSelectedProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, reason } : p))
+      prev.map((p) => (p.id === productId ? { ...p, reason } : p)),
     );
 
     // Si el motivo es venta unitaria, abre modal para elegir producto destino
@@ -164,9 +161,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       setSelectedProducts((prev) =>
         prev.map((p) =>
           p.id === productId
-            ? { ...p, id_producto_traslado: null, cantidad_traslado: null }
-            : p
-        )
+            ? { ...p, id_producto_traslado: null, id_producto_destino: null, cantidad_traslado: null, pending_transfer_registration: null }
+            : p,
+        ),
       );
     }
   };
@@ -179,22 +176,40 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
     }).format(price);
 
   // 🔹 Paso 1: Mostrar alerta de confirmación
-  const handleConfirmLow = () => {
-    if (selectedProducts.length === 0)
-      return showWarningAlert("Faltan productos", "Selecciona al menos un producto.");
-    if (selectedProducts.some((p) => !p.reason))
-      return showWarningAlert("Faltan motivos", "Todos los productos deben tener un motivo de baja.");
+  const handleConfirmLow = async () => {
+    if (selectedProducts.length === 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Campos requeridos",
+        text: "Selecciona al menos un producto.",
+        confirmButtonColor: "#059669",
+      });
+      return;
+    }
+
+    if (selectedProducts.some((p) => !p.reason)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Campos requeridos",
+        text: "Todos los productos deben tener un motivo de baja.",
+        confirmButtonColor: "#059669",
+      });
+      return;
+    }
     const invalidUnitSale = selectedProducts.some(
       (p) =>
         p.reason === "venta unitaria" &&
-        (p.id_producto_traslado == null || p.cantidad_traslado == null)
+        ((p.id_producto_traslado == null && !p.pending_transfer_registration) ||
+          p.cantidad_traslado == null),
     );
 
     if (invalidUnitSale) {
-      showWarningAlert(
-        "Configuración incompleta",
-        "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria."
-      );
+      await Swal.fire({
+        icon: "warning",
+        title: "Validación de traslado",
+        text: "Para 'venta unitaria' debes seleccionar el producto destino y el producto caja debe tener cantidad_unitaria.",
+        confirmButtonColor: "#059669",
+      });
       return;
     }
     setShowConfirmAlert(true);
@@ -206,15 +221,27 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   // 🔹 Paso 3: Confirmar alerta → Enviar POST y mostrar éxito
   const handleAcceptAlert = async () => {
     setShowConfirmAlert(false);
-    const response = await postLowProducts(id_responsable, selectedProducts);
-    if (response) {
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        setSelectedProducts([]);
-        // onClose();
-        onConfirm();
-      }, 2500);
+    setIsSubmittingLow(true);
+
+    try {
+      const response = await postLowProducts(id_responsable, selectedProducts);
+      if (response) {
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setSelectedProducts([]);
+          onConfirm();
+        }, 2500);
+      }
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error?.message || "No fue posible completar la baja.",
+        confirmButtonColor: "#059669",
+      });
+    } finally {
+      setIsSubmittingLow(false);
     }
   };
   console.log("selectedProducts:", selectedProducts);
@@ -238,7 +265,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
             exit={{ opacity: 0, scale: 0.9 }}
           >
             <motion.div
-              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${loading ? 'pointer-events-none opacity-50' : ''}`}
+              className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh] ${isBusy ? "pointer-events-none opacity-50" : ""}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -257,7 +284,10 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
               {/* Contenido */}
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
-                <ProductSearch onAddProduct={handleAddProduct} />
+                <ProductSearch
+                  onAddProduct={handleAddProduct}
+                  excludedProducts={selectedProducts.map((p) => p.id)}
+                />
 
                 {selectedProducts.length > 0 && (
                   <div
@@ -283,6 +313,11 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             <p className="text-xs text-gray-500">
                               {formatPrice(p.salePrice)} c/u
                             </p>
+                            {p.isExpired && (
+                              <p className="text-xs text-red-600 font-medium mt-0.5">
+                                Producto vencido: se habilita motivo "Superó fecha de vencimiento"
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -317,7 +352,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             onClick={() => toggleConfigDropdown(p.id)}
                             className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full hover:bg-emerald-100 transition"
                           >
-                            Opciones
+                            Motivos
                             {openConfigProductId === p.id ? (
                               <ChevronUp size={14} />
                             ) : (
@@ -348,18 +383,22 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
                               <div className="space-y-2">
                                 {reasonOptions.map((r) => {
+                                  if (
+                                    r.value === "venta unitaria" &&
+                                    !p.cantidad_unitaria
+                                  )
+                                    return null;
+                                  const isExpired = Boolean(p.isExpired);
+                                  if (r.value === "vencido" && !isExpired) return null;
+
                                   const isSelected = p.reason === r.value;
                                   const hasTransferConfigured =
                                     p.reason === "venta unitaria" &&
-                                    p.id_producto_traslado != null;
+                                    (p.id_producto_traslado != null ||
+                                      p.pending_transfer_registration);
                                   const isLockedOption =
                                     hasTransferConfigured &&
                                     r.value !== "venta unitaria";
-                                  const expiryStatus = getExpiryStatus(p.expiryDate);
-                                  const isExpired = expiryStatus.expired;
-                                  const shouldHideOption =
-                                    r.value === "vencido" && !isExpired;
-                                  if (shouldHideOption) return null;
                                   return (
                                     <label
                                       key={r.value}
@@ -367,8 +406,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                         isLockedOption
                                           ? "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
                                           : isSelected
-                                          ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
-                                          : "border-gray-200 hover:bg-gray-50 cursor-pointer"
+                                            ? "border-emerald-500 bg-emerald-50 shadow-sm cursor-pointer"
+                                            : "border-gray-200 hover:bg-gray-50 cursor-pointer"
                                       }`}
                                     >
                                       <input
@@ -386,7 +425,7 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           }
                                           handleProductReasonSelect(
                                             p.id,
-                                            r.value
+                                            r.value,
                                           );
                                         }}
                                         className="hidden"
@@ -426,11 +465,6 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                     </label>
                                   );
                                 })}
-                                {getExpiryStatus(p.expiryDate).expired && (
-                                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
-                                    Motivo sugerido: superó la fecha de vencimiento.
-                                  </p>
-                                )}
                                 <AnimatePresence>
                                   {reasonLockAlertByProduct[p.id] && (
                                     <motion.div
@@ -451,7 +485,8 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
                                 {/* Resumen de traslado (solo venta unitaria) */}
                                 {p.reason === "venta unitaria" &&
-                                  p.id_producto_traslado != null && (
+                                  (p.id_producto_traslado != null ||
+                                    p.pending_transfer_registration) && (
                                     <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-start justify-between gap-3">
                                       <div className="min-w-0">
                                         <p className="text-xs font-semibold text-emerald-800">
@@ -461,7 +496,9 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                                           Destino:{" "}
                                           <span className="text-emerald-800">
                                             {p.nombre_producto_traslado ||
-                                              `ID ${p.id_producto_traslado}`}
+                                              (p.id_producto_traslado
+                                                ? `ID ${p.id_producto_traslado}`
+                                                : "Destino pendiente de registro")}
                                           </span>
                                         </p>
                                         <p className="text-xs text-gray-600 mt-1">
@@ -505,16 +542,20 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                 </button>
                 <motion.button
                   onClick={handleConfirmLow}
-                  disabled={loading}
+                  disabled={isBusy}
                   className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.02 }}
                 >
-                  {loading ? (
+                  {isBusy ? (
                     <>
                       <motion.div
                         className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
                       />
                       Procesando...
                     </>
@@ -556,16 +597,20 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                       </button>
                       <motion.button
                         onClick={handleAcceptAlert}
-                        disabled={loading}
+                        disabled={isBusy}
                         className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         whileHover={{ scale: 1.05 }}
                       >
-                        {loading ? (
+                        {isBusy ? (
                           <>
                             <motion.div
                               className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                               animate={{ rotate: 360 }}
-                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
                             />
                             Procesando...
                           </>
@@ -625,10 +670,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
                             ...p,
                             reason: "", // <- deselecciona venta unitaria
                             id_producto_traslado: null,
+                            id_producto_destino: null,
                             cantidad_traslado: null,
+                            pending_transfer_registration: null,
                           }
-                        : p
-                    )
+                        : p,
+                    ),
                   );
                 }
 
@@ -637,34 +684,52 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
               }}
               currentBoxProductName={
                 selectedProducts.find(
-                  (p) => p.id === activeUnitTransferProductId
+                  (p) => p.id === activeUnitTransferProductId,
                 )?.name
               }
               onConfirmDestination={(detalleDestino) => {
-                console.log("DESTINO RECIBIDO EN REGISTERLOW:", detalleDestino);
                 setSelectedProducts((prev) =>
                   prev.map((p) => {
                     if (p.id !== activeUnitTransferProductId) return p;
 
                     return {
                       ...p,
-                      id_producto_traslado: detalleDestino.id_detalle_producto,
-                      // ✅ cantidad_traslado = cantidad_unitaria de la caja
-                      cantidad_traslado: p.cantidad_unitaria ?? null,
+                      id_producto_traslado:
+                        detalleDestino?.id_detalle_producto ?? null,
+                      id_producto_destino:
+                        detalleDestino?.id_producto ??
+                        detalleDestino?.productos?.id_producto ??
+                        detalleDestino?.pendingProduct?.id_producto ??
+                        null,
+                      cantidad_traslado: p.cantidad_unitaria
+                        ? p.cantidad_unitaria * p.requestedQuantity
+                        : null,
                       nombre_producto_traslado:
-                        detalleDestino?.productos?.nombre ?? "",
+                        detalleDestino?.productos?.nombre ??
+                        detalleDestino?.pendingProduct?.nombre ??
+                        "",
+                      pending_transfer_registration:
+                        detalleDestino?.isPendingRegistration
+                          ? {
+                              pendingProduct: detalleDestino.pendingProduct,
+                              pendingDetail: detalleDestino.pendingDetail,
+                            }
+                          : null,
                     };
-                  })
+                  }),
                 );
 
                 setIsUnitTransferModalOpen(false);
                 setActiveUnitTransferProductId(null);
               }}
-              transferQuantity={
-                selectedProducts.find(
-                  (p) => p.id === activeUnitTransferProductId
-                )?.cantidad_unitaria ?? null
-              }
+              transferQuantity={(() => {
+                const p = selectedProducts.find(
+                  (p) => p.id === activeUnitTransferProductId,
+                );
+                return p && p.cantidad_unitaria
+                  ? p.cantidad_unitaria * (p.requestedQuantity || 1)
+                  : null;
+              })()}
             />
           </motion.div>
         </>

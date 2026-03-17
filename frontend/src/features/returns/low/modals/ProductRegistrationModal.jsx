@@ -16,7 +16,8 @@ const ProductRegistrationModal = ({
   initialDetail,
   ignoreBarcode,
   isReturnProduct,
-  transferQuantity
+  transferQuantity,
+  deferSubmit = false,
 }) => {
   const {
     details,
@@ -41,6 +42,15 @@ const ProductRegistrationModal = ({
     return d;
   }, []);
 
+  const parseYmdToDate = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setHours(0, 0, 0, 0);
+    return dateObj;
+  };
+
   // Resetear campos cuando se abre un producto nuevo
   useEffect(() => {
     if (isOpen) {
@@ -53,7 +63,7 @@ const ProductRegistrationModal = ({
           quantity: String(
             initialDetail.registeredQuantity ??
               initialDetail.stock_producto ??
-              ""
+              "",
           ),
           expiryDate:
             initialDetail.registeredExpiry?.slice(0, 10) ||
@@ -64,7 +74,7 @@ const ProductRegistrationModal = ({
       } else {
         setFormData({
           barcode: "",
-          quantity: isReturnProduct ? "" : "0",
+          quantity: isReturnProduct ? "" : String(transferQuantity || 0),
           expiryDate: "",
           isReturn: true,
         });
@@ -90,7 +100,16 @@ const ProductRegistrationModal = ({
   };
 
   const handleExpiryChange = (e) => {
-    const dateVal = e.value ? e.value.toISOString().slice(0, 10) : "";
+    if (!e.value) {
+      setFormData((prev) => ({ ...prev, expiryDate: "" }));
+      return;
+    }
+    const localDate = new Date(e.value);
+    localDate.setHours(0, 0, 0, 0);
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, "0");
+    const day = String(localDate.getDate()).padStart(2, "0");
+    const dateVal = `${year}-${month}-${day}`;
     setFormData((prev) => ({ ...prev, expiryDate: dateVal }));
   };
 
@@ -186,15 +205,19 @@ const ProductRegistrationModal = ({
   let isExpiryValid = true; // Por defecto válido si no se proporciona
 
   if (expiryStr) {
-    const selected = new Date(expiryStr);
-    selected.setHours(0, 0, 0, 0);
-    const min = new Date(minDate);
-    min.setHours(0, 0, 0, 0);
-
-    if (selected < min) {
-      expiryError =
-        "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
+    const selected = parseYmdToDate(expiryStr);
+    if (!selected) {
+      expiryError = "Fecha inválida";
       isExpiryValid = false;
+    } else {
+      const min = new Date(minDate);
+      min.setHours(0, 0, 0, 0);
+
+      if (selected < min) {
+        expiryError =
+          "La fecha mínima permitida es " + min.toLocaleDateString("es-CO");
+        isExpiryValid = false;
+      }
     }
   }
 
@@ -220,6 +243,21 @@ const ProductRegistrationModal = ({
         registeredExpiry: formData.expiryDate || null,
         isReturn: true,
       };
+
+      if (deferSubmit) {
+        await onConfirm?.({
+          ...registeredDetail,
+          isDraft: true,
+        });
+        setFormData({
+          barcode: "",
+          quantity: transferQuantity,
+          expiryDate: "",
+          isReturn: true,
+        });
+        onClose();
+        return;
+      }
 
       if (isReturnProduct) {
         // ✅ modo devolución: NO postea aquí, solo devuelve al padre
@@ -431,7 +469,9 @@ const ProductRegistrationModal = ({
                       type="number"
                       min={isReturnProduct ? 1 : 0}
                       inputMode="numeric"
-                      value={isReturnProduct ? formData.quantity : transferQuantity}
+                      value={
+                        isReturnProduct ? formData.quantity : transferQuantity
+                      }
                       onChange={
                         isReturnProduct
                           ? (e) => handleQuantityChange(e.target.value)
@@ -473,7 +513,7 @@ const ProductRegistrationModal = ({
                       <Calendar
                         value={
                           formData.expiryDate
-                            ? new Date(formData.expiryDate)
+                            ? parseYmdToDate(formData.expiryDate)
                             : null
                         }
                         onChange={handleExpiryChange}
@@ -519,7 +559,7 @@ const ProductRegistrationModal = ({
                   </button>
                 </div>
               </form>
-            </motion.div> 
+            </motion.div>
           </motion.div>
         </>
       )}

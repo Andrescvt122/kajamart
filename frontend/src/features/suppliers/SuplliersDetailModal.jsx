@@ -88,11 +88,13 @@ export default function SupplierDetailModal({
   const perPage = 5;
   const [searchTerm, setSearchTerm] = useState("");
   const [showCategories, setShowCategories] = useState(false);
+  const [expandedEmail, setExpandedEmail] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
     setShowCategories(false);
+    setExpandedEmail(false);
   }, [detail.id_proveedor]);
 
   const filteredProducts = useMemo(() => {
@@ -236,7 +238,15 @@ export default function SupplierDetailModal({
             </div>
             <div>
               <p className="text-gray-500">Correo electrónico</p>
-              <p className="font-medium">{detail.correo || "—"}</p>
+              <button
+                onClick={() => setExpandedEmail((prev) => !prev)}
+                className="font-medium text-gray-900 text-left hover:text-blue-600 transition-colors cursor-pointer break-words max-w-full"
+                title={expandedEmail ? "Click para contraer" : "Click para expandir"}
+              >
+                {expandedEmail
+                  ? detail.correo || "—"
+                  : (detail.correo && detail.correo.length > 25 ? `${detail.correo.slice(0, 25)}...` : detail.correo || "—")}
+              </button>
             </div>
             <div>
               <p className="text-gray-500">Dirección</p>

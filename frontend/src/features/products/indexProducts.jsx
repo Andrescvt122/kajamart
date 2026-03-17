@@ -11,8 +11,6 @@ import ondas from "../../assets/ondasHorizontal.png";
 import Paginator from "../../shared/components/paginator";
 import SearchBar from "../../shared/components/searchBars/searchbar";
 import { motion, AnimatePresence } from "framer-motion";
-import { exportProductsToExcel } from "./helpers/exportToXls";
-import { exportProductsToPDF } from "./helpers/exportToPdf";
 import { useAuth } from "../../context/useAtuh.jsx";
 import {
   showLoadingAlert,
@@ -31,6 +29,8 @@ import {
   useDeleteProduct,
   useUpdateProduct,
 } from "../../shared/components/hooks/products/products.hooks.js";
+import { useSearchProducts } from "../../shared/components/hooks/products/useSearchProducts.js";
+import { useExportProducts } from "../../shared/components/hooks/products/useExportProducts.js";
 
 // ===== Texto seguro / anti-overflow
 const LONG_TEXT_CLS =
@@ -90,9 +90,23 @@ if (typeof document !== "undefined") {
 export default function IndexProducts() {
   const navigate = useNavigate();
 
-  // Datos
-  const { data: productsRaw = [], isLoading, isError, error } = useProducts();
+  // Estado de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
 
+  // Datos
+  const { data, isLoading, isError, error } = useProducts(currentPage, perPage);
+  const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedProducts = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchProducts(searchTerm);
+  const { exportProductsExcel, exportProductsPdf } = useExportProducts();
+  const isSearching = searchTerm.trim() !== "";
+  const productsRaw = isSearching ? searchedProducts : data?.data || [];
+  const backendTotalPages = data?.totalPages || 1;
+  const backendTotalItems = data?.totalItems || productsRaw.length;
   const catHook =
     (typeof useCategories === "function" ? useCategories() : null) || {};
   const categoriesRaw = Array.isArray(catHook.categories)
@@ -103,10 +117,41 @@ export default function IndexProducts() {
 
   const deleteMutation = useDeleteProduct();
   const updateMutation = useUpdateProduct();
-  const {hasPermission} = useAuth();
+  const { hasPermission } = useAuth();
   const canDelete = hasPermission("Eliminar productos");
   const canEdit = hasPermission("Editar productos");
   const canCreate = hasPermission("Crear productos");
+  const handleExportExcel = async () => {
+
+  try {
+
+    const products = await getAllProductsForExport(searchTerm);
+
+    exportProductsToExcel(products);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const handleExportPDF = async () => {
+
+  try {
+
+    const products = await getAllProductsForExport(searchTerm);
+
+    exportProductsToPDF(products);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
   // Normalizar categorías
   const categories = useMemo(
     () =>
@@ -185,6 +230,7 @@ export default function IndexProducts() {
     precioVenta: "",
     iva: "",
     stock: "",
+    cantidadUnitaria: "",
     estado: "",
     categoria: "",
     imagenes: [],
@@ -207,6 +253,8 @@ export default function IndexProducts() {
           ? `${p.iva}%`
           : "",
       stock: p.stock_actual != null ? String(p.stock_actual) : "",
+      cantidadUnitaria:
+        p.cantidad_unitaria != null ? String(p.cantidad_unitaria) : "",
       estado: p.estado ? "Activo" : "Inactivo",
       categoria:
         p.categoria ||
@@ -257,6 +305,12 @@ export default function IndexProducts() {
           String(Number(editedForm.precioCompra) || 0)
         );
         fd.append("precio_venta", String(Number(editedForm.precioVenta) || 0));
+        fd.append(
+          "cantidad_unitaria",
+          editedForm.cantidadUnitaria !== ""
+            ? String(Number(editedForm.cantidadUnitaria))
+            : ""
+        );
         fd.append("imagen", newFile);
 
         await updateMutation.mutateAsync({ id, data: fd });
@@ -269,6 +323,10 @@ export default function IndexProducts() {
           iva: String(ivaVal || "0"),
           costo_unitario: String(Number(editedForm.precioCompra) || 0),
           precio_venta: String(Number(editedForm.precioVenta) || 0),
+          cantidad_unitaria:
+            editedForm.cantidadUnitaria !== ""
+              ? String(Number(editedForm.cantidadUnitaria))
+              : "",
         };
         if (id_categoria) payload.id_categoria = String(id_categoria);
 
@@ -286,11 +344,6 @@ export default function IndexProducts() {
       showErrorAlert && showErrorAlert(msg);
     }
   };
-
-  // UI local
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const perPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [estadoOpen, setEstadoOpen] = useState(false);
@@ -335,17 +388,36 @@ export default function IndexProducts() {
     );
   }, [products, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const filterProductsForExport = (items) => {
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return items;
+    if (/^activos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "activo");
+    if (/^inactivos?$/.test(s))
+      return items.filter((item) => item.estado.toLowerCase() === "inactivo");
+
+    return items.filter((item) =>
+      `${item.id} ${item.nombre} ${item.descripcion || ""} ${item.categoria} ${item.estado}`
+        .toLowerCase()
+        .includes(s)
+    );
+  };
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(filtered.length / perPage))
+    : backendTotalPages;
   const pageItems = useMemo(() => {
+    if (!isSearching) return filtered;
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage, perPage]);
+  }, [filtered, currentPage, perPage, isSearching]);
+  const filteredLength = isSearching ? filtered.length : backendTotalItems;
 
   const goToPage = (n) => setCurrentPage(Math.min(Math.max(1, n), totalPages));
 
   // Errores globales
-  if (isError || isCatError) {
+  if (isError || isCatError || searchError) {
     const msg =
+      searchError ||
       error?.response?.data?.message ||
       error?.message ||
       "Error al cargar productos.";
@@ -411,7 +483,9 @@ export default function IndexProducts() {
               {/* Exportar Excel */}
               <div className="flex justify-end">
                 <ExportExcelButton
-                  event={() => exportProductsToExcel(filtered)}
+                  event={() =>
+                    exportProductsExcel({ transform: filterProductsForExport })
+                  }
                 >
                   Excel
                 </ExportExcelButton>
@@ -419,7 +493,11 @@ export default function IndexProducts() {
 
               {/* Exportar PDF */}
               <div className="flex justify-end">
-                <ExportPDFButton event={() => exportProductsToPDF(filtered)}>
+                <ExportPDFButton
+                  event={() =>
+                    exportProductsPdf({ transform: filterProductsForExport })
+                  }
+                >
                   PDF
                 </ExportPDFButton>
               </div>
@@ -445,7 +523,7 @@ export default function IndexProducts() {
             initial="hidden"
             animate="visible"
           >
-            {isLoading || isCatLoading ? (
+            {isLoading || isCatLoading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
                 <Loading inline heightClass="h-28" />
               </div>
@@ -538,7 +616,11 @@ export default function IndexProducts() {
                                   Precio
                                 </p>
                                 <p className="text-sm text-gray-800">
-                                  ${Number(p.precio || 0).toLocaleString()}
+                                  {Number(p.precio) === 1001
+                                    ? "aun no asignado"
+                                    : `$${Number(
+                                        p.precio || 0
+                                      ).toLocaleString()}`}
                                 </p>
                               </div>
                               <div>
@@ -576,10 +658,13 @@ export default function IndexProducts() {
                                     })
                                   }
                                 />
-                                <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
+                                <EditButton
+                                  canEdit={canEdit}
+                                  event={() => handleEditClick(p)}
+                                />
                                 <DeleteButton
                                   event={() => handleDeleteClick(p)}
-                                  canDelete={canDelete} 
+                                  canDelete={canDelete}
                                 />
                               </div>
                             </div>
@@ -617,14 +702,11 @@ export default function IndexProducts() {
               </thead>
 
               {/* IMPORTANTE: el stagger vive en el tbody y las filas solo heredan */}
-              <motion.tbody
+              <tbody
                 key={`d-${currentPage}-${filtered.length}-${searchTerm}`}
-                className="divide-y divide-gray-100"
-                variants={tableVariants}
-                initial="hidden"
-                animate="visible"
+                className="divide-y divide-gray-100 text-gray-700"
               >
-                {isLoading || isCatLoading ? (
+                {isLoading || isCatLoading || (isSearching && searchLoading) ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12">
                       <Loading inline heightClass="h-28" />
@@ -641,11 +723,9 @@ export default function IndexProducts() {
                   </tr>
                 ) : (
                   pageItems.map((p, i) => (
-                    <motion.tr
+                    <tr
                       key={p.id + "-" + i}
-                      variants={rowVariants} // <- hereda de tbody
                       className="hover:bg-gray-50 align-top"
-                      layout
                     >
                       <td className="px-4 lg:px-6 py-4">
                         <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -680,7 +760,9 @@ export default function IndexProducts() {
                       </td>
 
                       <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        ${Number(p.precio || 0).toLocaleString()}
+                        {Number(p.precio) === 1001
+                          ? "aun no asignado"
+                          : `$${Number(p.precio || 0).toLocaleString()}`}
                       </td>
 
                       <td className="px-4 lg:px-6 py-4">
@@ -704,14 +786,20 @@ export default function IndexProducts() {
                               })
                             }
                           />
-                          <EditButton canEdit={canEdit} event={() => handleEditClick(p)} />
-                          <DeleteButton canDelete={canDelete} event={() => handleDeleteClick(p)} />
+                          <EditButton
+                            canEdit={canEdit}
+                            event={() => handleEditClick(p)}
+                          />
+                          <DeleteButton
+                            canDelete={canDelete}
+                            event={() => handleDeleteClick(p)}
+                          />
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))
                 )}
-              </motion.tbody>
+              </tbody>
             </table>
           </motion.div>
 
@@ -721,7 +809,7 @@ export default function IndexProducts() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>
@@ -746,7 +834,7 @@ export default function IndexProducts() {
           const files = Array.from(e.target.files || []);
           setSelectedProduct((prev) => ({
             ...prev,
-            imagenes: [...prev.imagenes, ...files].slice(0, 6),
+            imagenes: files.slice(0, 1),
           }));
         }}
         removeImageAt={(index) => {

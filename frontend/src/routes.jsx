@@ -1,10 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
 
 // Auth
 import ForgotPassword from "./auth/ForgotPassword";
-import RecoverPassword from "./auth/recoverPassword"; // Asegúrate que el nombre del archivo coincida (mayúsculas/minúsculas)
+import RecoverPassword from "./auth/recoverPassword.jsx"; // Asegúrate que el nombre del archivo coincida (mayúsculas/minúsculas)
 // Features
 import IndexSuppliers from "./features/suppliers/indexSuppliers";
 import IndexCategories from "./features/categories/indexCategories";
@@ -20,9 +20,7 @@ import IndexClientReturns from "./features/returns/returnClient/indexClientRetur
 import IndexRegisterSale from "./features/sales/indexRegisterSale";
 import IndexRegisterPurchase from "./features/purchases/indeRegisterPurchase";
 import IndexProductReturns from "./features/returns/returnProduct/indexProductReturns";
-
 import Landing from "./pages/landing/landing.jsx";
-
 import DashboardLayout from "./layouts/dashboard/dashboardLayout";
 import DashboardSuppliers from "./features/dashboard/dashboardSuppliers";
 import DashboardCategories from "./features/dashboard/dashboardCategories";
@@ -33,10 +31,9 @@ import DashboardPurchases from "./features/dashboard/dashboardPurchases";
 import DashboardReturnClients from "./features/dashboard/returns/dashboardReturnClients";
 import DashboardReturnProducts from "./features/dashboard/returns/dashboardReturnProducts";
 import DashboardLows from "./features/dashboard/returns/dashboardLows";
-
+import Login from "./auth/login.jsx";
 import AllProductsPage from "./features/products/allProductsPage";
 import ProductsLayout from "./layouts/ProductsLayout";
-import Welcome from "./pages/dashboard/Welcome";
 
 import PublicRoute from "./PublicRoute.jsx";
 import ProtectedRoute from "./protectedRoute.jsx";
@@ -52,20 +49,22 @@ export default function RoutesAdmin() {
     users: hasPermission("Ver usuarios"),
     roles: hasPermission("Ver roles"),
     products: hasPermission("Ver productos"),
-    categories: hasPermission("Ver categorías"),
+    categories: hasPermission("Ver categorias"),
     suppliers: hasPermission("Ver proveedores"),
     clients: hasPermission("Ver clientes"),
     purchases: hasPermission("Ver compras"),
     sales: hasPermission("Ver ventas"),
-    returnClients: hasPermission("Ver devolución clientes"),
-    returnProducts: hasPermission("Ver Gestión devolución productos"),
+    returnClients: hasPermission("Ver devolucion clientes"),
+    returnProducts: hasPermission("Ver devolucion productos"),
     low: hasPermission("Ver baja productos"),
   };
+  console.log("Permisos de vista:", canView);
 
   return (
     <Routes>
       {/* Public */}
       <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
 
       {/* Auth (solo si NO está logueado) */}
       <Route element={<PublicRoute />}>
@@ -151,7 +150,7 @@ export default function RoutesAdmin() {
 
           {/* Dashboard */}
           <Route element={<DashboardLayout />}>
-            <Route index element={<Welcome />} />
+            <Route index element={<Navigate to="dashboard/sales" replace />} />
 
             <Route element={<PrivatedRoute permission={canView.suppliers} />}>
               <Route

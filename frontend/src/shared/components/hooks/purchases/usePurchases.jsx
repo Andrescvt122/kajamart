@@ -1,46 +1,52 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 
-export function usePurchases({ search, page, perPage }) {
-  const [items, setItems] = useState([]);
-  const [meta, setMeta] = useState({ page: 1, perPage, total: 0, totalPages: 1 });
+const API_URL = "http://localhost:3000/kajamart/api/purchases";
+
+export const usePurchases = () => {
+  const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const limit = 6;
+
+  const fetchPurchases = async (pageNumber = page) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.get(
+        `${API_URL}?page=${pageNumber}&limit=${limit}`
+      );
+
+      setPurchases(response.data.data);
+      setTotalPages(response.data.pagination.totalPages);
+      setPage(response.data.pagination.page);
+    } catch (err) {
+      console.error("❌ Error obteniendo compras:", err);
+
+      setError(
+        err.response?.data?.message || "Error al obtener compras"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let alive = true;
+    fetchPurchases(1);
+  }, []);
 
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams({
-          search: search || "",
-          page: String(page),
-          perPage: String(perPage),
-        });
-
-        const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/purchases?${params}`);
-        const data = await resp.json();
-
-        if (!resp.ok) throw new Error(data?.message || "Error cargando compras");
-
-        if (!alive) return;
-        setItems(data.items || []);
-        setMeta(data.meta || meta);
-      } catch (e) {
-        if (!alive) return;
-        setError(e.message);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, page, perPage]);
-
-  return { items, meta, loading, error };
-}
+  return {
+    purchases,
+    loading,
+    error,
+    page,
+    totalPages,
+    setPage: fetchPurchases,
+    refetch: fetchPurchases,
+  };
+};

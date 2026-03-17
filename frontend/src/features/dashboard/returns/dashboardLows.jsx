@@ -150,7 +150,11 @@ const computeAnalytics = (lows = []) => {
 };
 
 export default function DashboardLows() {
-  const { data: lows, loading, error } = useGetLowProducts();
+  const { allItems: lows, fetchAll, loading, error } = useGetLowProducts();
+
+  React.useEffect(() => {
+    fetchAll().catch(console.error);
+  }, []);
 
   const analytics = useMemo(() => computeAnalytics(lows), [lows]);
 

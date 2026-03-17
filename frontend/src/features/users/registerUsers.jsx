@@ -7,6 +7,7 @@ import {
 } from "../../shared/components/alerts.jsx";
 import { useRolesList } from "../../shared/components/hooks/roles/useRolesList.js";
 import { useCreateUsuario } from "../../shared/components/hooks/users/useCreateUser.js";
+import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
 import { useAuth } from "../../context/useAtuh.jsx";
 
 // 🔘 Switch de estado (Activo/Inactivo)
@@ -26,9 +27,10 @@ const EstadoToggle = ({ enabled, onChange }) => (
   </button>
 );
 
-export default function RegisterUsers({ isOpen, onClose }) {
+export default function RegisterUsers({ isOpen, onClose, onRegisterSuccess }) {
   const { roles } = useRolesList();
   const { createUsuario } = useCreateUsuario();
+  const { usuarios } = useUsuariosList();
 
   const [form, setForm] = useState({
     usuario: "",
@@ -43,6 +45,8 @@ export default function RegisterUsers({ isOpen, onClose }) {
     rol_id: null,
     estado: true,
   });
+
+  const [errors, setErrors] = useState({});
 
   const [rolOpen, setRolOpen] = useState(false);
   const rolRef = useRef(null);
@@ -63,6 +67,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
         rol_id: null,
         estado: true,
       });
+      setErrors({});
       setRolOpen(false);
     }
   }, [isOpen]);
@@ -97,38 +102,177 @@ export default function RegisterUsers({ isOpen, onClose }) {
   // 🧩 Manejo de cambios
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    if (name === "telefono" || name === "documento") {
-      setForm((prev) => ({ ...prev, [name]: sanitizeNumeric(value) }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+    const newValue = (name === "telefono" || name === "documento") ? sanitizeNumeric(value) : value;
+    setForm((prev) => ({ ...prev, [name]: newValue }));
+
+    // Validaciones en tiempo real usando newValue
+    if (name === "correo") {
+      const emailError = !isValidEmail(newValue) ? "Formato de correo inválido." : validateEmailUniqueness(newValue);
+      setErrors((prev) => ({ ...prev, correo: emailError }));
+    }
+
+    if (name === "documento") {
+      const lenError = validateDocumentoLength(newValue);
+      const uniqError = validateDocumentoUniqueness(newValue);
+      setErrors((prev) => ({ ...prev, documento: lenError || uniqError }));
+    }
+
+    if (name === "contrasena") {
+      const passError = validatePassword(newValue);
+      setErrors((prev) => ({ ...prev, contrasena: passError }));
+      if (form.confirmarContrasena) {
+        const confirmError = validateConfirmPassword(form.confirmarContrasena, newValue);
+        setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
+      }
+    }
+
+    if (name === "confirmarContrasena") {
+      const confirmError = validateConfirmPassword(newValue, form.contrasena);
+      setErrors((prev) => ({ ...prev, confirmarContrasena: confirmError }));
+    }
+
+    // Nuevos casos en tiempo real (sin 'usuario')
+    if (name === "nombre") {
+      const nomErr = validateNombreApellido(newValue);
+      setErrors((prev) => ({ ...prev, nombre: nomErr }));
+    }
+    if (name === "apellido") {
+      const apeErr = validateNombreApellido(newValue);
+      setErrors((prev) => ({ ...prev, apellido: apeErr }));
+    }
+    if (name === "telefono") {
+      const telErr = validateTelefono(newValue);
+      setErrors((prev) => ({ ...prev, telefono: telErr }));
     }
   };
+
+  // Revalidar cuando cambian usuarios/roles o campos clave (mantiene validación en tiempo real)
+  useEffect(() => {
+    setErrors((prev) => ({
+      // 'usuario' removido de la revalidación
+      nombre: form.nombre ? validateNombreApellido(form.nombre) : prev.nombre,
+      apellido: form.apellido ? validateNombreApellido(form.apellido) : prev.apellido,
+      telefono: form.telefono ? validateTelefono(form.telefono) : prev.telefono,
+      documento: form.documento ? (validateDocumentoLength(form.documento) || validateDocumentoUniqueness(form.documento)) : prev.documento,
+      correo: form.correo ? (!isValidEmail(form.correo) ? "Formato de correo inválido." : validateEmailUniqueness(form.correo)) : prev.correo,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuarios, roles, form.nombre, form.apellido, form.telefono, form.documento, form.correo]);
 
   // 📧 Validar formato email
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+  // 🔐 Validar contraseña
+  const validatePassword = (password) => {
+    if (!password) return "La contraseña es requerida.";
+    if (password.length < 8) return "Debe tener al menos 8 caracteres.";
+    if (!/[a-z]/.test(password)) return "Debe contener al menos una letra minúscula.";
+    if (!/[A-Z]/.test(password)) return "Debe contener al menos una letra mayúscula.";
+    if (!/\d/.test(password)) return "Debe contener al menos un número.";
+    return "";
+  };
+
+  // 🔐 Validar confirmar contraseña
+  const validateConfirmPassword = (confirmPassword, password) => {
+    if (!confirmPassword) return "Confirmar contraseña es requerido.";
+    if (confirmPassword !== password) return "Las contraseñas no coinciden.";
+    return "";
+  };
+
+  // ------------------------
+  // Nuevas validaciones
+  // ------------------------
+
+  // Nombre / Apellido: solo letras, espacios y algunos caracteres válidos
+  const validateNombreApellido = (value) => {
+    if (!value) return "Requerido.";
+    const re = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s'-]+$/;
+    return re.test(value) ? "" : "Solo letras y espacios permitidos.";
+  };
+
+  // Teléfono: solo números (si existe) y rango de longitud
+  const validateTelefono = (tel) => {
+    if (!tel) return "";
+    const onlyDigits = tel.replace(/\D/g, "");
+    if (onlyDigits.length < 7) return "Teléfono muy corto.";
+    if (onlyDigits.length > 15) return "Teléfono muy largo.";
+    return "";
+  };
+
+  // Documento: longitud mínima/máxima + unicidad (ya existía unicidad)
+  const validateDocumentoLength = (doc) => {
+    if (!doc) return "Requerido.";
+    if (doc.length < 6) return "Documento muy corto.";
+    if (doc.length > 20) return "Documento muy largo.";
+    return "";
+  };
+
+  // 📧 Validar unicidad de correo
+  const validateEmailUniqueness = (email) => {
+    if (!email) return "";
+    const exists = usuarios?.some(user => user.Correo?.toLowerCase() === email.toLowerCase());
+    return exists ? "Este correo ya está registrado." : "";
+  };
+
+  // 🆔 Validar unicidad de documento
+  const validateDocumentoUniqueness = (documento) => {
+    if (!documento) return "";
+    const exists = usuarios?.some(user => user.Documento === documento);
+    return exists ? "Este documento ya está registrado." : "";
+  };
+
   // 🧾 Envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Revalidar todo antes de enviar (sin 'usuario')
+    const computedErrors = {
+      nombre: validateNombreApellido(form.nombre),
+      apellido: validateNombreApellido(form.apellido),
+      correo: !isValidEmail(form.correo) ? "Formato de correo inválido." : validateEmailUniqueness(form.correo),
+      documento: validateDocumentoLength(form.documento) || validateDocumentoUniqueness(form.documento),
+      contrasena: validatePassword(form.contrasena),
+      confirmarContrasena: validateConfirmPassword(form.confirmarContrasena, form.contrasena),
+      telefono: validateTelefono(form.telefono),
+      rol: form.rol_id ? "" : "Rol es requerido.",
+    };
+
+    setErrors((prev) => ({ ...prev, ...computedErrors }));
+
+    const hasErrors = Object.values(computedErrors).some((err) => err);
+    if (hasErrors) {
+      const fieldLabels = {
+        nombre: "Nombre",
+        apellido: "Apellido",
+        correo: "Correo",
+        documento: "Documento",
+        contrasena: "Contraseña",
+        confirmarContrasena: "Confirmar contraseña",
+        telefono: "Teléfono",
+        rol: "Rol asignado",
+      };
+
+      const detalles = Object.entries(computedErrors)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${fieldLabels[k] || k}: ${v}`)
+        .join("\n");
+
+      showErrorAlert(`Corrige los siguientes errores:\n${detalles}`);
+      return;
+    }
+
     const missing = [];
 
     if (!form.nombre.trim()) missing.push("Nombre");
     if (!form.apellido.trim()) missing.push("Apellido");
     if (!form.correo.trim()) missing.push("Correo");
-    if (form.correo && !isValidEmail(form.correo))
-      missing.push("Correo (inválido)");
     if (!form.documento.trim()) missing.push("Documento");
     if (!form.rol_id) missing.push("Rol asignado");
     if (!form.contrasena.trim()) missing.push("Contraseña");
     if (!form.confirmarContrasena.trim()) missing.push("Confirmar contraseña");
 
-    if (form.contrasena !== form.confirmarContrasena) {
-      showErrorAlert("Las contraseñas no coinciden.");
-      return;
-    }
-
     if (missing.length > 0) {
-      showErrorAlert(`Campos inválidos: ${missing.join(", ")}`);
+      showErrorAlert(`Campos requeridos: ${missing.join(", ")}`);
       return;
     }
 
@@ -136,6 +280,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
 
     if (result) {
       showSuccessAlert("Usuario registrado exitosamente");
+      if (onRegisterSuccess) onRegisterSuccess();
       onClose();
     } else {
       showErrorAlert("Error al crear el usuario");
@@ -197,6 +342,7 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.nombre && <p className="text-red-500 text-sm mt-1">{errors.nombre}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -209,7 +355,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.apellido && <p className="text-red-500 text-sm mt-1">{errors.apellido}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Documento *
@@ -224,7 +372,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.documento && <p className="text-red-500 text-sm mt-1">{errors.documento}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Correo *
@@ -238,7 +388,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                       required
                     />
+                    {errors.correo && <p className="text-red-500 text-sm mt-1">{errors.correo}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Contraseña *
@@ -254,7 +406,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       pattern="^(?=.*[A-Za-z])(?=.*\d).{8,}$"
                       title="Debe tener mínimo 8 caracteres e incluir al menos 1 letra y 1 número."
                     />
+                    {errors.contrasena && <p className="text-red-500 text-sm mt-1">{errors.contrasena}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Confirmar contraseña *
@@ -270,7 +424,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       pattern="^(?=.*[A-Za-z])(?=.*\d).{8,}$"
                       title="Debe tener mínimo 8 caracteres e incluir al menos 1 letra y 1 número."
                     />
+                    {errors.confirmarContrasena && <p className="text-red-500 text-sm mt-1">{errors.confirmarContrasena}</p>}
                   </div>
+
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
                       Teléfono (opcional)
@@ -284,7 +440,9 @@ export default function RegisterUsers({ isOpen, onClose }) {
                       placeholder="e.g. +57 3XX XXX XXXX"
                       className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                     />
+                    {errors.telefono && <p className="text-red-500 text-sm mt-1">{errors.telefono}</p>}
                   </div>
+
                   {/* 🔽 Dropdown de roles */}
                   <div ref={rolRef}>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -323,21 +481,26 @@ export default function RegisterUsers({ isOpen, onClose }) {
                                 onClick={() => {
                                   setForm((p) => ({
                                     ...p,
-                                    rol: opt.rol_nombre,
+                                    rol: opt.estado_rol === false ? `${opt.rol_nombre} (Desactivado)` : opt.rol_nombre,
                                     rol_id: opt.rol_id,
+                                    // Si el rol está desactivado, el usuario también queda inactivo
+                                    estado: opt.estado_rol === false ? false : p.estado,
                                   }));
                                   setRolOpen(false);
+                                  setErrors((p)=>({...p, rol: ""}));
                                 }}
                                 className="px-4 py-3 cursor-pointer text-sm text-gray-700 hover:bg-green-50"
                               >
-                                {opt.rol_nombre}
+                                {opt.rol_nombre} {opt.estado_rol === false && <span className="text-red-500 text-xs font-semibold ml-2">(Desactivado)</span>}
                               </motion.li>
                             ))}
                           </motion.ul>
                         )}
                       </AnimatePresence>
                     </div>
+                    {errors.rol && <p className="text-red-500 text-sm mt-1">{errors.rol}</p>}
                   </div>
+
                   {/* 🔘 Estado del usuario */}
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">
@@ -346,9 +509,14 @@ export default function RegisterUsers({ isOpen, onClose }) {
                     <div className="flex items-center gap-3 mt-2">
                       <EstadoToggle
                         enabled={form.estado}
-                        onChange={() =>
+                        onChange={() => {
+                          const selectedRole = roles.find(r => r.rol_id === form.rol_id);
+                          if (selectedRole && selectedRole.estado_rol === false && !form.estado) {
+                            showErrorAlert("No puedes activar un usuario con un rol desactivado.");
+                            return;
+                          }
                           setForm((p) => ({ ...p, estado: !p.estado }))
-                        }
+                        }}
                       />
                       <span className="text-sm text-gray-600">
                         {form.estado ? "Activo" : "Inactivo"}

@@ -4,11 +4,11 @@ import axios from "axios";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
-const API_URL = `${API_BASE}/products`;
+const API_URL = `${API_BASE}/products/all`;
 
 /**
  * Hook de dashboard de productos
- * - Consume GET /products (getAllProducts)
+ * - Consume GET /products/all
  * - Normaliza datos para el dashboard
  * - Expone:
  *   - topProducts: para el gráfico de barras (Top 5)

@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ExportExcelButton,
   ExportPDFButton,
   ViewDetailsButton,
 } from "../../../shared/components/buttons";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import ondas from "../../../assets/ondasHorizontal.png";
 import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,7 +13,13 @@ import DetailsLow from "./modals/detailsLow";
 import generateProductLowsPDF from "./helpers/exportToPdf";
 import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
+import { useSearchLowProducts } from "../../../shared/components/hooks/lowProducts/useSearchLowProducts";
 import { useAuth } from "../../../context/useAtuh";
+import Loading from "../../onboarding/loading";
+import Swal from "sweetalert2";
+import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
+import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
+import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -64,18 +70,76 @@ function ChevronIcon({ open }) {
 }
 
 export default function IndexLow() {
-  const { data: lows, loading, error, refetch } = useGetLowProducts();
+  const perPage = 6;
+  const {
+    fetchPage,
+    pagesCache,
+    meta,
+    loading,
+    error,
+    reset,
+    getTotalPages,
+    getLoadedCount,
+  } = useGetLowProducts(perPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const {
+    data: searchedLows = [],
+    loading: searchLoading,
+    error: searchError,
+  } = useSearchLowProducts(searchTerm);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
   const [expanded, setExpanded] = useState(new Set()); // ids expandidos para móvil/desktop
+  const [annulledMap, setAnnulledMap] = useState({});
+  const [blockedAnnulMap, setBlockedAnnulMap] = useState({});
   const {hasPermission} = useAuth();
 
   // Permiso requerido para ver la página
-  const canView = hasPermission('Ver baja productos');
   const canCreate = hasPermission('Crear baja productos');
-  const perPage = 6;
+  const canAnnul = hasPermission('Anular baja producto');
+  const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
+  const isSearching = searchTerm.trim() !== "";
+
+  React.useEffect(() => {
+    if (!isSearching) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage, isSearching]);
+
+  const buildAnnulErrorMessage = (err) => {
+    const payload = err?.response?.data ?? {};
+    const baseMessage =
+      payload.error || payload.message || "No se pudo anular el registro.";
+
+    const detailTables = Array.isArray(payload.tablas_detalle_relacionadas)
+      ? payload.tablas_detalle_relacionadas
+      : [];
+    const productTables = Array.isArray(payload.tablas_producto_relacionadas)
+      ? payload.tablas_producto_relacionadas
+      : [];
+
+    if (!detailTables.length && !productTables.length) return baseMessage;
+
+    const parts = [baseMessage];
+    if (detailTables.length) {
+      parts.push(`Tablas detalle relacionadas: ${detailTables.join(", ")}`);
+    }
+    if (productTables.length) {
+      parts.push(`Tablas producto relacionadas: ${productTables.join(", ")}`);
+    }
+
+    return parts.join("<br/>");
+  };
+
+  const isRelationConflict = (payload = {}) => {
+    const text = `${payload.error || ""} ${payload.message || ""}`.toLowerCase();
+    return payload.code === "LOW_PRODUCT_RELATION_CONFLICT" || text.includes("relacionad");
+  };
+
+  const getBlockKey = (id) => String(id);
 
   // Normalización de texto
   const normalizeText = (text) =>
@@ -85,12 +149,13 @@ export default function IndexLow() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  // Filtrado + expansión por producto (cada producto = fila)
-  const filtered = useMemo(() => {
+  // Filtrado + expansión por producto para la página actual
+  const pageItems = useMemo(() => {
+    const pageData = isSearching ? searchedLows : pagesCache[currentPage] || [];
     const s = normalizeText(searchTerm.trim());
     const match = (val) => normalizeText(String(val ?? "")).includes(s);
 
-    const expandedRows = (lows || []).flatMap((low) =>
+    const expandedRows = pageData.flatMap((low) =>
       (low.products || []).map((product) => ({
         ...low,
         currentProduct: product,
@@ -99,24 +164,33 @@ export default function IndexLow() {
         }`,
       }))
     );
+    const byStatus = expandedRows.filter((item) => {
+      const isActive = annulledMap[item.idLow] ?? item.isActive;
+      if (statusFilter === "active") return isActive === true;
+      if (statusFilter === "inactive") return isActive === false;
+      return true;
+    });
 
-    if (!s) return expandedRows;
+    if (!s) return byStatus;
 
-    return expandedRows.filter((item) =>
+    return byStatus.filter((item) =>
       Object.values(item).some((val) =>
         typeof val === "object"
           ? Object.values(val).some((v) => match(v))
           : match(val)
       )
     );
-  }, [lows, searchTerm]);
+  }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedLows]);
 
-  // Paginación basada en filas (productos)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = useMemo(() => {
+  const totalPages = isSearching
+    ? Math.max(1, Math.ceil(pageItems.length / perPage))
+    : getTotalPages();
+  const filteredLength = isSearching ? pageItems.length : getLoadedCount();
+  const visibleItems = useMemo(() => {
+    if (!isSearching) return pageItems;
     const start = (currentPage - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, currentPage]);
+    return pageItems.slice(start, start + perPage);
+  }, [pageItems, currentPage, perPage, isSearching]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -132,8 +206,86 @@ export default function IndexLow() {
   };
 
   const handleConfirmLow = () => {
-    refetch();
+    // after registering we want to refresh first page
+    reset();
+    setCurrentPage(1);
+    fetchPage(1, { force: true });
   };
+
+  const handleAnnulLow = async (item) => {
+    const itemKey = getBlockKey(item.idLow);
+    const status = annulledMap[item.idLow] ?? item.isActive;
+    const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
+    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateLow, status);
+    if (isDisabled || isBlockedByRelation) return;
+
+    let relationConflictDetected = false;
+
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción es permanente y no se puede revertir",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      allowEscapeKey: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          await annulLowProduct(item.idLow);
+          setAnnulledMap((prev) => ({ ...prev, [item.idLow]: false }));
+          await fetchPage(currentPage, { force: true });
+          return { ok: true };
+        } catch (err) {
+          const payload = err?.response?.data ?? {};
+          relationConflictDetected = isRelationConflict(payload);
+          return {
+            ok: false,
+            relationConflict: relationConflictDetected,
+            message: buildAnnulErrorMessage(err),
+          };
+        }
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    if (result.value?.ok) {
+      await Swal.fire("Anulado", "El registro fue anulado correctamente.", "success");
+      return;
+    }
+
+    await Swal.fire({
+      title: "No se pudo anular",
+      html: result.value?.message || "No se pudo anular el registro.",
+      icon: "error",
+      confirmButtonText: "Aceptar",
+    });
+
+    if (relationConflictDetected || result.value?.relationConflict) {
+      setBlockedAnnulMap((prev) => ({ ...prev, [itemKey]: true }));
+    }
+  };
+
+  const ToggleSwitch = ({ checked, disabled, onChange }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled || annulling}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-green-600" : "bg-gray-300"
+      } ${(disabled || annulling) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-5" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
@@ -154,7 +306,7 @@ export default function IndexLow() {
 
       {/* Contenido */}
       <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
@@ -167,27 +319,37 @@ export default function IndexLow() {
 
           {/* Toolbar responsive */}
           <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-            <div className="relative w-full min-w-0">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
+            <div className="w-full min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={20} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar bajas..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Buscar bajas..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+              <StatusFilterDropdown
+                value={statusFilter}
+                onChange={(nextStatus) => {
+                  setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="w-full sm:w-[220px]"
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductLowsXLS(filtered)}>
+              <ExportExcelButton event={() => generateProductLowsXLS(pageItems)}>
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton event={() => generateProductLowsPDF(filtered)}>
+              <ExportPDFButton event={() => generateProductLowsPDF(pageItems)}>
                 PDF
               </ExportPDFButton>
 
@@ -210,24 +372,22 @@ export default function IndexLow() {
           <motion.div
             className="md:hidden"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
-            {loading ? (
+            {loading || (isSearching && searchLoading) ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loader2 size={24} className="animate-spin" />
+                <Loading inline heightClass="h-28" />
               </div>
-            ) : error ? (
+            ) : error || searchError ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                Error al cargar las bajas
+                {searchError || error || "Error al cargar las bajas"}
               </div>
-            ) : pageItems.length === 0 ? (
+            ) : visibleItems.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
                 No se encontraron productos dados de baja.
               </div>
             ) : (
               <motion.ul className="space-y-3" variants={tableVariants}>
-                {pageItems.map((item, i) => {
+                {visibleItems.map((item, i) => {
                   const id = item._rowId || `${item.idLow}-${i}`;
                   const isExpanded = expanded.has(id);
                   const panelId = `panel-${id}`;
@@ -307,13 +467,26 @@ export default function IndexLow() {
                                 </div>
                               </div>
 
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="mt-4 flex items-center justify-between gap-2">
                                 <ViewDetailsButton
                                   event={() => {
                                     setSelectedLow(item);
                                     setIsOpen(true);
                                   }}
                                 />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Anular</span>
+                                  <ToggleSwitch
+                                    checked={annulledMap[item.idLow] ?? item.isActive}
+                                    disabled={
+                                      getAnnulmentMeta(
+                                        item.createdAt || item.dateLow,
+                                        annulledMap[item.idLow] ?? item.isActive
+                                      ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
+                                    }
+                                    onChange={() => handleAnnulLow(item)}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -330,8 +503,6 @@ export default function IndexLow() {
           <motion.div
             className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
             variants={tableVariants}
-            initial="hidden"
-            animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
               <table className="w-full table-fixed">
@@ -343,43 +514,42 @@ export default function IndexLow() {
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Cantidad</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Razón</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4">Responsable</th>
+                    <th className="px-4 lg:px-6 py-3 lg:py-4">Estado</th>
                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-right">
                       Acciones
                     </th>
                   </tr>
                 </thead>
                 <motion.tbody
-                  className="divide-y divide-gray-100"
+                  className="divide-y divide-gray-100 text-gray-700"
                   variants={tableVariants}
                 >
-                  {loading ? (
+                  {loading || (isSearching && searchLoading) ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12">
-                        <div className="flex items-center justify-center">
-                          <Loader2 size={24} className="animate-spin" />
-                        </div>
+                      <td colSpan={8} className="px-6 py-12 text-center">
+                        <Loading inline heightClass="h-28" />
                       </td>
                     </tr>
-                  ) : error ? (
+                  ) : error || searchError ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-6 py-12 text-center text-red-500"
                       >
-                        Error al cargar las bajas
+                        {searchError || error || "Error al cargar las bajas"}
                       </td>
                     </tr>
-                  ) : pageItems.length === 0 ? (
+                  ) : visibleItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-6 py-8 text-center text-gray-400"
                       >
                         No se encontraron productos dados de baja.
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((item, i) => {
+                    visibleItems.map((item, i) => {
                       const id =
                         item._rowId ||
                         `${item.idLow}-${item.currentProduct?.id ?? i}`;
@@ -468,10 +638,27 @@ export default function IndexLow() {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 lg:px-6 py-4">
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
                             <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 whitespace-nowrap">
                               {item.responsible}
                             </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 text-sm text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <ToggleSwitch
+                                checked={annulledMap[item.idLow] ?? item.isActive}
+                                disabled={
+                                  !canAnnul || getAnnulmentMeta(
+                                    item.createdAt || item.dateLow,
+                                    annulledMap[item.idLow] ?? item.isActive
+                                  ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
+                                }
+                                onChange={() => handleAnnulLow(item)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {(annulledMap[item.idLow] ?? item.isActive) ? "Activo" : "Anulado"}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 lg:px-6 py-4 text-right">
                             <div className="inline-flex items-center gap-2">
@@ -498,7 +685,7 @@ export default function IndexLow() {
               currentPage={currentPage}
               perPage={perPage}
               totalPages={totalPages}
-              filteredLength={filtered.length}
+              filteredLength={filteredLength}
               goToPage={goToPage}
             />
           </div>

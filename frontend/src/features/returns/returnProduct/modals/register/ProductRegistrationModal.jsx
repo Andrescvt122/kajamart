@@ -3,18 +3,32 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-// ❌ YA NO usamos el hook aquí
+// YA NO usamos el hook aqui
 // import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
 import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
-const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
+const ProductRegistrationModal = ({
+  isOpen,
+  onClose,
+  product,
+  onConfirm,
+  initialDetail,
+  existingBarcodes = [],
+  ignoreBarcode = null,
+  fixedQuantity = null,
+}) => {
   const [formData, setFormData] = useState({
     barcode: "",
-    quantity: "",
+    quantity: fixedQuantity != null ? String(fixedQuantity) : "",
     expiryDate: "",
     isReturn: true,
   });
-  const {details}= useFetchAllDetails();
+  const { details } = useFetchAllDetails();
   const [errors, setErrors] = useState({});
+  const normalizedExistingBarcodes = (Array.isArray(existingBarcodes)
+    ? existingBarcodes
+    : [])
+    .map((b) => String(b ?? "").trim())
+    .filter(Boolean);
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
@@ -24,15 +38,35 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   // Resetear campos cuando se abre un producto nuevo
   React.useEffect(() => {
     if (isOpen) {
-      setFormData({
-        barcode: "",
-        quantity: "",
-        expiryDate: "",
-        isReturn: true,
-      });
+      if (initialDetail) {
+        setFormData({
+          barcode:
+            initialDetail.registeredBarcode ||
+            initialDetail.codigo_barras_producto_compra ||
+            "",
+          quantity: String(
+            initialDetail.registeredQuantity ??
+              initialDetail.stock_producto ??
+              fixedQuantity ??
+              ""
+          ),
+          expiryDate:
+            initialDetail.registeredExpiry?.slice(0, 10) ||
+            initialDetail.fecha_vencimiento?.slice(0, 10) ||
+            "",
+          isReturn: true,
+        });
+      } else {
+        setFormData({
+          barcode: "",
+          quantity: fixedQuantity != null ? String(fixedQuantity) : "",
+          expiryDate: "",
+          isReturn: true,
+        });
+      }
       setErrors({});
     }
-  }, [isOpen, product]);
+  }, [isOpen, product, initialDetail, fixedQuantity]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -44,7 +78,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
 
       if (barcode && !isExactly13Digits(barcode)) {
         error = "El código debe tener exactamente 13 dígitos numéricos";
-      } else if (barcode && details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+      } else if (
+        barcode &&
+        barcode !== ignoreBarcode &&
+        (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
+          normalizedExistingBarcodes.includes(barcode))
+      ) {
         error = "Este código de barras ya está registrado en el sistema";
       }
 
@@ -55,17 +94,21 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const validate = () => {
     const errs = {};
 
-    // ✅ Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
+    // Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
     const barcode = String(formData.barcode ?? "").trim();
     if (!barcode) {
       errs.barcode = "Código de barras requerido";
     } else if (!isExactly13Digits(barcode)) {
       errs.barcode = "El código debe tener exactamente 13 dígitos numéricos";
-    } else if (details.some((d) => d.codigo_barras_producto_compra === barcode)) {
+    } else if (
+      barcode !== ignoreBarcode &&
+      (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
+        normalizedExistingBarcodes.includes(barcode))
+    ) {
       errs.barcode = "Este código de barras ya está registrado en el sistema";
     }
 
-    // ✅ Cantidad: obligatoria, solo números, no negativa (permito 0)
+    // Cantidad: obligatoria, solo números, no negativa (permito 0)
     const qtyStr = String(formData.quantity ?? "").trim();
     if (!qtyStr) {
       errs.quantity = "Cantidad requerida";
@@ -76,9 +119,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
       if (!Number.isFinite(qtyNum) || qtyNum < 0) {
         errs.quantity = "La cantidad no puede ser negativa";
       }
+      if (fixedQuantity != null && qtyNum !== Number(fixedQuantity)) {
+        errs.quantity = `La cantidad debe ser ${fixedQuantity}`;
+      }
     }
 
-    // ✅ Fecha: opcional; si se llena => debe ser >= hoy + 4 días
+    // Fecha: opcional; si se llena => debe ser >= hoy + 4 días
     const expStr = String(formData.expiryDate ?? "").trim();
     if (expStr) {
       const expDate = ymdToDate(expStr);
@@ -102,13 +148,10 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     console.log("product", product);
-    const cleanBarcode = String(formData.barcode).trim();
-    const cleanQty = Number(String(formData.quantity).trim());
-
-    // 🔹 Detalle local, NO se envía a BD aquí
+    // Detalle local, NO se envia a BD aqui
     const registeredDetail = {
       ...product,
-      productKey: product?.id_producto, // para vincularlo al producto en ProductReturnModal
+      productKey: product?.id_detalle_producto, // para vincularlo a la linea exacta en ProductReturnModal
       registeredBarcode: formData.barcode,
       registeredQuantity: Number(formData.quantity),
       registeredExpiry: formData.expiryDate || null,
@@ -126,7 +169,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
   const handleClose = () => {
     setFormData({
       barcode: "",
-      quantity: "",
+      quantity: fixedQuantity != null ? String(fixedQuantity) : "",
       expiryDate: "",
       isReturn: true,
     });
@@ -160,6 +203,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
     e.target.blur();
     setTimeout(() => e.target.focus(), 0);
   };
+  React.useEffect(() => {
+    if (fixedQuantity != null) {
+      setFormData((prev) => ({ ...prev, quantity: String(fixedQuantity) }));
+    }
+  }, [fixedQuantity]);
+
   const isExactly13Digits = (s) => /^\d{13}$/.test(s);
   const isOnlyDigits = (s) => /^\d+$/.test(s);
   const ymdToDate = (ymd) => {
@@ -234,7 +283,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       Nombre
                     </label>
                     <div className="mt-1 text-gray-800 font-medium">
-                      {product?.productos?.nombre || "—"}
+                      {product?.productos?.nombre || "-"}
                     </div>
                   </div>
 
@@ -245,7 +294,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                     <div className="mt-1 text-gray-700">
                       {product
                         ? formatPrice(product.productos.precio_venta)
-                        : "—"}
+                        : "-"}
                     </div>
                   </div>
 
@@ -289,6 +338,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       min={0}
                       inputMode="numeric"
                       value={formData.quantity}
+                      disabled={fixedQuantity != null}
                       onChange={(e) =>
                         handleChange(
                           "quantity",
@@ -298,7 +348,9 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       onKeyDown={handleQuantityKeyDown}
                       onPaste={handleQuantityPaste}
                       onWheel={handleQuantityWheel}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
+                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black ${
+                        fixedQuantity != null ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
                       placeholder="0"
                     />
                     {errors.quantity && (
@@ -317,13 +369,20 @@ const ProductRegistrationModal = ({ isOpen, onClose, product, onConfirm }) => {
                       <Calendar
                         value={
                           formData.expiryDate
-                            ? new Date(formData.expiryDate)
+                            ? ymdToDate(formData.expiryDate)
                             : null
                         }
                         onChange={(e) => {
-                          const dateVal = e.value
-                            ? e.value.toISOString().slice(0, 10)
-                            : "";
+                          if (!e.value) {
+                            handleChange("expiryDate", "");
+                            return;
+                          }
+                          const localDate = new Date(e.value);
+                          localDate.setHours(0, 0, 0, 0);
+                          const year = localDate.getFullYear();
+                          const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(localDate.getDate()).padStart(2, '0');
+                          const dateVal = `${year}-${month}-${day}`;
                           handleChange("expiryDate", dateVal);
                         }}
                         minDate={minDate}

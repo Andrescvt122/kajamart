@@ -1,7 +1,7 @@
 // Archivo: editRoles.jsx
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, AlertCircle, CheckCircle } from "lucide-react";
 import { showSuccessAlert, showConfirmAlert } from "../../shared/components/alerts.jsx";
 import { usePermisosList } from "../../shared/components/hooks/roles/usePermisosList.js";
 import { useUpdateRole } from "../../shared/components/hooks/roles/useUpdateRole.js";
@@ -19,6 +19,42 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
     permisos: {},
   });
 
+  // 🔍 Estado para validaciones en tiempo real
+  const [validations, setValidations] = useState({
+    nombreRol: { error: null, isValid: false },
+    descripcion: { error: null, isValid: false },
+  });
+
+  // 🔍 Funciones de validación
+  const validateNombreRol = (value) => {
+    if (!value || value.trim().length === 0) {
+      return { error: "El nombre del rol es requerido", isValid: false };
+    }
+    if (value.trim().length < 3) {
+      return { error: "El nombre debe tener al menos 3 caracteres", isValid: false };
+    }
+    if (value.trim().length > 50) {
+      return { error: "El nombre no debe exceder 50 caracteres", isValid: false };
+    }
+    if (!/^[a-zA-Z\s_-]+$/.test(value)) {
+      return { error: "Solo se permiten letras, espacios, guiones y guiones bajos", isValid: false };
+    }
+    return { error: null, isValid: true };
+  };
+
+  const validateDescripcion = (value) => {
+    if (!value || value.trim().length === 0) {
+      return { error: "La descripción es requerida", isValid: false };
+    }
+    if (value.trim().length < 10) {
+      return { error: "La descripción debe tener al menos 10 caracteres", isValid: false };
+    }
+    if (value.trim().length > 500) {
+      return { error: "La descripción no debe exceder 500 caracteres", isValid: false };
+    }
+    return { error: null, isValid: true };
+  };
+
   // 🟢 Cargar detalles completos del rol (incluyendo permisos)
   useEffect(() => {
     if (role?.rol_id) {
@@ -28,6 +64,11 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
         descripcion: role.descripcion,
         estado: role.estado_rol,
         permisos: {},
+      });
+      // Validar los datos iniciales
+      setValidations({
+        nombreRol: validateNombreRol(role.rol_nombre),
+        descripcion: validateDescripcion(role.descripcion),
       });
       setRolCompleto(null);
 
@@ -45,6 +86,10 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
       getRolDetails();
     } else {
       setForm({ nombreRol: "", descripcion: "", estado: true, permisos: {} });
+      setValidations({
+        nombreRol: { error: null, isValid: false },
+        descripcion: { error: null, isValid: false },
+      });
       setRolCompleto(null);
     }
   }, [role]);
@@ -76,10 +121,19 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
     }
   }, [rolCompleto, permisosDisponibles]);
 
-  // 🧩 Manejadores de cambios
+  // 🧩 Manejadores de cambios con validación en tiempo real
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    // 🔍 Ejecutar validación según el campo
+    if (name === "nombreRol") {
+      const validation = validateNombreRol(value);
+      setValidations((prev) => ({ ...prev, nombreRol: validation }));
+    } else if (name === "descripcion") {
+      const validation = validateDescripcion(value);
+      setValidations((prev) => ({ ...prev, descripcion: validation }));
+    }
   };
 
   const handlePermisoChange = (key) => {
@@ -148,6 +202,19 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
   // 🟢 Guardar cambios
   const handleUpdate = async (e) => {
     e.preventDefault();
+
+    // 🔍 Validar antes de enviar
+    const validacionNombre = validateNombreRol(form.nombreRol);
+    const validacionDescripcion = validateDescripcion(form.descripcion);
+
+    setValidations({
+      nombreRol: validacionNombre,
+      descripcion: validacionDescripcion,
+    });
+
+    if (!validacionNombre.isValid || !validacionDescripcion.isValid) {
+      return;
+    }
 
     const permisosSeleccionados = Object.entries(form.permisos)
       .filter(([_, checked]) => checked)
@@ -249,28 +316,80 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nombre del rol
                     </label>
-                    <input
-                      type="text"
-                      name="nombreRol"
-                      value={form.nombreRol}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="nombreRol"
+                        value={form.nombreRol}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 text-black transition ${
+                          form.nombreRol
+                            ? validations.nombreRol.isValid
+                              ? "border-green-500 focus:ring-2 focus:ring-green-500"
+                              : "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-gray-300"
+                        }`}
+                      />
+                      {form.nombreRol && (
+                        <div className="absolute right-3 top-3">
+                          {validations.nombreRol.isValid ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {form.nombreRol && validations.nombreRol.error && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validations.nombreRol.error}
+                      </p>
+                    )}
+                    {form.nombreRol && validations.nombreRol.isValid && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Nombre válido
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Descripción
                     </label>
-                    <textarea
-                      name="descripcion"
-                      value={form.descripcion}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border rounded-lg bg-gray-50 text-black"
-                      rows={3}
-                      required
-                    />
+                    <div className="relative">
+                      <textarea
+                        name="descripcion"
+                        value={form.descripcion}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 text-black transition ${
+                          form.descripcion
+                            ? validations.descripcion.isValid
+                              ? "border-green-500 focus:ring-2 focus:ring-green-500"
+                              : "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-gray-300"
+                        }`}
+                        rows={3}
+                      />
+                      {form.descripcion && (
+                        <div className="absolute right-3 top-3">
+                          {validations.descripcion.isValid ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {form.descripcion && validations.descripcion.error && (
+                      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {validations.descripcion.error}
+                      </p>
+                    )}
+                    {form.descripcion && validations.descripcion.isValid && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Descripción válida
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -370,13 +489,22 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
                   </button>
                   <button
                     type="submit"
-                    disabled={isUpdating}
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50"
+                    disabled={isUpdating || !validations.nombreRol.isValid || !validations.descripcion.isValid}
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Guardar cambios
+                    {isUpdating ? "Guardando..." : "Guardar cambios"}
                   </button>
                 </div>
               </form>
+              {/* Overlay de carga mientras se actualiza el rol */}
+              {isUpdating && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-700 font-medium">Actualizando rol...</p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </>

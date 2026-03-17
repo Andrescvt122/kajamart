@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1773205207668" clover="3.2.0">
+  <project timestamp="1773205207668" name="All files">
+    <metrics statements="151" coveredstatements="70" conditionals="109" coveredconditionals="51" methods="44" coveredmethods="17" elements="304" coveredelements="138" complexity="0" loc="151" ncloc="151" packages="3" files="3" classes="3"/>
+    <package name="auth">
+      <metrics statements="19" coveredstatements="18" conditionals="17" coveredconditionals="12" methods="5" coveredmethods="4"/>
+      <file name="login.jsx" path="/home/Andres/projects/proyecto/kajamart/frontend/src/auth/login.jsx">
+        <metrics statements="19" coveredstatements="18" conditionals="17" coveredconditionals="12" methods="5" coveredmethods="4"/>
+        <line num="14" count="12" type="stmt"/>
+        <line num="15" count="12" type="stmt"/>
+        <line num="16" count="12" type="stmt"/>
+        <line num="17" count="12" type="stmt"/>
+        <line num="18" count="12" type="stmt"/>
+        <line num="19" count="12" type="stmt"/>
+        <line num="20" count="12" type="stmt"/>
+        <line num="22" count="12" type="cond" truecount="1" falsecount="1"/>
+        <line num="23" count="12" type="stmt"/>
+        <line num="24" count="2" type="stmt"/>
+        <line num="25" count="2" type="stmt"/>
+        <line num="27" count="2" type="stmt"/>
+        <line num="28" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="32" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="36" count="12" type="stmt"/>
+        <line num="96" count="3" type="stmt"/>
+        <line num="114" count="2" type="stmt"/>
+        <line num="119" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="features.returns.returnClient">
+      <metrics statements="82" coveredstatements="49" conditionals="62" coveredconditionals="39" methods="30" coveredmethods="13"/>
+      <file name="indexClientReturns.jsx" path="/home/Andres/projects/proyecto/kajamart/frontend/src/features/returns/returnClient/indexClientReturns.jsx">
+        <metrics statements="82" coveredstatements="49" conditionals="62" coveredconditionals="39" methods="30" coveredmethods="13"/>
+        <line num="24" count="8" type="stmt"/>
+        <line num="34" count="8" type="stmt"/>
+        <line num="36" count="8" type="stmt"/>
+        <line num="37" count="8" type="stmt"/>
+        <line num="38" count="8" type="stmt"/>
+        <line num="39" count="8" type="stmt"/>
+        <line num="40" count="8" type="stmt"/>
+        <line num="41" count="8" type="stmt"/>
+        <line num="42" count="8" type="stmt"/>
+        <line num="43" count="8" type="stmt"/>
+        <line num="44" count="8" type="stmt"/>
+        <line num="45" count="8" type="stmt"/>
+        <line num="46" count="8" type="stmt"/>
+        <line num="47" count="8" type="stmt"/>
+        <line num="50" count="8" type="stmt"/>
+        <line num="51" count="7" type="stmt"/>
+        <line num="55" count="8" type="stmt"/>
+        <line num="56" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="57" count="0" type="stmt"/>
+        <line num="58" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="59" count="0" type="stmt"/>
+        <line num="63" count="8" type="stmt"/>
+        <line num="64" count="0" type="stmt"/>
+        <line num="65" count="0" type="stmt"/>
+        <line num="69" count="8" type="stmt"/>
+        <line num="70" count="10" type="stmt"/>
+        <line num="77" count="8" type="stmt"/>
+        <line num="78" count="8" type="cond" truecount="1" falsecount="1"/>
+        <line num="79" count="8" type="stmt"/>
+        <line num="81" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="88" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="95" count="6" type="stmt"/>
+        <line num="98" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="99" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="100" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="101" count="6" type="stmt"/>
+        <line num="104" count="6" type="stmt"/>
+        <line num="105" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="106" count="1" type="stmt"/>
+        <line num="115" count="8" type="stmt"/>
+        <line num="116" count="8" type="stmt"/>
+        <line num="118" count="8" type="stmt"/>
+        <line num="119" count="0" type="stmt"/>
+        <line num="120" count="0" type="stmt"/>
+        <line num="122" count="8" type="stmt"/>
+        <line num="123" count="10" type="stmt"/>
+        <line num="130" count="8" type="stmt"/>
+        <line num="131" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="132" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="133" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="135" count="0" type="stmt"/>
+        <line num="143" count="0" type="stmt"/>
+        <line num="144" count="0" type="stmt"/>
+        <line num="146" count="0" type="stmt"/>
+        <line num="147" count="0" type="stmt"/>
+        <line num="148" count="0" type="stmt"/>
+        <line num="150" count="0" type="stmt"/>
+        <line num="151" count="0" type="stmt"/>
+        <line num="153" count="0" type="stmt"/>
+        <line num="154" count="0" type="stmt"/>
+        <line num="159" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="160" count="0" type="stmt"/>
+        <line num="164" count="8" type="stmt"/>
+        <line num="165" count="5" type="stmt"/>
+        <line num="184" count="8" type="stmt"/>
+        <line num="192" count="8" type="stmt"/>
+        <line num="197" count="8" type="stmt"/>
+        <line num="198" count="7" type="stmt"/>
+        <line num="201" count="8" type="stmt"/>
+        <line num="239" count="1" type="stmt"/>
+        <line num="240" count="1" type="stmt"/>
+        <line num="248" count="0" type="stmt"/>
+        <line num="249" count="0" type="stmt"/>
+        <line num="255" count="0" type="stmt"/>
+        <line num="258" count="0" type="stmt"/>
+        <line num="262" count="0" type="stmt"/>
+        <line num="313" count="5" type="stmt"/>
+        <line num="358" count="0" type="stmt"/>
+        <line num="367" count="0" type="stmt"/>
+        <line num="391" count="0" type="stmt"/>
+        <line num="392" count="0" type="stmt"/>
+        <line num="393" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="features.returns.returnClient.helpers">
+      <metrics statements="50" coveredstatements="3" conditionals="30" coveredconditionals="0" methods="9" coveredmethods="0"/>
+      <file name="exportToXls.js" path="/home/Andres/projects/proyecto/kajamart/frontend/src/features/returns/returnClient/helpers/exportToXls.js">
+        <metrics statements="50" coveredstatements="3" conditionals="30" coveredconditionals="0" methods="9" coveredmethods="0"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="5" count="0" type="stmt"/>
+        <line num="6" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="10" count="1" type="cond" truecount="0" falsecount="1"/>
+        <line num="11" count="0" type="stmt"/>
+        <line num="24" count="1" type="cond" truecount="0" falsecount="1"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+        <line num="28" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="30" count="0" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
+        <line num="39" count="0" type="stmt"/>
+        <line num="40" count="0" type="stmt"/>
+        <line num="41" count="0" type="stmt"/>
+        <line num="42" count="0" type="stmt"/>
+        <line num="43" count="0" type="stmt"/>
+        <line num="48" count="0" type="stmt"/>
+        <line num="50" count="0" type="stmt"/>
+        <line num="51" count="0" type="stmt"/>
+        <line num="53" count="0" type="stmt"/>
+        <line num="54" count="0" type="stmt"/>
+        <line num="56" count="0" type="stmt"/>
+        <line num="57" count="0" type="stmt"/>
+        <line num="59" count="0" type="stmt"/>
+        <line num="60" count="0" type="stmt"/>
+        <line num="61" count="0" type="stmt"/>
+        <line num="62" count="0" type="stmt"/>
+        <line num="63" count="0" type="stmt"/>
+        <line num="70" count="0" type="stmt"/>
+        <line num="71" count="0" type="stmt"/>
+        <line num="72" count="0" type="stmt"/>
+        <line num="74" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="75" count="0" type="stmt"/>
+        <line num="76" count="0" type="stmt"/>
+        <line num="85" count="0" type="stmt"/>
+        <line num="86" count="0" type="stmt"/>
+        <line num="87" count="0" type="stmt"/>
+        <line num="88" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="89" count="0" type="stmt"/>
+        <line num="91" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="94" count="0" type="stmt"/>
+        <line num="95" count="0" type="stmt"/>
+        <line num="100" count="0" type="stmt"/>
+        <line num="101" count="0" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>

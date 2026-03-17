@@ -1,5 +1,4 @@
-// dashboardReturnClients.jsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,228 +23,306 @@ ChartJS.register(
   Filler
 );
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const RETURNS_URL = `${API_BASE}/kajamart/api/returnClients`;
+const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CO", { month: "short" });
+const money = (value) => Number(value || 0);
+const extractReturnClientsPayload = (payload) => ({
+  data: Array.isArray(payload)
+    ? payload
+    : payload?.returnClients || payload?.data || [],
+  meta: payload?.meta || null,
+});
+const getCategoryName = (categoria) => {
+  if (Array.isArray(categoria)) {
+    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
+  }
+
+  return categoria?.nombre_categoria || null;
+};
+const getReturnedQuantity = (item) =>
+  Number(item?.cantidad_cliente_devuelto ?? item?.cantidad ?? 0);
+
 export default function DashboardReturnClients() {
-  // --- Datos de ejemplo (puedes reemplazarlos por datos reales) ---
-  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const monthlyVolume = useMemo(
-    () => [80, 120, 65, 95, 60, 75, 85, 40, 140, 95, 30, 110],
-    []
-  ); // volumen por mes (ejemplo)
-  const totalReturns = useMemo(() => monthlyVolume.reduce((a, b) => a + b, 0), [monthlyVolume]);
-  const avgReturnValue = useMemo(() => 75.5, []); // ejemplo de valor promedio
+  const [returnClients, setReturnClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Top productos (horiz. bar)
-  const topProducts = useMemo(
-    () => ({
-      labels: ["Producto A", "Producto B", "Producto C", "Producto D", "Producto E"],
-      values: [70, 50, 20, 95, 120],
-    }),
-    []
-  );
+  useEffect(() => {
+    const fetchReturns = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        let allReturns = [];
+        let cursor = null;
+        const visitedCursors = new Set();
 
-  // Razones de devolución (vertical bar)
-  const reasons = useMemo(
-    () => ({
-      labels: ["Vencido", "Artículo Incorrecto", "Dañado", "Articulo no requerido"],
-      values: [18, 22, 15, 20],
-    }),
-    []
-  );
+        while (true) {
+          const params = new URLSearchParams({ limit: "20" });
+          if (cursor != null) params.set("cursor", String(cursor));
 
-  // --- Configuración y data para las gráficas ---
-  const lineData = useMemo(
-    () => ({
-      labels: months,
-      datasets: [
-        {
-          label: "Volumen mensual",
-          data: monthlyVolume,
-          borderColor: "#2f6a3f",
-          backgroundColor: "rgba(47,106,63,0.06)",
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          borderWidth: 3,
-        },
-      ],
-    }),
-    [months, monthlyVolume]
-  );
+          const res = await fetch(`${RETURNS_URL}?${params.toString()}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-  const lineOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "#fff",
-          titleColor: "#072a16",
-          bodyColor: "#072a16",
-          borderColor: "#e7f3ea",
-          borderWidth: 1,
-        },
+          const json = await res.json();
+          const payload = extractReturnClientsPayload(json);
+
+          allReturns = allReturns.concat(payload.data || []);
+
+          const nextCursor = payload.meta?.nextCursor;
+          if (nextCursor == null || visitedCursors.has(nextCursor)) break;
+
+          visitedCursors.add(nextCursor);
+          cursor = nextCursor;
+        }
+
+        setReturnClients(allReturns);
+      } catch (err) {
+        setError(err?.message || "Error cargando devoluciones");
+        setReturnClients([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReturns();
+  }, []);
+
+  const data = useMemo(() => {
+    const monthMap = new Map();
+    const clientsMap = new Map();
+    const reasonsMap = new Map();
+    const categoriesMap = new Map();
+
+    let totalAmount = 0;
+    let totalReturnedProducts = 0;
+
+    returnClients.forEach((r) => {
+      const date = new Date(r.fecha_devolucion || r.ventas?.fecha_venta);
+      const returnedItems = r.devolucion_cliente_devuelto || [];
+      const returnQuantity =
+        returnedItems.reduce(
+          (sum, item) => sum + getReturnedQuantity(item),
+          0
+        ) || Number(r.cantidad_devuelta_cliente || 0);
+      const monthKey = Number.isNaN(date.getTime()) ? "Sin fecha" : `${date.getFullYear()}-${date.getMonth()}`;
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + returnQuantity);
+
+      const clientName = r.ventas?.clientes?.nombre_cliente || "Cliente no identificado";
+      clientsMap.set(clientName, (clientsMap.get(clientName) || 0) + returnQuantity);
+
+      totalAmount += money(r.total_devolucion_cliente);
+      totalReturnedProducts += returnQuantity;
+
+      returnedItems.forEach((item) => {
+        const quantity = getReturnedQuantity(item);
+        const reason = item?.motivo || "Sin motivo";
+        const category =
+          getCategoryName(
+            item?.detalle_venta?.detalle_productos?.productos?.categorias
+          ) ||
+          item?.detalle_venta?.detalle_productos?.productos?.nombre_categoria ||
+          item?.detalle_venta?.detalle_productos?.productos?.categoria ||
+          "Sin categoría";
+
+        reasonsMap.set(reason, (reasonsMap.get(reason) || 0) + quantity);
+        categoriesMap.set(category, (categoriesMap.get(category) || 0) + quantity);
+      });
+    });
+
+    const monthlyVolume = [...monthMap.entries()]
+      .map(([key, volume]) => {
+        const [year, month] = key.split("-");
+        const date = key === "Sin fecha" ? null : new Date(Number(year), Number(month), 1);
+        return { mes: date ? MONTH_FORMATTER.format(date) : "Sin fecha", volume, sort: date ? date.getTime() : 0 };
+      })
+      .sort((a, b) => a.sort - b.sort)
+      .slice(-12);
+
+    const topClients = [...clientsMap.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    const reasons = [...reasonsMap.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    const categories = [...categoriesMap.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    return {
+      monthlyVolume,
+      totalReturns: returnClients.length,
+      totalReturnedProducts,
+      avgReturnValue: returnClients.length ? totalAmount / returnClients.length : 0,
+      topClients,
+      reasons,
+      categories,
+    };
+  }, [returnClients]);
+
+  const lineData = useMemo(() => ({
+    labels: data.monthlyVolume.map((m) => m.mes),
+    datasets: [{
+      label: "Volumen mensual",
+      data: data.monthlyVolume.map((m) => m.volume),
+      borderColor: "#2f6a3f",
+      backgroundColor: "rgba(47,106,63,0.06)",
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      borderWidth: 3,
+    }],
+  }), [data.monthlyVolume]);
+
+  const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#fff",
+        titleColor: "#072a16",
+        bodyColor: "#072a16",
+        borderColor: "#e7f3ea",
+        borderWidth: 1,
       },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: "#2f6a3f", font: { size: 12 } },
-        },
-        y: {
-          display: false, // estilo similar al mockup (sin numeración)
-          grid: { display: false },
-        },
-      },
-    }),
-    []
-  );
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: "#2f6a3f", font: { size: 12 } } },
+      y: { display: false, grid: { display: false } },
+    },
+  };
 
-  const horizBarData = useMemo(
-    () => ({
-      labels: topProducts.labels,
-      datasets: [
-        {
-          label: "Devoluciones",
-          data: topProducts.values,
-          backgroundColor: "rgba(181,245,206,0.9)", // barra principal (verde claro)
-          borderColor: "#6ea57a", // borde sutil al final
-          borderWidth: 1,
-          borderRadius: 8,
-          barThickness: 18,
-        },
-      ],
-    }),
-    [topProducts]
-  );
+  const topClientsData = useMemo(() => ({
+    labels: data.topClients.map((c) => c.label),
+    datasets: [{
+      label: "Devoluciones",
+      data: data.topClients.map((c) => c.value),
+      backgroundColor: "rgba(181,245,206,0.9)",
+      borderColor: "#6ea57a",
+      borderWidth: 1,
+      borderRadius: 8,
+      barThickness: 18,
+    }],
+  }), [data.topClients]);
 
-  const horizBarOptions = useMemo(
-    () => ({
-      indexAxis: "y",
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: true } },
-      scales: {
-        x: { display: false, grid: { display: false } },
-        y: {
-          ticks: { color: "#2f6a3f", font: { size: 13 } },
-          grid: { display: false },
-        },
-      },
-    }),
-    []
-  );
+  const horizBarOptions = {
+    indexAxis: "y",
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      x: { display: false, grid: { display: false } },
+      y: { ticks: { color: "#2f6a3f", font: { size: 13 } }, grid: { display: false } },
+    },
+  };
 
-  const reasonsData = useMemo(
-    () => ({
-      labels: reasons.labels,
-      datasets: [
-        {
-          label: "Razones",
-          data: reasons.values,
-          backgroundColor: "rgba(228,243,236,0.95)",
-          borderColor: "#6ea57a",
-          borderWidth: 1,
-          borderRadius: 6,
-          maxBarThickness: 56,
-        },
-      ],
-    }),
-    [reasons]
-  );
+  const reasonsData = useMemo(() => ({
+    labels: data.reasons.map((r) => r.label),
+    datasets: [{
+      label: "Razones",
+      data: data.reasons.map((r) => r.value),
+      backgroundColor: "rgba(228,243,236,0.95)",
+      borderColor: "#6ea57a",
+      borderWidth: 1,
+      borderRadius: 6,
+      maxBarThickness: 56,
+    }],
+  }), [data.reasons]);
 
-  const reasonsOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: true } },
-      scales: {
-        x: {
-          ticks: { color: "#2f6a3f", font: { size: 12 } },
-          grid: { display: false },
-        },
-        y: { display: false, grid: { display: false } },
-      },
-    }),
-    []
-  );
+  const reasonsOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+    scales: {
+      x: { ticks: { color: "#2f6a3f", font: { size: 12 } }, grid: { display: false } },
+      y: { display: false, grid: { display: false } },
+    },
+  };
 
-  // --- Layout / Render ---
+  const categoriesData = useMemo(() => ({
+    labels: data.categories.map((c) => c.label),
+    datasets: [{
+      label: "Categorías",
+      data: data.categories.map((c) => c.value),
+      backgroundColor: "rgba(47,106,63,0.75)",
+      borderColor: "#6ea57a",
+      borderWidth: 1,
+      borderRadius: 6,
+      maxBarThickness: 56,
+    }],
+  }), [data.categories]);
+
   return (
     <div className="p-8 bg-white min-h-screen">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <header className="mb-8">
           <h1 className="text-3xl font-extrabold text-gray-900">Panel de control devolucion a clientes</h1>
           <p className="text-sm text-emerald-700 mt-2">Analice y gestione las devoluciones de clientes.</p>
+          {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
         </header>
 
-        {/* KPI cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
             <p className="text-sm text-gray-600">Devoluciones Totales</p>
             <div className="mt-3 flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gray-900">{totalReturns.toLocaleString()}</span>
+              <span className="text-3xl font-bold text-gray-900">{data.totalReturns.toLocaleString()}</span>
             </div>
-            <p className="text-sm text-green-600 mt-3">+2.5%</p>
+          </div>
+
+          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+            <p className="text-sm text-gray-600">Productos Devueltos</p>
+            <div className="mt-3 flex items-baseline gap-4">
+              <span className="text-3xl font-bold text-gray-900">{data.totalReturnedProducts.toLocaleString()}</span>
+            </div>
           </div>
 
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
             <p className="text-sm text-gray-600">Valor Promedio de Devolución</p>
             <div className="mt-3 flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gray-900">${avgReturnValue.toFixed(2)}</span>
+              <span className="text-3xl font-bold text-gray-900">${data.avgReturnValue.toFixed(2)}</span>
             </div>
-            <p className="text-sm text-green-600 mt-3">+0.8%</p>
           </div>
         </section>
 
-        {/* Line chart: Tendencias */}
+        {loading ? <p className="text-sm text-gray-500 mb-6">Cargando devoluciones...</p> : null}
+
         <section className="mb-10">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendencias de Devoluciones</h2>
-
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-              <div className="md:col-span-2">
-                <p className="text-sm text-gray-600">Volumen Mensual de Devoluciones</p>
-                <h3 className="text-3xl font-bold mt-2">{totalReturns.toLocaleString()}</h3>
-                <p className="text-sm text-emerald-700 mt-2">Últimos 12 Meses <span className="text-green-600 font-medium">+2.5%</span></p>
-              </div>
-              <div className="flex items-center justify-end">
-                {/* espacio para métricas pequeñas si se desea */}
-              </div>
-            </div>
-
-            <div style={{ height: 220 }}>
-              <Line data={lineData} options={lineOptions} />
-            </div>
+            <p className="text-sm text-gray-600">Volumen Mensual de Productos Devueltos</p>
+            <h3 className="text-3xl font-bold mt-2">{data.totalReturnedProducts.toLocaleString()}</h3>
+            <div style={{ height: 220 }} className="mt-4"><Line data={lineData} options={lineOptions} /></div>
           </div>
         </section>
 
-        {/* Top products (horizontal bars) */}
         <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos devueltos</h2>
-
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Clientes con más devoluciones</h2>
           <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Top 5 Productos Devueltos</p>
-            <h3 className="text-xl font-semibold mt-2">5</h3>
-            <p className="text-sm text-emerald-700 mt-1 mb-4">Últimos 3 Meses</p>
-
-            <div style={{ height: 220 }}>
-              <Bar data={horizBarData} options={horizBarOptions} />
-            </div>
+            <p className="text-sm text-gray-600">Top 5 clientes</p>
+            <div style={{ height: 220 }} className="mt-4"><Bar data={topClientsData} options={horizBarOptions} /></div>
           </div>
         </section>
 
-        {/* Reasons */}
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Razones de Devolución</h2>
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Razones de Devolución</h2>
+            <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+              <p className="text-sm text-gray-600">Distribución por motivo reportado</p>
+              <div style={{ height: 180 }} className="mt-4"><Bar data={reasonsData} options={reasonsOptions} /></div>
+            </div>
+          </div>
 
-          <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-600">Distribución de Razones de Devolución</p>
-            <h3 className="text-xl font-semibold mt-2">5</h3>
-            <p className="text-sm text-emerald-700 mt-1 mb-4">Últimos 3 Meses</p>
-
-            <div style={{ height: 180 }}>
-              <Bar data={reasonsData} options={reasonsOptions} />
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Categorías Más Afectadas</h2>
+            <div className="rounded-lg border border-green-100 p-6 bg-white shadow-sm">
+              <p className="text-sm text-gray-600">Productos devueltos por categoría</p>
+              <div style={{ height: 180 }} className="mt-4"><Bar data={categoriesData} options={reasonsOptions} /></div>
             </div>
           </div>
         </section>

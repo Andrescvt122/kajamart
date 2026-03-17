@@ -15,7 +15,12 @@ import {
   XCircle,
 } from "lucide-react";
 
-export default function DetailProductModal({ isOpen, onClose, detail, product }) {
+export default function DetailProductModal({
+  isOpen,
+  onClose,
+  detail,
+  product,
+}) {
   if (!isOpen || !detail || !product) return null;
 
   // ------- Helpers -------
@@ -25,12 +30,18 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
     if (Number.isNaN(d.getTime())) return "Sin fecha";
     return d.toLocaleDateString();
   };
-
+  const formatMoneyOrUnassigned = (val) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "—";
+    if (n === 1001) return "aun no asignado";
+    return `$${n.toLocaleString()}`;
+  };
   const detalleId = detail.id_detalle_producto ?? detail.id ?? "—";
   const codigoBarras =
     detail.codigo_barras_producto_compra ?? detail.barcode ?? "—";
-  const stockLote = detail.stock_producto ?? detail.cantidad ?? "—";
-  const fechaVencimiento = detail.fecha_vencimiento || detail.vencimiento || null;
+  const stockDetalle = detail.stock_producto ?? detail.cantidad ?? "—";
+  const fechaVencimiento =
+    detail.fecha_vencimiento || detail.vencimiento || null;
 
   const esDevolucion =
     typeof detail.es_devolucion === "boolean"
@@ -38,68 +49,83 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
       : detail.es_devolucion === "true";
 
   // Impuestos
-  const ivaValor = product.iva_detalle?.valor_impuesto ?? product.iva ?? "—";
-  const icuValor = product.icu_detalle?.valor_impuesto ?? product.icu ?? "—";
+  const ivaValor = detail.iva_porcentaje ?? product.iva_detalle?.valor_impuesto ?? product.iva ?? "—";
+  const icuValor = detail.icu_porcentaje ?? product.icu_detalle?.valor_impuesto ?? product.icu ?? "—";
   const incrementoValor =
     product.incremento_detalle?.valor_impuesto ??
     product.porcentaje_incremento ??
     "—";
 
-  // ------- Info combinada (producto + lote) en un solo grid ancho -------
+  // ------- Info combinada (producto + detalle) en un solo grid ancho -------
   const productInfo = [
     { label: "ID Producto", value: product.id_producto, icon: Hash, group: "Producto" },
     { label: "Nombre producto", value: product.nombre, icon: Package, group: "Producto" },
     { label: "Stock total (producto)", value: product.stock_actual, icon: Boxes, group: "Producto" },
     { label: "Stock mínimo", value: product.stock_minimo, icon: Layers, group: "Producto" },
     { label: "Stock máximo", value: product.stock_maximo, icon: Layers, group: "Producto" },
-    {
+ {
       label: "Costo unitario",
       value:
-        product.costo_unitario != null
-          ? `$${product.costo_unitario.toLocaleString()}`
+        detail?.costo_unitario != null
+          ? `$${Number(detail.costo_unitario).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          : product?.costo_unitario != null
+          ? `$${Number(product.costo_unitario).toLocaleString()}`
           : "—",
       icon: DollarSign,
       group: "Producto",
     },
     {
-      label: "Precio venta",
-      value:
-        product.precio_venta != null
-          ? `$${product.precio_venta.toLocaleString()}`
-          : "—",
-      icon: DollarSign,
-      group: "Producto",
+    label: "Precio venta",
+    value:
+      detail.precio_venta != null
+        ? `$${Number(detail.precio_venta).toLocaleString()}`
+        : product.precio_venta != null
+        ? `$${product.precio_venta.toLocaleString()}`
+        : "—",
+    icon: DollarSign,
+    group: "Producto",
     },
-    { label: "IVA (%)", value: ivaValor, icon: Percent, group: "Producto" },
-    { label: "ICU (%)", value: icuValor, icon: QrCode, group: "Producto" },
+    { label: "IVA (%)", value: detail.iva_porcentaje ?? ivaValor, icon: Percent, group: "Producto" },
+    { label: "ICU (%)", value: detail.icu_porcentaje ?? icuValor, icon: QrCode, group: "Producto" },
     {
       label: "Incremento venta (%)",
-      value: incrementoValor,
+      value:
+        detail?.incremento_venta != null
+          ? `${(Number(detail.incremento_venta) * 100).toFixed(2)}%`
+          : "—",
       icon: TrendingUp,
       group: "Producto",
     },
   ];
 
   const detailInfo = [
-    { label: "ID Detalle", value: detalleId, icon: Hash, group: "Lote" },
-    { label: "Código de barras", value: codigoBarras, icon: Barcode, group: "Lote" },
+    { label: "ID Detalle", value: detalleId, icon: Hash, group: "Detalle" },
+    {
+      label: "Código de barras",
+      value: codigoBarras,
+      icon: Barcode,
+      group: "Detalle",
+    },
     {
       label: "Fecha de vencimiento",
       value: formatDate(fechaVencimiento),
       icon: Calendar,
-      group: "Lote",
+      group: "Detalle",
     },
     {
-      label: "Stock en este lote",
-      value: stockLote,
+      label: "Stock en este detalle",
+      value: stockDetalle,
       icon: Boxes,
-      group: "Lote",
+      group: "Detalle",
     },
     {
       label: "¿Es devolución?",
       value: esDevolucion ? "Sí" : "No",
       icon: Boxes,
-      group: "Lote",
+      group: "Detalle",
     },
   ];
 
@@ -128,12 +154,12 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
             <div className="flex justify-between items-start mb-6 gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Detalles del producto y lote
+                  Detalles del producto y detalle
                 </h2>
                 <p className="text-xs text-gray-500 mt-1">
                   Producto:{" "}
-                  <span className="font-medium">{product.nombre}</span> · Detalle{" "}
-                  <span className="font-mono">#{detalleId}</span>
+                  <span className="font-medium">{product.nombre}</span> ·
+                  Detalle <span className="font-mono">#{detalleId}</span>
                 </p>
               </div>
               <button
@@ -152,31 +178,37 @@ export default function DetailProductModal({ isOpen, onClose, detail, product })
                   Información general
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {combinedInfo.map(({ label, value, icon: Icon, group }, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
-                    >
-                      <Icon
-                        className={`w-5 h-5 shrink-0 ${
-                          group === "Producto" ? "text-green-600" : "text-blue-600"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-[11px] text-gray-500 uppercase tracking-wide">
-                          {label}
-                        </p>
-                        <p className="text-xs font-semibold text-gray-400 mb-0.5">
-                          {group}
-                        </p>
-                        <p className="text-sm font-medium text-gray-800 break-all">
-                          {value !== undefined && value !== null && value !== ""
-                            ? value
-                            : "—"}
-                        </p>
+                  {combinedInfo.map(
+                    ({ label, value, icon: Icon, group }, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border hover:shadow-sm transition"
+                      >
+                        <Icon
+                          className={`w-5 h-5 shrink-0 ${
+                            group === "Producto"
+                              ? "text-green-600"
+                              : "text-blue-600"
+                          }`}
+                        />
+                        <div>
+                          <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+                            {label}
+                          </p>
+                          <p className="text-xs font-semibold text-gray-400 mb-0.5">
+                            {group}
+                          </p>
+                          <p className="text-sm font-medium text-gray-800 break-all">
+                            {value !== undefined &&
+                            value !== null &&
+                            value !== ""
+                              ? value
+                              : "—"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
 

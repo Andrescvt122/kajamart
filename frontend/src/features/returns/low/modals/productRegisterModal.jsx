@@ -27,7 +27,12 @@ const itemVariants = {
 // 🔹 Helper para considerar activo: boolean true o string "Activo"/"activo"
 const isActive = (v) => v === true || v === "Activo" || v === "activo";
 
-export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
+export default function ProductRegisterModal({
+  isOpen,
+  onClose,
+  onCreated,
+  deferSubmit = false,
+}) {
   const { categories: catList = [], loading: catLoading } = useCategories();
   // 🔹 Solo categorías activas
   const activeCategories = (Array.isArray(catList) ? catList : []).filter((c) =>
@@ -204,39 +209,70 @@ export default function ProductRegisterModal({ isOpen, onClose, onCreated }) {
       return;
     }
 
-    const fd = new FormData();
-    fd.append("nombre", form.nombre.trim());
-    fd.append("descripcion", form.descripcion?.trim() || "");
-
-    // Como ya no pedimos stock en el formulario:
     const stockMinNum = form.stockMin !== "" ? Number(form.stockMin) || 0 : 0;
     const stockMaxNum =
       form.stockMax !== "" ? Number(form.stockMax) || 0 : stockMinNum * 5; // regla simple por defecto
 
-    fd.append("stock_actual", "0");
-    fd.append("stock_minimo", String(stockMinNum));
-    fd.append("stock_maximo", String(stockMaxNum));
+    const draftPayload = {
+      nombre: form.nombre.trim(),
+      descripcion: form.descripcion?.trim() || "",
+      stock_actual: "0",
+      stock_minimo: String(stockMinNum),
+      stock_maximo: String(stockMaxNum),
+      estado: "true",
+      id_categoria: String(form.categoriaId),
+      iva: "0",
+      icu: "0",
+      porcentaje_incremento: "0",
+      costo_unitario: "0",
+      precio_venta: String(Number(form.precio_venta) || 0),
+      cantidad_unitaria:
+        form.cantidadUnitaria !== ""
+          ? String(Number(form.cantidadUnitaria))
+          : "",
+      imagen: imagenFile,
+    };
+
+    if (deferSubmit) {
+      onCreated?.({
+        isDraft: true,
+        draftPayload,
+        nombre: draftPayload.nombre,
+        precio_venta: Number(draftPayload.precio_venta) || 0,
+      });
+      showSuccessAlert && showSuccessAlert("Producto preparado para registrar");
+      onClose?.();
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("nombre", draftPayload.nombre);
+    fd.append("descripcion", draftPayload.descripcion);
+
+    fd.append("stock_actual", draftPayload.stock_actual);
+    fd.append("stock_minimo", draftPayload.stock_minimo);
+    fd.append("stock_maximo", draftPayload.stock_maximo);
 
     // 🔹 siempre activo
-    fd.append("estado", "true");
-    fd.append("id_categoria", String(form.categoriaId));
+    fd.append("estado", draftPayload.estado);
+    fd.append("id_categoria", draftPayload.id_categoria);
 
     // 🔹 Campos de precio eliminados del formulario → se envían en 0
-    fd.append("iva", "0");
-    fd.append("icu", "0");
-    fd.append("porcentaje_incremento", "0");
-    fd.append("costo_unitario", "0");
-    fd.append("precio_venta", String(Number(form.precio_venta) || 0));
+    fd.append("iva", draftPayload.iva);
+    fd.append("icu", draftPayload.icu);
+    fd.append("porcentaje_incremento", draftPayload.porcentaje_incremento);
+    fd.append("costo_unitario", draftPayload.costo_unitario);
+    fd.append("precio_venta", draftPayload.precio_venta);
     // cantidad_unitaria opcional: si viene vacío => no forzamos, lo mandamos vacío
-    if (form.cantidadUnitaria !== "") {
-      fd.append("cantidad_unitaria", String(Number(form.cantidadUnitaria)));
+    if (draftPayload.cantidad_unitaria !== "") {
+      fd.append("cantidad_unitaria", draftPayload.cantidad_unitaria);
     } else {
       // si tu backend interpreta ausencia como null, esto es mejor que mandar 0
       fd.append("cantidad_unitaria", "");
     }
 
     // 🔹 sin proveedor (se asocia en otro módulo)
-    fd.append("imagen", imagenFile);
+    fd.append("imagen", draftPayload.imagen);
 
     try {
       showLoadingAlert && showLoadingAlert("Registrando producto...");

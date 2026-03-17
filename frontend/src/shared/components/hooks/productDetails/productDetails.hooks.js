@@ -1,6 +1,8 @@
 // src/hooks/useDetailProducts.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import * as XLSX from "xlsx";
+
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
@@ -9,38 +11,111 @@ const API_BASE =
 const DETAILS_URL = `${API_BASE}/detailsProducts`;
 
 // 🔵 Traer TODOS los detalles (opcional, para listados globales)
-export const useAllDetailProducts = () =>
+export const useAllDetailProducts = (page = 1, limit = 6, search = "") =>
   useQuery({
-    queryKey: ["detailProducts"],
+    queryKey: ["detailProducts", page, search],
+
     queryFn: async () => {
-      const { data } = await axios.get(DETAILS_URL);
+      const { data } = await axios.get(DETAILS_URL, {
+        params: { page, limit, search },
+      });
 
-      // ✅ soporta respuestas tipo: [] | {data: []} | {rows: []} | {results: []}
-      const arr =
-        (Array.isArray(data) && data) ||
-        (Array.isArray(data?.data) && data.data) ||
-        (Array.isArray(data?.rows) && data.rows) ||
-        (Array.isArray(data?.results) && data.results) ||
-        [];
+      return data;
+    },
 
-      return arr;
+    keepPreviousData: true,
+  });
+  export const getAllDetailProductsForExport = async (search = "") => {
+
+  const { data } = await axios.get(DETAILS_URL, {
+    params: {
+      page: 1,
+      limit: 10000,
+      search,
     },
   });
 
+  return data.data;
 
+};
+
+export const exportDetailProductsToExcel = (details) => {
+
+  const formatted = details.map((d) => ({
+    ID: d.id_detalle_producto,
+    Producto: d.productos?.nombre,
+    "Código Barras": d.codigo_barras_producto_compra,
+    Stock: d.stock_producto,
+    "Precio Venta": d.precio_venta,
+    IVA: d.iva_porcentaje,
+    ICU: d.icu_porcentaje,
+    Estado: d.estado ? "Activo" : "Inactivo",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(formatted);
+
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, "Detalle Productos");
+
+  XLSX.writeFile(wb, "detalle_productos.xlsx");
+
+};
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export const exportDetailProductsToPDF = (details) => {
+
+  const doc = new jsPDF();
+
+  const tableData = details.map((d) => [
+    d.id_detalle_producto,
+    d.productos?.nombre,
+    d.codigo_barras_producto_compra,
+    d.stock_producto,
+    d.precio_venta,
+    d.iva_porcentaje,
+    d.icu_porcentaje,
+  ]);
+
+  autoTable(doc, {
+    head: [
+      [
+        "ID",
+        "Producto",
+        "Código Barras",
+        "Stock",
+        "Precio",
+        "IVA",
+        "ICU",
+      ],
+    ],
+    body: tableData,
+  });
+
+  doc.save("detalle_productos.pdf");
+
+};
 // 🟣 Traer detalles de un producto específico (por id_producto)
-export const useDetailProductsByProduct = (id_producto) =>
+export const useDetailProductsByProduct = (id_producto, page = 1, limit = 5) =>
   useQuery({
-    queryKey: ["detailProductsByProduct", id_producto],
+    queryKey: ["detailProductsByProduct", id_producto, page, limit],
+
     queryFn: async () => {
       const { data } = await axios.get(
-        `${DETAILS_URL}/producto/${id_producto}`
+        `${DETAILS_URL}/producto/${id_producto}`,
+        {
+          params: { page, limit },
+        }
       );
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: !!id_producto,
-  });
 
+      return data;
+    },
+
+    enabled: !!id_producto,
+
+    keepPreviousData: true,
+  });
 // 🟠 Traer un detalle individual (por id_detalle_producto)
 export const useDetailProduct = (id_detalle_producto) =>
   useQuery({
