@@ -1,6 +1,7 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
-export const exportToXls = (clients = []) => {
+export const exportToXls = async (clients = []) => {
   console.log("🔹 exportToXls llamado con", clients.length, "clientes");
 
   if (!Array.isArray(clients) || clients.length === 0) {
@@ -14,13 +15,25 @@ export const exportToXls = (clients = []) => {
     Nombre: c.nombre || "",
     Documento: `${c.tipoDocumento || ""} ${c.numeroDocumento || ""}`.trim(),
     Correo: c.correo?.trim() || "N/A",
-    Teléfono: c.telefono?.trim() || "N/A",
+    "Teléfono": c.telefono?.trim() || "N/A",
     Estado: c.activo ? "Activo" : "Inactivo",
   }));
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Clientes");
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
-  XLSX.writeFile(workbook, "clientes.xlsx");
+  worksheet.columns = [
+    { header: "#", key: "#", width: 8 },
+    { header: "ID", key: "ID", width: 12 },
+    { header: "Nombre", key: "Nombre", width: 24 },
+    { header: "Documento", key: "Documento", width: 20 },
+    { header: "Correo", key: "Correo", width: 30 },
+    { header: "Teléfono", key: "Teléfono", width: 18 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
+
+  rows.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "clientes.xlsx");
 };

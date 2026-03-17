@@ -1,10 +1,10 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
 const moneyNumber = (v) => Number(v || 0);
 
-export function exportPurchasesToExcel(purchases, filename = "compras.xlsx") {
+export async function exportPurchasesToExcel(purchases, filename = "compras.xlsx") {
   const data = (purchases || []).map((p) => ({
     "N° Factura": p.factura ?? "—",
     Proveedor: p.proveedor ?? "—",
@@ -15,23 +15,23 @@ export function exportPurchasesToExcel(purchases, filename = "compras.xlsx") {
     "Cantidad ítems": Array.isArray(p.productos) ? p.productos.length : 0,
   }));
 
-  const ws = XLSX.utils.json_to_sheet(data);
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Compras");
 
-  ws["!cols"] = [
-    { wch: 16 }, // factura
-    { wch: 28 }, // proveedor
-    { wch: 16 }, // nit
-    { wch: 14 }, // total
-    { wch: 12 }, // fecha
-    { wch: 14 }, // estado
-    { wch: 14 }, // items
+  worksheet.columns = [
+    { header: "N° Factura", key: "N° Factura", width: 16 },
+    { header: "Proveedor", key: "Proveedor", width: 28 },
+    { header: "NIT", key: "NIT", width: 16 },
+    { header: "Total", key: "Total", width: 14 },
+    { header: "Fecha", key: "Fecha", width: 12 },
+    { header: "Estado", key: "Estado", width: 14 },
+    { header: "Cantidad ítems", key: "Cantidad ítems", width: 14 },
   ];
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Compras");
+  data.forEach((row) => worksheet.addRow(row));
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([arrayBuffer], {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 

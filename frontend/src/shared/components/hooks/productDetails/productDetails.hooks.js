@@ -1,7 +1,8 @@
 // src/hooks/useDetailProducts.js
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 
 const API_BASE =
@@ -39,7 +40,7 @@ export const useAllDetailProducts = (page = 1, limit = 6, search = "") =>
 
 };
 
-export const exportDetailProductsToExcel = (details) => {
+export const exportDetailProductsToExcel = async (details) => {
 
   const formatted = details.map((d) => ({
     ID: d.id_detalle_producto,
@@ -52,13 +53,24 @@ export const exportDetailProductsToExcel = (details) => {
     Estado: d.estado ? "Activo" : "Inactivo",
   }));
 
-  const ws = XLSX.utils.json_to_sheet(formatted);
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Detalle Productos");
 
-  const wb = XLSX.utils.book_new();
+  worksheet.columns = [
+    { header: "ID", key: "ID", width: 12 },
+    { header: "Producto", key: "Producto", width: 28 },
+    { header: "Código Barras", key: "Código Barras", width: 22 },
+    { header: "Stock", key: "Stock", width: 12 },
+    { header: "Precio Venta", key: "Precio Venta", width: 14 },
+    { header: "IVA", key: "IVA", width: 10 },
+    { header: "ICU", key: "ICU", width: 10 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
 
-  XLSX.utils.book_append_sheet(wb, ws, "Detalle Productos");
+  formatted.forEach((row) => worksheet.addRow(row));
 
-  XLSX.writeFile(wb, "detalle_productos.xlsx");
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "detalle_productos.xlsx");
 
 };
 import jsPDF from "jspdf";
