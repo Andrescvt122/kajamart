@@ -39,9 +39,10 @@ export const getAllCategoriesForExport = async (search = "") => {
   return data.data;
 
 };
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
-export const exportCategoriesToExcel = (data) => {
+export const exportCategoriesToExcel = async (data) => {
 
   const formatted = data.map((c) => ({
     ID: c.id_categoria,
@@ -50,12 +51,20 @@ export const exportCategoriesToExcel = (data) => {
     Estado: c.estado ? "Activo" : "Inactivo",
   }));
 
-  const ws = XLSX.utils.json_to_sheet(formatted);
-  const wb = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Categorias");
 
-  XLSX.utils.book_append_sheet(wb, ws, "Categorias");
+  worksheet.columns = [
+    { header: "ID", key: "ID", width: 12 },
+    { header: "Nombre", key: "Nombre", width: 30 },
+    { header: "Descripción", key: "Descripción", width: 40 },
+    { header: "Estado", key: "Estado", width: 14 },
+  ];
 
-  XLSX.writeFile(wb, "categorias.xlsx");
+  formatted.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), "categorias.xlsx");
 
 };
 import jsPDF from "jspdf";
