@@ -115,17 +115,7 @@ const handleExportPDF = async () => {
   }
 };
   const suppliersRaw = data?.data || [];
-  const totalPages = data?.totalPages || 1;
-  // Mapeo para UI
-  const suppliers = useMemo(() => {
-    if (!Array.isArray(suppliersRaw)) return [];
-    return suppliersRaw.map((s) => ({
-      ...s,
-      nit: s?.nit != null ? String(s.nit) : "",
-      estado: s?.estado ? "Activo" : "Inactivo",
-      categorias: Array.isArray(s?.categorias) ? s.categorias : [],
-    }));
-  }, [suppliersRaw]);
+
 
   const deleteMutation = useDeleteSupplier();
 
