@@ -9,7 +9,7 @@ export const BORDER_SUBTLE = "#6ea57a";
 
 export const API_BASE =
   import.meta.env.VITE_API_URL ||
-  "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net";
+  "http://localhost:3000";
 
 export const containerVariants = {
   initial: { opacity: 0, y: 40, scale: 0.98 },

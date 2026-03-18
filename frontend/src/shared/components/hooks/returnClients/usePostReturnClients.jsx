@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/returnClients";
+const API_URL = "http://localhost:3000/kajamart/api/returnClients";
 
 export const usePostReturnClients = () => {
   const [loading, setLoading] = useState(false);

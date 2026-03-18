@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { mapClientFromBackend } from "../../../components/mappers/clientMappers";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export const useSearchClient = () => {
   const [clients, setClients] = useState([]);   // 👈 ya en formato de FRONT
