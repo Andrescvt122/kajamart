@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-const API_URL = "http://localhost:3000/kajamart/api/detailsProducts";
+const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/detailsProducts";
 
 export function useFetchAllDetails() {
   const [details, setDetails] = useState([]);   // datos de la API

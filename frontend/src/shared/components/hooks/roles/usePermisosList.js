@@ -9,7 +9,7 @@ export const usePermisosList = () => {
     const getPermisos = async () => {
       try {
         console.log("🚀 Ejecutando solicitud HTTP real de permisos...");
-        const { data } = await axios.get("http://localhost:3000/kajamart/api/permisos");
+        const { data } = await axios.get("https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/permisos");
         console.log("📡 Respuesta real del backend:", data);
 
         console.log("📡 Datos crudos desde backend:", data);
