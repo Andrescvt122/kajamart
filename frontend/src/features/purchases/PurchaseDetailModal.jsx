@@ -163,10 +163,32 @@ export default function PurchaseDetailModal({ purchase, onClose }) {
     pick(purchase, "nit", "proveedor_nit") ??
     "—";
 
-  const productos = useMemo(() => {
-    const arr = purchase?.productos;
-    return Array.isArray(arr) ? arr : [];
-  }, [purchase]);
+const productos = useMemo(() => {
+  if (Array.isArray(purchase?.productos)) return purchase.productos;
+
+  if (Array.isArray(purchase?.detalle_compra)) {
+    return purchase.detalle_compra.map((d) => ({
+      productoId:
+        d?.detalle_productos?.productos?.id_producto ?? null,
+
+      nombre:
+        d?.detalle_productos?.productos?.nombre ?? "—",
+
+      // ✅ IMPORTANTES
+      iva_porcentaje: d?.iva_porcentaje ?? 0,
+      icu_porcentaje: d?.icu_porcentaje ?? 0,
+      precio_unitario: d?.precio_unitario ?? 0,
+      precio_venta: d?.precio_venta ?? 0,
+
+      cantidad: d?.cantidad ?? 0,
+      cantidad_paquetes: d?.cantidad_paquetes ?? 0,
+      unidades_por_paquete: d?.unidades_por_paquete ?? 0,
+      cantidad_total_unidades: d?.cantidad_total_unidades ?? 0,
+    }));
+  }
+
+  return [];
+}, [purchase]);;
 
   const rawDetalle = useMemo(() => {
     const det = purchase?.raw?.detalle_compra;

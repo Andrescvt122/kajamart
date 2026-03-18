@@ -582,18 +582,39 @@ export default function IndexRegisterPurchase() {
     [productoErrors]
   );
 
-  const updateProductoField = (index, field, rawValue) => {
-    const sanitizedValue = onlyDigits(rawValue);
+const updateProductoField = (index, field, rawValue) => {
+  // Solo números
+  let value = String(rawValue).replace(/\D/g, "");
 
+  // ❌ No permitir vacío → dejar en ""
+  if (value === "") {
     setProductos((prev) => {
       const next = [...prev];
-      next[index] = {
-        ...next[index],
-        [field]: sanitizedValue,
-      };
+      next[index][field] = "";
       return next;
     });
-  };
+    return;
+  }
+
+  const num = Number(value);
+
+  // ❌ No permitir 0 o menor
+  if (num <= 0) {
+    setProductos((prev) => {
+      const next = [...prev];
+      next[index][field] = value; // se muestra pero inválido
+      return next;
+    });
+    return;
+  }
+
+  // ✅ Valor válido
+  setProductos((prev) => {
+    const next = [...prev];
+    next[index][field] = value;
+    return next;
+  });
+};
 
   // =========================
   // ✅ Modal paquetes: abrir al seleccionar producto
@@ -1800,11 +1821,11 @@ export default function IndexRegisterPurchase() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       value={prod.precioCompra}
-                      onChange={(e) => updateProductoField(i, "precioCompra", e.target.value)}
-                      disabled={isRegistrandoCompra}
-                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black disabled:opacity-60 ${
-                        productoErrors[i]?.precioCompra ? "border-red-500" : ""
-                      }`}
+                      onChange={(e) =>
+                        updateProductoField(i, "precioCompra", e.target.value)
+                      }
+                      className={`w-24 border rounded px-2 py-1 text-center bg-white text-black
+                      ${productoErrors[i]?.precioCompra ? "border-red-500" : "border-gray-300"}`}
                     />
                     {productoErrors[i]?.precioCompra && (
                       <p className="mt-1 text-xs text-red-600">
@@ -1868,11 +1889,6 @@ export default function IndexRegisterPurchase() {
         </tbody>
       </table>
 
-      {hasInvalidProductRows && (
-        <p className="mb-4 text-sm text-red-600">
-          Corrige cantidad, precio de compra y precio de venta. Todos deben ser numeros mayores a 0.
-        </p>
-      )}
 
       {/* Comprobante + total */}
       <div className="flex justify-between items-center">
