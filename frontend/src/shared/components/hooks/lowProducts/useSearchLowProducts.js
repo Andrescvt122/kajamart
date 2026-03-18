@@ -5,10 +5,10 @@ const mapLowProduct = (low) => ({
   idLow: low.id_baja_productos,
   dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
   createdAt:
+    low.created_at ||
+    low.createdAt ||
     low.fecha_creacion ||
     low.fecha_baja ||
-    low.createdAt ||
-    low.created_at ||
     null,
   isActive: Boolean(
     low.estado ?? low.activo ?? low.isActive ?? low.is_active ?? true

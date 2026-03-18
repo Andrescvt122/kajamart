@@ -13,6 +13,13 @@ const pick = (...vals) => {
   return undefined;
 };
 
+const toRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  return [];
+};
+
 const normalizeLeadingSlash = (p) => (p ? (p.startsWith("/") ? p : `/${p}`) : "");
 
 const resolveImageUrl = (img) => {
@@ -62,7 +69,7 @@ export default function MemoriesBouncing() {
 
   // ✅ cards finales (categorías + imagen aleatoria de productos de esa categoría)
   const cards = useMemo(() => {
-    const prods = Array.isArray(productsRaw) ? productsRaw : [];
+    const prods = toRows(productsRaw);
     const cats = Array.isArray(categories) ? categories : [];
 
     const productsById = new Map();

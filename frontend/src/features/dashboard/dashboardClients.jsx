@@ -1,4 +1,3 @@
-// DashboardClientes.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Bar, Line, Pie } from "react-chartjs-2";
 import {
@@ -12,9 +11,27 @@ import {
   PointElement,
   LineElement,
 } from "chart.js";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  API_BASE,
+  BAR_GREEN,
+  BORDER_SUBTLE,
+  LINE_DARK,
+  PIE_GREEN_1,
+  PIE_GREEN_2,
+  PIE_GREEN_3,
+  childFadeUp,
+  commonChartOptions,
+  containerVariants,
+  fetchAllPages,
+  formatCurrency,
+  getMonthBucket,
+  money,
+  sortMonthlyValues,
+  useCountUp,
+  isTruthyStatus,
+} from "./dashboardShared";
 
-// Registro ChartJS
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -26,156 +43,257 @@ ChartJS.register(
   LineElement
 );
 
-// Colores verdes
-const LINE_DARK = "#2f6a3f";
-const BAR_GREEN = "rgba(181,245,206,0.95)";
-const PIE_GREEN_1 = "rgba(181,245,206,0.95)";
-const PIE_GREEN_2 = "rgba(181,245,206,0.8)";
-const PIE_GREEN_3 = "rgba(181,245,206,0.55)";
-const BORDER_SUBTLE = "#6ea57a";
+const CLIENTS_URL = `${API_BASE}/kajamart/api/clients`;
+const SALES_URL = `${API_BASE}/kajamart/api/sales`;
 
-// Hook contador
-function useCountUp(value, duration = 1000) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start = null;
-    const step = (t) => {
-      if (!start) start = t;
-      const prog = Math.min((t - start) / duration, 1);
-      setDisplay(Math.round(value * prog));
-      if (prog < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [value, duration]);
-  return display;
+const extractClients = (json) => {
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json?.clients)) return json.clients;
+  if (Array.isArray(json?.clientes)) return json.clientes;
+  if (Array.isArray(json?.data)) return json.data;
+  return [];
+};
+
+const extractSales = (json) => {
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json?.sales)) return json.sales;
+  if (Array.isArray(json?.ventas)) return json.ventas;
+  if (Array.isArray(json?.data)) return json.data;
+  return [];
+};
+
+function normalizeClients(clients) {
+  const uniqueClients = new Map();
+
+  clients.forEach((client) => {
+    if (!client?.id_cliente || client.id_cliente === 0) return;
+    uniqueClients.set(client.id_cliente, client);
+  });
+
+  return [...uniqueClients.values()];
 }
 
-// Animaciones
-const containerVariants = {
-  initial: { opacity: 0, y: 40, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.8, ease: "easeOut", staggerChildren: 0.08 } },
-  exit: { opacity: 0, y: -40, scale: 0.96, transition: { duration: 0.45 } },
-};
+function AnimatedCard({ title, value }) {
+  return (
+    <div className="p-4 rounded-xl flex flex-col justify-center min-h-[88px] bg-white shadow">
+      <p className="text-sm" style={{ color: LINE_DARK }}>
+        {title}
+      </p>
+      <h2 className="font-bold text-2xl text-black">{value}</h2>
+    </div>
+  );
+}
 
-const childFadeUp = {
-  initial: { opacity: 0, y: 24, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 90, damping: 12 } },
-  exit: { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.35 } },
-};
-
-// Componente principal
 export default function DashboardClientes() {
-  // Datos demo
-  const clientesMensuales = [
-    { mes: "Enero", valor: 40 },
-    { mes: "Febrero", valor: 55 },
-    { mes: "Marzo", valor: 35 },
-    { mes: "Abril", valor: 60 },
-    { mes: "Mayo", valor: 75 },
-  ];
-
-  const topClientes = [
-    { label: "Cliente A", valor: 12000 },
-    { label: "Cliente B", valor: 9500 },
-    { label: "Cliente C", valor: 8000 },
-    { label: "Cliente D", valor: 7000 },
-    { label: "Cliente E", valor: 6000 },
-  ];
-
-  const tiposClientes = [
-    { tipo: "Regular", valor: 50 },
-    { tipo: "Premium", valor: 30 },
-    { tipo: "VIP", valor: 20 },
-  ];
-
-  const metricas = {
-    totalClientes: 100,
-    clientesNuevos: 25,
-    clientesActivos: 80,
-    crecimientoMensual: 10,
-  };
-
-  // Filtro global
+  const [clients, setClients] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const [clientsData, salesData] = await Promise.all([
+          fetchAllPages(CLIENTS_URL, { extractor: extractClients }),
+          fetchAllPages(SALES_URL, {
+            extractor: extractSales,
+            extraParams: { limit: 100 },
+          }),
+        ]);
+
+        setClients(normalizeClients(clientsData));
+        setSales(salesData);
+      } catch (err) {
+        setError(err?.message || "Error cargando dashboard de clientes");
+        setClients([]);
+        setSales([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const computed = useMemo(() => {
+    const monthlyMap = new Map();
+    const topClientsMap = new Map();
+    const typeMap = new Map();
+    const firstMonthByClient = new Map();
+    const salesByClient = new Map();
+
+    clients.forEach((client) => {
+      const type = client?.tipo_docume || "Sin tipo";
+      typeMap.set(type, (typeMap.get(type) || 0) + 1);
+    });
+
+    sales
+      .filter((sale) => sale?.estado_venta !== "Anulada")
+      .forEach((sale) => {
+        const bucket = getMonthBucket(sale?.fecha_venta);
+        if (!bucket) return;
+
+        if (!monthlyMap.has(bucket.key)) {
+          monthlyMap.set(bucket.key, {
+            mes: bucket.label,
+            valor: 0,
+            sort: bucket.sort,
+            clientes: new Set(),
+          });
+        }
+
+        const clientId = Number(sale?.id_cliente);
+        const monthEntry = monthlyMap.get(bucket.key);
+
+        if (Number.isFinite(clientId) && clientId > 0) {
+          monthEntry.clientes.add(clientId);
+          if (!firstMonthByClient.has(clientId) || monthEntry.sort < firstMonthByClient.get(clientId).sort) {
+            firstMonthByClient.set(clientId, {
+              key: bucket.key,
+              sort: monthEntry.sort,
+            });
+          }
+
+          salesByClient.set(clientId, (salesByClient.get(clientId) || 0) + money(sale?.total));
+        }
+
+        monthEntry.valor = monthEntry.clientes.size;
+      });
+
+    salesByClient.forEach((total, clientId) => {
+      const client = clients.find((item) => item.id_cliente === clientId);
+      topClientsMap.set(
+        client?.nombre_cliente || `Cliente ${clientId}`,
+        total
+      );
+    });
+
+    const monthlyClients = sortMonthlyValues(monthlyMap);
+    const latestMonth = monthlyClients.at(-1);
+    const previousMonth = monthlyClients.at(-2);
+
+    const clientesNuevos = latestMonth
+      ? [...firstMonthByClient.values()].filter(
+          (entry) => entry.key === `${new Date(latestMonth.sort).getFullYear()}-${new Date(latestMonth.sort).getMonth()}`
+        ).length
+      : 0;
+
+    const crecimientoMensual =
+      previousMonth && previousMonth.valor > 0
+        ? ((latestMonth?.valor || 0) - previousMonth.valor) / previousMonth.valor * 100
+        : 0;
+
+    return {
+      clientesMensuales: monthlyClients,
+      topClientes: [...topClientsMap.entries()]
+        .map(([label, valor]) => ({ label, valor }))
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5),
+      tiposClientes: [...typeMap.entries()]
+        .map(([tipo, valor]) => ({ tipo, valor }))
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 5),
+      metricas: {
+        totalClientes: clients.length,
+        clientesNuevos,
+        clientesActivos: clients.filter((client) =>
+          isTruthyStatus(client?.estado_cliente)
+        ).length,
+        crecimientoMensual,
+      },
+    };
+  }, [clients, sales]);
+
   const filteredClientesMensuales = useMemo(() => {
-    if (!searchTerm) return clientesMensuales;
-    return clientesMensuales.filter(v =>
-      v.mes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.valor.toString().includes(searchTerm)
+    if (!searchTerm) return computed.clientesMensuales;
+    const term = searchTerm.toLowerCase();
+    return computed.clientesMensuales.filter(
+      (item) =>
+        item.mes.toLowerCase().includes(term) ||
+        String(item.valor).includes(searchTerm)
     );
-  }, [searchTerm, clientesMensuales]);
+  }, [computed.clientesMensuales, searchTerm]);
 
   const filteredTopClientes = useMemo(() => {
-    if (!searchTerm) return topClientes;
-    return topClientes.filter(p =>
-      p.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.valor.toString().includes(searchTerm)
+    if (!searchTerm) return computed.topClientes;
+    const term = searchTerm.toLowerCase();
+    return computed.topClientes.filter(
+      (item) =>
+        item.label.toLowerCase().includes(term) ||
+        String(item.valor).includes(searchTerm)
     );
-  }, [searchTerm, topClientes]);
+  }, [computed.topClientes, searchTerm]);
 
   const filteredTipos = useMemo(() => {
-    if (!searchTerm) return tiposClientes;
-    return tiposClientes.filter(c =>
-      c.tipo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.valor.toString().includes(searchTerm)
-    );
-  }, [searchTerm, tiposClientes]);
-
-  const filteredMetricas = useMemo(() => {
-    if (!searchTerm) return metricas;
+    if (!searchTerm) return computed.tiposClientes;
     const term = searchTerm.toLowerCase();
-    return {
-      totalClientes: metricas.totalClientes.toString().includes(term) ? metricas.totalClientes : 0,
-      clientesNuevos: metricas.clientesNuevos.toString().includes(term) ? metricas.clientesNuevos : 0,
-      clientesActivos: metricas.clientesActivos.toString().includes(term) ? metricas.clientesActivos : 0,
-      crecimientoMensual: metricas.crecimientoMensual.toString().includes(term) ? metricas.crecimientoMensual : 0,
-    };
-  }, [searchTerm, metricas]);
+    return computed.tiposClientes.filter(
+      (item) =>
+        item.tipo.toLowerCase().includes(term) ||
+        String(item.valor).includes(searchTerm)
+    );
+  }, [computed.tiposClientes, searchTerm]);
 
-  // Charts
-  const clientesLineChart = useMemo(() => ({
-    labels: filteredClientesMensuales.map(v => v.mes),
-    datasets: [
-      { type: "line", label: "Clientes", data: filteredClientesMensuales.map(v => v.valor), borderColor: LINE_DARK, backgroundColor: "rgba(181,245,206,0.1)", tension: 0.3 },
-      { type: "bar", label: "Clientes Barras", data: filteredClientesMensuales.map(v => v.valor), backgroundColor: BAR_GREEN },
-    ],
-  }), [filteredClientesMensuales]);
+  const clientesChart = useMemo(
+    () => ({
+      labels: filteredClientesMensuales.map((item) => item.mes),
+      datasets: [
+        {
+          type: "line",
+          label: "Clientes con ventas",
+          data: filteredClientesMensuales.map((item) => item.valor),
+          borderColor: LINE_DARK,
+          backgroundColor: "rgba(181,245,206,0.1)",
+          tension: 0.3,
+        },
+        {
+          type: "bar",
+          label: "Clientes activos por mes",
+          data: filteredClientesMensuales.map((item) => item.valor),
+          backgroundColor: BAR_GREEN,
+        },
+      ],
+    }),
+    [filteredClientesMensuales]
+  );
 
-  const topClientesChart = useMemo(() => ({
-    labels: filteredTopClientes.map(p => p.label),
-    datasets: [
-      { label: "Ventas", data: filteredTopClientes.map(p => p.valor), backgroundColor: BAR_GREEN, borderColor: BORDER_SUBTLE, borderRadius: 12 },
-    ],
-  }), [filteredTopClientes]);
+  const topClientesChart = useMemo(
+    () => ({
+      labels: filteredTopClientes.map((item) => item.label),
+      datasets: [
+        {
+          label: "Ventas",
+          data: filteredTopClientes.map((item) => item.valor),
+          backgroundColor: BAR_GREEN,
+          borderColor: BORDER_SUBTLE,
+          borderRadius: 12,
+        },
+      ],
+    }),
+    [filteredTopClientes]
+  );
 
-  const tiposPie = useMemo(() => ({
-    labels: filteredTipos.map(c => c.tipo),
-    datasets: [
-      { data: filteredTipos.map(c => c.valor), backgroundColor: [PIE_GREEN_1, PIE_GREEN_2, PIE_GREEN_3] },
-    ],
-  }), [filteredTipos]);
+  const tiposPie = useMemo(
+    () => ({
+      labels: filteredTipos.map((item) => item.tipo),
+      datasets: [
+        {
+          data: filteredTipos.map((item) => item.valor),
+          backgroundColor: [PIE_GREEN_1, PIE_GREEN_2, PIE_GREEN_3],
+        },
+      ],
+    }),
+    [filteredTipos]
+  );
 
-  const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: true, labels: { color: LINE_DARK } },
-      tooltip: {
-        backgroundColor: "#fff",
-        titleColor: "#000",
-        bodyColor: "#000",
-        borderColor: "#e5e7eb",
-        borderWidth: 1,
-      },
-    },
-  };
-
-  // Contadores
-  const totalCount = useCountUp(filteredMetricas.totalClientes);
-  const nuevosCount = useCountUp(filteredMetricas.clientesNuevos);
-  const activosCount = useCountUp(filteredMetricas.clientesActivos);
-  const crecimientoCount = useCountUp(filteredMetricas.crecimientoMensual);
+  const totalCount = useCountUp(computed.metricas.totalClientes);
+  const nuevosCount = useCountUp(computed.metricas.clientesNuevos);
+  const activosCount = useCountUp(computed.metricas.clientesActivos);
+  const crecimientoCount = useCountUp(computed.metricas.crecimientoMensual);
 
   return (
     <AnimatePresence mode="wait">
@@ -189,70 +307,95 @@ export default function DashboardClientes() {
         style={{ fontFamily: "Inter, sans-serif" }}
       >
         <div className="max-w-6xl mx-auto space-y-6">
-          {/* HEADER */}
           <motion.header variants={childFadeUp}>
-            <h1 className="text-3xl font-extrabold text-black">Dashboard Clientes</h1>
-            <p className="text-sm mt-2" style={{ color: LINE_DARK }}>Resumen general de los clientes</p>
+            <h1 className="text-3xl font-extrabold text-black">
+              Dashboard Clientes
+            </h1>
+            <p className="text-sm mt-2" style={{ color: LINE_DARK }}>
+              Resumen general de los clientes
+            </p>
+            {error ? <p className="text-sm text-red-500 mt-2">{error}</p> : null}
           </motion.header>
 
-          {/* FILTRO GLOBAL */}
           <motion.div variants={childFadeUp} className="mb-6 flex justify-end">
             <input
               type="text"
               placeholder="Buscar en todo..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               className="p-2 rounded-lg border border-gray-300 w-full sm:w-64"
             />
           </motion.div>
 
-          {/* METRICAS */}
-          <motion.div variants={childFadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <motion.div
+            variants={childFadeUp}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+          >
             <AnimatedCard title="Total Clientes" value={totalCount} />
             <AnimatedCard title="Clientes Nuevos" value={nuevosCount} />
             <AnimatedCard title="Clientes Activos" value={activosCount} />
-            <AnimatedCard title="Crecimiento (%)" value={`${crecimientoCount}%`} />
+            <AnimatedCard
+              title="Crecimiento (%)"
+              value={`${crecimientoCount}%`}
+            />
           </motion.div>
 
-          {/* GRAFICAS */}
+          {loading ? (
+            <p className="text-sm text-gray-500">Cargando clientes...</p>
+          ) : null}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Evolución Mensual</h3>
+            <motion.section
+              variants={childFadeUp}
+              className="p-6 rounded-xl bg-white shadow"
+            >
+              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>
+                Evolucion Mensual
+              </h3>
               <div style={{ height: 240 }}>
-                <Line data={clientesLineChart} options={commonOptions} />
+                <Line data={clientesChart} options={commonChartOptions} />
               </div>
             </motion.section>
 
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Top Clientes</h3>
+            <motion.section
+              variants={childFadeUp}
+              className="p-6 rounded-xl bg-white shadow"
+            >
+              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>
+                Top Clientes
+              </h3>
               <div style={{ height: 240 }}>
-                <Bar data={topClientesChart} options={{ ...commonOptions, indexAxis: "y" }} />
+                <Bar
+                  data={topClientesChart}
+                  options={{ ...commonChartOptions, indexAxis: "y" }}
+                />
               </div>
             </motion.section>
 
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Tipos de Clientes</h3>
+            <motion.section
+              variants={childFadeUp}
+              className="p-6 rounded-xl bg-white shadow lg:col-span-2"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold" style={{ color: LINE_DARK }}>
+                  Tipos de Clientes
+                </h3>
+                <span className="text-sm text-gray-500">
+                  Top clientes:{" "}
+                  {computed.topClientes[0]
+                    ? `${computed.topClientes[0].label} (${formatCurrency(
+                        computed.topClientes[0].valor
+                      )})`
+                    : "Sin ventas"}
+                </span>
+              </div>
               <div style={{ height: 240 }}>
-                <Pie data={tiposPie} options={commonOptions} />
+                <Pie data={tiposPie} options={commonChartOptions} />
               </div>
             </motion.section>
           </div>
         </div>
       </motion.div>
     </AnimatePresence>
-  );
-}
-
-// Componente auxiliar
-function AnimatedCard({ title, value }) {
-  return (
-    <motion.div
-      variants={childFadeUp}
-      whileHover={{ scale: 1.03, y: -6 }}
-      className="p-4 rounded-xl flex flex-col justify-center min-h-[88px] bg-white shadow"
-    >
-      <p className="text-sm" style={{ color: LINE_DARK }}>{title}</p>
-      <h2 className="font-bold text-2xl text-black">{value}</h2>
-    </motion.div>
   );
 }
