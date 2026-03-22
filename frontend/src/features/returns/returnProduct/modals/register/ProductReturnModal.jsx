@@ -21,6 +21,7 @@ import { useFetchReturnProducts } from "../../../../../shared/components/hooks/r
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../../context/useAtuh";
+import Swal from "sweetalert2";
 const ProductReturnModal = ({ isOpen, onClose }) => {
   const getTodayLocalYmd = () => {
     const today = new Date();
@@ -65,6 +66,15 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     { value: "descuento", label: "Descuento" },
     { value: "registrar", label: "Registrar" },
   ];
+
+  const showSwalAlert = (message, icon = "warning") =>
+    Swal.fire({
+      icon,
+      text: message,
+      confirmButtonText: "Aceptar",
+      confirmButtonColor: "#059669",
+    });
+
   const normalizeInvoice = (value) =>
     String(value ?? "")
       .trim()
@@ -430,11 +440,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const errorMsg = validateInvoiceNumber(invoiceNumber);
     if (errorMsg) {
       setInvoiceError(errorMsg);
-      alert("Corrige el número de factura antes de continuar.");
+      await showSwalAlert("Corrige el número de factura antes de continuar.");
       return;
     }
     if (selectedProducts.length === 0) {
-      alert("Selecciona al menos un producto.");
+      await showSwalAlert("Selecciona al menos un producto.");
       return;
     }
 
@@ -451,13 +461,13 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const dateErrorMsg = validateReturnDate(returnDate);
     if (dateErrorMsg) {
       setReturnDateError(dateErrorMsg);
-      alert("Corrige la fecha antes de continuar.");
+      await showSwalAlert("Corrige la fecha antes de continuar.");
       return;
     }
 
     if (!comprobanteFile) {
       setComprobanteError("El comprobante es obligatorio.");
-      alert("Adjunta el comprobante de pago antes de continuar.");
+      await showSwalAlert("Adjunta el comprobante de pago antes de continuar.");
       return;
     }
 
@@ -468,7 +478,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     );
 
     if (missingDetail) {
-      alert(
+      await showSwalAlert(
         `El producto "${missingDetail.productos.nombre}" no tiene detalle cargado para registrar.`,
       );
       return;
@@ -536,7 +546,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "Falta id_detalle_producto (origen) para este producto:",
               p,
             );
-            alert(
+            showSwalAlert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
               }" no tiene detalle origen válido.`,
@@ -559,7 +569,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "savedDetails:",
               savedDetails,
             );
-            alert(
+            showSwalAlert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
               }" no tiene detalle de reemplazo creado para registrar.`,
@@ -618,7 +628,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       }
     } catch (err) {
       console.error("Error en handleAcceptAlert:", err);
-      alert(err.message || "No fue posible registrar la devolucion.");
+      await showSwalAlert(
+        err.message || "No fue posible registrar la devolucion.",
+        "error",
+      );
     }
   };
 
