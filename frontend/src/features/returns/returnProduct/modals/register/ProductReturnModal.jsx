@@ -130,8 +130,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     selectedDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
 
-    if (selectedDate < today) {
-      return "La fecha no puede ser anterior a hoy.";
+    if (selectedDate > today) {
+      return "La fecha no puede ser posterior a hoy.";
     }
 
     return "";
@@ -139,6 +139,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   const handleReturnDateChange = (e) => {
     const value = e.target.value;
+    if (value > getTodayLocalYmd()) return;
     setReturnDate(value);
     setReturnDateError(validateReturnDate(value));
   };
@@ -814,7 +815,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                           <input
                             type="date"
                             value={returnDate}
-                            min={getTodayLocalYmd()}
+                            max={getTodayLocalYmd()}
                             onChange={handleReturnDateChange}
                             className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
                               returnDateError
