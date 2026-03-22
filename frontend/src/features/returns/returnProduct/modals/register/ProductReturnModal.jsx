@@ -57,11 +57,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { allItems: returns, fetchAll } = useFetchReturnProducts();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
-  const returnReasons = [
-    { value: "cerca de vencer", label: "Cerca de vencer" },
-    { value: "vencido", label: "Vencido" },
-  ];
-
   const actionTypes = [
     { value: "descuento", label: "Descuento" },
     { value: "registrar", label: "Registrar" },
@@ -135,6 +130,53 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     }
 
     return "";
+  };
+
+  const formatDisplayDate = (value) => {
+    const parsed = parseDateSafe(value);
+    if (!parsed) return "Sin fecha";
+    return parsed.toLocaleDateString("es-CO");
+  };
+
+  const getAutomaticReturnReason = (product) => {
+    const selectedDate = parseDateSafe(product?.fecha_vencimiento);
+    if (!selectedDate) {
+      return {
+        value: "",
+        label: "Sin fecha de vencimiento",
+        helper: "Este producto no tiene fecha de vencimiento registrada.",
+      };
+    }
+
+    const today = parseDateSafe(getTodayLocalYmd());
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffInDays = Math.ceil(
+      (selectedDate - today) / (1000 * 60 * 60 * 24),
+    );
+
+    if (diffInDays <= 0) {
+      return {
+        value: "vencido",
+        label: "Vencido",
+        helper: "La fecha de vencimiento ya llegó o ya pasó.",
+      };
+    }
+
+    if (diffInDays <= 7) {
+      return {
+        value: "cerca de vencer",
+        label: "Cerca de vencer",
+        helper: `Vence en ${diffInDays} ${diffInDays === 1 ? "día" : "días"}.`,
+      };
+    }
+
+    return {
+      value: "",
+      label: "Fuera de rango",
+      helper: "Solo aplica para productos vencidos o con vencimiento en 7 días o menos.",
+    };
   };
 
   const handleReturnDateChange = (e) => {
@@ -220,6 +262,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           ),
           codigo_barras_producto_compra:
             dp?.codigo_barras_producto_compra ?? "",
+          fecha_vencimiento: dp?.fecha_vencimiento ?? null,
 
           // por si tu UI lo usa en otros lados:
           stock_producto: Number(dp?.stock_producto ?? 0),
@@ -273,6 +316,14 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
 
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
+    const automaticReason = getAutomaticReturnReason(product);
+    if (!automaticReason.value) {
+      showSwalAlert(
+        `El producto "${product?.productos?.nombre ?? "seleccionado"}" no está vencido ni cerca de vencer.`,
+      );
+      return;
+    }
+
     const existingIndex = selectedProducts.findIndex(
       (p) => p.id_detalle_producto === product.id_detalle_producto,
     );
@@ -295,7 +346,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         {
           ...product,
           returnQuantity: safeQuantity,
-          returnReason: "",
+          returnReason: automaticReason.value,
           actionType: "",
           id_detalle_producto: product.id_detalle_producto,
         },
@@ -343,18 +394,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         return { ...p, returnQuantity: newQuantity };
       }),
     );
-  };
-
-  // Cambiar raz?n por producto
-  const handleProductReasonChange = (detailId, reasonValue) => {
-    setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.id_detalle_producto === detailId
-          ? { ...p, returnReason: reasonValue }
-          : p,
-      ),
-    );
-    setShowErrors(false); // Ocultar errores cuando se selecciona una raz?n
   };
 
   /**
@@ -942,38 +981,61 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         p.id_detalle_producto,
                                     ),
                                 )
-                                .map((p) => (
-                                  <motion.div
-                                    key={p.id_detalle_producto}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
-                                  >
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-gray-800 truncate">
-                                        {p.productos?.nombre}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        Código de barras:{" "}
-                                        {p.codigo_barras_producto_compra ||
-                                          "Sin codigo"}
-                                      </p>
-                                    </div>
+                                .map((p) => {
+                                  const automaticReason =
+                                    getAutomaticReturnReason(p);
+                                  const canAddProduct = Boolean(
+                                    automaticReason.value,
+                                  );
 
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleAddProduct({
-                                          ...p,
-                                          returnQuantity: 1,
-                                        })
-                                      }
-                                      className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                  return (
+                                    <motion.div
+                                      key={p.id_detalle_producto}
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                                     >
-                                      Agregar
-                                    </button>
-                                  </motion.div>
-                                ))}
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                          {p.productos?.nombre}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Código de barras:{" "}
+                                          {p.codigo_barras_producto_compra ||
+                                            "Sin codigo"}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Vence: {formatDisplayDate(p.fecha_vencimiento)}
+                                        </p>
+                                        <p
+                                          className={`mt-1 text-xs font-medium ${
+                                            canAddProduct
+                                              ? "text-emerald-700"
+                                              : "text-amber-700"
+                                          }`}
+                                        >
+                                          {canAddProduct
+                                            ? `Razón automática: ${automaticReason.label}`
+                                            : automaticReason.helper}
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleAddProduct({
+                                            ...p,
+                                            returnQuantity: 1,
+                                          })
+                                        }
+                                        disabled={!canAddProduct}
+                                        className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+                                      >
+                                        Agregar
+                                      </button>
+                                    </motion.div>
+                                  );
+                                })}
 
                               {purchaseProducts.length === 0 && (
                                 <div className="p-3 text-center text-sm text-gray-500">
@@ -1027,6 +1089,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                               const detail = getPendingDetailForProduct(
                                 product.id_detalle_producto,
                               );
+                              const automaticReason =
+                                getAutomaticReturnReason(product);
                               return (
                                 <motion.div
                                   key={product.id_detalle_producto}
@@ -1175,75 +1239,26 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                           <p className="text-xs font-semibold text-gray-700 mb-2">
                                             Razón de la devolución
                                           </p>
-                                          <div className="space-y-2">
-                                            {returnReasons.map((reason) => {
-                                              const isSelected =
-                                                product.returnReason ===
-                                                reason.value;
-                                              return (
-                                                <label
-                                                  key={reason.value}
-                                                  className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
-                                                    isSelected
-                                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                                      : "border-gray-200 hover:bg-gray-50"
-                                                  }`}
-                                                >
-                                                    <input
-                                                      type="radio"
-                                                      name={`returnReason-${product.id_detalle_producto}`}
-                                                      value={reason.value}
-                                                      checked={isSelected}
-                                                      onChange={() =>
-                                                        handleProductReasonChange(
-                                                          product.id_detalle_producto,
-                                                          reason.value,
-                                                        )
-                                                      }
-                                                    className="hidden"
-                                                  />
-                                                  <div
-                                                    className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
-                                                      isSelected
-                                                        ? "bg-emerald-600 border-emerald-600"
-                                                        : "bg-white border-gray-300"
-                                                    }`}
-                                                  >
-                                                    {isSelected && (
-                                                      <svg
-                                                        className="w-3 h-3 text-white"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="3"
-                                                        viewBox="0 0 24 24"
-                                                      >
-                                                        <path
-                                                          strokeLinecap="round"
-                                                          strokeLinejoin="round"
-                                                          d="M5 13l4 4L19 7"
-                                                        />
-                                                      </svg>
-                                                    )}
-                                                  </div>
-                                                  <span
-                                                    className={`text-xs font-medium transition ${
-                                                      isSelected
-                                                        ? "text-emerald-700"
-                                                        : "text-gray-700"
-                                                    }`}
-                                                  >
-                                                    {reason.label}
-                                                  </span>
-                                                </label>
-                                              );
-                                            })}
+                                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                              <div>
+                                                <p className="text-sm font-semibold text-emerald-800">
+                                                  {automaticReason.label}
+                                                </p>
+                                                <p className="mt-1 text-xs text-emerald-700">
+                                                  {automaticReason.helper}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <p className="mt-2 text-xs text-gray-600">
+                                              Fecha de vencimiento:{" "}
+                                              <span className="font-medium">
+                                                {formatDisplayDate(
+                                                  product.fecha_vencimiento,
+                                                )}
+                                              </span>
+                                            </p>
                                           </div>
-                                          {showErrors &&
-                                            !product.returnReason && (
-                                              <p className="text-red-500 text-xs mt-1">
-                                                Selecciona una razón
-                                              </p>
-                                            )}
                                         </div>
 
                                         {/* Acción + detalle */}
