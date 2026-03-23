@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/kajamart/api/search/detailsProducts";
+const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/search/detailsProducts";
 
 export const useFetchProduct = (searchParam) => {
   const [data, setData] = useState(null);

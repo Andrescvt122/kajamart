@@ -21,7 +21,7 @@ export default function DetailsRoles({ isOpen, onClose, role }) {
 
       // Solo hacer fetch si tenemos un id válido
       if (role?.rol_id) {
-        axios.get(`http://localhost:3000/kajamart/api/roles/${role.rol_id}`)
+        axios.get(`https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/roles/${role.rol_id}`)
           .then(response => {
             setRolCompleto(response.data);
           })

@@ -3,7 +3,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000/kajamart/api",
+  baseURL: "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api",
 });
 
 api.interceptors.request.use(

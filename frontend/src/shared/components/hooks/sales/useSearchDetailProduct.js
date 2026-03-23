@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:3000/kajamart/api/search";
+const API_BASE_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/search";
 
 // 🔧 Normaliza: quita tildes y pone minúsculas
 const normalizeText = (text) => {

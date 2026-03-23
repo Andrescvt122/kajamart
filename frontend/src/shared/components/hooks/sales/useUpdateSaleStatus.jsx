@@ -1,7 +1,7 @@
 // src/shared/components/hooks/sales/useUpdateSaleStatus.js
 import { useCallback, useState } from "react";
 
-const API_BASE = "http://localhost:3000/kajamart/api";
+const API_BASE = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api";
 
 export function useUpdateSaleStatus() {
   const [loading, setLoading] = useState(false);
