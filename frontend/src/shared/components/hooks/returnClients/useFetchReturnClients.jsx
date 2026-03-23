@@ -43,10 +43,10 @@ export const useFetchReturnClients = (initialLimit = 6) => {
       dateReturn: formatDate(fechaBase),
       dateISO: fechaBase || null,
       createdAt:
+        item.created_at ||
+        item.createdAt ||
         item.fecha_creacion ||
         item.fecha_devolucion ||
-        item.createdAt ||
-        item.created_at ||
         null,
       isActive: Boolean(
         item.estado ?? item.activo ?? item.isActive ?? item.is_active ?? true

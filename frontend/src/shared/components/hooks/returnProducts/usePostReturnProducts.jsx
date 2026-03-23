@@ -25,6 +25,7 @@ export const usePostReturnProducts = () => {
       return response.data;
     } catch (err) {
       console.error("❌ Error al registrar devolución:", err);
+      console.error("❌ Respuesta del backend:", err?.response?.data);
       setError(
         err?.response?.data?.error ||
           err?.response?.data?.message ||

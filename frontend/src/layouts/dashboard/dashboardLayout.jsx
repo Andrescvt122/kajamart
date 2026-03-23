@@ -6,7 +6,7 @@ export default function DashboardLayout() {
   return (
     <div className="flex flex-col flex-1">
       {/* Navbar que se extiende al lado de la sidebar */}
-      <div className="sticky top-0 z-50 w-full">
+      <div className="sticky top-0 z-30 w-full md:z-50">
          <NavBarDashboard />
       </div>
       

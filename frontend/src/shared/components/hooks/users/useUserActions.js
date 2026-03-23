@@ -5,9 +5,9 @@ import axios from "axios";
 import { showErrorAlert } from "../../alerts.jsx"; // Asegúrate de que esta ruta sea correcta
 
 // URL base para Creación y Eliminación (POST /users, DELETE /users/:id)
-const API_URL_BASE = "http://localhost:3000/kajamart/api/users";
+const API_URL_BASE = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/users";
 // URL base para Edición de datos personales y estado (PUT /kajamart/api/users/:id, PUT /kajamart/api/users/:id/status)
-const API_URL_EDITION = "http://localhost:3000/kajamart/api/users";
+const API_URL_EDITION = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/users";
 
 export const useUserActions = () => {
   const [loading, setLoading] = useState(false);

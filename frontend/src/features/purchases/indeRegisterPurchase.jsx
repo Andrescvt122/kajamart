@@ -171,6 +171,13 @@ export default function IndexRegisterPurchase() {
 
   // ✅ mínimo permitido: hoy + 4 días
   const minExpiryDateStr = useMemo(() => toISODate(addDays(new Date(), 4)), []);
+  const maxPurchaseDateStr = toISODate(new Date());
+
+  const isFuturePurchaseDate = (value) => {
+    const normalizedValue = String(value ?? "").trim();
+    if (!normalizedValue) return false;
+    return normalizedValue > maxPurchaseDateStr;
+  };
 
   // =========================
   // ✅ Helpers cantidad (paquetes x unidades) (SOLO INFORMATIVO)
@@ -232,6 +239,7 @@ export default function IndexRegisterPurchase() {
     }
 
     if (field === "fechaVencimiento") {
+      if (!shouldUseExpiryDate(form)) return "";
       if (!v) return ""; // ✅ NO obligatoria
       const picked = startOfDay(new Date(v));
       const minDate = startOfDay(addDays(new Date(), 4));
@@ -255,11 +263,25 @@ export default function IndexRegisterPurchase() {
   const makeEmptyPack = () => ({
     codigoBarrasIngreso: "",
     fechaVencimiento: "",
+    usaFechaVencimiento: true,
+  });
+
+  const shouldUseExpiryDate = (pack) => pack?.usaFechaVencimiento !== false;
+
+  const getPackExpiryValue = (pack) =>
+    shouldUseExpiryDate(pack) ? String(pack?.fechaVencimiento ?? "") : "";
+
+  const normalizePack = (pack = {}) => ({
+    ...makeEmptyPack(),
+    ...pack,
+    codigoBarrasIngreso: String(pack?.codigoBarrasIngreso ?? ""),
+    fechaVencimiento: getPackExpiryValue(pack),
+    usaFechaVencimiento: shouldUseExpiryDate(pack),
   });
 
   const syncPaquetesLength = (prevPaquetes, n, fallbackBarcode = "") => {
     const N = Math.max(0, Number(n || 0));
-    const next = [...(prevPaquetes || [])];
+    const next = [...(prevPaquetes || [])].map((pack) => normalizePack(pack));
 
     if (N === 0) return [];
 
@@ -346,6 +368,22 @@ export default function IndexRegisterPurchase() {
       const len = prev.paquetes.length;
       const nextIdx = Math.max(0, Math.min(Number(idx || 0), Math.max(0, len - 1)));
       return { ...prev, selectedIndex: nextIdx };
+    });
+  };
+
+  const updateSelectedPack = (updater) => {
+    setPackForm((prev) => {
+      const paquetes = [...(prev.paquetes || [])];
+      if (!paquetes.length) return prev;
+
+      const currentPack = normalizePack(paquetes[prev.selectedIndex]);
+      const nextPack =
+        typeof updater === "function"
+          ? updater(currentPack)
+          : { ...currentPack, ...updater };
+
+      paquetes[prev.selectedIndex] = normalizePack(nextPack);
+      return { ...prev, paquetes };
     });
   };
 
@@ -671,7 +709,8 @@ const updateProductoField = (index, field, rawValue) => {
 
     const paquetesNormalized = normalized.paquetes.map((p) => ({
       codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
-      fechaVencimiento: p.fechaVencimiento || "",
+      fechaVencimiento: getPackExpiryValue(p),
+      usaFechaVencimiento: shouldUseExpiryDate(p),
     }));
 
     const enriched = {
@@ -693,10 +732,9 @@ const updateProductoField = (index, field, rawValue) => {
           paquetesNormalized[0]?.codigoBarrasIngreso ||
           ""
       ).trim(),
-      fechaVencimiento:
-        paquetesNormalized[normalized.selectedIndex]?.fechaVencimiento ||
-        paquetesNormalized[0]?.fechaVencimiento ||
-        "",
+      fechaVencimiento: getPackExpiryValue(
+        paquetesNormalized[normalized.selectedIndex] || paquetesNormalized[0]
+      ),
     };
 
     setIsPackModalOpen(false);
@@ -715,7 +753,8 @@ const updateProductoField = (index, field, rawValue) => {
       Array.isArray(prod?.paquetes) && prod.paquetes.length
         ? prod.paquetes.map((p) => ({
             codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
-            fechaVencimiento: p?.fechaVencimiento || "",
+            fechaVencimiento: getPackExpiryValue(p),
+            usaFechaVencimiento: shouldUseExpiryDate(p),
           }))
         : [];
 
@@ -774,7 +813,8 @@ const updateProductoField = (index, field, rawValue) => {
 
       const paquetesNormalized = normalized.paquetes.map((p) => ({
         codigoBarrasIngreso: String(p.codigoBarrasIngreso || "").trim(),
-        fechaVencimiento: p.fechaVencimiento || "",
+        fechaVencimiento: getPackExpiryValue(p),
+        usaFechaVencimiento: shouldUseExpiryDate(p),
       }));
 
       const paquetes = syncPaquetesLength(paquetesNormalized, cantidadPaquetesNum, "");
@@ -796,10 +836,9 @@ const updateProductoField = (index, field, rawValue) => {
           paquetes[normalized.selectedIndex]?.codigoBarrasIngreso ||
           paquetes[0]?.codigoBarrasIngreso ||
           "",
-        fechaVencimiento:
-          paquetes[normalized.selectedIndex]?.fechaVencimiento ||
-          paquetes[0]?.fechaVencimiento ||
-          "",
+        fechaVencimiento: getPackExpiryValue(
+          paquetes[normalized.selectedIndex] || paquetes[0]
+        ),
       };
 
       return copia;
@@ -846,7 +885,8 @@ const updateProductoField = (index, field, rawValue) => {
       ? syncPaquetesLength(
           productoEncontrado.paquetes.map((p) => ({
             codigoBarrasIngreso: String(p?.codigoBarrasIngreso ?? ""),
-            fechaVencimiento: p?.fechaVencimiento || "",
+            fechaVencimiento: getPackExpiryValue(p),
+            usaFechaVencimiento: shouldUseExpiryDate(p),
           })),
           cantPaquetesNum,
           ""
@@ -876,7 +916,7 @@ const updateProductoField = (index, field, rawValue) => {
 
         // compat
         codigoBarrasIngreso: productoEncontrado.codigoBarrasIngreso ?? "",
-        fechaVencimiento: productoEncontrado.fechaVencimiento ?? "",
+        fechaVencimiento: getPackExpiryValue(productoEncontrado),
 
         // ✅ paquetes
         paquetes: paquetesSafe,
@@ -1311,13 +1351,13 @@ const updateProductoField = (index, field, rawValue) => {
           paquetes: Array.isArray(p.paquetes)
             ? p.paquetes.map((x) => ({
                 codigoBarrasIngreso: String(x.codigoBarrasIngreso || "").trim(),
-                fechaVencimiento: x.fechaVencimiento ? x.fechaVencimiento : null,
+                fechaVencimiento: getPackExpiryValue(x) || null,
               }))
             : [],
 
           // ✅ compat
           codigo_barras_producto_compra: String(p.codigoBarrasIngreso ?? "").trim(),
-          fecha_vencimiento: p.fechaVencimiento ? p.fechaVencimiento : null,
+          fecha_vencimiento: getPackExpiryValue(p) || null,
         };
       }),
     };
@@ -1414,6 +1454,9 @@ const updateProductoField = (index, field, rawValue) => {
   // =========================
   // UI
   // =========================
+  const selectedPack = normalizePack(packForm.paquetes?.[packForm.selectedIndex]);
+  const selectedPackUsesExpiryDate = shouldUseExpiryDate(selectedPack);
+
   return (
     <div className="relative z-10 min-h-screen flex flex-col p-6">
       {/* ✅ Overrides SOLO desde este archivo */}
@@ -2173,53 +2216,76 @@ const updateProductoField = (index, field, rawValue) => {
 
             {/* Fecha vencimiento */}
             <div className="mb-3">
-              <label className="block text-sm text-gray-600 mb-1">
-                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
-              </label>
-              <input
-                type="date"
-                min={minExpiryDateStr}
-                disabled={packForm.paquetes.length === 0}
-                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setPackForm((prev) => {
-                    const paquetes = [...prev.paquetes];
-                    if (!paquetes.length) return prev;
-                    paquetes[prev.selectedIndex] = {
-                      ...paquetes[prev.selectedIndex],
-                      fechaVencimiento: v,
-                    };
-                    return { ...prev, paquetes };
-                  });
-                }}
-                onBlur={() => {
-                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
-                  setPackTouched((t) => ({ ...t, [key]: true }));
-                  const normalized = {
-                    ...packForm,
-                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
-                    unidadesPorPaquete:
-                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
-                  };
-                  setPackErrors(computePackErrors(normalized));
-                }}
-                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
-                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
-                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-              />
-              {packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
-                packErrors[`${packForm.selectedIndex}.fechaVencimiento`] && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {packErrors[`${packForm.selectedIndex}.fechaVencimiento`]}
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600">Fecha de vencimiento</label>
+                  <p className="text-xs text-gray-400">
+                    Actívala solo para productos que la necesitan.
                   </p>
-                )}
-              <p className="mt-1 text-[11px] text-gray-400">
-                Permitido desde: <b>{minExpiryDateStr}</b>
-              </p>
+                </div>
+
+                <label
+                  className={`inline-flex items-center gap-2 text-sm text-gray-600 ${
+                    packForm.paquetes.length === 0 ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPackUsesExpiryDate}
+                    disabled={packForm.paquetes.length === 0}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      updateSelectedPack((currentPack) => ({
+                        ...currentPack,
+                        usaFechaVencimiento: checked,
+                        fechaVencimiento: checked ? currentPack.fechaVencimiento || "" : "",
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  <span>Mostrar fecha</span>
+                </label>
+              </div>
+
+              {packForm.paquetes.length > 0 && selectedPackUsesExpiryDate && (
+                <>
+                  <input
+                    type="date"
+                    min={minExpiryDateStr}
+                    disabled={packForm.paquetes.length === 0}
+                    value={selectedPack.fechaVencimiento || ""}
+                    onChange={(e) => {
+                      updateSelectedPack({ fechaVencimiento: e.target.value });
+                    }}
+                    onBlur={() => {
+                      const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                      setPackTouched((t) => ({ ...t, [key]: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                      packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                      packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                    packErrors[`${packForm.selectedIndex}.fechaVencimiento`] && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {packErrors[`${packForm.selectedIndex}.fechaVencimiento`]}
+                      </p>
+                    )}
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    Permitido desde: <b>{minExpiryDateStr}</b>
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
@@ -2436,47 +2502,76 @@ const updateProductoField = (index, field, rawValue) => {
 
             {/* Fecha vencimiento */}
             <div className="mb-3">
-              <label className="block text-sm text-gray-600 mb-1">
-                Fecha de vencimiento <span className="text-xs text-gray-400">(opcional)</span>
-              </label>
-              <input
-                type="date"
-                min={minExpiryDateStr}
-                disabled={packForm.paquetes.length === 0}
-                value={packForm.paquetes?.[packForm.selectedIndex]?.fechaVencimiento || ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setPackForm((prev) => {
-                    const paquetes = [...prev.paquetes];
-                    if (!paquetes.length) return prev;
-                    paquetes[prev.selectedIndex] = {
-                      ...paquetes[prev.selectedIndex],
-                      fechaVencimiento: v,
-                    };
-                    return { ...prev, paquetes };
-                  });
-                }}
-                onBlur={() => {
-                  const key = `${packForm.selectedIndex}.fechaVencimiento`;
-                  setPackTouched((t) => ({ ...t, [key]: true }));
-                  const normalized = {
-                    ...packForm,
-                    cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
-                    unidadesPorPaquete:
-                      packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
-                  };
-                  setPackErrors(computePackErrors(normalized));
-                }}
-                className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
-                  packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
-                  packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-              />
-              <p className="mt-1 text-[11px] text-gray-400">
-                Permitido desde: <b>{minExpiryDateStr}</b>
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600">Fecha de vencimiento</label>
+                  <p className="text-xs text-gray-400">
+                    Actívala solo para productos que la necesitan.
+                  </p>
+                </div>
+
+                <label
+                  className={`inline-flex items-center gap-2 text-sm text-gray-600 ${
+                    packForm.paquetes.length === 0 ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPackUsesExpiryDate}
+                    disabled={packForm.paquetes.length === 0}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      updateSelectedPack((currentPack) => ({
+                        ...currentPack,
+                        usaFechaVencimiento: checked,
+                        fechaVencimiento: checked ? currentPack.fechaVencimiento || "" : "",
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  <span>Mostrar fecha</span>
+                </label>
+              </div>
+
+              {packForm.paquetes.length > 0 && selectedPackUsesExpiryDate && (
+                <>
+                  <input
+                    type="date"
+                    min={minExpiryDateStr}
+                    disabled={packForm.paquetes.length === 0}
+                    value={selectedPack.fechaVencimiento || ""}
+                    onChange={(e) => {
+                      updateSelectedPack({ fechaVencimiento: e.target.value });
+                    }}
+                    onBlur={() => {
+                      const key = `${packForm.selectedIndex}.fechaVencimiento`;
+                      setPackTouched((t) => ({ ...t, [key]: true }));
+                      const normalized = {
+                        ...packForm,
+                        cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
+                        unidadesPorPaquete:
+                          packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
+                      };
+                      setPackErrors(computePackErrors(normalized));
+                    }}
+                    className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
+                      packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                      packErrors[`${packForm.selectedIndex}.fechaVencimiento`]
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  />
+                  {packTouched[`${packForm.selectedIndex}.fechaVencimiento`] &&
+                    packErrors[`${packForm.selectedIndex}.fechaVencimiento`] && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {packErrors[`${packForm.selectedIndex}.fechaVencimiento`]}
+                      </p>
+                    )}
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    Permitido desde: <b>{minExpiryDateStr}</b>
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="mt-4 flex justify-end gap-2">

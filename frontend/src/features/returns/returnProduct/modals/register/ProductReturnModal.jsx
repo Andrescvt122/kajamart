@@ -11,8 +11,9 @@ import {
   ChevronUp,
   AlertTriangle,
   Pencil,
+  Upload,
+  Calendar,
 } from "lucide-react";
-import { Calendar } from "primereact/calendar";
 import ProductRegistrationModal from "./ProductRegistrationModal";
 import PurchaseSearchSelect from "../../../../../shared/components/searchBars/PurchaseSearchSelect";
 import { usePostReturnProducts } from "../../../../../shared/components/hooks/returnProducts/usePostReturnProducts";
@@ -20,7 +21,16 @@ import { useFetchReturnProducts } from "../../../../../shared/components/hooks/r
 import { useFetchPurchases } from "../../../../../shared/components/hooks/purchases/useFetchPurcchases";
 import { usePostDetailProduct } from "../../../../../shared/components/hooks/productDetails/usePostDetailProduct";
 import { useAuth } from "../../../../../context/useAtuh";
+import Swal from "sweetalert2";
 const ProductReturnModal = ({ isOpen, onClose }) => {
+  const getTodayLocalYmd = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const isReturnProduct = true;
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [purchaseProducts, setPurchaseProducts] = useState([]);
@@ -36,11 +46,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   // ?Y???? NUEVOS estados para la factura
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
-  const [paymentReceipt, setPaymentReceipt] = useState(null);
-  const [paymentReceiptMessage, setPaymentReceiptMessage] = useState("");
-  const [returnDate, setReturnDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [returnDate, setReturnDate] = useState(getTodayLocalYmd);
+  const [returnDateError, setReturnDateError] = useState("");
+  const [comprobanteFile, setComprobanteFile] = useState(null);
+  const [comprobanteError, setComprobanteError] = useState("");
   // ?Y???? Detalles de producto registrados TEMPORALMENTE
   const [pendingDetails, setPendingDetails] = useState([]);
   const { postReturnProducts, loading } = usePostReturnProducts();
@@ -48,15 +57,19 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
   const { allItems: returns, fetchAll } = useFetchReturnProducts();
   const { purchases } = useFetchPurchases();
   const { payload: payloadId } = useAuth();
-  const returnReasons = [
-    { value: "cerca de vencer", label: "Cerca de vencer" },
-    { value: "vencido", label: "Vencido" },
-  ];
-
   const actionTypes = [
     { value: "descuento", label: "Descuento" },
     { value: "registrar", label: "Registrar" },
   ];
+
+  const showSwalAlert = (message, icon = "warning") =>
+    Swal.fire({
+      icon,
+      text: message,
+      confirmButtonText: "Aceptar",
+      confirmButtonColor: "#059669",
+    });
+
   const normalizeInvoice = (value) =>
     String(value ?? "")
       .trim()
@@ -102,27 +115,95 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     return Number.isNaN(date.getTime()) ? null : date;
   };
 
-  const parseYmdToDate = (ymd) => {
-    if (!ymd) return null;
-    const [y, m, d] = ymd.split("-").map(Number);
-    if (!y || !m || !d) return null;
-    const dateObj = new Date(y, m - 1, d);
-    dateObj.setHours(0, 0, 0, 0);
-    return dateObj;
+  const validateReturnDate = (value) => {
+    if (!value) return "La fecha es obligatoria.";
+
+    const selectedDate = parseDateSafe(value);
+    if (!selectedDate) return "La fecha no es válida.";
+
+    const today = parseDateSafe(getTodayLocalYmd());
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+      return "La fecha no puede ser posterior a hoy.";
+    }
+
+    return "";
+  };
+
+  const formatDisplayDate = (value) => {
+    const parsed = parseDateSafe(value);
+    if (!parsed) return "Sin fecha";
+    return parsed.toLocaleDateString("es-CO");
+  };
+
+  const getAutomaticReturnReason = (product) => {
+    const selectedDate = parseDateSafe(product?.fecha_vencimiento);
+    if (!selectedDate) {
+      return {
+        value: "",
+        label: "Sin fecha de vencimiento",
+        helper: "Este producto no tiene fecha de vencimiento registrada.",
+      };
+    }
+
+    const today = parseDateSafe(getTodayLocalYmd());
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffInDays = Math.ceil(
+      (selectedDate - today) / (1000 * 60 * 60 * 24),
+    );
+
+    if (diffInDays <= 0) {
+      return {
+        value: "vencido",
+        label: "Vencido",
+        helper: "La fecha de vencimiento ya llegó o ya pasó.",
+      };
+    }
+
+    if (diffInDays <= 7) {
+      return {
+        value: "cerca de vencer",
+        label: "Cerca de vencer",
+        helper: `Vence en ${diffInDays} ${diffInDays === 1 ? "día" : "días"}.`,
+      };
+    }
+
+    return {
+      value: "",
+      label: "Fuera de rango",
+      helper: "Solo aplica para productos vencidos o con vencimiento en 7 días o menos.",
+    };
   };
 
   const handleReturnDateChange = (e) => {
-    if (!e.value) {
-      setReturnDate("");
+    const value = e.target.value;
+    if (value > getTodayLocalYmd()) return;
+    setReturnDate(value);
+    setReturnDateError(validateReturnDate(value));
+  };
+
+  const handleComprobanteChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    if (!file) {
+      setComprobanteFile(null);
+      setComprobanteError("El comprobante es obligatorio.");
       return;
     }
 
-    const localDate = new Date(e.value);
-    localDate.setHours(0, 0, 0, 0);
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, "0");
-    const day = String(localDate.getDate()).padStart(2, "0");
-    setReturnDate(`${year}-${month}-${day}`);
+    if (!file.type?.startsWith("image/")) {
+      setComprobanteFile(null);
+      setComprobanteError("El comprobante debe ser una imagen.");
+      e.target.value = "";
+      return;
+    }
+
+    setComprobanteFile(file);
+    setComprobanteError("");
   };
 
   const getPurchaseExpiryStatus = (purchase) => {
@@ -181,6 +262,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
           ),
           codigo_barras_producto_compra:
             dp?.codigo_barras_producto_compra ?? "",
+          fecha_vencimiento: dp?.fecha_vencimiento ?? null,
 
           // por si tu UI lo usa en otros lados:
           stock_producto: Number(dp?.stock_producto ?? 0),
@@ -228,44 +310,20 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setInvoiceError(validateInvoiceNumber(value)); // ?Y???? validaci?n en tiempo real
   };
 
-  const validatePaymentReceipt = (file) => {
-    if (!file) {
-      setPaymentReceiptMessage("Debe subir el comprobante de pago.");
-      return false;
-    }
-
-    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      setPaymentReceiptMessage("Solo se permiten imágenes JPG, PNG o WebP.");
-      return false;
-    }
-
-    const maxBytes = 5 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      setPaymentReceiptMessage("El comprobante no puede superar los 5MB.");
-      return false;
-    }
-
-    setPaymentReceiptMessage(`Comprobante cargado: ${file.name}`);
-    return true;
-  };
-
-  const handlePaymentReceiptChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    const isValid = validatePaymentReceipt(file);
-    setPaymentReceipt(isValid ? file : null);
-
-    if (!isValid && e.target) {
-      e.target.value = "";
-    }
-  };
-
   // Helper: encontrar detalle para un producto
   const getPendingDetailForProduct = (detailId) =>
     pendingDetails.find((d) => d.productKey === detailId);
 
   // Adaptar producto del buscador
   const handleAddProduct = (product) => {
+    const automaticReason = getAutomaticReturnReason(product);
+    if (!automaticReason.value) {
+      showSwalAlert(
+        `El producto "${product?.productos?.nombre ?? "seleccionado"}" no está vencido ni cerca de vencer.`,
+      );
+      return;
+    }
+
     const existingIndex = selectedProducts.findIndex(
       (p) => p.id_detalle_producto === product.id_detalle_producto,
     );
@@ -288,7 +346,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         {
           ...product,
           returnQuantity: safeQuantity,
-          returnReason: "",
+          returnReason: automaticReason.value,
           actionType: "",
           id_detalle_producto: product.id_detalle_producto,
         },
@@ -336,18 +394,6 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
         return { ...p, returnQuantity: newQuantity };
       }),
     );
-  };
-
-  // Cambiar raz?n por producto
-  const handleProductReasonChange = (detailId, reasonValue) => {
-    setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.id_detalle_producto === detailId
-          ? { ...p, returnReason: reasonValue }
-          : p,
-      ),
-    );
-    setShowErrors(false); // Ocultar errores cuando se selecciona una raz?n
   };
 
   /**
@@ -423,9 +469,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     setPendingDetails([]);
     setInvoiceNumber(""); // ????? limpiar n?mero de factura
     setInvoiceError(""); // ????? limpiar error
-    setPaymentReceipt(null);
-    setPaymentReceiptMessage("");
-    setReturnDate(new Date().toISOString().slice(0, 10));
+    setReturnDate(getTodayLocalYmd());
+    setReturnDateError("");
+    setComprobanteFile(null);
+    setComprobanteError("");
     onClose();
   };
 
@@ -433,11 +480,11 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     const errorMsg = validateInvoiceNumber(invoiceNumber);
     if (errorMsg) {
       setInvoiceError(errorMsg);
-      alert("Corrige el número de factura antes de continuar.");
+      await showSwalAlert("Corrige el número de factura antes de continuar.");
       return;
     }
     if (selectedProducts.length === 0) {
-      alert("Selecciona al menos un producto.");
+      await showSwalAlert("Selecciona al menos un producto.");
       return;
     }
 
@@ -451,12 +498,16 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!validatePaymentReceipt(paymentReceipt)) {
+    const dateErrorMsg = validateReturnDate(returnDate);
+    if (dateErrorMsg) {
+      setReturnDateError(dateErrorMsg);
+      await showSwalAlert("Corrige la fecha antes de continuar.");
       return;
     }
 
-    if (!returnDate) {
-      alert("Selecciona la fecha de la devolución.");
+    if (!comprobanteFile) {
+      setComprobanteError("El comprobante es obligatorio.");
+      await showSwalAlert("Adjunta el comprobante de pago antes de continuar.");
       return;
     }
 
@@ -467,7 +518,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
     );
 
     if (missingDetail) {
-      alert(
+      await showSwalAlert(
         `El producto "${missingDetail.productos.nombre}" no tiene detalle cargado para registrar.`,
       );
       return;
@@ -535,7 +586,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "Falta id_detalle_producto (origen) para este producto:",
               p,
             );
-            alert(
+            showSwalAlert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
               }" no tiene detalle origen válido.`,
@@ -558,7 +609,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
               "savedDetails:",
               savedDetails,
             );
-            alert(
+            showSwalAlert(
               `El producto "${
                 p.productos?.nombre ?? p.nombre_producto
               }" no tiene detalle de reemplazo creado para registrar.`,
@@ -589,24 +640,16 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       const payload = {
         id_responsable,
         id_compra: selectedPurchase?.id_compra,
-        fecha_devolucion: returnDate,
         numero_factura: invoiceNumber.trim(),
+        fecha_devolucion: returnDate,
         products: productsPayload,
-        comprobante: paymentReceipt
-          ? {
-              url: null,
-              nombre: paymentReceipt.name,
-              mime: paymentReceipt.type,
-              size: paymentReceipt.size,
-            }
-          : null,
       };
 
       console.log("Payload FINAL antes de POST:", payload);
 
       const result = await postReturnProducts({
         jsonPayload: payload,
-        comprobanteFile: paymentReceipt,
+        comprobanteFile,
       });
 
       console.log("Resultado de postReturnProducts:", result);
@@ -625,7 +668,10 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       }
     } catch (err) {
       console.error("Error en handleAcceptAlert:", err);
-      alert(err.message || "No fue posible registrar la devolucion.");
+      await showSwalAlert(
+        err.message || "No fue posible registrar la devolucion.",
+        "error",
+      );
     }
   };
 
@@ -641,6 +687,12 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
       setInvoiceError(validateInvoiceNumber(invoiceNumber));
     }
   }, [existingInvoiceNumbers, invoiceNumber]);
+
+  useEffect(() => {
+    if (returnDate) {
+      setReturnDateError(validateReturnDate(returnDate));
+    }
+  }, [returnDate]);
 
   useEffect(() => {
     if (selectedProducts.length === 0) {
@@ -757,82 +809,109 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3, duration: 0.5 }}
                   >
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <motion.div
-                        className="space-y-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.26, duration: 0.3 }}
-                      >
-                        <label className="block text-sm font-medium text-gray-700">
-                          Fecha de devolución
-                        </label>
-                        <Calendar
-                          value={parseYmdToDate(returnDate)}
-                          onChange={handleReturnDateChange}
-                          dateFormat="dd/mm/yy"
-                          showIcon
-                          maxDate={new Date()}
-                          placeholder="Selecciona una fecha"
-                          className="w-full"
-                          inputClassName="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm outline-none text-gray-700 focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </motion.div>
-                      <motion.div
-                        className="space-y-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.25, duration: 0.3 }}
-                      >
-                        <label className="block text-sm font-medium text-gray-700">
-                          Número de factura
-                        </label>
-                        <input
-                          type="text"
-                          value={invoiceNumber}
-                          onChange={handleInvoiceChange}
-                          maxLength={20}
-                          className={`w-full px-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
-                            invoiceError
-                              ? "border-red-500 focus:ring-1 focus:ring-red-500"
-                              : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
-                          }`}
-                          placeholder="Ej. 0001-2025"
-                        />
-                        {invoiceError && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {invoiceError}
-                          </p>
-                        )}
-                      </motion.div>
-                    </div>
                     <motion.div
                       className="space-y-2"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.28, duration: 0.3 }}
+                      transition={{ delay: 0.25, duration: 0.3 }}
                     >
                       <label className="block text-sm font-medium text-gray-700">
-                        Comprobante de pago
+                        Número de factura
                       </label>
                       <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/jpg,image/webp"
-                        onChange={handlePaymentReceiptChange}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-emerald-700"
+                        type="text"
+                        value={invoiceNumber}
+                        onChange={handleInvoiceChange}
+                        maxLength={20}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
+                          invoiceError
+                            ? "border-red-500 focus:ring-1 focus:ring-red-500"
+                            : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                        }`}
+                        placeholder="Ej. 0001-2025"
                       />
-                      {paymentReceiptMessage && (
-                        <p
-                          className={`text-xs mt-1 ${
-                            paymentReceipt
-                              ? "text-emerald-600"
-                              : "text-red-500"
-                          }`}
-                        >
-                          {paymentReceiptMessage}
+                      {invoiceError && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {invoiceError}
                         </p>
                       )}
                     </motion.div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <motion.div
+                        className="space-y-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.28, duration: 0.3 }}
+                      >
+                        <label className="block text-sm font-medium text-gray-700">
+                          Fecha de devolución
+                        </label>
+                        <div className="relative">
+                          <Calendar
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                          />
+                          <input
+                            type="date"
+                            value={returnDate}
+                            max={getTodayLocalYmd()}
+                            onChange={handleReturnDateChange}
+                            className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none text-gray-700 ${
+                              returnDateError
+                                ? "border-red-500 focus:ring-1 focus:ring-red-500"
+                                : "border-gray-300 focus:ring-1 focus:ring-emerald-500"
+                            }`}
+                          />
+                        </div>
+                        {returnDateError && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {returnDateError}
+                          </p>
+                        )}
+                      </motion.div>
+
+                      <motion.div
+                        className="space-y-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.31, duration: 0.3 }}
+                      >
+                        <label className="block text-sm font-medium text-gray-700">
+                          Comprobante de pago
+                        </label>
+                        <label className="flex items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors">
+                          <Upload size={18} className="text-gray-500" />
+                          <span>
+                            {comprobanteFile
+                              ? comprobanteFile.name
+                              : "Subir imagen"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleComprobanteChange}
+                            className="hidden"
+                          />
+                        </label>
+                        {comprobanteFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setComprobanteFile(null);
+                              setComprobanteError("");
+                            }}
+                            className="text-xs text-red-500 hover:underline"
+                          >
+                            Quitar comprobante
+                          </button>
+                        )}
+                        {comprobanteError && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {comprobanteError}
+                          </p>
+                        )}
+                      </motion.div>
+                    </div>
                     {/* B?squeda y listado de productos */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -902,38 +981,61 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                         p.id_detalle_producto,
                                     ),
                                 )
-                                .map((p) => (
-                                  <motion.div
-                                    key={p.id_detalle_producto}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
-                                  >
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-gray-800 truncate">
-                                        {p.productos?.nombre}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        Código de barras:{" "}
-                                        {p.codigo_barras_producto_compra ||
-                                          "Sin codigo"}
-                                      </p>
-                                    </div>
+                                .map((p) => {
+                                  const automaticReason =
+                                    getAutomaticReturnReason(p);
+                                  const canAddProduct = Boolean(
+                                    automaticReason.value,
+                                  );
 
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleAddProduct({
-                                          ...p,
-                                          returnQuantity: 1,
-                                        })
-                                      }
-                                      className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                  return (
+                                    <motion.div
+                                      key={p.id_detalle_producto}
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                                     >
-                                      Agregar
-                                    </button>
-                                  </motion.div>
-                                ))}
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                          {p.productos?.nombre}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Código de barras:{" "}
+                                          {p.codigo_barras_producto_compra ||
+                                            "Sin codigo"}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Vence: {formatDisplayDate(p.fecha_vencimiento)}
+                                        </p>
+                                        <p
+                                          className={`mt-1 text-xs font-medium ${
+                                            canAddProduct
+                                              ? "text-emerald-700"
+                                              : "text-amber-700"
+                                          }`}
+                                        >
+                                          {canAddProduct
+                                            ? `Razón automática: ${automaticReason.label}`
+                                            : automaticReason.helper}
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleAddProduct({
+                                            ...p,
+                                            returnQuantity: 1,
+                                          })
+                                        }
+                                        disabled={!canAddProduct}
+                                        className="text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+                                      >
+                                        Agregar
+                                      </button>
+                                    </motion.div>
+                                  );
+                                })}
 
                               {purchaseProducts.length === 0 && (
                                 <div className="p-3 text-center text-sm text-gray-500">
@@ -987,6 +1089,8 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                               const detail = getPendingDetailForProduct(
                                 product.id_detalle_producto,
                               );
+                              const automaticReason =
+                                getAutomaticReturnReason(product);
                               return (
                                 <motion.div
                                   key={product.id_detalle_producto}
@@ -1135,75 +1239,26 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                           <p className="text-xs font-semibold text-gray-700 mb-2">
                                             Razón de la devolución
                                           </p>
-                                          <div className="space-y-2">
-                                            {returnReasons.map((reason) => {
-                                              const isSelected =
-                                                product.returnReason ===
-                                                reason.value;
-                                              return (
-                                                <label
-                                                  key={reason.value}
-                                                  className={`flex items-center gap-3 cursor-pointer rounded-lg border p-2 transition-all select-none ${
-                                                    isSelected
-                                                      ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                                      : "border-gray-200 hover:bg-gray-50"
-                                                  }`}
-                                                >
-                                                    <input
-                                                      type="radio"
-                                                      name={`returnReason-${product.id_detalle_producto}`}
-                                                      value={reason.value}
-                                                      checked={isSelected}
-                                                      onChange={() =>
-                                                        handleProductReasonChange(
-                                                          product.id_detalle_producto,
-                                                          reason.value,
-                                                        )
-                                                      }
-                                                    className="hidden"
-                                                  />
-                                                  <div
-                                                    className={`w-5 h-5 flex items-center justify-center rounded-md border transition ${
-                                                      isSelected
-                                                        ? "bg-emerald-600 border-emerald-600"
-                                                        : "bg-white border-gray-300"
-                                                    }`}
-                                                  >
-                                                    {isSelected && (
-                                                      <svg
-                                                        className="w-3 h-3 text-white"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="3"
-                                                        viewBox="0 0 24 24"
-                                                      >
-                                                        <path
-                                                          strokeLinecap="round"
-                                                          strokeLinejoin="round"
-                                                          d="M5 13l4 4L19 7"
-                                                        />
-                                                      </svg>
-                                                    )}
-                                                  </div>
-                                                  <span
-                                                    className={`text-xs font-medium transition ${
-                                                      isSelected
-                                                        ? "text-emerald-700"
-                                                        : "text-gray-700"
-                                                    }`}
-                                                  >
-                                                    {reason.label}
-                                                  </span>
-                                                </label>
-                                              );
-                                            })}
+                                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                            <div className="flex items-start justify-between gap-3">
+                                              <div>
+                                                <p className="text-sm font-semibold text-emerald-800">
+                                                  {automaticReason.label}
+                                                </p>
+                                                <p className="mt-1 text-xs text-emerald-700">
+                                                  {automaticReason.helper}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <p className="mt-2 text-xs text-gray-600">
+                                              Fecha de vencimiento:{" "}
+                                              <span className="font-medium">
+                                                {formatDisplayDate(
+                                                  product.fecha_vencimiento,
+                                                )}
+                                              </span>
+                                            </p>
                                           </div>
-                                          {showErrors &&
-                                            !product.returnReason && (
-                                              <p className="text-red-500 text-xs mt-1">
-                                                Selecciona una razón
-                                              </p>
-                                            )}
                                         </div>
 
                                         {/* Acción + detalle */}

@@ -12,12 +12,12 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-20 px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-md">
+    <nav className="fixed top-0 left-0 right-0 z-50 h-20 px-4 md:px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-md">
       
       {/* Logo + Nombre */}
       <div className="flex items-center space-x-3">
         <img src={logo} alt="Logo" className="h-12" />
-        <span className="text-2xl font-bold text-green-900 tracking-wider">
+        <span className="text-xl md:text-2xl font-bold text-green-900 tracking-wider">
           KAJAMART
         </span>
       </div>
@@ -39,10 +39,10 @@ export default function Navbar() {
       </ul>
 
       {/* Botón login */}
-      <div className="hidden md:block">
+      <div className="block">
         <Link
           to="/login"
-          className="px-6 py-2 rounded-full bg-green-900 text-white font-semibold shadow-md hover:bg-green-700 transition-colors"
+          className="px-4 md:px-6 py-2 rounded-full bg-green-900 text-white text-sm md:text-base font-semibold shadow-md hover:bg-green-700 transition-colors"
         >
           Ingresar
         </Link>

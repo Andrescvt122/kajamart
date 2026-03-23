@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-const API_URL = "http://localhost:3000/users";
+const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/users";
 
 export const useDeleteUsuario = () => {
   const [loading, setLoading] = useState(false);

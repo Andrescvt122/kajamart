@@ -310,7 +310,7 @@ export default function IndexLow() {
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
-              Productos de baja
+              Baja de productos
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Administrador de tienda
