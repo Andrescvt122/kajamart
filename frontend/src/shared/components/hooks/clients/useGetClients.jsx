@@ -1,63 +1,86 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/clients";
+//Usar API_URL_DEPLOY si quieres usar la de azure.
+const API_URL_DEPLOY = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/clients";
+const API_URL = "http://localhost:3000/kajamart/api/clients";
+const DEFAULT_LIMIT = 6;
 
-export const useGetClients = () => {
-
+export const useGetClients = ({ initialPage = 1, limit = DEFAULT_LIMIT } = {}) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(Number(initialPage) || 1);
   const [totalPages, setTotalPages] = useState(1);
-  const limit = 10;
+  const [totalItems, setTotalItems] = useState(0);
 
-  const fetchClients = async (pageNumber = page) => {
+  const fetchClients = useCallback(
+    async (requestedPage = page) => {
+      const safePage = Number(requestedPage) > 0 ? Number(requestedPage) : 1;
+      setLoading(true);
+      setError(null);
 
-    setLoading(true);
-    setError(null);
+      try {
+        const response = await axios.get(
+          `${API_URL}?page=${safePage}&limit=${limit}`
+        );
 
-    try {
+        const clients = Array.isArray(response.data.data)
+          ? response.data.data
+          : [];
 
-      const response = await axios.get(
-        `${API_URL}?page=${pageNumber}&limit=${limit}`
-      );
+        const adaptedData = clients.map((client) => ({
+          id: client.id_cliente || client.id,
+          nombre: client.nombre_cliente ?? client.nombre ?? "",
+          tipoDocumento: client.tipo_docume ?? client.tipoDocumento ?? "",
+          numeroDocumento: client.numero_doc ?? client.numeroDocumento ?? "",
+          correo: client.correo_cliente ?? client.correo ?? "",
+          telefono: client.telefono_cliente ?? client.telefono ?? "",
+          activo:
+            client.estado_cliente ??
+            client.activo ??
+            (client.estado === "activo") ??
+            false,
+        }));
 
-      const clients = response.data.data;
+        setData(adaptedData);
 
-      const adaptedData = clients.map((client) => ({
-        id: client.id_cliente || client.id,
-        nombre: client.nombre_cliente,
-        tipoDocumento: client.tipo_docume,
-        numeroDocumento: client.numero_doc,
-        correo: client.correo_cliente,
-        telefono: client.telefono_cliente,
-        activo: client.estado_cliente
-      }));
+        const remotePage = Number(response.data.pagination?.page) || safePage;
+        const remoteTotal = Number(response.data.pagination?.totalPages) || 1;
+        const remoteTotalItems = Number(response.data.pagination?.totalItems) || 0;
 
-      setData(adaptedData);
-      setTotalPages(response.data.pagination.totalPages);
-      setPage(response.data.pagination.page);
-
-      console.log("✅ Clientes obtenidos:", adaptedData);
-
-    } catch (err) {
-
-      console.error("❌ Error al obtener clientes:", err);
-
-      setError(
-        err.response?.data?.error || "Error al obtener clientes."
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  };
+        setPage(remotePage);
+        setTotalPages(remoteTotal);
+        setTotalItems(remoteTotalItems);
+      } catch (err) {
+        console.error("❌ Error al obtener clientes:", err);
+        setError(
+          err.response?.data?.error || err.message || "Error al obtener clientes."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [limit, page]
+  );
 
   useEffect(() => {
-    fetchClients(1);
-  }, []);
+    fetchClients(page);
+  }, [fetchClients, page]);
+
+  const refetch = useCallback(() => fetchClients(page), [fetchClients, page]);
+
+  const goToPage = useCallback(
+    (nextPage) => {
+      const safeNext = Number(nextPage) > 0 ? Number(nextPage) : 1;
+      setPage((prev) => {
+        if (safeNext === prev) return prev;
+        return safeNext;
+      });
+    },
+    [setPage]
+  );
 
   return {
     data,
@@ -65,7 +88,9 @@ export const useGetClients = () => {
     error,
     page,
     totalPages,
+    totalItems,
     setPage,
-    refetch: fetchClients
+    goToPage,
+    refetch,
   };
 };

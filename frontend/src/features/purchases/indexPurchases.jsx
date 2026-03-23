@@ -7,8 +7,8 @@ import { useAuth } from "../../context/useAtuh";
 import { exportPurchaseReceiptPDF } from "../purchases/helper/eportPurchaseReceiptPDF";
 import { useFetchPurchases as useSearchPurchases } from "../../shared/components/hooks/search/useFetchPruchases";
 
+
 import ondas from "../../assets/ondasHorizontal.png";
-import Loading from "../onboarding/loading.jsx";
 
 import Paginator from "../../shared/components/paginator";
 import {
@@ -46,38 +46,6 @@ const isAnulada = (estado) => {
   const s = String(estado || "").toLowerCase();
   return s === "anulada" || s === "anulado" || s === "cancelada" || s === "cancelado";
 };
-
-const getPurchaseStatusClasses = (estado) => {
-  if (isAnulada(estado)) return "bg-red-100 text-red-700";
-  if (estado === "Completada" || estado === "Completado") {
-    return "bg-green-50 text-green-700";
-  }
-  if (estado === "Pendiente") return "bg-yellow-50 text-yellow-700";
-  return "bg-gray-100 text-gray-700";
-};
-
-function ChevronIcon({ open }) {
-  return (
-    <motion.svg
-      width="18"
-      height="18"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      animate={{ rotate: open ? 180 : 0 }}
-      transition={{ duration: 0.2 }}
-      className="text-gray-500"
-    >
-      <path
-        d="M5.5 7.5l4.5 4 4.5-4"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </motion.svg>
-  );
-}
 
 // ✅ util: unique conservando orden
 const uniqueKeepOrder = (arr) => {
@@ -120,12 +88,6 @@ const normalizeApiPurchasesForUI = (list) => {
       c?.fecha ??
       c?.created_at ??
       new Date().toISOString();
-
-    const createdAt =
-      c?.created_at ??
-      c?.fecha_creacion ??
-      c?.fecha_registro ??
-      fecha;
 
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
@@ -219,10 +181,6 @@ const normalizeApiPurchasesForUI = (list) => {
       nit: String(proveedorNit),
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-      createdAt:
-        typeof createdAt === "string"
-          ? createdAt
-          : new Date(createdAt).toISOString(),
       estado,
       productos,
       comprobante,
@@ -440,16 +398,6 @@ useEffect(() => {
   const currentLoading = isSearchMode ? searchLoading : isLoadingApi;
   const currentError = isSearchMode ? searchError : apiError;
 
-  const tableVariants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.08 } },
-  };
-
-  const rowVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-  };
-
   // =========================
   // Handlers
   // =========================
@@ -513,7 +461,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({
@@ -582,13 +530,96 @@ useEffect(() => {
   [canAnnular]
 );
   // =========================
+  // Print Compra
+  // =========================
+const handleDownloadReceiptPdf = useCallback((purchase) => {
+  console.log("CLICK PDF", purchase);
+  exportPurchaseReceiptPDF({
+    purchase,
+    filename: `recibo_compra_${purchase.factura}.pdf`,
+  });
+}, []);
+
+
+  const handlePrint = useCallback((purchase) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const productosHtml = (purchase.productos || [])
+      .map((p) => {
+        const nombre = p?.nombre ?? "—";
+        const paq = Number(p?.cantidad_paquetes ?? 0);
+        const precio = Number(p?.precioCompra ?? 0);
+
+        return `
+          <tr>
+            <td>${nombre}</td>
+            <td>${paq}</td>
+            <td>$${precio.toFixed(0)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const contenido = `
+      <html>
+        <head>
+          <title>Compra ${purchase.factura}</title>
+          <style>
+            body { font-family: Arial; padding: 20px; }
+            h2 { text-align: center; color: #16a34a; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; }
+            th { background-color: #f4f4f4; }
+          </style>
+        </head>
+        <body>
+          <h2>Detalle de Compra - ${purchase.factura}</h2>
+          <p><b>Fecha:</b> ${onlyDate(purchase.fecha)}</p>
+          <p><b>Proveedor:</b> ${purchase.proveedor}</p>
+          <p><b>NIT:</b> ${purchase.nit}</p>
+          <p><b>Total:</b> ${money(purchase.total)}</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Paquetes</th>
+                <th>Precio</th>
+              </tr>
+            </thead>
+            <tbody>${productosHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(contenido);
+    doc.close();
+
+    iframe.onload = () => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      document.body.removeChild(iframe);
+    };
+  }, []);
+
+  // =========================
   // Render
   // =========================
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden">
+    <div className="flex min-h-screen">
       {/* Fondo decorativo */}
       <div
-        className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
+        className="absolute bottom-0 left-0 w-full pointer-events-none"
         style={{
           height: "50%",
           backgroundImage: `url(${ondas})`,
@@ -597,232 +628,78 @@ useEffect(() => {
           backgroundSize: "cover",
           zIndex: 0,
         }}
-      >
-        <div className="h-full w-full" />
-      </div>
+      />
 
-      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
-        <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0">
+      <div className="flex-1 relative min-h-screen p-8 overflow-auto">
+        <div className="relative z-10">
           {/* Header */}
-          <div className="mb-4 sm:mb-6">
+          <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">
-                Compras
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              <h2 className="text-3xl font-semibold text-gray-800">Compras</h2>
+              <p className="text-sm text-gray-500 mt-1">
                 Historial y análisis de compras realizadas.
               </p>
+              {currentError ? (
+                <p className="text-sm text-red-600 mt-2">{currentError}</p>
+              ) : null}
             </div>
           </div>
 
           {/* Buscador + botones */}
-          <div className="mb-4 sm:mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
-              <div className="relative min-w-0">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search size={20} className="text-gray-400" />
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setSearchPage(1);
-                  }}
-                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-sm"
-                />
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={20} className="text-gray-400" />
               </div>
 
-              <div className="flex justify-end">
-                <ExportExcelButton
-                  event={() =>
-                    exportPurchasesToExcel(
-                      isSearchMode ? searchedPurchases : filtered
-                    )
-                  }
-                >
-                  Excel
-                </ExportExcelButton>
-              </div>
+              <input
+                type="text"
+                placeholder="Buscar por factura, proveedor, NIT, fecha o estado..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSearchPage(1);
+                }}
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-black"
+              />
+            </div>
 
-              <div className="flex justify-end">
-                <ExportPDFButton
-                  event={() =>
-                    exportPurchasesToPdf({
-                      rows: isSearchMode ? searchedPurchases : filtered,
-                      filename: "compras.pdf",
-                    })
-                  }
-                >
-                  PDF
-                </ExportPDFButton>
-              </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <ExportExcelButton
+                event={() =>
+                  exportPurchasesToExcel(
+                    isSearchMode ? searchedPurchases : filtered
+                  )
+                }
+              >
+                Excel
+              </ExportExcelButton>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => navigate("/app/purchases/register")}
-                  className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition w-full sm:w-auto"
-                  hidden={!canCreate}
-                >
-                  Registrar Nueva Compra
-                </button>
-              </div>
+              <ExportPDFButton
+                event={() =>
+                  exportPurchasesToPdf({
+                    rows: isSearchMode ? searchedPurchases : filtered,
+                    filename: "compras.pdf",
+                  })
+                }
+              >
+                PDF
+              </ExportPDFButton>
+
+              <button
+                onClick={() => navigate("/app/purchases/register")}
+                className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition"
+                hidden={!canCreate}
+              >
+                Registrar Nueva Compra
+              </button>
             </div>
           </div>
 
-          {/* Móvil */}
-          <motion.div
-            className="md:hidden"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {currentLoading ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
-                <Loading inline heightClass="h-28" />
-              </div>
-            ) : currentError ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
-                {currentError}
-              </div>
-            ) : displayedPurchases.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
-                No se encontraron compras.
-              </div>
-            ) : (
-              <motion.ul className="space-y-3" variants={tableVariants}>
-                {displayedPurchases.map((p, i) => {
-                  const id = p.id || `${p.factura}-${i}`;
-                  const isOpen = expanded.has(id);
-                  const panelId = `purchase-${id}`;
-
-                  return (
-                    <motion.li
-                      key={`${id}-mobile`}
-                      variants={rowVariants}
-                      className="bg-white rounded-xl shadow-sm border border-gray-100"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(id)}
-                        aria-expanded={isOpen}
-                        aria-controls={panelId}
-                        className="w-full p-4 text-left"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[11px] uppercase tracking-wide text-gray-500">
-                                Factura #{p.factura}
-                              </span>
-                              <span
-                                className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${getPurchaseStatusClasses(
-                                  p.estado
-                                )}`}
-                              >
-                                {p.estado}
-                              </span>
-                            </div>
-                            <p
-                              className="mt-1 text-base font-semibold text-gray-900 truncate"
-                              title={p.proveedor}
-                            >
-                              {p.proveedor}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {onlyDate(p.fecha)} · NIT {p.nit}
-                            </p>
-                          </div>
-                          <ChevronIcon open={isOpen} />
-                        </div>
-                      </button>
-
-                      <AnimatePresence initial={false}>
-                        {isOpen && (
-                          <motion.div
-                            id={panelId}
-                            initial={{ height: 0, opacity: 0, y: -4 }}
-                            animate={{ height: "auto", opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -2 }}
-                            transition={{ duration: 0.32 }}
-                            className="overflow-hidden border-t border-gray-100"
-                          >
-                            <div className="px-4 py-4 grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Total
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {money(p.total)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Productos
-                                </p>
-                                <p className="text-sm text-gray-800">
-                                  {p.productos?.length || 0}
-                                </p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                                  Estado
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAnnulPurchase(p)}
-                                  disabled={!canAnnular || isAnulada(p.estado)}
-                                  title={
-                                    !canAnnular
-                                      ? "No tienes permiso para anular"
-                                      : isAnulada(p.estado)
-                                      ? "Esta compra ya está anulada"
-                                      : canAnnulPurchase(p)
-                                      ? "Click para anular (menos de 30 min)"
-                                      : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
-                                  }
-                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-                                    !canAnnular || isAnulada(p.estado)
-                                      ? "opacity-70 cursor-not-allowed"
-                                      : "cursor-pointer hover:opacity-90"
-                                  } ${getPurchaseStatusClasses(p.estado)}`}
-                                >
-                                  {p.estado}
-                                </button>
-                              </div>
-                              <div className="col-span-2 pt-1 flex items-center gap-2">
-                                <ViewButton event={() => handleViewDetails(p)} />
-                                <PrinterButton
-                                  event={() =>
-                                    exportPurchaseReceiptPDF({
-                                      purchase: p,
-                                      filename: `recibo_compra_${p.factura}.pdf`,
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-          </motion.div>
-
-          {/* Desktop */}
-          <motion.div
-            className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
-            variants={tableVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <div className="overflow-x-auto max-w-full">
-              <table className="min-w-[880px] lg:min-w-[980px] w-full md:table-fixed">
+          {/* Tabla */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
                 <colgroup>
                   <col className="w-[160px]" />
                   <col className="w-[260px]" />
@@ -846,107 +723,131 @@ useEffect(() => {
                 </thead>
 
                 <tbody className="divide-y divide-gray-100">
-                  {currentLoading ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-12">
-                        <Loading inline heightClass="h-28" />
-                      </td>
-                    </tr>
-                  ) : currentError ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
-                        {currentError}
-                      </td>
-                    </tr>
-                  ) : displayedPurchases.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                        No se encontraron compras.
-                      </td>
-                    </tr>
-                  ) : (
-                    displayedPurchases.map((p) => (
+                  <AnimatePresence>
+                    {currentLoading ? (
                       <motion.tr
-                        key={p.id}
-                        variants={rowVariants}
-                        className="hover:bg-gray-50"
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
-                          {p.factura}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm text-gray-700 truncate">
-                          {p.proveedor}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
-                          {p.nit}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
-                          {money(p.total)}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                          {onlyDate(p.fecha)}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => handleAnnulPurchase(p)}
-                            disabled={!canAnnular || isAnulada(p.estado)}
-                            title={
-                              !canAnnular
-                                ? "No tienes permiso para anular"
-                                : isAnulada(p.estado)
-                                ? "Esta compra ya está anulada"
-                                : canAnnulPurchase(p)
-                                ? "Click para anular (menos de 30 min)"
-                                : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
-                            }
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${
-                              !canAnnular || isAnulada(p.estado)
-                                ? "opacity-70 cursor-not-allowed"
-                                : "cursor-pointer hover:opacity-90"
-                            } ${getPurchaseStatusClasses(p.estado)}`}
-                          >
-                            {p.estado}
-                          </button>
-                        </td>
-
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center justify-end gap-2">
-                            <ViewButton event={() => handleViewDetails(p)} />
-                            <PrinterButton
-                              event={() =>
-                                exportPurchaseReceiptPDF({
-                                  purchase: p,
-                                  filename: `recibo_compra_${p.factura}.pdf`,
-                                })
-                              }
-                            />
-                          </div>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          Cargando compras...
                         </td>
                       </motion.tr>
-                    ))
-                  )}
+                    ) : displayedPurchases.length === 0 ? (
+                      <motion.tr
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-400"
+                        >
+                          No se encontraron compras.
+                        </td>
+                      </motion.tr>
+                    ) : (
+                      displayedPurchases.map((p) => (
+                        <motion.tr
+                          key={p.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap truncate">
+                            {p.factura}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 truncate">
+                            {p.proveedor}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap truncate">
+                            {p.nit}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                            {money(p.total)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {onlyDate(p.fecha)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAnnulPurchase(p)}
+                              disabled={!canAnnular || isAnulada(p.estado)}
+                              title={
+                                !canAnnular
+                                  ? "No tienes permiso para anular"
+                                  : isAnulada(p.estado)
+                                  ? "Esta compra ya está anulada"
+                                  : canAnnulPurchase(p)
+                                  ? "Click para anular (menos de 30 min)"
+                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                              }
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
+                                ${
+                                  !canAnnular || isAnulada(p.estado)
+                                    ? "opacity-70 cursor-not-allowed"
+                                    : "cursor-pointer hover:opacity-90"
+                                }
+                                ${
+                                  isAnulada(p.estado)
+                                    ? "bg-red-100 text-red-700"
+                                    : p.estado === "Completada" ||
+                                      p.estado === "Completado"
+                                    ? "bg-green-50 text-green-700"
+                                    : p.estado === "Pendiente"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                            >
+                              {p.estado}
+                            </button>
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <ViewButton event={() => handleViewDetails(p)} />
+                              <PrinterButton
+                                event={() => {
+                                  console.log("CLICK PDF", p);
+                                  exportPurchaseReceiptPDF({
+                                    purchase: p,
+                                    filename: `recibo_compra_${p.factura}.pdf`,
+                                  });
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </AnimatePresence>
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
 
           {/* Paginación */}
-          <div className="mt-4 sm:mt-6">
-            <Paginator
-              currentPage={currentPageValue}
-              perPage={pageSize}
-              totalPages={currentTotalPages}
-              filteredLength={displayedPurchases.length}
-              totalItems={currentTotalItems}
-              goToPage={goToPage}
-            />
-          </div>
+          <Paginator
+            currentPage={currentPageValue}
+            perPage={pageSize}
+            totalPages={currentTotalPages}
+            filteredLength={displayedPurchases.length}
+            totalItems={currentTotalItems}
+            goToPage={goToPage}
+          />
         </div>
       </div>
 
