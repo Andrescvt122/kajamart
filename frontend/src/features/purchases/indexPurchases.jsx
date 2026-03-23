@@ -89,12 +89,6 @@ const normalizeApiPurchasesForUI = (list) => {
       c?.created_at ??
       new Date().toISOString();
 
-    const createdAt =
-      c?.created_at ??
-      c?.fecha_creacion ??
-      c?.fecha_registro ??
-      fecha;
-
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
 
@@ -187,10 +181,6 @@ const normalizeApiPurchasesForUI = (list) => {
       nit: String(proveedorNit),
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-      createdAt:
-        typeof createdAt === "string"
-          ? createdAt
-          : new Date(createdAt).toISOString(),
       estado,
       productos,
       comprobante,
@@ -462,7 +452,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({
@@ -661,7 +651,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                   setSearchTerm(e.target.value);
                   setSearchPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-black"
               />
             </div>
 

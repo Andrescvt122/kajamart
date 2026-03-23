@@ -124,12 +124,19 @@ export default function IndexClients() {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-
   const [expanded, setExpanded] = useState(new Set());
 
   // Data hooks
-  const { data, loading, error, refetch } = useGetClients();
+  const {
+    data,
+    loading,
+    error,
+    refetch,
+    page,
+    totalPages,
+    totalItems,
+    goToPage,
+  } = useGetClients({ initialPage: 1, limit: PER_PAGE });
   const { deleteClient: deleteClientHook } = useClientDelete();
 
   // Options
@@ -177,18 +184,7 @@ export default function IndexClients() {
     });
   }, [allClients, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * PER_PAGE;
-    return filtered.slice(start, start + PER_PAGE);
-  }, [filtered, currentPage]);
-
-  // ---------------- UI helpers ----------------
-  const goToPage = (n) => {
-    const p = Math.min(Math.max(1, n), totalPages);
-    setCurrentPage(p);
-  };
+  const pageItems = filtered;
 
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -355,7 +351,7 @@ export default function IndexClients() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  setCurrentPage(1);
+                  goToPage(1);
                 }}
                 className="pl-12 pr-4 py-2.5 sm:py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-sm"
               />
@@ -528,7 +524,7 @@ export default function IndexClients() {
             animate="visible"
           >
             <div className="overflow-x-auto max-w-full">
-              <table key={currentPage} className="min-w-[800px] w-full">
+              <table key={page} className="min-w-[800px] w-full">
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50">
                     <th className="px-4 py-3">ID</th>
@@ -617,9 +613,10 @@ export default function IndexClients() {
           {/* Paginación */}
           <div className="mt-4 sm:mt-6">
             <Paginator
-              currentPage={currentPage}
+              currentPage={page}
               perPage={PER_PAGE}
               totalPages={totalPages}
+              totalItems={totalItems}
               filteredLength={filtered.length}
               goToPage={goToPage}
             />
