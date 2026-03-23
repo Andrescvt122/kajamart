@@ -1,7 +1,7 @@
 // src/features/sales/indexSales.jsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -47,6 +47,40 @@ const getDateTs = (v) => {
   const ts = d && !Number.isNaN(d.getTime()) ? d.getTime() : Number.POSITIVE_INFINITY;
   return ts;
 };
+
+const isSaleAnnulled = (estado) => {
+  const value = String(estado || "").toLowerCase();
+  return value === "anulada" || value === "anulado" || value === "cancelada";
+};
+
+const getSaleStatusClasses = (estado) => {
+  if (isSaleAnnulled(estado)) return "bg-red-100 text-red-700";
+  if (estado === "Pendiente") return "bg-yellow-50 text-yellow-700";
+  return "bg-green-50 text-green-700";
+};
+
+function ChevronIcon({ open }) {
+  return (
+    <motion.svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="text-gray-500"
+    >
+      <path
+        d="M5.5 7.5l4.5 4 4.5-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </motion.svg>
+  );
+}
 
 const mapSalesForUI = (list) => {
   const arr = (list || []).map((v) => {
@@ -101,10 +135,10 @@ export default function IndexSales() {
   const [searchPage, setSearchPage] = useState(1);
   const [selectedSale, setSelectedSale] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
   const { hasPermission } = useAuth();
-  const canCreate= hasPermission("Crear venta");
-  const canAnnular= hasPermission('Anular venta');
-  console.log("poder anular venta", canAnnular);
+  const canCreate = hasPermission("Crear venta");
+  const canAnnular = hasPermission("Anular venta");
   const trimmedSearchTerm = searchTerm.trim();
   const isSearchMode = trimmedSearchTerm.length > 0;
   const { data: searchedSales, loading: searchLoading, error: searchError } =
@@ -150,6 +184,14 @@ export default function IndexSales() {
   const rowVariants = {
     hidden: { opacity: 0, y: 10 },
     visible: { opacity: 1, y: 0 },
+  };
+
+  const toggleExpand = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   const PrintSaleButton = ({ sale }) => (
@@ -284,9 +326,9 @@ export default function IndexSales() {
   };
 
   return (
-    <>
+    <div className="flex min-h-screen w-full overflow-x-hidden">
       <div
-        className="absolute bottom-0 left-0 w-full pointer-events-none"
+        className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
         style={{
           height: "50%",
           backgroundImage: `url(${ondas})`,
@@ -296,167 +338,313 @@ export default function IndexSales() {
           transform: "scaleX(1.15)",
           zIndex: 0,
         }}
-      />
+      >
+        <div className="h-full w-full" />
+      </div>
 
-      <div className="relative z-10 min-h-screen flex flex-col p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h2 className="text-3xl font-semibold">Ventas</h2>
-            <p className="text-sm text-gray-500 mt-1">Historial de ventas</p>
+      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
+        <div className="relative z-10 mx-auto flex min-h-full w-full max-w-screen-xl min-w-0 flex-col">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-2xl sm:text-3xl font-semibold">Ventas</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Historial de ventas
+            </p>
           </div>
-        </div>
 
-        {currentLoading && (
-          <p className="text-sm text-gray-500 mb-3">Cargando ventas...</p>
-        )}
-        {currentError && <p className="text-sm text-red-600 mb-3">{currentError}</p>}
+          <div className="mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+              <div className="relative min-w-0">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={18} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar ventas..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setSearchPage(1);
+                  }}
+                  className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-sm"
+                />
+              </div>
 
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
+              <div className="flex justify-end">
+                <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
+              </div>
+
+              <div className="flex justify-end">
+                <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => navigate("/app/sales/register")}
+                  className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+                  hidden={!canCreate}
+                >
+                  Registrar Nueva Venta
+                </button>
+              </div>
             </div>
-            <input
-              type="text"
-              placeholder="Buscar ventas..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setSearchPage(1);
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-gray-50 text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
-            />
           </div>
 
-          <div className="flex gap-2 flex-shrink-0">
-            <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
-            <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
-
-            <button
-              onClick={() => navigate("/app/sales/register")}
-              className="px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700"
-              hidden={!canCreate}
-            >
-              Registrar Nueva Venta
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table key={page} className="min-w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase">
-                <th className="px-6 py-4">#</th>
-                <th className="px-6 py-4">Fecha</th>
-                <th className="px-6 py-4">Cliente</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Medio de Pago</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
-              </tr>
-            </thead>
-
-            <motion.tbody
-              className="divide-y divide-gray-100"
-              variants={tableVariants}
-              animate="visible"
-            >
-              {currentLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center">
-                    <Loading inline heightClass="h-28" />
-                  </td>
-                </tr>
-              ) : displayedSales.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                    No se encontraron ventas.
-                  </td>
-                </tr>
-              ) : (
-              displayedSales.map((v, i) => {
-                  const rawId = v.raw?.id_venta ?? v.raw?.id;
+          <motion.div
+            className="md:hidden"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {currentLoading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-center">
+                <Loading inline heightClass="h-28" />
+              </div>
+            ) : currentError ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-red-500">
+                {currentError}
+              </div>
+            ) : displayedSales.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center text-gray-400">
+                No se encontraron ventas.
+              </div>
+            ) : (
+              <motion.ul className="space-y-3" variants={tableVariants}>
+                {displayedSales.map((v, i) => {
+                  const rawId = v.raw?.id_venta ?? v.raw?.id ?? v.id_ui;
+                  const isOpen = expanded.has(rawId);
                   const isUpdating = updatingId === rawId;
-                  const isAnnulled = v.estado_ui === "Anulada";
-
-                  // ✅ # consecutivo (1..N) en el orden por FECHA (vieja->nueva)
+                  const isAnnulled = isSaleAnnulled(v.estado_ui);
                   const rowNumber = (currentPageValue - 1) * pageSize + i + 1;
 
                   return (
-                    <motion.tr
-                      key={`${v.id_ui}-${i}`}
-                      className="hover:bg-gray-50"
+                    <motion.li
+                      key={`${v.id_ui}-mobile-${i}`}
                       variants={rowVariants}
+                      className="bg-white rounded-xl shadow-sm border border-gray-100"
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {rowNumber}
-                      </td>
-
-                      <td className="px-6 py-4 text-sm text-gray-600">{v.fecha_ui}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {v.cliente_ui}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {formatMoney(v.total_ui)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {v.medioPago_ui}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <button
-                          type="button"
-                          onClick={(event) => handleAnnulSale(event, v.raw)}
-                          disabled={isUpdating || isAnnulled || !canAnnular}
-                          title={
-                            isAnnulled
-                              ? "Esta venta ya está anulada"
-                              : "Click para anular"
-                          }
-                          className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition
-                            ${
-                              isAnnulled || !canAnnular
-                                ? "bg-red-100 text-red-700 hover:bg-red-200"
-                                : "bg-green-50 text-green-700 hover:bg-green-100"
-                            }
-                            ${
-                              isUpdating || isAnnulled
-                                ? "opacity-60 cursor-not-allowed"
-                                : "cursor-pointer"
-                            }`}
-                        >
-                          {isUpdating ? "Actualizando..." : v.estado_ui}
-                        </button>
-                      </td>
-
-                      <td className="px-6 py-4 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <ViewButton event={() => setSelectedSale(v.raw)} />
-                          <PrintSaleButton sale={v} />
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(rawId)}
+                        aria-expanded={isOpen}
+                        aria-controls={`sale-${rawId}`}
+                        className="w-full p-4 text-left"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                                Venta #{rowNumber}
+                              </span>
+                              <span
+                                className={`inline-flex items-center justify-center px-2 py-[2px] text-[11px] font-semibold rounded-full ${getSaleStatusClasses(
+                                  v.estado_ui
+                                )}`}
+                              >
+                                {v.estado_ui}
+                              </span>
+                            </div>
+                            <p
+                              className="mt-1 text-base font-semibold text-gray-900 truncate"
+                              title={v.cliente_ui}
+                            >
+                              {v.cliente_ui}
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {v.fecha_ui} · {v.medioPago_ui || "Sin método de pago"}
+                            </p>
+                          </div>
+                          <ChevronIcon open={isOpen} />
                         </div>
-                      </td>
-                    </motion.tr>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            id={`sale-${rawId}`}
+                            initial={{ height: 0, opacity: 0, y: -4 }}
+                            animate={{ height: "auto", opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -2 }}
+                            transition={{ duration: 0.32 }}
+                            className="overflow-hidden border-t border-gray-100"
+                          >
+                            <div className="px-4 py-4 grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Total
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  {formatMoney(v.total_ui)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Productos
+                                </p>
+                                <p className="text-sm text-gray-800">
+                                  {v.productos_ui?.length || 0}
+                                </p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-[11px] uppercase tracking-wide text-gray-500">
+                                  Estado
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleAnnulSale(event, v.raw)}
+                                  disabled={isUpdating || isAnnulled || !canAnnular}
+                                  title={
+                                    isAnnulled
+                                      ? "Esta venta ya está anulada"
+                                      : "Click para anular"
+                                  }
+                                  className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition ${
+                                    isUpdating || isAnnulled
+                                      ? "opacity-60 cursor-not-allowed"
+                                      : "cursor-pointer"
+                                  } ${getSaleStatusClasses(v.estado_ui)}`}
+                                >
+                                  {isUpdating ? "Actualizando..." : v.estado_ui}
+                                </button>
+                              </div>
+                              <div className="col-span-2 pt-1 flex items-center gap-2">
+                                <ViewButton event={() => setSelectedSale(v.raw)} />
+                                <PrintSaleButton sale={v} />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
                   );
-                })
-              )}
-            </motion.tbody>
-          </table>
+                })}
+              </motion.ul>
+            )}
+          </motion.div>
+
+          <motion.div
+            className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100"
+            variants={tableVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <div className="overflow-x-auto max-w-full">
+              <table key={page} className="min-w-[900px] lg:min-w-[1080px] w-full md:table-fixed">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 uppercase">
+                    <th className="px-6 py-4">#</th>
+                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Total</th>
+                    <th className="px-6 py-4">Medio de Pago</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+
+                <motion.tbody
+                  className="divide-y divide-gray-100"
+                  variants={tableVariants}
+                  animate="visible"
+                >
+                  {currentLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center">
+                        <Loading inline heightClass="h-28" />
+                      </td>
+                    </tr>
+                  ) : currentError ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-red-500">
+                        {currentError}
+                      </td>
+                    </tr>
+                  ) : displayedSales.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                        No se encontraron ventas.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedSales.map((v, i) => {
+                      const rawId = v.raw?.id_venta ?? v.raw?.id;
+                      const isUpdating = updatingId === rawId;
+                      const isAnnulled = isSaleAnnulled(v.estado_ui);
+                      const rowNumber = (currentPageValue - 1) * pageSize + i + 1;
+
+                      return (
+                        <motion.tr
+                          key={`${v.id_ui}-${i}`}
+                          className="hover:bg-gray-50"
+                          variants={rowVariants}
+                        >
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {rowNumber}
+                          </td>
+
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {v.fecha_ui}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            {v.cliente_ui}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {formatMoney(v.total_ui)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {v.medioPago_ui}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <button
+                              type="button"
+                              onClick={(event) => handleAnnulSale(event, v.raw)}
+                              disabled={isUpdating || isAnnulled || !canAnnular}
+                              title={
+                                isAnnulled
+                                  ? "Esta venta ya está anulada"
+                                  : "Click para anular"
+                              }
+                              className={`inline-flex items-center justify-center px-3 py-1 text-xs font-semibold rounded-full transition ${
+                                isUpdating || isAnnulled
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "cursor-pointer"
+                              } ${getSaleStatusClasses(v.estado_ui)}`}
+                            >
+                              {isUpdating ? "Actualizando..." : v.estado_ui}
+                            </button>
+                          </td>
+
+                          <td className="px-6 py-4 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <ViewButton event={() => setSelectedSale(v.raw)} />
+                              <PrintSaleButton sale={v} />
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })
+                  )}
+                </motion.tbody>
+              </table>
+            </div>
+          </motion.div>
+
+          <div className="mt-4 sm:mt-6">
+            <Paginator
+              currentPage={currentPageValue}
+              perPage={pageSize}
+              totalPages={currentTotalPages}
+              filteredLength={displayedSales.length}
+              totalItems={currentTotalItems}
+              goToPage={handlePageChange}
+            />
+          </div>
+          <SaleDetailModal
+            sale={selectedSale}
+            onClose={() => setSelectedSale(null)}
+          />
         </div>
-
-       <Paginator
-          currentPage={currentPageValue}
-          perPage={pageSize}
-          totalPages={currentTotalPages}
-          filteredLength={displayedSales.length}
-          totalItems={currentTotalItems}
-          goToPage={handlePageChange}
-        />
-
-        <SaleDetailModal
-          sale={selectedSale}
-          onClose={() => setSelectedSale(null)}
-        />
       </div>
-    </>
+    </div>
   );
 }
