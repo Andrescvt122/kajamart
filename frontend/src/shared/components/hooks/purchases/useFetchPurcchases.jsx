@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
-const PURCHASES_URL = "http://localhost:3000/kajamart/api/purchase";
+const PURCHASES_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/purchase";
 /**
  * Hook para obtener todas las compras.
  *

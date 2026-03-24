@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
+//Usar API_URL_DEPLOY si quieres usar la de azure.
+const API_URL_DEPLOY = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/clients";
 const API_URL = "http://localhost:3000/kajamart/api/clients";
-const DEFAULT_LIMIT = 10;
+const DEFAULT_LIMIT = 6;
 
 export const useGetClients = ({ initialPage = 1, limit = DEFAULT_LIMIT } = {}) => {
   const [data, setData] = useState([]);

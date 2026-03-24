@@ -6,6 +6,7 @@ import {
   Calendar,
   User,
   FileText,
+  ExternalLink,
   Hash,
   CheckCircle,
   XCircle,
@@ -15,7 +16,6 @@ import {
 
 const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
   const [page, setPage] = useState(1);
-  const [expandedBarcodeId, setExpandedBarcodeId] = useState(null);
   const perPage = 5;
   const products = returnData?.products || [];
   const totalPages = Math.ceil(products.length / perPage);
@@ -136,14 +136,20 @@ const DetailsReturnProduct = ({ isOpen, onClose, returnData }) => {
                   </span>
                 </div>
                 {returnData?.comprobante?.url ? (
-                  <a
-                    href={returnData.comprobante.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-semibold text-emerald-700 hover:underline"
-                  >
-                    Ver comprobante
-                  </a>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">
+                      {returnData?.comprobante?.name || "Comprobante cargado"}
+                    </p>
+                    <a
+                      href={returnData.comprobante.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    >
+                      <ExternalLink size={16} />
+                      Ver comprobante
+                    </a>
+                  </div>
                 ) : (
                   <p className="text-lg font-semibold text-gray-900">Sin comprobante</p>
                 )}

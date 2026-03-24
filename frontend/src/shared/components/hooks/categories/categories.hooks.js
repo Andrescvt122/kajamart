@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart";
 const API = `${API_BASE}/api/categories`;
 
 // Mapper desde API → UI
