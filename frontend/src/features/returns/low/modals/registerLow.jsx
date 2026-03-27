@@ -1,22 +1,276 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   ClipboardList,
+  Search,
   Package,
   Trash2,
   Minus,
   Plus,
   AlertTriangle,
   CheckCircle,
+  AlertCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import ProductSearch from "../../../../shared/components/searchBars/productSearch";
 import { usePostLowProducts } from "../../../../shared/components/hooks/lowProducts/usePostLowProducts";
 import UnitTransferProductModal from "./UnitTransferProductModal";
 import { useAuth } from "../../../../context/useAtuh";
+import { useFetchProduct } from "../../../../shared/components/hooks/searchBars/useFetchProducts";
 import Swal from "sweetalert2";
+
+const LowProductSearch = ({
+  onSelectProduct,
+  excludedProducts = [],
+  disabled = false,
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedTerm, setDebouncedTerm] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const anchorRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedTerm(searchTerm.trim());
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (!showAlert) return undefined;
+
+    const timer = setTimeout(() => setShowAlert(false), 3000);
+    return () => clearTimeout(timer);
+  }, [showAlert]);
+
+  useEffect(() => {
+    if (!disabled) return undefined;
+
+    setShowDropdown(false);
+    return undefined;
+  }, [disabled]);
+
+  const { data: products, loading, error } = useFetchProduct(debouncedTerm);
+
+  const filteredProducts = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+
+    const excludedSet = new Set(excludedProducts);
+    return products.filter(
+      (product) => !excludedSet.has(product.id_detalle_producto),
+    );
+  }, [excludedProducts, products]);
+
+  const formatPrice = (price) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(price || 0);
+
+  const showTemporaryAlert = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+  };
+
+  const updateDropdownPosition = () => {
+    const element = anchorRef.current;
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    let top = rect.bottom + 8;
+    let left = rect.left;
+    const width = rect.width;
+    const approxHeight = Math.min(
+      320,
+      56 + (filteredProducts?.length || 0) * 64,
+    );
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    if (top + approxHeight > viewportHeight - 8) {
+      top = Math.max(8, rect.top - 8 - approxHeight);
+    }
+
+    if (left + width > viewportWidth - 8) {
+      left = Math.max(8, viewportWidth - width - 8);
+    }
+
+    setDropdownPos({ top, left, width });
+  };
+
+  const handleSelectProduct = (product) => {
+    const availableStock = Number(product.stock_producto ?? 0);
+
+    if (availableStock <= 0) {
+      showTemporaryAlert(
+        `El producto "${product.productos?.nombre || "sin nombre"}" no tiene stock disponible.`,
+      );
+      return;
+    }
+
+    onSelectProduct?.(product);
+    setSearchTerm("");
+    setDebouncedTerm("");
+    setShowDropdown(false);
+  };
+
+  const openDropdown = () => {
+    if (disabled) return;
+    setShowDropdown(true);
+    requestAnimationFrame(updateDropdownPosition);
+  };
+
+  useEffect(() => {
+    if (!showDropdown) return undefined;
+
+    const handleWindowChange = () => updateDropdownPosition();
+    window.addEventListener("resize", handleWindowChange);
+    window.addEventListener("scroll", handleWindowChange, true);
+    handleWindowChange();
+
+    return () => {
+      window.removeEventListener("resize", handleWindowChange);
+      window.removeEventListener("scroll", handleWindowChange, true);
+    };
+  }, [showDropdown, filteredProducts.length]);
+
+  useEffect(() => {
+    if (!showDropdown) return undefined;
+
+    const handleMouseDown = (event) => {
+      const anchorElement = anchorRef.current;
+      const dropdownElement = dropdownRef.current;
+      if (anchorElement?.contains(event.target)) return;
+      if (dropdownElement?.contains(event.target)) return;
+      setShowDropdown(false);
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [showDropdown]);
+
+  const dropdownUI = (
+    <AnimatePresence>
+      {showDropdown && searchTerm && (
+        <motion.div
+          ref={dropdownRef}
+          style={{
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 60,
+          }}
+          className="bg-white border border-gray-200 rounded-xl shadow-lg max-h-80 overflow-y-auto"
+          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          {loading ? (
+            <div className="p-4 text-center text-sm text-gray-500">
+              Buscando productos...
+            </div>
+          ) : error ? (
+            <div className="p-4 text-center text-sm text-red-500">{error}</div>
+          ) : filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => {
+              const isOutOfStock = Number(product.stock_producto ?? 0) <= 0;
+
+              return (
+                <motion.button
+                  key={product.id_detalle_producto}
+                  type="button"
+                  className={`w-full px-4 py-3 border-b border-gray-100 last:border-0 text-left transition-colors ${
+                    isOutOfStock
+                      ? "bg-gray-50 cursor-not-allowed opacity-60"
+                      : "hover:bg-green-50"
+                  }`}
+                  onClick={() => handleSelectProduct(product)}
+                  whileHover={!isOutOfStock ? { scale: 1.01 } : {}}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Package className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {product.productos?.nombre}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Cód. {product.codigo_barras_producto_compra} •{" "}
+                        {formatPrice(product.productos?.precio_venta)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Stock disponible: {product.stock_producto ?? 0}
+                      </p>
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })
+          ) : (
+            <div className="p-4 text-center text-sm text-gray-500">
+              No se encontraron coincidencias.
+            </div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <div className="relative mb-2" ref={anchorRef}>
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
+        </div>
+        <input
+          type="text"
+          className="block w-full rounded-lg border-0 py-3 pl-10 pr-4 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-green-400 transition-all bg-white disabled:cursor-not-allowed disabled:bg-gray-100"
+          placeholder="Buscar y seleccionar producto..."
+          value={searchTerm}
+          onChange={(event) => {
+            setSearchTerm(event.target.value);
+            setShowDropdown(true);
+          }}
+          onFocus={openDropdown}
+          autoComplete="off"
+          disabled={disabled}
+        />
+      </div>
+
+      <AnimatePresence>
+        {showAlert && (
+          <motion.div
+            className="mt-4 p-4 flex items-center gap-3 rounded-lg shadow-sm bg-red-100 text-red-700 border border-red-200"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <AlertCircle size={20} />
+            <p className="text-sm font-medium">{alertMessage}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {createPortal(dropdownUI, document.body)}
+    </div>
+  );
+};
+
 const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
@@ -100,7 +354,12 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       expiryDate: product.fecha_vencimiento || null,
       isExpired: isExpiredProduct(product.fecha_vencimiento),
     };
-    setSelectedProducts((prev) => [...prev, adaptedProduct]);
+    setSelectedProducts((prev) => {
+      if (prev.some((item) => item.id === adaptedProduct.id)) {
+        return prev;
+      }
+      return [...prev, adaptedProduct];
+    });
     setOpenConfigProductId(adaptedProduct.id);
   };
 
@@ -244,7 +503,6 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
       setIsSubmittingLow(false);
     }
   };
-  console.log("selectedProducts:", selectedProducts);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -284,9 +542,10 @@ const RegisterLow = ({ isOpen, onClose, onConfirm }) => {
 
               {/* Contenido */}
               <div className="flex flex-col p-6 space-y-4 flex-grow max-h-[70vh]">
-                <ProductSearch
-                  onAddProduct={handleAddProduct}
+                <LowProductSearch
+                  onSelectProduct={handleAddProduct}
                   excludedProducts={selectedProducts.map((p) => p.id)}
+                  disabled={isBusy}
                 />
 
                 {selectedProducts.length > 0 && (

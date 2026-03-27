@@ -75,7 +75,7 @@ export default function EditRoles({ isOpen, onClose, role, onRoleUpdated }) {
       const getRolDetails = async () => {
         try {
           const { data } = await axios.get(
-            `http://localhost:3000/kajamart/api/roles/${role.rol_id}`
+            `https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/roles/${role.rol_id}`
           );
           setRolCompleto(data); // Carga los permisos del rol
         } catch (error) {
