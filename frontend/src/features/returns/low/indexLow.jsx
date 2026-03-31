@@ -98,7 +98,7 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
-  const canAnnul = hasPermission('Anular baja producto');
+  const canAnnul = hasPermission('Anular baja de producto');
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
   const isSearching = searchTerm.trim() !== "";
@@ -216,7 +216,7 @@ export default function IndexLow() {
     const itemKey = getBlockKey(item.idLow);
     const status = annulledMap[item.idLow] ?? item.isActive;
     const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
-    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateLow, status);
+    const { isDisabled } = getAnnulmentMeta(item.createdAt, status);
     if (isDisabled || isBlockedByRelation) return;
 
     let relationConflictDetected = false;
@@ -480,7 +480,7 @@ export default function IndexLow() {
                                     checked={annulledMap[item.idLow] ?? item.isActive}
                                     disabled={
                                       getAnnulmentMeta(
-                                        item.createdAt || item.dateLow,
+                                        item.createdAt,
                                         annulledMap[item.idLow] ?? item.isActive
                                       ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
                                     }
@@ -649,7 +649,7 @@ export default function IndexLow() {
                                 checked={annulledMap[item.idLow] ?? item.isActive}
                                 disabled={
                                   !canAnnul || getAnnulmentMeta(
-                                    item.createdAt || item.dateLow,
+                                    item.createdAt,
                                     annulledMap[item.idLow] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
                                 }

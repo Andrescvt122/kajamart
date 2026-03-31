@@ -2,18 +2,20 @@ import { useState } from "react";
 import api from "../../../../api/axiosConfig";
 import generateProductLowsPDF from "../../../../features/returns/low/helpers/exportToPdf";
 import generateProductLowsXLS from "../../../../features/returns/low/helpers/exportToXls";
+import { formatDateOnly } from "../../../utils/dateTime";
 
 const extractArray = (payload) =>
   Array.isArray(payload) ? payload : payload?.data || payload?.lowProducts || [];
 
 const mapLow = (low) => ({
   idLow: low.id_baja_productos,
-  dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
+  dateLow: formatDateOnly(low.fecha_baja || low.created_at || low.createdAt),
   createdAt:
-    low.fecha_creacion ||
-    low.fecha_baja ||
-    low.createdAt ||
     low.created_at ||
+    low.createdAt ||
+    low.created_at_local ||
+    low.createdAtLocal ||
+    low.fecha_creacion ||
     null,
   isActive: Boolean(low.estado ?? low.activo ?? low.isActive ?? low.is_active ?? true),
   responsible: low.nombre_responsable,

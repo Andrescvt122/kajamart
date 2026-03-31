@@ -7,7 +7,7 @@ const TOKEN_COOKIE_NAME = "kajamart_token";
 export const useLogin = ()=>{
     const [loading, setLoading]=useState(false);
     const [error, setError]=useState(null);
-    const URL_LOGIN = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/auth/login"
+    const URL_LOGIN = "http://localhost:3000/kajamart/api/auth/login"
     const login=useCallback(
         async ({email, password}) =>{
             setLoading(true);

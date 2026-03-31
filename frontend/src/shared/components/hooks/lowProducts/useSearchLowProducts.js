@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import api from "../../../../api/axiosConfig";
+import { formatDateOnly } from "../../../utils/dateTime";
 
 const mapLowProduct = (low) => ({
   idLow: low.id_baja_productos,
-  dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
+  dateLow: formatDateOnly(low.fecha_baja || low.created_at || low.createdAt),
   createdAt:
     low.created_at ||
     low.createdAt ||
+    low.created_at_local ||
+    low.createdAtLocal ||
     low.fecha_creacion ||
-    low.fecha_baja ||
     null,
   isActive: Boolean(
     low.estado ?? low.activo ?? low.isActive ?? low.is_active ?? true
