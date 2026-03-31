@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../../../api/axiosConfig";
 import { formatDateOnly } from "../../../utils/dateTime";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const mapLowProduct = (low) => ({
   idLow: low.id_baja_productos,
@@ -54,7 +55,8 @@ const mapLowProduct = (low) => ({
   })(),
 });
 
-export const useSearchLowProducts = (searchTerm) => {
+export const useSearchLowProducts = (searchTerm, statusFilter = "all") => {
+  const apiStatus = toStatusFilterParam(statusFilter);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -75,7 +77,10 @@ export const useSearchLowProducts = (searchTerm) => {
       setError(null);
       try {
         const response = await api.get("/lowProducts/search", {
-          params: { q: term },
+          params: {
+            q: term,
+            ...(apiStatus ? { status: apiStatus } : {}),
+          },
         });
         const rows = Array.isArray(response.data) ? response.data : response.data?.data || [];
         if (!ignore) setData(rows.map(mapLowProduct));
@@ -98,7 +103,7 @@ export const useSearchLowProducts = (searchTerm) => {
     return () => {
       ignore = true;
     };
-  }, [searchTerm]);
+  }, [searchTerm, apiStatus]);
 
   return { data, loading, error };
 };

@@ -10,10 +10,9 @@ import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import RegisterLow from "./modals/registerLow";
 import DetailsLow from "./modals/detailsLow";
-import generateProductLowsPDF from "./helpers/exportToPdf";
-import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
 import { useSearchLowProducts } from "../../../shared/components/hooks/lowProducts/useSearchLowProducts";
+import { useExportLowProducts } from "../../../shared/components/hooks/lowProducts/useExportLowProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../onboarding/loading";
 import Swal from "sweetalert2";
@@ -71,6 +70,7 @@ function ChevronIcon({ open }) {
 
 export default function IndexLow() {
   const perPage = 6;
+  const [statusFilter, setStatusFilter] = useState("all");
   const {
     fetchPage,
     pagesCache,
@@ -80,14 +80,15 @@ export default function IndexLow() {
     reset,
     getTotalPages,
     getLoadedCount,
-  } = useGetLowProducts(perPage);
+  } = useGetLowProducts(perPage, statusFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const {
     data: searchedLows = [],
     loading: searchLoading,
     error: searchError,
-  } = useSearchLowProducts(searchTerm);
-  const [statusFilter, setStatusFilter] = useState("all");
+  } = useSearchLowProducts(searchTerm, statusFilter);
+  const { exportLowProductsExcel, exportLowProductsPdf } =
+    useExportLowProducts();
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
@@ -107,7 +108,7 @@ export default function IndexLow() {
     if (!isSearching) {
       fetchPage(currentPage);
     }
-  }, [currentPage, isSearching]);
+  }, [currentPage, isSearching, statusFilter]);
 
   const buildAnnulErrorMessage = (err) => {
     const payload = err?.response?.data ?? {};
@@ -181,6 +182,29 @@ export default function IndexLow() {
       )
     );
   }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedLows]);
+
+  const filterLowProductsForExport = (items) => {
+    const s = normalizeText(searchTerm.trim());
+    const expandedRows = items.flatMap((low) =>
+      (low.products || []).map((product) => ({
+        ...low,
+        currentProduct: product,
+        _rowId: `${low.idLow}-${product.id ?? product.idProducto ?? product.name}`,
+      }))
+    );
+
+    if (!s) return expandedRows;
+
+    const match = (val) => normalizeText(String(val ?? "")).includes(s);
+
+    return expandedRows.filter((item) =>
+      Object.values(item).some((val) =>
+        typeof val === "object"
+          ? Object.values(val).some((v) => match(v))
+          : match(val)
+      )
+    );
+  };
 
   const totalPages = isSearching
     ? Math.max(1, Math.ceil(pageItems.length / perPage))
@@ -338,6 +362,7 @@ export default function IndexLow() {
               <StatusFilterDropdown
                 value={statusFilter}
                 onChange={(nextStatus) => {
+                  reset();
                   setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
@@ -345,11 +370,25 @@ export default function IndexLow() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductLowsXLS(pageItems)}>
+              <ExportExcelButton
+                event={() =>
+                  exportLowProductsExcel({
+                    transform: filterLowProductsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton event={() => generateProductLowsPDF(pageItems)}>
+              <ExportPDFButton
+                event={() =>
+                  exportLowProductsPdf({
+                    transform: filterLowProductsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
 

@@ -10,8 +10,6 @@ import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductReturnModal from "./modals/register/ProductReturnModal";
 import DetailsReturnProduct from "./modals/details/detailsReturnProduct";
-import { generateProductReturnsPDF } from "./helper/exportToPdf";
-import { generateProductReturnsXLS } from "./helper/exportToXls";
 import { useFetchReturnProducts } from "../../../shared/components/hooks/returnProducts/useFetchReturnProducts";
 import { useSearchReturnProducts } from "../../../shared/components/hooks/returnProducts/useSearchReturnProducts";
 import { useExportReturnProducts } from "../../../shared/components/hooks/returnProducts/useExportReturnProducts";
@@ -68,6 +66,7 @@ function ChevronIcon({ open }) {
 
 export default function IndexProductReturns() {
   const perPage = 6;
+  const [statusFilter, setStatusFilter] = useState("all");
   const {
     fetchPage,
     pagesCache,
@@ -77,16 +76,15 @@ export default function IndexProductReturns() {
     reset,
     getTotalPages,
     getLoadedCount,
-  } = useFetchReturnProducts(perPage);
+  } = useFetchReturnProducts(perPage, statusFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const {
     data: searchedReturnProducts = [],
     loading: searchLoading,
     error: searchError,
-  } = useSearchReturnProducts(searchTerm);
+  } = useSearchReturnProducts(searchTerm, statusFilter);
   const { exportReturnProductsExcel, exportReturnProductsPdf } =
     useExportReturnProducts();
-  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -219,7 +217,7 @@ export default function IndexProductReturns() {
     if (!isSearching) {
       fetchPage(currentPage);
     }
-  }, [currentPage, isSearching]);
+  }, [currentPage, isSearching, statusFilter]);
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -379,6 +377,7 @@ export default function IndexProductReturns() {
               <StatusFilterDropdown
                 value={statusFilter}
                 onChange={(nextStatus) => {
+                  reset();
                   setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
@@ -390,6 +389,7 @@ export default function IndexProductReturns() {
                 event={() =>
                   exportReturnProductsExcel({
                     transform: filterReturnProductsForExport,
+                    statusFilter,
                   })
                 }
               >
@@ -399,6 +399,7 @@ export default function IndexProductReturns() {
                 event={() =>
                   exportReturnProductsPdf({
                     transform: filterReturnProductsForExport,
+                    statusFilter,
                   })
                 }
               >
