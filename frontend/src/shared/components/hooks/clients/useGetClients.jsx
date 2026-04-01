@@ -48,7 +48,9 @@ export const useGetClients = ({ initialPage = 1, limit = DEFAULT_LIMIT } = {}) =
 
         const remotePage = Number(response.data.pagination?.page) || safePage;
         const remoteTotal = Number(response.data.pagination?.totalPages) || 1;
-        const remoteTotalItems = Number(response.data.pagination?.totalItems) || 0;
+        const remoteTotalItems = Number(
+          response.data.pagination?.totalItems ?? response.data.pagination?.total
+        ) || 0;
 
         setPage(remotePage);
         setTotalPages(remoteTotal);
