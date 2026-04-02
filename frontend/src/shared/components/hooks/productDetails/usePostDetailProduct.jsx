@@ -1,7 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
-
-const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/detailsProducts";
+import api from "../../../../api/axiosConfig";
 
 export const usePostDetailProduct = () => {
   const [loading, setLoading] = useState(false);
@@ -25,7 +23,7 @@ export const usePostDetailProduct = () => {
       console.log(productData);
       console.log("📦 Enviando payload:", payload);
 
-      const res = await axios.post(API_URL, payload, {
+      const res = await api.post("/detailsProducts", payload, {
         headers: { "Content-Type": "application/json" },
       });
 
@@ -34,9 +32,14 @@ export const usePostDetailProduct = () => {
       setData(res.data);
       return res.data;
     } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Error al registrar el detalle del producto";
       console.error("❌ Error al registrar detalle:", err.response?.data || err.message);
-      setError("Error al registrar el detalle del producto");
-      return null;
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }

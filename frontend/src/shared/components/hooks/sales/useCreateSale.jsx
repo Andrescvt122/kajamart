@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-const API_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/sales";
+const API_URL = "http://localhost:3000/kajamart/api/sales";
 
 export default function useCreateSale() {
   const [loading, setLoading] = useState(false);

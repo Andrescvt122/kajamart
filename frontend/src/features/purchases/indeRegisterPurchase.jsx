@@ -17,6 +17,12 @@ import {
   useCreatePurchase,
   useValidatePurchaseInvoiceNumber,
 } from "../../shared/components/hooks/purchases/purchase.hooks.js";
+import {
+  DETAIL_BARCODE_CHECKING_MESSAGE,
+  DETAIL_BARCODE_DUPLICATE_MESSAGE,
+  isValidDetailBarcode,
+  validateDetailProductBarcode,
+} from "../../shared/components/hooks/productDetails/detailBarcodeValidation.js";
 
 export default function IndexRegisterPurchase() {
   const navigate = useNavigate();
@@ -78,6 +84,10 @@ export default function IndexRegisterPurchase() {
 
   const [packTouched, setPackTouched] = useState({});
   const [packErrors, setPackErrors] = useState({});
+  const [packBarcodeValidation, setPackBarcodeValidation] = useState({});
+  const packBarcodeValidationRef = useRef({});
+  const packBarcodeRequestIdsRef = useRef({});
+  const packBarcodeTimeoutsRef = useRef({});
 
   // ✅ Modal editar desde tabla (mismo formulario)
   const [isPackEditOpen, setIsPackEditOpen] = useState(false);
@@ -141,6 +151,40 @@ export default function IndexRegisterPurchase() {
     " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ";
 
   const onlyDigits = (value) => String(value ?? "").replace(/\D/g, "");
+
+  const clearPackBarcodeValidationTimers = () => {
+    Object.values(packBarcodeTimeoutsRef.current).forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+    packBarcodeTimeoutsRef.current = {};
+  };
+
+  const resetPackBarcodeValidation = () => {
+    clearPackBarcodeValidationTimers();
+    packBarcodeValidationRef.current = {};
+    packBarcodeRequestIdsRef.current = {};
+    setPackBarcodeValidation({});
+  };
+
+  const setPackBarcodeValidationEntry = (index, entry, baseState) => {
+    const key = String(index);
+    const sourceState = baseState ?? packBarcodeValidationRef.current;
+    let nextState = sourceState;
+
+    if (entry && (entry.status !== "idle" || entry.message || entry.barcode)) {
+      nextState = {
+        ...sourceState,
+        [key]: entry,
+      };
+    } else if (sourceState[key]) {
+      const { [key]: _discarded, ...rest } = sourceState;
+      nextState = rest;
+    }
+
+    packBarcodeValidationRef.current = nextState;
+    setPackBarcodeValidation(nextState);
+    return nextState;
+  };
 
   // =========================
   // Normalizadores
@@ -298,7 +342,117 @@ export default function IndexRegisterPurchase() {
     return next;
   };
 
-  const computePackErrors = (form) => {
+  const runPackBarcodeValidation = async (index, barcode, options = {}) => {
+    const normalizedBarcode = String(barcode ?? "").trim();
+    const validationKey = String(index);
+    const paquetes = Array.isArray(options.paquetes)
+      ? options.paquetes
+      : packForm.paquetes || [];
+    const baseState = options.baseState ?? packBarcodeValidationRef.current;
+
+    if (!isValidDetailBarcode(normalizedBarcode)) {
+      return setPackBarcodeValidationEntry(index, null, baseState);
+    }
+
+    const isDuplicatedInForm = paquetes.some(
+      (pack, packIndex) =>
+        packIndex !== index &&
+        String(pack?.codigoBarrasIngreso ?? "").trim() === normalizedBarcode
+    );
+
+    if (isDuplicatedInForm) {
+      return setPackBarcodeValidationEntry(index, null, baseState);
+    }
+
+    const nextRequestId =
+      (packBarcodeRequestIdsRef.current[validationKey] ?? 0) + 1;
+    packBarcodeRequestIdsRef.current[validationKey] = nextRequestId;
+
+    let validationState = setPackBarcodeValidationEntry(
+      index,
+      {
+        barcode: normalizedBarcode,
+        status: "checking",
+        message: DETAIL_BARCODE_CHECKING_MESSAGE,
+      },
+      baseState
+    );
+
+    try {
+      const response = await validateDetailProductBarcode({
+        barcode: normalizedBarcode,
+      });
+
+      if (packBarcodeRequestIdsRef.current[validationKey] !== nextRequestId) {
+        return packBarcodeValidationRef.current;
+      }
+
+      validationState = setPackBarcodeValidationEntry(index, {
+        barcode: normalizedBarcode,
+        status: response?.isUnique ? "valid" : "error",
+        message: response?.isUnique
+          ? ""
+          : DETAIL_BARCODE_DUPLICATE_MESSAGE,
+      });
+
+      return validationState;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "No se pudo validar el código de barras";
+
+      if (packBarcodeRequestIdsRef.current[validationKey] !== nextRequestId) {
+        return packBarcodeValidationRef.current;
+      }
+
+      return setPackBarcodeValidationEntry(index, {
+        barcode: normalizedBarcode,
+        status: "error",
+        message,
+      });
+    }
+  };
+
+  const schedulePackBarcodeValidation = (index, barcode, paquetes) => {
+    const validationKey = String(index);
+    const normalizedBarcode = String(barcode ?? "").trim();
+
+    if (packBarcodeTimeoutsRef.current[validationKey]) {
+      clearTimeout(packBarcodeTimeoutsRef.current[validationKey]);
+    }
+
+    if (!isValidDetailBarcode(normalizedBarcode)) {
+      setPackBarcodeValidationEntry(index, null);
+      return;
+    }
+
+    packBarcodeTimeoutsRef.current[validationKey] = setTimeout(() => {
+      runPackBarcodeValidation(index, normalizedBarcode, { paquetes });
+    }, 350);
+  };
+
+  const validateAllPackBarcodes = async (paquetes) => {
+    let validationState = packBarcodeValidationRef.current;
+
+    for (let index = 0; index < paquetes.length; index += 1) {
+      validationState = await runPackBarcodeValidation(
+        index,
+        paquetes[index]?.codigoBarrasIngreso,
+        {
+          paquetes,
+          baseState: validationState,
+        }
+      );
+    }
+
+    return validationState;
+  };
+
+  const computePackErrors = (
+    form,
+    barcodeValidationState = packBarcodeValidationRef.current
+  ) => {
     const errs = {};
     const paquetesCount = toNonNegIntFromString(form?.cantidad);
     const unidCount = toNonNegIntFromString(form?.unidadesPorPaquete);
@@ -320,6 +474,27 @@ export default function IndexRegisterPurchase() {
       Object.entries(e).forEach(([k, msg]) => {
         if (msg) errs[`${idx}.${k}`] = msg;
       });
+
+      const code = String(p?.codigoBarrasIngreso ?? "").trim();
+      const validationEntry = barcodeValidationState[String(idx)];
+
+      if (
+        !e.codigoBarrasIngreso &&
+        code &&
+        validationEntry?.barcode === code &&
+        validationEntry.status === "checking"
+      ) {
+        errs[`${idx}.codigoBarrasIngreso`] =
+          DETAIL_BARCODE_CHECKING_MESSAGE;
+      } else if (
+        !e.codigoBarrasIngreso &&
+        code &&
+        validationEntry?.barcode === code &&
+        validationEntry.status === "error"
+      ) {
+        errs[`${idx}.codigoBarrasIngreso`] =
+          validationEntry.message || DETAIL_BARCODE_DUPLICATE_MESSAGE;
+      }
     });
 
     const codes = paquetes.map((p) => String(p.codigoBarrasIngreso || "").trim());
@@ -351,9 +526,15 @@ export default function IndexRegisterPurchase() {
   const packHasErrors = (errs) => Object.keys(errs || {}).length > 0;
 
   useEffect(() => {
+    return () => {
+      clearPackBarcodeValidationTimers();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!Object.keys(packTouched || {}).length) return;
     setPackErrors(computePackErrors(normalizePackFormForValidation(packForm)));
-  }, [packForm, packTouched]);
+  }, [packForm, packTouched, packBarcodeValidation]);
 
   // =========================
   // ✅ Helpers select paquetes
@@ -659,6 +840,7 @@ const updateProductoField = (index, field, rawValue) => {
   // =========================
   const abrirModalPaquetesProducto = (productoEncontrado) => {
     setProductoPackPendiente(productoEncontrado);
+    resetPackBarcodeValidation();
 
     setPackForm({
       cantidad: "",
@@ -677,9 +859,10 @@ const updateProductoField = (index, field, rawValue) => {
     setProductoPackPendiente(null);
     setPackTouched({});
     setPackErrors({});
+    resetPackBarcodeValidation();
   };
 
-  const guardarModalPaquetesYAgregar = () => {
+  const guardarModalPaquetesYAgregar = async () => {
     if (!productoPackPendiente) return;
 
     setPackTouched((prev) => ({
@@ -699,7 +882,8 @@ const updateProductoField = (index, field, rawValue) => {
       unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
     };
 
-    const errs = computePackErrors(normalized);
+    const validationState = await validateAllPackBarcodes(normalized.paquetes);
+    const errs = computePackErrors(normalized, validationState);
     setPackErrors(errs);
     if (packHasErrors(errs)) return;
 
@@ -739,6 +923,7 @@ const updateProductoField = (index, field, rawValue) => {
 
     setIsPackModalOpen(false);
     setProductoPackPendiente(null);
+    resetPackBarcodeValidation();
     agregarProducto(enriched);
   };
 
@@ -769,6 +954,7 @@ const updateProductoField = (index, field, rawValue) => {
 
     setPackTouched({});
     setPackErrors({});
+    resetPackBarcodeValidation();
     setIsPackEditOpen(true);
   };
 
@@ -777,9 +963,10 @@ const updateProductoField = (index, field, rawValue) => {
     setPackEditIndex(null);
     setPackTouched({});
     setPackErrors({});
+    resetPackBarcodeValidation();
   };
 
-  const guardarPackEdit = () => {
+  const guardarPackEdit = async () => {
     if (packEditIndex == null) return;
 
     setPackTouched((prev) => ({
@@ -799,7 +986,8 @@ const updateProductoField = (index, field, rawValue) => {
       unidadesPorPaquete: packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
     };
 
-    const errs = computePackErrors(normalized);
+    const validationState = await validateAllPackBarcodes(normalized.paquetes);
+    const errs = computePackErrors(normalized, validationState);
     setPackErrors(errs);
     if (packHasErrors(errs)) return;
 
@@ -846,6 +1034,7 @@ const updateProductoField = (index, field, rawValue) => {
 
     setIsPackEditOpen(false);
     setPackEditIndex(null);
+    resetPackBarcodeValidation();
   };
 
   // =========================
@@ -2173,23 +2362,37 @@ const updateProductoField = (index, field, rawValue) => {
                   setPackForm((prev) => {
                     const paquetes = [...prev.paquetes];
                     if (!paquetes.length) return prev;
-                    paquetes[prev.selectedIndex] = {
-                      ...paquetes[prev.selectedIndex],
+                    const selectedIndex = Number(prev.selectedIndex);
+                    paquetes[selectedIndex] = {
+                      ...paquetes[selectedIndex],
                       codigoBarrasIngreso: value,
                     };
+                    setPackBarcodeValidationEntry(selectedIndex, null);
+                    schedulePackBarcodeValidation(selectedIndex, value, paquetes);
+                    if (value.length === 13) {
+                      setPackTouched((t) => ({
+                        ...t,
+                        [`${selectedIndex}.codigoBarrasIngreso`]: true,
+                      }));
+                    }
                     return { ...prev, paquetes };
                   });
                 }}
-                onBlur={() => {
+                onBlur={async () => {
                   const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
                   setPackTouched((t) => ({ ...t, [key]: true }));
+                  const validationState = await runPackBarcodeValidation(
+                    Number(packForm.selectedIndex),
+                    packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || "",
+                    { paquetes: packForm.paquetes }
+                  );
                   const normalized = {
                     ...packForm,
                     cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
                     unidadesPorPaquete:
                       packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
                   };
-                  setPackErrors(computePackErrors(normalized));
+                  setPackErrors(computePackErrors(normalized, validationState));
                 }}
                 className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
                   packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&
@@ -2469,23 +2672,37 @@ const updateProductoField = (index, field, rawValue) => {
                   setPackForm((prev) => {
                     const paquetes = [...prev.paquetes];
                     if (!paquetes.length) return prev;
-                    paquetes[prev.selectedIndex] = {
-                      ...paquetes[prev.selectedIndex],
+                    const selectedIndex = Number(prev.selectedIndex);
+                    paquetes[selectedIndex] = {
+                      ...paquetes[selectedIndex],
                       codigoBarrasIngreso: value,
                     };
+                    setPackBarcodeValidationEntry(selectedIndex, null);
+                    schedulePackBarcodeValidation(selectedIndex, value, paquetes);
+                    if (value.length === 13) {
+                      setPackTouched((t) => ({
+                        ...t,
+                        [`${selectedIndex}.codigoBarrasIngreso`]: true,
+                      }));
+                    }
                     return { ...prev, paquetes };
                   });
                 }}
-                onBlur={() => {
+                onBlur={async () => {
                   const key = `${packForm.selectedIndex}.codigoBarrasIngreso`;
                   setPackTouched((t) => ({ ...t, [key]: true }));
+                  const validationState = await runPackBarcodeValidation(
+                    Number(packForm.selectedIndex),
+                    packForm.paquetes?.[packForm.selectedIndex]?.codigoBarrasIngreso || "",
+                    { paquetes: packForm.paquetes }
+                  );
                   const normalized = {
                     ...packForm,
                     cantidad: packForm.cantidad === "" ? "0" : packForm.cantidad,
                     unidadesPorPaquete:
                       packForm.unidadesPorPaquete === "" ? "0" : packForm.unidadesPorPaquete,
                   };
-                  setPackErrors(computePackErrors(normalized));
+                  setPackErrors(computePackErrors(normalized, validationState));
                 }}
                 className={`w-full border rounded px-3 py-2 bg-white text-black outline-none disabled:opacity-60 ${
                   packTouched[`${packForm.selectedIndex}.codigoBarrasIngreso`] &&

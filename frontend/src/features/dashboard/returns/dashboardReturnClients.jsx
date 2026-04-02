@@ -23,7 +23,7 @@ ChartJS.register(
   Filler
 );
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const RETURNS_URL = `${API_BASE}/kajamart/api/returnClients`;
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CO", { month: "short" });
 const money = (value) => Number(value || 0);

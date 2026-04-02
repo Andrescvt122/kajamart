@@ -1015,7 +1015,7 @@ const ProductReturnModal = ({ isOpen, onClose }) => {
                                           }`}
                                         >
                                           {canAddProduct
-                                            ? `Razón automática: ${automaticReason.label}`
+                                            ? `${automaticReason.label}`
                                             : automaticReason.helper}
                                         </p>
                                       </div>
