@@ -18,6 +18,7 @@ import Swal from "sweetalert2";
 import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
+import ReturnClientHelpVideos from "./ReturnClientHelpVideos";
 
 const ONE_LINE_SAFE =
   "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
@@ -294,7 +295,7 @@ export default function IndexClientReturns() {
       />
 
       {/* Contenido */}
-      <div className="relative z-10 min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip text-gray-900">
+      <div className="relative z-10 min-h-screen overflow-x-clip p-4 pb-24 text-gray-900 sm:p-6 sm:pb-28 lg:p-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <div>
@@ -623,6 +624,8 @@ export default function IndexClientReturns() {
         onClose={handleCloseDetailsModal}
         returnData={selectedReturn}
       />
+
+      <ReturnClientHelpVideos />
     </>
   );
 }

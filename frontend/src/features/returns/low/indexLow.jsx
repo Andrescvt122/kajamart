@@ -19,6 +19,7 @@ import Swal from "sweetalert2";
 import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
+import LowHelpVideos from "./LowHelpVideos";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -329,7 +330,7 @@ export default function IndexLow() {
       </div>
 
       {/* Contenido */}
-      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
+      <div className="flex-1 relative min-h-screen overflow-x-clip p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8">
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
@@ -747,6 +748,8 @@ export default function IndexLow() {
         }}
         lowData={selectedLow}
       />
+
+      <LowHelpVideos />
     </div>
   );
 }
