@@ -39,7 +39,7 @@ const diffMinutesFromNow = (isoDate) => {
   return (Date.now() - t) / 60000;
 };
 const canAnnulPurchase = (purchase) => {
-  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
+  const mins = diffMinutesFromNow(purchase.raw.fecha_compra);
   return mins >= 0 && mins < MAX_MINUTES_ANNUL;
 };
 const isAnulada = (estado) => {
@@ -88,14 +88,6 @@ const normalizeApiPurchasesForUI = (list) => {
       c?.fecha ??
       c?.created_at ??
       new Date().toISOString();
-
-    const createdAt =
-      c?.created_at ??
-      c?.createdAt ??
-      c?.fecha_creacion ??
-      c?.fecha_compra ??
-      c?.fecha ??
-      null;
 
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
@@ -189,8 +181,6 @@ const normalizeApiPurchasesForUI = (list) => {
       nit: String(proveedorNit),
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
-      createdAt:
-        typeof createdAt === "string" ? createdAt : createdAt ? new Date(createdAt).toISOString() : null,
       estado,
       productos,
       comprobante,
@@ -471,7 +461,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.createdAt ?? purchase.fecha);
+    const mins = diffMinutesFromNow(purchase.fecha);
 
     if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
       await Swal.fire({
