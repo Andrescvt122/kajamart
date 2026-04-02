@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../../../api/axiosConfig";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -59,7 +60,8 @@ const mapReturnClient = (item) => {
   };
 };
 
-export const useSearchReturnClients = (searchTerm) => {
+export const useSearchReturnClients = (searchTerm, statusFilter = "all") => {
+  const apiStatus = toStatusFilterParam(statusFilter);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -80,7 +82,10 @@ export const useSearchReturnClients = (searchTerm) => {
       setError(null);
       try {
         const response = await api.get("/returnClients/search", {
-          params: { q: term },
+          params: {
+            q: term,
+            ...(apiStatus ? { status: apiStatus } : {}),
+          },
         });
         const rows = Array.isArray(response.data?.data) ? response.data.data : [];
         if (!ignore) setData(rows.map(mapReturnClient));
@@ -103,7 +108,7 @@ export const useSearchReturnClients = (searchTerm) => {
     return () => {
       ignore = true;
     };
-  }, [searchTerm]);
+  }, [searchTerm, apiStatus]);
 
   return { data, loading, error };
 };

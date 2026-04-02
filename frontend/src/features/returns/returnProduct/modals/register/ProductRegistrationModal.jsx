@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-// YA NO usamos el hook aqui
-// import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
-import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
+import {
+  DETAIL_BARCODE_CHECKING_MESSAGE,
+  DETAIL_BARCODE_DUPLICATE_MESSAGE,
+  isValidDetailBarcode,
+  validateDetailProductBarcode,
+} from "../../../../../shared/components/hooks/productDetails/detailBarcodeValidation";
 const ProductRegistrationModal = ({
   isOpen,
   onClose,
@@ -22,8 +25,12 @@ const ProductRegistrationModal = ({
     expiryDate: "",
     isReturn: true,
   });
-  const { details } = useFetchAllDetails();
+  const barcodeValidationRequestRef = useRef(0);
   const [errors, setErrors] = useState({});
+  const [barcodeValidation, setBarcodeValidation] = useState({
+    status: "idle",
+    message: "",
+  });
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
@@ -60,6 +67,7 @@ const ProductRegistrationModal = ({
         });
       }
       setErrors({});
+      setBarcodeValidation({ status: "idle", message: "" });
     }
   }, [isOpen, product, initialDetail, fixedQuantity]);
 
@@ -70,6 +78,7 @@ const ProductRegistrationModal = ({
   const handleBarcodeChange = (value) => {
     let digitsOnly = String(value ?? "").replace(/\D+/g, "");
     if (digitsOnly.length > 13) digitsOnly = digitsOnly.slice(0, 13);
+    setErrors((prev) => ({ ...prev, barcode: undefined }));
     setFormData((prev) => ({ ...prev, barcode: digitsOnly }));
   };
 
@@ -115,12 +124,22 @@ const ProductRegistrationModal = ({
     return errs;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const barcodeIsUnique = await runBarcodeValidation(formData.barcode);
+    if (!barcodeIsUnique) {
+      setErrors((prev) => ({
+        ...prev,
+        barcode:
+          barcodeValidation.message || DETAIL_BARCODE_DUPLICATE_MESSAGE,
+      }));
+      return;
+    }
+
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    console.log("product", product);
     // Detalle local, NO se envia a BD aqui
     const registeredDetail = {
       ...product,
@@ -147,6 +166,7 @@ const ProductRegistrationModal = ({
       isReturn: true,
     });
     setErrors({});
+    setBarcodeValidation({ status: "idle", message: "" });
     onClose();
   };
 
@@ -219,20 +239,6 @@ const ProductRegistrationModal = ({
   const isBarcodeFilled = barcode.length > 0;
   const isBarcode13Digits = isExactly13Digits(barcode);
 
-  const filteredDetails = Array.isArray(details)
-    ? details.filter(
-        (d) =>
-          String(d.codigo_barras_producto_compra ?? "").trim() !==
-          String(ignoreBarcode ?? "").trim(),
-      )
-    : [];
-
-  const barcodeExistsDB =
-    !!barcode &&
-    filteredDetails.some(
-      (d) => String(d.codigo_barras_producto_compra ?? "").trim() === barcode,
-    );
-
   const effectiveTempBarcodes = Array.isArray(existingBarcodes)
     ? existingBarcodes
         .map((code) => String(code ?? "").trim())
@@ -241,14 +247,99 @@ const ProductRegistrationModal = ({
 
   const barcodeExistsTemp =
     !!barcode && effectiveTempBarcodes.includes(barcode);
+  const ignoreDetailId = Number(initialDetail?.id_detalle_producto ?? 0);
+
+  const resetBarcodeValidation = () => {
+    setBarcodeValidation({ status: "idle", message: "" });
+  };
+
+  const runBarcodeValidation = async (barcodeToValidate) => {
+    if (
+      !isValidDetailBarcode(barcodeToValidate) ||
+      effectiveTempBarcodes.includes(barcodeToValidate)
+    ) {
+      resetBarcodeValidation();
+      return !effectiveTempBarcodes.includes(barcodeToValidate);
+    }
+
+    const requestId = barcodeValidationRequestRef.current + 1;
+    barcodeValidationRequestRef.current = requestId;
+    setBarcodeValidation({
+      status: "checking",
+      message: DETAIL_BARCODE_CHECKING_MESSAGE,
+    });
+
+    try {
+      const response = await validateDetailProductBarcode({
+        barcode: barcodeToValidate,
+        ignoreDetailId:
+          Number.isFinite(ignoreDetailId) && ignoreDetailId > 0
+            ? ignoreDetailId
+            : undefined,
+      });
+
+      if (barcodeValidationRequestRef.current !== requestId) {
+        return response.isUnique;
+      }
+
+      if (!response?.isUnique) {
+        setBarcodeValidation({
+          status: "error",
+          message: DETAIL_BARCODE_DUPLICATE_MESSAGE,
+        });
+        return false;
+      }
+
+      setBarcodeValidation({ status: "valid", message: "" });
+      return true;
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo validar el código de barras";
+
+      if (barcodeValidationRequestRef.current === requestId) {
+        setBarcodeValidation({
+          status: "error",
+          message,
+        });
+      }
+
+      return false;
+    }
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    if (!barcode) {
+      resetBarcodeValidation();
+      return;
+    }
+
+    if (!isBarcode13Digits || barcodeExistsTemp) {
+      resetBarcodeValidation();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      runBarcodeValidation(barcode);
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [barcode, isOpen, isBarcode13Digits, barcodeExistsTemp]);
 
   let barcodeError = "";
   if (!isBarcodeFilled) {
     barcodeError = "Código de barras requerido";
   } else if (!isBarcode13Digits) {
     barcodeError = "El código debe tener exactamente 13 dígitos numéricos";
-  } else if (barcodeExistsDB || barcodeExistsTemp) {
-    barcodeError = "Este código de barras ya está registrado en el sistema";
+  } else if (barcodeExistsTemp) {
+    barcodeError = DETAIL_BARCODE_DUPLICATE_MESSAGE;
+  } else if (barcodeValidation.status === "checking") {
+    barcodeError = DETAIL_BARCODE_CHECKING_MESSAGE;
+  } else if (barcodeValidation.status === "error") {
+    barcodeError = barcodeValidation.message;
   }
 
   return (
@@ -336,6 +427,7 @@ const ProductRegistrationModal = ({
                     <input
                       value={formData.barcode}
                       onChange={(e) => handleBarcodeChange(e.target.value)}
+                      onBlur={() => runBarcodeValidation(formData.barcode)}
                       onKeyDown={handleNumericKeyDown}
                       onPaste={handleNumericPaste}
                       inputMode="numeric"

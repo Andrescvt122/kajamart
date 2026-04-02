@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import api from "../../../../api/axiosConfig";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const API_PATH = "/returnProducts"; // relative to baseURL in axios config
 
-export const useFetchReturnProducts = (initialLimit = 6) => {
+export const useFetchReturnProducts = (initialLimit = 6, statusFilter = "all") => {
+  const apiStatus = toStatusFilterParam(statusFilter);
   const [pagesCache, setPagesCache] = useState({});
   const [pageCursors, setPageCursors] = useState({ 1: null });
   const [meta, setMeta] = useState({ limit: initialLimit, nextCursor: null });
@@ -111,6 +113,7 @@ export const useFetchReturnProducts = (initialLimit = 6) => {
     setError(null);
     try {
       const params = { limit: metaRef.current.limit };
+      if (apiStatus) params.status = apiStatus;
       const cursor = pageCursorsRef.current[pageNumber];
       if (cursor) params.cursor = cursor;
 
