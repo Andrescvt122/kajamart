@@ -1,17 +1,21 @@
 // frontend/src/shared/components/hooks/clients/useClientSearch.jsx
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { mapClientFromBackend } from "../../../components/mappers/clientMappers";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export const useSearchClient = () => {
-  const [clients, setClients] = useState([]);   // 👈 ya en formato de FRONT
+  const [clients, setClients] = useState([]); // ya en formato de FRONT
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const searchClient = async (q) => {
+  const searchClient = useCallback(async (q) => {
     const query = String(q || "").trim();
-    if (!query) return;
+    if (!query) {
+      setClients([]);
+      setError(null);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -32,7 +36,6 @@ export const useSearchClient = () => {
       }
 
       const data = await res.json();
-      console.log("Datos recibidos del back en búsqueda de clientes:", data);
       // Normalizamos todos los clientes al formato del FRONT
       const normalized = Array.isArray(data)
         ? data.map(mapClientFromBackend)
@@ -45,13 +48,15 @@ export const useSearchClient = () => {
       setClients([]);
     } finally {
       setLoading(false);
-      console.log("Clientes después de la búsqueda:", clients);
     }
-  };
+  }, []);
 
-  const clearClients = () => setClients([]);
+  const clearClients = useCallback(() => {
+    setClients([]);
+    setError(null);
+  }, []);
   return {
-    clients,        // 👉 ya vienen con {id, nombre, numeroDocumento, estado, ...}
+    clients, // ya vienen con {id, nombre, numeroDocumento, estado, ...}
     loading,
     error,
     searchClient,

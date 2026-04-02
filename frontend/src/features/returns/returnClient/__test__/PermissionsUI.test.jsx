@@ -6,6 +6,9 @@ import IndexClientReturns from "../indexClientReturns.jsx";
 const mockHasPermission = jest.fn();
 const mockFetchPage = jest.fn();
 const mockAnnulReturnClient = jest.fn();
+const mockSearchHook = jest.fn(() => ({ data: [], loading: false, error: null }));
+const mockExportReturnClientsExcel = jest.fn();
+const mockExportReturnClientsPdf = jest.fn();
 
 jest.mock("../helpers/exportToPdf", () => ({
   exportClientReturnsToPDF: jest.fn(),
@@ -15,13 +18,24 @@ jest.mock("../helpers/exportToXls", () => ({
   exportClientReturnsToExcel: jest.fn(),
 }));
 
-jest.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>,
-    tbody: ({ children, ...props }) => <tbody {...props}>{children}</tbody>,
-    tr: ({ children, ...props }) => <tr {...props}>{children}</tr>,
-  },
-}));
+jest.mock("framer-motion", () => {
+  const React = require("react");
+  const createMotionComponent = (tag) =>
+    React.forwardRef(({ children, ...props }, ref) =>
+      React.createElement(tag, { ref, ...props }, children),
+    );
+
+  return {
+    AnimatePresence: ({ children }) =>
+      React.createElement(React.Fragment, null, children),
+    motion: new Proxy(
+      {},
+      {
+        get: (_, tag) => createMotionComponent(tag),
+      },
+    ),
+  };
+});
 
 jest.mock("../../../../context/useAtuh.jsx", () => ({
   useAuth: () => ({
@@ -65,7 +79,25 @@ jest.mock(
       getTotalPages: () => 1,
       getLoadedCount: () => 1,
     }),
-  })
+  }),
+);
+
+jest.mock(
+  "../../../../shared/components/hooks/returnClients/useSearchReturnClients",
+  () => ({
+    useSearchReturnClients: (...args) => mockSearchHook(...args),
+  }),
+);
+
+jest.mock(
+  "../../../../shared/components/hooks/returnClients/useExportReturnClients",
+  () => ({
+    useExportReturnClients: () => ({
+      exportReturnClientsExcel: mockExportReturnClientsExcel,
+      exportReturnClientsPdf: mockExportReturnClientsPdf,
+      loading: false,
+    }),
+  }),
 );
 
 jest.mock(
@@ -75,7 +107,7 @@ jest.mock(
       annulReturnClient: mockAnnulReturnClient,
       loading: false,
     }),
-  })
+  }),
 );
 
 jest.mock(
@@ -84,7 +116,7 @@ jest.mock(
     useAnnulmentWindow: () => ({
       getAnnulmentMeta: () => ({ isDisabled: false }),
     }),
-  })
+  }),
 );
 
 jest.mock("../../../../shared/components/paginator.jsx", () => () => (
@@ -103,6 +135,8 @@ jest.mock("../../../../shared/components/StatusFilterDropdown.jsx", () => () => 
   <div>Filtro estado</div>
 ));
 
+jest.mock("../ReturnClientHelpVideos", () => () => <div>Panel ayuda</div>);
+
 jest.mock("../../../../shared/components/buttons.jsx", () => ({
   ExportExcelButton: ({ children, event }) => (
     <button onClick={event}>{children}</button>
@@ -118,6 +152,7 @@ jest.mock("../../../../shared/components/buttons.jsx", () => ({
 describe("PermissionsUI", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchHook.mockReturnValue({ data: [], loading: false, error: null });
   });
 
   test("debe mostrar el botón registrar nueva devolución si tiene permiso", () => {

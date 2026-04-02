@@ -5,18 +5,32 @@ import IndexClientReturns from "../indexClientReturns.jsx";
 
 const mockHasPermission = jest.fn(() => true);
 const mockFetchPage = jest.fn();
+const mockSearchHook = jest.fn(() => ({ data: [], loading: false, error: null }));
+const mockExportReturnClientsExcel = jest.fn();
+const mockExportReturnClientsPdf = jest.fn();
 
 jest.mock("../helpers/exportToPdf", () => ({
   exportClientReturnsToPDF: jest.fn(),
 }));
 
-jest.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>,
-    tbody: ({ children, ...props }) => <tbody {...props}>{children}</tbody>,
-    tr: ({ children, ...props }) => <tr {...props}>{children}</tr>,
-  },
-}));
+jest.mock("framer-motion", () => {
+  const React = require("react");
+  const createMotionComponent = (tag) =>
+    React.forwardRef(({ children, ...props }, ref) =>
+      React.createElement(tag, { ref, ...props }, children),
+    );
+
+  return {
+    AnimatePresence: ({ children }) =>
+      React.createElement(React.Fragment, null, children),
+    motion: new Proxy(
+      {},
+      {
+        get: (_, tag) => createMotionComponent(tag),
+      },
+    ),
+  };
+});
 
 jest.mock("../../../../context/useAtuh.jsx", () => ({
   useAuth: () => ({
@@ -69,6 +83,24 @@ jest.mock(
 );
 
 jest.mock(
+  "../../../../shared/components/hooks/returnClients/useSearchReturnClients",
+  () => ({
+    useSearchReturnClients: (...args) => mockSearchHook(...args),
+  }),
+);
+
+jest.mock(
+  "../../../../shared/components/hooks/returnClients/useExportReturnClients",
+  () => ({
+    useExportReturnClients: () => ({
+      exportReturnClientsExcel: mockExportReturnClientsExcel,
+      exportReturnClientsPdf: mockExportReturnClientsPdf,
+      loading: false,
+    }),
+  }),
+);
+
+jest.mock(
   "../../../../shared/components/hooks/returnClients/useAnnulReturnClient.js",
   () => ({
     useAnnulReturnClient: () => ({
@@ -102,6 +134,8 @@ jest.mock(
   () => () => <div>Filtro estado</div>,
 );
 
+jest.mock("../ReturnClientHelpVideos", () => () => <div>Panel ayuda</div>);
+
 jest.mock("../../../../shared/components/buttons.jsx", () => ({
   ExportExcelButton: ({ children, event }) => (
     <button onClick={event}>{children}</button>
@@ -118,6 +152,7 @@ describe("List", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockHookValue = buildHookReturn();
+    mockSearchHook.mockReturnValue({ data: [], loading: false, error: null });
   });
 
   test("debe renderizar la lista de devoluciones", () => {
@@ -127,6 +162,7 @@ describe("List", () => {
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText(/Producto A/i)).toBeInTheDocument();
     expect(screen.getByText("101")).toBeInTheDocument();
+    expect(screen.getByText("Panel ayuda")).toBeInTheDocument();
   });
 
   test("debe mostrar estado vacío cuando no hay devoluciones", () => {
