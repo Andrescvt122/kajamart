@@ -339,7 +339,6 @@ useEffect(() => {
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [expanded, setExpanded] = useState(new Set());
 
   // =========================
   // Filtro + Paginación
@@ -423,14 +422,6 @@ useEffect(() => {
   const handleCloseModal = useCallback(() => {
     setIsDetailOpen(false);
     setSelectedPurchase(null);
-  }, []);
-
-  const toggleExpand = useCallback((id) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
   }, []);
 
   // ✅ Anular compra (solo UI por ahora)
