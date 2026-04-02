@@ -13,6 +13,13 @@ const pick = (...vals) => {
   return undefined;
 };
 
+const toRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  return [];
+};
+
 const formatCOP = (n) => {
   if (n === null || n === undefined || n === "") return "";
   const num = typeof n === "string" ? Number(n) : n;
@@ -79,7 +86,7 @@ export default function Products() {
 
   // Map de productos por id_producto
   const productsById = useMemo(() => {
-    const arr = Array.isArray(productsRaw) ? productsRaw : [];
+    const arr = toRows(productsRaw);
     const map = new Map();
     for (const p of arr) {
       const id = pick(p?.id_producto, p?.id, p?._id, p?.productId);
@@ -109,7 +116,7 @@ export default function Products() {
 
   // ✅ Lista final a mostrar: nombre + imagen + precio
   const products = useMemo(() => {
-    const arr = Array.isArray(detailsRaw) ? detailsRaw : [];
+    const arr = toRows(detailsRaw);
 
     // agrupar details por id_producto
     const groups = new Map();

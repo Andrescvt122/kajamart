@@ -10,16 +10,16 @@ import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import RegisterLow from "./modals/registerLow";
 import DetailsLow from "./modals/detailsLow";
-import generateProductLowsPDF from "./helpers/exportToPdf";
-import generateProductLowsXLS from "./helpers/exportToXls";
 import { useGetLowProducts } from "../../../shared/components/hooks/lowProducts/useGetLowProducts";
 import { useSearchLowProducts } from "../../../shared/components/hooks/lowProducts/useSearchLowProducts";
+import { useExportLowProducts } from "../../../shared/components/hooks/lowProducts/useExportLowProducts";
 import { useAuth } from "../../../context/useAtuh";
 import Loading from "../../onboarding/loading";
 import Swal from "sweetalert2";
 import { useAnnulLowProduct } from "../../../shared/components/hooks/lowProducts/useAnnulLowProduct";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
+import LowHelpVideos from "./LowHelpVideos";
 // ===== Helpers de responsive (tomados de IndexCategories) =====
 const REASON_COL_CHARS = 34; // ancho de referencia para la columna "Razón" en desktop
 const EXPAND_EASE = [0.22, 1, 0.36, 1];
@@ -71,6 +71,7 @@ function ChevronIcon({ open }) {
 
 export default function IndexLow() {
   const perPage = 6;
+  const [statusFilter, setStatusFilter] = useState("all");
   const {
     fetchPage,
     pagesCache,
@@ -80,14 +81,15 @@ export default function IndexLow() {
     reset,
     getTotalPages,
     getLoadedCount,
-  } = useGetLowProducts(perPage);
+  } = useGetLowProducts(perPage, statusFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const {
     data: searchedLows = [],
     loading: searchLoading,
     error: searchError,
-  } = useSearchLowProducts(searchTerm);
-  const [statusFilter, setStatusFilter] = useState("all");
+  } = useSearchLowProducts(searchTerm, statusFilter);
+  const { exportLowProductsExcel, exportLowProductsPdf } =
+    useExportLowProducts();
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLow, setSelectedLow] = useState(null);
@@ -98,7 +100,7 @@ export default function IndexLow() {
 
   // Permiso requerido para ver la página
   const canCreate = hasPermission('Crear baja productos');
-  const canAnnul = hasPermission('Anular baja producto');
+  const canAnnul = hasPermission('Anular baja de producto');
   const { annulLowProduct, loading: annulling } = useAnnulLowProduct();
   const { getAnnulmentMeta } = useAnnulmentWindow();
   const isSearching = searchTerm.trim() !== "";
@@ -107,7 +109,7 @@ export default function IndexLow() {
     if (!isSearching) {
       fetchPage(currentPage);
     }
-  }, [currentPage, isSearching]);
+  }, [currentPage, isSearching, statusFilter]);
 
   const buildAnnulErrorMessage = (err) => {
     const payload = err?.response?.data ?? {};
@@ -182,6 +184,29 @@ export default function IndexLow() {
     );
   }, [pagesCache, currentPage, searchTerm, statusFilter, annulledMap, isSearching, searchedLows]);
 
+  const filterLowProductsForExport = (items) => {
+    const s = normalizeText(searchTerm.trim());
+    const expandedRows = items.flatMap((low) =>
+      (low.products || []).map((product) => ({
+        ...low,
+        currentProduct: product,
+        _rowId: `${low.idLow}-${product.id ?? product.idProducto ?? product.name}`,
+      }))
+    );
+
+    if (!s) return expandedRows;
+
+    const match = (val) => normalizeText(String(val ?? "")).includes(s);
+
+    return expandedRows.filter((item) =>
+      Object.values(item).some((val) =>
+        typeof val === "object"
+          ? Object.values(val).some((v) => match(v))
+          : match(val)
+      )
+    );
+  };
+
   const totalPages = isSearching
     ? Math.max(1, Math.ceil(pageItems.length / perPage))
     : getTotalPages();
@@ -216,7 +241,7 @@ export default function IndexLow() {
     const itemKey = getBlockKey(item.idLow);
     const status = annulledMap[item.idLow] ?? item.isActive;
     const isBlockedByRelation = Boolean(blockedAnnulMap[itemKey]);
-    const { isDisabled } = getAnnulmentMeta(item.createdAt || item.dateLow, status);
+    const { isDisabled } = getAnnulmentMeta(item.createdAt, status);
     if (isDisabled || isBlockedByRelation) return;
 
     let relationConflictDetected = false;
@@ -305,12 +330,12 @@ export default function IndexLow() {
       </div>
 
       {/* Contenido */}
-      <div className="flex-1 relative min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip">
+      <div className="flex-1 relative min-h-screen overflow-x-clip p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8">
         <div className="relative z-10 mx-auto w-full max-w-screen-xl min-w-0 text-gray-900">
           {/* Header */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-2xl sm:text-3xl font-semibold">
-              Productos de baja
+              Baja de productos
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Administrador de tienda
@@ -338,6 +363,7 @@ export default function IndexLow() {
               <StatusFilterDropdown
                 value={statusFilter}
                 onChange={(nextStatus) => {
+                  reset();
                   setStatusFilter(nextStatus);
                   setCurrentPage(1);
                 }}
@@ -345,11 +371,25 @@ export default function IndexLow() {
               />
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton event={() => generateProductLowsXLS(pageItems)}>
+              <ExportExcelButton
+                event={() =>
+                  exportLowProductsExcel({
+                    transform: filterLowProductsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
 
-              <ExportPDFButton event={() => generateProductLowsPDF(pageItems)}>
+              <ExportPDFButton
+                event={() =>
+                  exportLowProductsPdf({
+                    transform: filterLowProductsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
 
@@ -480,7 +520,7 @@ export default function IndexLow() {
                                     checked={annulledMap[item.idLow] ?? item.isActive}
                                     disabled={
                                       getAnnulmentMeta(
-                                        item.createdAt || item.dateLow,
+                                        item.createdAt,
                                         annulledMap[item.idLow] ?? item.isActive
                                       ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
                                     }
@@ -649,7 +689,7 @@ export default function IndexLow() {
                                 checked={annulledMap[item.idLow] ?? item.isActive}
                                 disabled={
                                   !canAnnul || getAnnulmentMeta(
-                                    item.createdAt || item.dateLow,
+                                    item.createdAt,
                                     annulledMap[item.idLow] ?? item.isActive
                                   ).isDisabled || blockedAnnulMap[getBlockKey(item.idLow)]
                                 }
@@ -708,6 +748,8 @@ export default function IndexLow() {
         }}
         lowData={selectedLow}
       />
+
+      <LowHelpVideos />
     </div>
   );
 }

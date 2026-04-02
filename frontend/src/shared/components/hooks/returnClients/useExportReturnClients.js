@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../../../../api/axiosConfig";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 import generateProductReturnsPDF from "../../../../features/returns/returnClient/helpers/exportToPdf";
 import generateProductReturnsXLS from "../../../../features/returns/returnClient/helpers/exportToXls";
 
@@ -85,17 +86,20 @@ const mapReturnClientRows = (item) => {
 export const useExportReturnClients = () => {
   const [loading, setLoading] = useState(false);
 
-  const fetchAllReturnClients = async () => {
-    const response = await api.get("/returnClients/all");
+  const fetchAllReturnClients = async (statusFilter) => {
+    const status = toStatusFilterParam(statusFilter);
+    const response = await api.get("/returnClients/all", {
+      params: status ? { status } : {},
+    });
     return extractArray(response.data).flatMap(mapReturnClientRows);
   };
 
-  const runExport = async (exporter, transform) => {
+  const runExport = async (exporter, transform, statusFilter) => {
     if (loading) return;
 
     setLoading(true);
     try {
-      const rows = await fetchAllReturnClients();
+      const rows = await fetchAllReturnClients(statusFilter);
       const finalRows = typeof transform === "function" ? transform(rows) : rows;
       await exporter(finalRows);
     } catch (error) {
@@ -108,10 +112,10 @@ export const useExportReturnClients = () => {
 
   return {
     loading,
-    exportReturnClientsExcel: ({ transform } = {}) =>
-      runExport(generateProductReturnsXLS, transform),
-    exportReturnClientsPdf: ({ transform } = {}) =>
-      runExport(generateProductReturnsPDF, transform),
+    exportReturnClientsExcel: ({ transform, statusFilter } = {}) =>
+      runExport(generateProductReturnsXLS, transform, statusFilter),
+    exportReturnClientsPdf: ({ transform, statusFilter } = {}) =>
+      runExport(generateProductReturnsPDF, transform, statusFilter),
   };
 };
 

@@ -91,9 +91,11 @@ const normalizeApiPurchasesForUI = (list) => {
 
     const createdAt =
       c?.created_at ??
+      c?.createdAt ??
       c?.fecha_creacion ??
-      c?.fecha_registro ??
-      fecha;
+      c?.fecha_compra ??
+      c?.fecha ??
+      null;
 
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
@@ -188,9 +190,7 @@ const normalizeApiPurchasesForUI = (list) => {
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
       createdAt:
-        typeof createdAt === "string"
-          ? createdAt
-          : new Date(createdAt).toISOString(),
+        typeof createdAt === "string" ? createdAt : createdAt ? new Date(createdAt).toISOString() : null,
       estado,
       productos,
       comprobante,
@@ -349,6 +349,7 @@ useEffect(() => {
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [expanded, setExpanded] = useState(new Set());
 
   // =========================
   // Filtro + Paginación
@@ -432,6 +433,14 @@ useEffect(() => {
   const handleCloseModal = useCallback(() => {
     setIsDetailOpen(false);
     setSelectedPurchase(null);
+  }, []);
+
+  const toggleExpand = useCallback((id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }, []);
 
   // ✅ Anular compra (solo UI por ahora)
@@ -661,7 +670,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                   setSearchTerm(e.target.value);
                   setSearchPage(1);
                 }}
-                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200"
+                className="pl-12 pr-4 py-3 w-full rounded-full border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-200 text-black"
               />
             </div>
 

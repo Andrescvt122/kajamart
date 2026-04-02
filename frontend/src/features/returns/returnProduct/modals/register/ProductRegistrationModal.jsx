@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, CheckCircle } from "lucide-react";
 // PrimeReact Calendar
 import { Calendar } from "primereact/calendar";
-// YA NO usamos el hook aqui
-// import { usePostDetailProduct } from "../../../../../shared/components/hooks/detailsProducts/usePostDetailProduct";
-import { useFetchAllDetails } from "../../../../../shared/components/hooks/productDetails/useFetchAllDetails";
+import {
+  DETAIL_BARCODE_CHECKING_MESSAGE,
+  DETAIL_BARCODE_DUPLICATE_MESSAGE,
+  isValidDetailBarcode,
+  validateDetailProductBarcode,
+} from "../../../../../shared/components/hooks/productDetails/detailBarcodeValidation";
 const ProductRegistrationModal = ({
   isOpen,
   onClose,
@@ -22,13 +25,12 @@ const ProductRegistrationModal = ({
     expiryDate: "",
     isReturn: true,
   });
-  const { details } = useFetchAllDetails();
+  const barcodeValidationRequestRef = useRef(0);
   const [errors, setErrors] = useState({});
-  const normalizedExistingBarcodes = (Array.isArray(existingBarcodes)
-    ? existingBarcodes
-    : [])
-    .map((b) => String(b ?? "").trim())
-    .filter(Boolean);
+  const [barcodeValidation, setBarcodeValidation] = useState({
+    status: "idle",
+    message: "",
+  });
 
   // Fecha mínima: 4 días después de hoy
   const minDate = new Date();
@@ -65,47 +67,27 @@ const ProductRegistrationModal = ({
         });
       }
       setErrors({});
+      setBarcodeValidation({ status: "idle", message: "" });
     }
   }, [isOpen, product, initialDetail, fixedQuantity]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-    // Validación en tiempo real para barcode
-    if (field === "barcode") {
-      const barcode = String(value ?? "").trim();
-      let error = "";
-
-      if (barcode && !isExactly13Digits(barcode)) {
-        error = "El código debe tener exactamente 13 dígitos numéricos";
-      } else if (
-        barcode &&
-        barcode !== ignoreBarcode &&
-        (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
-          normalizedExistingBarcodes.includes(barcode))
-      ) {
-        error = "Este código de barras ya está registrado en el sistema";
-      }
-
-      setErrors((prev) => ({ ...prev, barcode: error }));
-    }
+  const handleBarcodeChange = (value) => {
+    let digitsOnly = String(value ?? "").replace(/\D+/g, "");
+    if (digitsOnly.length > 13) digitsOnly = digitsOnly.slice(0, 13);
+    setErrors((prev) => ({ ...prev, barcode: undefined }));
+    setFormData((prev) => ({ ...prev, barcode: digitsOnly }));
   };
 
   const validate = () => {
     const errs = {};
 
     // Código de barras: obligatorio, solo números, exactamente 13, y no duplicado
-    const barcode = String(formData.barcode ?? "").trim();
-    if (!barcode) {
-      errs.barcode = "Código de barras requerido";
-    } else if (!isExactly13Digits(barcode)) {
-      errs.barcode = "El código debe tener exactamente 13 dígitos numéricos";
-    } else if (
-      barcode !== ignoreBarcode &&
-      (details.some((d) => d.codigo_barras_producto_compra === barcode) ||
-        normalizedExistingBarcodes.includes(barcode))
-    ) {
-      errs.barcode = "Este código de barras ya está registrado en el sistema";
+    if (barcodeError) {
+      errs.barcode = barcodeError;
     }
 
     // Cantidad: obligatoria, solo números, no negativa (permito 0)
@@ -142,12 +124,22 @@ const ProductRegistrationModal = ({
     return errs;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const barcodeIsUnique = await runBarcodeValidation(formData.barcode);
+    if (!barcodeIsUnique) {
+      setErrors((prev) => ({
+        ...prev,
+        barcode:
+          barcodeValidation.message || DETAIL_BARCODE_DUPLICATE_MESSAGE,
+      }));
+      return;
+    }
+
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    console.log("product", product);
     // Detalle local, NO se envia a BD aqui
     const registeredDetail = {
       ...product,
@@ -174,6 +166,7 @@ const ProductRegistrationModal = ({
       isReturn: true,
     });
     setErrors({});
+    setBarcodeValidation({ status: "idle", message: "" });
     onClose();
   };
 
@@ -185,6 +178,28 @@ const ProductRegistrationModal = ({
     }).format(price);
 
   // Helpers para el input number
+  const handleNumericKeyDown = (e) => {
+    const allowedKeys = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+    if (!/\d/.test(e.key) && !allowedKeys.includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleNumericPaste = (e) => {
+    const paste = (e.clipboardData || window.clipboardData).getData("text");
+    if (!/^\d+$/.test(paste)) {
+      e.preventDefault();
+    }
+  };
+
   const handleQuantityKeyDown = (e) => {
     const blocked = ["e", "E", "+", "-", ".", ","];
     if (blocked.includes(e.key)) {
@@ -219,6 +234,113 @@ const ProductRegistrationModal = ({
     dt.setHours(0, 0, 0, 0);
     return dt;
   };
+
+  const barcode = String(formData.barcode ?? "").trim();
+  const isBarcodeFilled = barcode.length > 0;
+  const isBarcode13Digits = isExactly13Digits(barcode);
+
+  const effectiveTempBarcodes = Array.isArray(existingBarcodes)
+    ? existingBarcodes
+        .map((code) => String(code ?? "").trim())
+        .filter((code) => code && code !== String(ignoreBarcode ?? "").trim())
+    : [];
+
+  const barcodeExistsTemp =
+    !!barcode && effectiveTempBarcodes.includes(barcode);
+  const ignoreDetailId = Number(initialDetail?.id_detalle_producto ?? 0);
+
+  const resetBarcodeValidation = () => {
+    setBarcodeValidation({ status: "idle", message: "" });
+  };
+
+  const runBarcodeValidation = async (barcodeToValidate) => {
+    if (
+      !isValidDetailBarcode(barcodeToValidate) ||
+      effectiveTempBarcodes.includes(barcodeToValidate)
+    ) {
+      resetBarcodeValidation();
+      return !effectiveTempBarcodes.includes(barcodeToValidate);
+    }
+
+    const requestId = barcodeValidationRequestRef.current + 1;
+    barcodeValidationRequestRef.current = requestId;
+    setBarcodeValidation({
+      status: "checking",
+      message: DETAIL_BARCODE_CHECKING_MESSAGE,
+    });
+
+    try {
+      const response = await validateDetailProductBarcode({
+        barcode: barcodeToValidate,
+        ignoreDetailId:
+          Number.isFinite(ignoreDetailId) && ignoreDetailId > 0
+            ? ignoreDetailId
+            : undefined,
+      });
+
+      if (barcodeValidationRequestRef.current !== requestId) {
+        return response.isUnique;
+      }
+
+      if (!response?.isUnique) {
+        setBarcodeValidation({
+          status: "error",
+          message: DETAIL_BARCODE_DUPLICATE_MESSAGE,
+        });
+        return false;
+      }
+
+      setBarcodeValidation({ status: "valid", message: "" });
+      return true;
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "No se pudo validar el código de barras";
+
+      if (barcodeValidationRequestRef.current === requestId) {
+        setBarcodeValidation({
+          status: "error",
+          message,
+        });
+      }
+
+      return false;
+    }
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    if (!barcode) {
+      resetBarcodeValidation();
+      return;
+    }
+
+    if (!isBarcode13Digits || barcodeExistsTemp) {
+      resetBarcodeValidation();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      runBarcodeValidation(barcode);
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [barcode, isOpen, isBarcode13Digits, barcodeExistsTemp]);
+
+  let barcodeError = "";
+  if (!isBarcodeFilled) {
+    barcodeError = "Código de barras requerido";
+  } else if (!isBarcode13Digits) {
+    barcodeError = "El código debe tener exactamente 13 dígitos numéricos";
+  } else if (barcodeExistsTemp) {
+    barcodeError = DETAIL_BARCODE_DUPLICATE_MESSAGE;
+  } else if (barcodeValidation.status === "checking") {
+    barcodeError = DETAIL_BARCODE_CHECKING_MESSAGE;
+  } else if (barcodeValidation.status === "error") {
+    barcodeError = barcodeValidation.message;
+  }
 
   return (
     <AnimatePresence>
@@ -304,27 +426,22 @@ const ProductRegistrationModal = ({
                     </label>
                     <input
                       value={formData.barcode}
-                      onChange={(e) => {
-                        const digits = e.target.value
-                          .replace(/\D+/g, "")
-                          .slice(0, 13);
-                        handleChange("barcode", digits);
-                      }}
-                      onPaste={(e) => {
-                        const paste = (
-                          e.clipboardData || window.clipboardData
-                        ).getData("text");
-                        const digits = paste.replace(/\D+/g, "");
-                        if (!digits) e.preventDefault();
-                      }}
+                      onChange={(e) => handleBarcodeChange(e.target.value)}
+                      onBlur={() => runBarcodeValidation(formData.barcode)}
+                      onKeyDown={handleNumericKeyDown}
+                      onPaste={handleNumericPaste}
                       inputMode="numeric"
                       maxLength={13}
-                      className="w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200 text-black"
+                      className={`w-full mt-1 rounded-md border px-3 py-2 focus:outline-none focus:ring-2 text-black ${
+                        barcodeError
+                          ? "border-red-400 focus:ring-red-200"
+                          : "border-gray-300 focus:ring-emerald-200"
+                      }`}
                       placeholder="13 dígitos"
                     />
-                    {errors.barcode && (
+                    {barcodeError && (
                       <div className="text-red-500 text-sm mt-1">
-                        {errors.barcode}
+                        {barcodeError}
                       </div>
                     )}
                   </div>

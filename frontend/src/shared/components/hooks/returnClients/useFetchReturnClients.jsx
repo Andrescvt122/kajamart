@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import api from "../../../../api/axiosConfig";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const API_PATH = "/returnClients"; // relative to baseURL in axios config
 
@@ -13,7 +14,8 @@ const formatDate = (value) => {
 const getProductName = (productNode) =>
   productNode?.productos?.nombre || productNode?.nombre_producto || "Sin producto";
 
-export const useFetchReturnClients = (initialLimit = 6) => {
+export const useFetchReturnClients = (initialLimit = 6, statusFilter = "all") => {
+  const apiStatus = toStatusFilterParam(statusFilter);
   const [pagesCache, setPagesCache] = useState({});
   const [meta, setMeta] = useState({
     page: 1,
@@ -43,10 +45,10 @@ export const useFetchReturnClients = (initialLimit = 6) => {
       dateReturn: formatDate(fechaBase),
       dateISO: fechaBase || null,
       createdAt:
+        item.created_at ||
+        item.createdAt ||
         item.fecha_creacion ||
         item.fecha_devolucion ||
-        item.createdAt ||
-        item.created_at ||
         null,
       isActive: Boolean(
         item.estado ?? item.activo ?? item.isActive ?? item.is_active ?? true
@@ -108,6 +110,7 @@ export const useFetchReturnClients = (initialLimit = 6) => {
         params: {
           page: pageNumber,
           limit: metaRef.current.limit,
+          ...(apiStatus ? { status: apiStatus } : {}),
         },
       });
       const payload = res.data;

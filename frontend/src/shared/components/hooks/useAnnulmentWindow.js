@@ -1,10 +1,8 @@
+import { parseDateTimeValue } from "../../utils/dateTime";
+
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
-const toDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+const toDate = (value) => parseDateTimeValue(value);
 
 export const useAnnulmentWindow = () => {
   const getAnnulmentMeta = (createdAt, isActive) => {

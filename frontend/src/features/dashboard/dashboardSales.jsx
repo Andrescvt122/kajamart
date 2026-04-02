@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Bar, Line, Pie } from "react-chartjs-2";
+import { Bar, Line, Pie, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,7 +11,7 @@ import {
   PointElement,
   LineElement,
 } from "chart.js";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 ChartJS.register(
   CategoryScale,
@@ -24,256 +24,285 @@ ChartJS.register(
   LineElement
 );
 
-const LINE_DARK = "#2f6a3f";
-const BAR_GREEN = "rgba(181,245,206,0.95)";
-const PIE_GREEN_1 = "rgba(181,245,206,0.95)";
-const PIE_GREEN_2 = "rgba(181,245,206,0.8)";
-const PIE_GREEN_3 = "rgba(181,245,206,0.55)";
-const BORDER_SUBTLE = "#6ea57a";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
-const SALES_URL = `${API_BASE}/kajamart/api/sales`;
-
-const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CO", { month: "short" });
-const money = (value) => Number(value || 0);
-const getCategoryName = (categoria) => {
-  if (Array.isArray(categoria)) {
-    return categoria.find((item) => item?.nombre_categoria)?.nombre_categoria;
-  }
-
-  return categoria?.nombre_categoria || null;
-};
-
-function useCountUp(value, duration = 1000) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start = null;
-    const step = (t) => {
-      if (!start) start = t;
-      const prog = Math.min((t - start) / duration, 1);
-      setDisplay(Math.round(value * prog));
-      if (prog < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [value, duration]);
-  return display;
-}
-
-const containerVariants = {
-  initial: { opacity: 0, y: 40, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.8, ease: "easeOut", staggerChildren: 0.08 } },
-  exit: { opacity: 0, y: -40, scale: 0.96, transition: { duration: 0.45 } },
-};
-
-const childFadeUp = {
-  initial: { opacity: 0, y: 24, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 90, damping: 12 } },
-  exit: { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.35 } },
-};
-
-const extractSales = (json) => {
-  if (Array.isArray(json)) return json;
-  if (Array.isArray(json?.sales)) return json.sales;
-  if (Array.isArray(json?.ventas)) return json.ventas;
-  if (Array.isArray(json?.data)) return json.data;
-  return [];
-};
+// 🎨 COLORES
+const GREEN = "#2f6a3f";
+const GREEN_LIGHT = "rgba(181,245,206,0.9)";
+const GRAY = "#e5e7eb";
+const RED = "#ef4444";
 
 export default function DashboardVentas() {
   const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const fetchSales = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch(SALES_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setSales(extractSales(json));
-      } catch (err) {
-        setError(err?.message || "Error cargando ventas");
-        setSales([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSales();
+    fetch("http://localhost:3000/kajamart/api/sales")
+      .then(res => res.json())
+      .then(data => setSales(data.data || data));
   }, []);
 
-  const computed = useMemo(() => {
-    const monthlyMap = new Map();
-    const productMap = new Map();
-    const categoryMap = new Map();
-    const activeClients = new Set();
+  // =====================
+  // 🔥 PROCESAMIENTO
+  // =====================
+  const data = useMemo(() => {
 
-    const totalVentas = sales.reduce((sum, s) => {
+    const monthly = {};
+    const productos = {};
+    const categorias = {};
+    const metodos = {};
+    const estados = {};
+
+    let total = 0;
+    const clientes = new Set();
+
+    sales.forEach(s => {
       const fecha = new Date(s.fecha_venta);
-      const monthKey = Number.isNaN(fecha.getTime()) ? "Sin fecha" : `${fecha.getFullYear()}-${fecha.getMonth()}`;
-      monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + money(s.total));
+      const mes = `${fecha.getFullYear()}-${fecha.getMonth()}`;
+      
+      monthly[mes] = (monthly[mes] || 0) + Number(s.total);
+      total += Number(s.total);
 
-      if (s.id_cliente) activeClients.add(s.id_cliente);
+      if (s.id_cliente) clientes.add(s.id_cliente);
 
-      (s.detalle_venta || []).forEach((d) => {
-        const productName = d?.detalle_productos?.productos?.nombre || "Sin producto";
-        productMap.set(productName, (productMap.get(productName) || 0) + money(d.subtotal));
+      // 💳 métodos de pago
+      metodos[s.metodo_pago] = (metodos[s.metodo_pago] || 0) + 1;
 
-        const categoryName =
-          getCategoryName(d?.detalle_productos?.productos?.categorias) ||
-          d?.detalle_productos?.productos?.categoria ||
-          d?.detalle_productos?.productos?.nombre_categoria ||
-          "Sin categoría";
-        categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + money(d.subtotal));
+      // 📊 estado
+      estados[s.estado_venta] = (estados[s.estado_venta] || 0) + 1;
+
+      // 📦 detalle
+      (s.detalle_venta || []).forEach(d => {
+        const p = d.detalle_productos?.productos;
+
+        const nombre = p?.nombre || "Producto";
+        productos[nombre] = (productos[nombre] || 0) + d.subtotal;
+
+        const cat = p?.categorias?.[0]?.nombre_categoria || "Sin categoría";
+        categorias[cat] = (categorias[cat] || 0) + d.subtotal;
       });
+    });
 
-      return sum + money(s.total);
-    }, 0);
+    // 📅 VENTAS POR DÍA DE LA SEMANA
+    const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-    const monthlySorted = [...monthlyMap.entries()]
-      .map(([key, valor]) => {
-        const [year, month] = key.split("-");
-        const date = key === "Sin fecha" ? null : new Date(Number(year), Number(month), 1);
-        return {
-          mes: date ? MONTH_FORMATTER.format(date) : "Sin fecha",
-          valor,
-          sort: date ? date.getTime() : 0,
-        };
-      })
-      .sort((a, b) => a.sort - b.sort)
-      .slice(-6);
+    const ventasPorDia = Array(7).fill(0);
 
-    const topProductos = [...productMap.entries()]
-      .map(([label, valor]) => ({ label, valor }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5);
+    sales.forEach(s => {
+      const fecha = new Date(s.fecha_venta);
+      const dia = fecha.getDay(); // 0=Dom, 1=Lun...
+      ventasPorDia[dia] += Number(s.total || 0);
+    });
 
-    const categorias = [...categoryMap.entries()]
-      .map(([categoria, valor]) => ({ categoria, valor }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5);
 
-    const prev = monthlySorted.at(-2)?.valor || 0;
-    const current = monthlySorted.at(-1)?.valor || 0;
-    const crecimientoMensual = prev > 0 ? ((current - prev) / prev) * 100 : 0;
+    // 🧠 CLIENTES CON COMPRA REAL
+    const clientesConCompra = new Set();
+
+    // 🧠 ESTADO COMPLETADAS
+    let ventasCompletadas = 0;
+
+    sales.forEach(s => {
+      if (s.id_cliente) clientesConCompra.add(s.id_cliente);
+
+      if (s.estado_venta === "Completada") {
+        ventasCompletadas++;
+      }
+    });
+
+    const porcentajeVentas = sales.length
+      ? (ventasCompletadas / sales.length) * 100
+      : 0;
 
     return {
-      ventasMensuales: monthlySorted,
-      topProductos,
-      categorias,
-      metricas: {
-        totalVentas,
-        ticketPromedio: sales.length ? totalVentas / sales.length : 0,
-        clientesActivos: activeClients.size,
-        crecimientoMensual,
-      },
+      total,
+      transacciones: sales.length,
+      ticket: sales.length ? total / sales.length : 0,
+      clientes: clientes.size,
+      semanal: diasSemana.map((d, i) => [d, ventasPorDia[i]]), 
+      clientesUnicos: clientesConCompra.size, 
+      porcentajeVentas,
+      productos: Object.entries(productos)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5),
+      categorias: Object.entries(categorias).slice(0, 5),
+      metodos: Object.entries(metodos),
+      estados: Object.entries(estados),
     };
+
   }, [sales]);
 
-  const filteredVentasMensuales = useMemo(() => {
-    if (!searchTerm) return computed.ventasMensuales;
-    return computed.ventasMensuales.filter((v) => v.mes.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [searchTerm, computed.ventasMensuales]);
+  // =====================
+  // 📊 CHARTS
+  // =====================
 
-  const filteredTopProductos = useMemo(() => {
-    if (!searchTerm) return computed.topProductos;
-    return computed.topProductos.filter((p) => p.label.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [searchTerm, computed.topProductos]);
-
-  const filteredCategorias = useMemo(() => {
-    if (!searchTerm) return computed.categorias;
-    return computed.categorias.filter((c) => c.categoria.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [searchTerm, computed.categorias]);
-
-  const ventasLineChart = useMemo(() => ({
-    labels: filteredVentasMensuales.map((v) => v.mes),
-    datasets: [
-      { type: "line", label: "Ventas", data: filteredVentasMensuales.map((v) => v.valor), borderColor: LINE_DARK, backgroundColor: "rgba(181,245,206,0.1)", tension: 0.3 },
-      { type: "bar", label: "Ventas Barras", data: filteredVentasMensuales.map((v) => v.valor), backgroundColor: BAR_GREEN },
-    ],
-  }), [filteredVentasMensuales]);
-
-  const topProductosChart = useMemo(() => ({
-    labels: filteredTopProductos.map((p) => p.label),
-    datasets: [
-      { label: "Ventas", data: filteredTopProductos.map((p) => p.valor), backgroundColor: BAR_GREEN, borderColor: BORDER_SUBTLE, borderRadius: 12 },
-    ],
-  }), [filteredTopProductos]);
-
-  const categoriasPie = useMemo(() => ({
-    labels: filteredCategorias.map((c) => c.categoria),
-    datasets: [
-      { data: filteredCategorias.map((c) => c.valor), backgroundColor: [PIE_GREEN_1, PIE_GREEN_2, PIE_GREEN_3] },
-    ],
-  }), [filteredCategorias]);
-
-  const commonOptions = {
+  const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: { display: true, labels: { color: LINE_DARK } },
-      tooltip: { backgroundColor: "#fff", titleColor: "#000", bodyColor: "#000", borderColor: "#e5e7eb", borderWidth: 1 },
-    },
+    plugins: { legend: { position: "bottom" } }
   };
 
-  const ventasCount = useCountUp(computed.metricas.totalVentas);
-  const ticketCount = useCountUp(computed.metricas.ticketPromedio);
-  const clientesCount = useCountUp(computed.metricas.clientesActivos);
-  const crecimientoCount = useCountUp(computed.metricas.crecimientoMensual);
-
   return (
-    <AnimatePresence mode="wait">
-      <motion.div key="dashboard-ventas" className="p-8 bg-white min-h-screen" variants={containerVariants} initial="initial" animate="animate" exit="exit" style={{ fontFamily: "Inter, sans-serif" }}>
-        <div className="max-w-6xl mx-auto space-y-6">
-          <motion.header variants={childFadeUp}>
-            <h1 className="text-3xl font-extrabold text-black">Dashboard Ventas</h1>
-            <p className="text-sm mt-2" style={{ color: LINE_DARK }}>Resumen general de las ventas</p>
-            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-          </motion.header>
+    <div className="p-6 bg-gray-100 min-h-screen space-y-6">
 
-          <motion.div variants={childFadeUp} className="mb-6 flex justify-end">
-            <input type="text" placeholder="Buscar en todo..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="p-2 rounded-lg border border-gray-300 w-full sm:w-64" />
-          </motion.div>
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800">Dashboard Ventas</h1>
+        <p className="text-sm text-gray-500">Análisis empresarial de ventas</p>
+      </div>
 
-          <motion.div variants={childFadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <AnimatedCard title="Total Ventas" value={`$${ventasCount.toLocaleString()}`} />
-            <AnimatedCard title="Ticket Promedio" value={`$${ticketCount.toLocaleString()}`} />
-            <AnimatedCard title="Clientes Activos" value={clientesCount} />
-            <AnimatedCard title="Crecimiento (%)" value={`${crecimientoCount}%`} />
-          </motion.div>
+      {/* KPIs */}
+     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-          {loading ? <p className="text-sm text-gray-500">Cargando ventas...</p> : null}
+      <Card 
+        title="Total Ventas" 
+        value={`$${data.total.toLocaleString()}`} 
+      />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Evolución Mensual</h3>
-              <div style={{ height: 240 }}><Line data={ventasLineChart} options={commonOptions} /></div>
-            </motion.section>
+      <Card 
+        title="Ventas a Clientes" 
+        value={data.clientesUnicos} 
+      />
 
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Top Productos</h3>
-              <div style={{ height: 240 }}><Bar data={topProductosChart} options={{ ...commonOptions, indexAxis: "y" }} /></div>
-            </motion.section>
+      <Card 
+        title="% Ventas Completadas" 
+        value={`${data.porcentajeVentas.toFixed(1)}%`} 
+      />
 
-            <motion.section variants={childFadeUp} className="p-6 rounded-xl bg-white shadow">
-              <h3 className="font-semibold mb-3" style={{ color: LINE_DARK }}>Ventas por Categoría</h3>
-              <div style={{ height: 240 }}><Pie data={categoriasPie} options={commonOptions} /></div>
-            </motion.section>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+      <Card 
+        title="Total Ventas (N°)" 
+        value={data.transacciones} 
+      />
+
+    </div>
+
+      {/* GRAFICAS */}
+      <div className="grid md:grid-cols-2 gap-6 text-black">
+
+        {/* 📈 EVOLUCIÓN */}
+      <Box title="Evolución de Ventas (Semana)">
+        <Chart>
+          <Line
+            data={{
+              labels: data.semanal.map(d => d[0]),
+              datasets: [
+                {
+                  label: "Ventas",
+                  data: data.semanal.map(d => d[1]),
+
+                  borderColor: "#2f6a3f",
+                  backgroundColor: "rgba(181,245,206,0.25)",
+
+                  borderWidth: 3,
+                  tension: 0.45,
+                  fill: true,
+
+                  pointRadius: 4,
+                  pointBackgroundColor: "#2f6a3f",
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+
+              animation: {
+                duration: 1800,
+                easing: "easeOutQuart",
+              },
+
+              plugins: {
+                legend: { display: false },
+              },
+
+              scales: {
+                x: {
+                  grid: { color: "rgba(47,106,63,0.1)" },
+                },
+                y: {
+                  grid: { color: "rgba(47,106,63,0.1)" },
+                  ticks: {
+                    callback: (value) => `$${value.toLocaleString()}`,
+                  },
+                },
+              },
+            }}
+          />
+        </Chart>
+      </Box>
+
+        {/* 💳 MÉTODOS */}
+        <Box title="Métodos de Pago">
+          <Chart>
+            <Doughnut
+              data={{
+                labels: data.metodos.map(m => m[0]),
+                datasets: [{
+                  data: data.metodos.map(m => m[1]),
+                  backgroundColor: [GREEN, GREEN_LIGHT, GRAY],
+                }]
+              }}
+              options={chartOptions}
+            />
+          </Chart>
+        </Box>
+
+        {/* 🏆 PRODUCTOS */}
+        <Box title="Top Productos">
+          <Chart>
+            <Bar
+              data={{
+                labels: data.productos.map(p => p[0]),
+                datasets: [{
+                  label: "Ventas por producto", // ✅ FIX
+                  data: data.productos.map(p => p[1]),
+                  backgroundColor: GREEN_LIGHT,
+                  borderRadius: 8,
+                }]
+              }}
+              options={{ ...chartOptions, indexAxis: "y" }}
+            />
+          </Chart>
+        </Box>
+
+        {/* 📊 ESTADO */}
+        <Box title="Estado de Ventas">
+          <Chart>
+            <Pie
+              data={{
+                labels: data.estados.map(e => e[0]),
+                datasets: [{
+                  data: data.estados.map(e => e[1]),
+                  backgroundColor: [GREEN, GREEN_LIGHT, GRAY],
+                }]
+              }}
+              options={chartOptions}
+            />
+          </Chart>
+        </Box>
+
+      </div>
+    </div>
   );
 }
 
-function AnimatedCard({ title, value }) {
+// 🎴 CARD
+function Card({ title, value }) {
   return (
-    <motion.div variants={childFadeUp} whileHover={{ scale: 1.03, y: -6 }} className="p-4 rounded-xl flex flex-col justify-center min-h-[88px] bg-white shadow">
-      <p className="text-sm" style={{ color: LINE_DARK }}>{title}</p>
-      <h2 className="font-bold text-2xl text-black">{value}</h2>
+    <motion.div className="bg-white p-4 rounded-xl shadow">
+      <p className="text-xs text-gray-400">{title}</p>
+      <h2 className="text-xl font-bold">{value}</h2>
     </motion.div>
   );
+}
+
+// 📦 BOX
+function Box({ title, children }) {
+  return (
+    <div className="bg-white p-5 rounded-xl shadow">
+      <h3 className="text-sm font-semibold mb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+// 📊 CONTENEDOR
+function Chart({ children }) {
+  return <div className="h-[260px]">{children}</div>;
 }

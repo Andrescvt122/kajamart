@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../../../api/axiosConfig";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const mapReturnProduct = (r) => {
   const date = r.fecha_devolucion ? new Date(r.fecha_devolucion) : null;
@@ -63,7 +64,8 @@ const mapReturnProduct = (r) => {
   };
 };
 
-export const useSearchReturnProducts = (searchTerm) => {
+export const useSearchReturnProducts = (searchTerm, statusFilter = "all") => {
+  const apiStatus = toStatusFilterParam(statusFilter);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -84,7 +86,10 @@ export const useSearchReturnProducts = (searchTerm) => {
       setError(null);
       try {
         const response = await api.get("/returnProducts/search", {
-          params: { q: term },
+          params: {
+            q: term,
+            ...(apiStatus ? { status: apiStatus } : {}),
+          },
         });
         const rows = Array.isArray(response.data)
           ? response.data
@@ -109,7 +114,7 @@ export const useSearchReturnProducts = (searchTerm) => {
     return () => {
       ignore = true;
     };
-  }, [searchTerm]);
+  }, [searchTerm, apiStatus]);
 
   return { data, loading, error };
 };
