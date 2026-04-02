@@ -31,7 +31,7 @@ import {
 } from "../../shared/components/hooks/products/products.hooks.js";
 import { useSearchProducts } from "../../shared/components/hooks/products/useSearchProducts.js";
 import { useExportProducts } from "../../shared/components/hooks/products/useExportProducts.js";
-
+import ProductHelpVideos from "./ProductHelpVideos.jsx";
 // ===== Texto seguro / anti-overflow
 const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
@@ -864,6 +864,7 @@ const handleExportPDF = async () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+      <ProductHelpVideos />
     </div>
   );
 }

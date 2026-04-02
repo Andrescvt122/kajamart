@@ -18,6 +18,7 @@ import { exportCategoriesToExcel } from "../../features/categories/helpers/expor
 import Loading from "../../features/onboarding/loading.jsx";
 import { useCategories } from "../../shared/components/hooks/categories/categories.hooks.js";
 import { useAuth } from "../../context/useAtuh.jsx";
+import CategoryHelpVideos from "./CategoryHelpVideos";
 // 🔔 Alerts para mostrar mensajes claros
 import {
   showLoadingAlert,
@@ -710,6 +711,9 @@ export default function IndexCategories() {
         onClose={() => setIsModalOpen(false)}
         onRegister={handleRegisterCategory}
       />
+       <CategoryHelpVideos />
     </div>
+    
   );
+ 
 }

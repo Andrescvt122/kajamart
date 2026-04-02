@@ -28,7 +28,7 @@ import {
   useSuppliers as useSuppliersQuery,
   useDeleteSupplier,
 } from "../../shared/components/hooks/suppliers/suppliers.hooks.js";
-
+import SupplierHelpVideos from "./SupplierHelpVideos.jsx";
 // ==== utilidades de layout/texto ultra-responsive ====
 const LONG_TEXT_CLS =
   "whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] hyphens-auto max-w-full overflow-hidden";
@@ -648,6 +648,7 @@ const totalPages = data?.totalPages || 1;
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+        <SupplierHelpVideos />
     </div>
   );
 }
