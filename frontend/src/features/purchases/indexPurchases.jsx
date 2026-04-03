@@ -39,11 +39,7 @@ const diffMinutesFromNow = (isoDate) => {
   return (Date.now() - t) / 60000;
 };
 const canAnnulPurchase = (purchase) => {
-<<<<<<< HEAD
   const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
-=======
-  const mins = diffMinutesFromNow(purchase.raw.fecha_compra);
->>>>>>> fc28aa3c6ef9e6b8c4fb46df47a25648930bd31d
   return mins >= 0 && mins < MAX_MINUTES_ANNUL;
 };
 const isAnulada = (estado) => {
