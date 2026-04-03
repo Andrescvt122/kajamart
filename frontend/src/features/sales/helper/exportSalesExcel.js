@@ -1,4 +1,3 @@
-// src/features/sales/helper/exportSalesExcel.js
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
@@ -10,6 +9,11 @@ const formatMoney = (value) =>
   }).format(Number(value) || 0);
 
 export async function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }) {
+  if (!rows || rows.length === 0) {
+    console.warn("No hay datos para exportar");
+    return;
+  }
+
   const data = rows.map((v) => ({
     "ID Venta": v.id,
     Fecha: v.fecha,
@@ -44,11 +48,16 @@ export async function exportSalesToExcel({ rows = [], filename = "ventas.xlsx" }
 
   data.forEach((row) => worksheet.addRow(row));
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(
-    new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    }),
-    filename,
-  );
+  try {
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    saveAs(
+      new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      filename
+    );
+  } catch (error) {
+    console.error("Error exportando Excel:", error);
+  }
 }
