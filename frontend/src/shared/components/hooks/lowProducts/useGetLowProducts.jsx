@@ -1,14 +1,17 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import api from "../../../../api/axiosConfig";
+import { formatDateOnly } from "../../../utils/dateTime";
+import { toStatusFilterParam } from "../../../utils/statusFilter";
 
 const API_PATH = "/lowProducts"; // relative to baseURL in axios config
 
-export const useGetLowProducts = (initialLimit = 6) => {
+export const useGetLowProducts = (initialLimit = 6, statusFilter = "all") => {
   const [pagesCache, setPagesCache] = useState({});
   const [pageCursors, setPageCursors] = useState({ 1: null });
   const [meta, setMeta] = useState({ limit: initialLimit, nextCursor: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const apiStatus = toStatusFilterParam(statusFilter);
   const lastNextCursor = useRef(null);
   const pagesCacheRef = useRef({});
   const pageCursorsRef = useRef({ 1: null });
@@ -28,12 +31,13 @@ export const useGetLowProducts = (initialLimit = 6) => {
 
   const mapItem = (low) => ({
     idLow: low.id_baja_productos,
-    dateLow: new Date(low.fecha_baja).toISOString().split("T")[0],
+    dateLow: formatDateOnly(low.fecha_baja || low.created_at || low.createdAt),
     createdAt:
       low.created_at ||
       low.createdAt ||
+      low.created_at_local ||
+      low.createdAtLocal ||
       low.fecha_creacion ||
-      low.fecha_baja ||
       null,
     isActive: Boolean(
       low.estado ?? low.activo ?? low.isActive ?? low.is_active ?? true
@@ -100,6 +104,7 @@ export const useGetLowProducts = (initialLimit = 6) => {
     setError(null);
     try {
       const params = { limit: metaRef.current.limit };
+      if (apiStatus) params.status = apiStatus;
       const cursor = pageCursorsRef.current[pageNumber];
       if (cursor) params.cursor = cursor;
 

@@ -1,7 +1,7 @@
 // frontend/src/shared/components/hooks/products/products.api.js
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const API_URL = `${BASE_URL}/kajamart/api/products`;
 
 export const getProducts = async () => {

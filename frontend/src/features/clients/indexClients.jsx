@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import Swal from "sweetalert2";
@@ -22,6 +22,7 @@ import { exportToXls } from "./helpers/exportToXls.js";
 import { exportToPdf } from "./helpers/exportToPdf.js";
 
 import { useGetClients } from "../../shared/components/hooks/clients/useGetClients";
+import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
 import { useClientDelete } from "../../shared/components/hooks/clients/useDeleteClient";
 
 // ✅ ID fijo del Cliente de Caja (coincide con backend)
@@ -34,6 +35,18 @@ const normalizeText = (text) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+
+const sortClients = (clients) =>
+  [...clients].sort((a, b) => {
+    const aCaja = String(a.id) === String(CAJA_ID);
+    const bCaja = String(b.id) === String(CAJA_ID);
+    if (aCaja && !bCaja) return -1;
+    if (!aCaja && bCaja) return 1;
+
+    const numA = typeof a.id === "string" ? parseInt(a.id, 10) : a.id;
+    const numB = typeof b.id === "string" ? parseInt(b.id, 10) : b.id;
+    return (numA || 0) - (numB || 0);
+  });
 
 const isClienteCaja = (client) => {
   if (!client) return false;
@@ -137,6 +150,13 @@ export default function IndexClients() {
     totalItems,
     goToPage,
   } = useGetClients({ initialPage: 1, limit: PER_PAGE });
+  const {
+    clients: searchedClients,
+    loading: searchLoading,
+    error: searchError,
+    searchClient,
+    clearClients,
+  } = useSearchClient();
   const { deleteClient: deleteClientHook } = useClientDelete();
 
   // Options
@@ -161,9 +181,31 @@ export default function IndexClients() {
     return caja ? [caja, ...sinCaja] : adapted;
   }, [data]);
 
+  const isSearching = searchTerm.trim() !== "";
+
+  useEffect(() => {
+    const trimmedSearch = searchTerm.trim();
+
+    if (!trimmedSearch) {
+      clearClients();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      searchClient(trimmedSearch);
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, searchClient, clearClients]);
+
+  const clientsToDisplay = useMemo(
+    () => (isSearching ? searchedClients : allClients),
+    [isSearching, searchedClients, allClients]
+  );
+
   const filtered = useMemo(() => {
     const s = normalizeText(searchTerm.trim());
-    let result = allClients;
+    let result = clientsToDisplay;
 
     if (s) {
       result = result.filter((c) =>
@@ -171,18 +213,8 @@ export default function IndexClients() {
       );
     }
 
-    // ✅ Orden: Caja primero, luego por ID
-    return result.sort((a, b) => {
-      const aCaja = String(a.id) === String(CAJA_ID);
-      const bCaja = String(b.id) === String(CAJA_ID);
-      if (aCaja && !bCaja) return -1;
-      if (!aCaja && bCaja) return 1;
-
-      const numA = typeof a.id === "string" ? parseInt(a.id, 10) : a.id;
-      const numB = typeof b.id === "string" ? parseInt(b.id, 10) : b.id;
-      return (numA || 0) - (numB || 0);
-    });
-  }, [allClients, searchTerm]);
+    return sortClients(result);
+  }, [clientsToDisplay, searchTerm]);
 
   const pageItems = filtered;
 
@@ -294,7 +326,7 @@ export default function IndexClients() {
   };
 
   // ---------------- Loading / Error ----------------
-  if (loading) {
+  if (loading || (isSearching && searchLoading)) {
     return (
       <div className="flex items-center justify-center h-64">
         <p>Cargando clientes...</p>
@@ -302,10 +334,10 @@ export default function IndexClients() {
     );
   }
 
-  if (error) {
+  if (error || (isSearching && searchError)) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-red-600">Error: {error}</p>
+        <p className="text-red-600">Error: {searchError || error}</p>
       </div>
     );
   }
@@ -361,7 +393,7 @@ export default function IndexClients() {
               <ExportExcelButton
                 event={() =>
                   exportToXls(
-                    allClients.map((c) => ({
+                    filtered.map((c) => ({
                       ...c,
                       correo: c.correo?.trim() || "N/A",
                       telefono: c.telefono?.trim() || "N/A",
@@ -375,7 +407,7 @@ export default function IndexClients() {
               <ExportPDFButton
                 event={() =>
                   exportToPdf(
-                    allClients.map((c) => ({
+                    filtered.map((c) => ({
                       ...c,
                       correo: c.correo?.trim() || "N/A",
                       telefono: c.telefono?.trim() || "N/A",
@@ -613,12 +645,12 @@ export default function IndexClients() {
           {/* Paginación */}
           <div className="mt-4 sm:mt-6">
             <Paginator
-              currentPage={page}
-              perPage={PER_PAGE}
-              totalPages={totalPages}
-              totalItems={totalItems}
+              currentPage={isSearching ? 1 : page}
+              perPage={isSearching ? Math.max(filtered.length, 1) : PER_PAGE}
+              totalPages={isSearching ? 1 : totalPages}
+              totalItems={isSearching ? filtered.length : totalItems}
               filteredLength={filtered.length}
-              goToPage={goToPage}
+              goToPage={isSearching ? () => {} : goToPage}
             />
           </div>
         </div>

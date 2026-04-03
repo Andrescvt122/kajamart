@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE || "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api";
+  import.meta.env.VITE_API_BASE || "http://localhost:3000/kajamart/api";
 
 const DETAILS_URL = `${API_BASE}/detailsProducts`;
 

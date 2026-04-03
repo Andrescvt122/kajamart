@@ -10,15 +10,15 @@ import Paginator from "../../../shared/components/paginator";
 import { motion, AnimatePresence } from "framer-motion";
 import ReturnSalesComponent from "./modals/registerClientReturn/returnSaleComponent";
 import DetailsClientReturn from "./modals/detailsClientReturn/detailsClientReturn";
-import generateProductReturnsPDF from "./helpers/exportToPdf";
-import generateProductReturnsXLS from "./helpers/exportToXls";
 import { useAuth } from "../../../context/useAtuh";
 import { useFetchReturnClients } from "../../../shared/components/hooks/returnClients/useFetchReturnClients";
 import { useSearchReturnClients } from "../../../shared/components/hooks/returnClients/useSearchReturnClients";
+import { useExportReturnClients } from "../../../shared/components/hooks/returnClients/useExportReturnClients";
 import Swal from "sweetalert2";
 import { useAnnulReturnClient } from "../../../shared/components/hooks/returnClients/useAnnulReturnClient";
 import { useAnnulmentWindow } from "../../../shared/components/hooks/useAnnulmentWindow";
 import StatusFilterDropdown from "../../../shared/components/StatusFilterDropdown";
+import ReturnClientHelpVideos from "./ReturnClientHelpVideos";
 
 const ONE_LINE_SAFE =
   "truncate break-words break-all [overflow-wrap:anywhere] max-w-full";
@@ -49,6 +49,7 @@ function ChevronIcon({ open }) {
 export default function IndexClientReturns() {
   // pagination hook handles loading pages from backend
   const perPage = 6;
+  const [statusFilter, setStatusFilter] = useState("all");
   const {
     fetchPage,
     pagesCache,
@@ -57,18 +58,19 @@ export default function IndexClientReturns() {
     reset,
     getTotalPages,
     getLoadedCount,
-  } = useFetchReturnClients(perPage);
+  } = useFetchReturnClients(perPage, statusFilter);
   const [searchTerm, setSearchTerm] = useState("");
   const {
     data: searchedReturnClients = [],
     loading: searchLoading,
     error: searchError,
-  } = useSearchReturnClients(searchTerm);
+  } = useSearchReturnClients(searchTerm, statusFilter);
+  const { exportReturnClientsExcel, exportReturnClientsPdf } =
+    useExportReturnClients();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [expanded, setExpanded] = useState(new Set());
   const [annulledMap, setAnnulledMap] = useState({});
@@ -84,7 +86,7 @@ export default function IndexClientReturns() {
     if (!isSearching) {
       fetchPage(currentPage);
     }
-  }, [currentPage, isSearching]);
+  }, [currentPage, isSearching, statusFilter]);
 
   // Función para abrir el modal de detalles (busca sólo en página actual)
   const handleViewDetails = (rowData) => {
@@ -154,7 +156,7 @@ export default function IndexClientReturns() {
       .filter((row) => {
         const isActive = annulledMap[row.idReturn] ?? row.isActive;
         if (statusFilter === "active") return isActive;
-        if (statusFilter === "annulled") return !isActive;
+        if (statusFilter === "inactive" || statusFilter === "annulled") return !isActive;
         return true;
       })
       .filter((row) => {
@@ -178,6 +180,18 @@ export default function IndexClientReturns() {
     const start = (currentPage - 1) * perPage;
     return filteredItems.slice(start, start + perPage);
   }, [filteredItems, currentPage, perPage, isSearching]);
+
+  const filterReturnClientsForExport = (rows) => {
+    const s = normalizeText(searchTerm.trim());
+    if (!s) return rows;
+
+    return rows.filter((row) =>
+      normalizeText(row.idReturn).includes(s) ||
+      normalizeText(row.idSale).includes(s) ||
+      normalizeText(row.client).includes(s) ||
+      normalizeText(row.name).includes(s)
+    );
+  };
 
   const goToPage = (n) => {
     const p = Math.min(Math.max(1, n), totalPages);
@@ -281,7 +295,7 @@ export default function IndexClientReturns() {
       />
 
       {/* Contenido */}
-      <div className="relative z-10 min-h-screen p-4 sm:p-6 lg:p-8 overflow-x-clip text-gray-900">
+      <div className="relative z-10 min-h-screen overflow-x-clip p-4 pb-24 text-gray-900 sm:p-6 sm:pb-28 lg:p-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <div>
@@ -314,6 +328,7 @@ export default function IndexClientReturns() {
             <StatusFilterDropdown
               value={statusFilter}
               onChange={(nextStatus) => {
+                reset();
                 setStatusFilter(nextStatus);
                 setCurrentPage(1);
               }}
@@ -321,10 +336,24 @@ export default function IndexClientReturns() {
             />
 
             <div className="flex gap-2">
-              <ExportExcelButton event={() => generateProductReturnsXLS(pageItems)}>
+              <ExportExcelButton
+                event={() =>
+                  exportReturnClientsExcel({
+                    transform: filterReturnClientsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 Excel
               </ExportExcelButton>
-              <ExportPDFButton event={() => generateProductReturnsPDF(pageItems)}>
+              <ExportPDFButton
+                event={() =>
+                  exportReturnClientsPdf({
+                    transform: filterReturnClientsForExport,
+                    statusFilter,
+                  })
+                }
+              >
                 PDF
               </ExportPDFButton>
             </div>
@@ -595,6 +624,8 @@ export default function IndexClientReturns() {
         onClose={handleCloseDetailsModal}
         returnData={selectedReturn}
       />
+
+      <ReturnClientHelpVideos />
     </>
   );
 }
