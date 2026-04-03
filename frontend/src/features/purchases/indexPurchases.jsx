@@ -26,6 +26,7 @@ import { exportPurchasesToPdf } from "./helper/exportPurchasesPdf";
 
 // ✅ API
 import api from "../../api/axiosConfig";
+import { useAnnulmentWindow } from "../../shared/components/hooks/useAnnulmentWindow";
 
 // Helpers UI
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
@@ -45,6 +46,13 @@ const canAnnulPurchase = (purchase) => {
 const isAnulada = (estado) => {
   const s = String(estado || "").toLowerCase();
   return s === "anulada" || s === "anulado" || s === "cancelada" || s === "cancelado";
+};
+const normalizeDateTimeValue = (value, fallback = new Date().toISOString()) => {
+  if (!value) return fallback;
+  if (typeof value === "string") return value;
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString();
 };
 
 // ✅ util: unique conservando orden
@@ -88,6 +96,11 @@ const normalizeApiPurchasesForUI = (list) => {
       c?.fecha ??
       c?.created_at ??
       new Date().toISOString();
+    const createdAt =
+      c?.created_at ??
+      c?.createdAt ??
+      c?.fecha_creacion ??
+      fecha;
 
     const estado = c?.estado_compra ?? c?.estado ?? "Completada";
     const total = Number(c?.total ?? 0);
@@ -174,6 +187,8 @@ const normalizeApiPurchasesForUI = (list) => {
       size: c?.comprobante_size ?? null,
     };
 
+    const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
+
     return {
       id: String(id),
       factura: String(factura),
@@ -181,6 +196,7 @@ const normalizeApiPurchasesForUI = (list) => {
       nit: String(proveedorNit),
       total,
       fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt: typeof createdAt === "string" ? createdAt : new Date(createdAt).toISOString(),
       estado,
       productos,
       comprobante,
@@ -192,6 +208,7 @@ const normalizeApiPurchasesForUI = (list) => {
 export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const { getAnnulmentMeta } = useAnnulmentWindow();
 
   const canCreate = hasPermission("Crear compra");
   const canAnnular = hasPermission("Anular compra");
@@ -300,8 +317,8 @@ useEffect(() => {
         proveedor: proveedorNombre,
         nit: String(proveedorNit ?? "—"),
         total: Number(c?.total ?? 0),
-        fecha,
-        createdAt,
+        fecha: normalizeDateTimeValue(fecha),
+        createdAt: normalizeDateTimeValue(createdAt, normalizeDateTimeValue(fecha)),
         estado,
         productos: Array.isArray(c?.productos) ? c.productos : [],
         comprobante: c?.comprobante ?? null,
@@ -309,6 +326,24 @@ useEffect(() => {
       };
     });
   }, [purchasesLocal]);
+
+  const getPurchaseAnnulmentMeta = useCallback(
+    (purchase) =>
+      getAnnulmentMeta(
+        purchase?.createdAt ??
+          purchase?.raw?.created_at ??
+          purchase?.raw?.createdAt ??
+          purchase?.fecha ??
+          null,
+        !isAnulada(purchase?.estado)
+      ),
+    [getAnnulmentMeta]
+  );
+
+  const canAnnulPurchase = useCallback(
+    (purchase) => !getPurchaseAnnulmentMeta(purchase).isDisabled,
+    [getPurchaseAnnulmentMeta]
+  );
 
   // =========================
   // Lista final (API + Local sin duplicar)
@@ -452,13 +487,13 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const mins = diffMinutesFromNow(purchase.fecha);
+    const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
 
-    if (!(mins >= 0 && mins < MAX_MINUTES_ANNUL)) {
+    if (annulmentMeta.hasExpired) {
       await Swal.fire({
         icon: "warning",
         title: "Tiempo agotado",
-        text: `Han pasado más de ${MAX_MINUTES_ANNUL} minutos. Esta compra ya no puede anularse.`,
+        text: `Han pasado más de ${annulmentMeta.limitMinutes} minutos. Esta compra ya no puede anularse.`,
         confirmButtonText: "Cerrar",
         confirmButtonColor: "#6b7280",
       });
@@ -784,7 +819,7 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
                                   ? "Esta compra ya está anulada"
                                   : canAnnulPurchase(p)
                                   ? "Click para anular (menos de 30 min)"
-                                  : `No se puede anular: tiempo agotado (${MAX_MINUTES_ANNUL} min)`
+                                  : `No se puede anular: tiempo agotado (${getPurchaseAnnulmentMeta(p).limitMinutes} min)`
                               }
                               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition
                                 ${
