@@ -19,6 +19,7 @@ import DetailsUsers from "./detailsUsers";
 import EditUsers from "./editUsers";
 import RegisterUsers from "./registerUsers";
 import DeleteUserModal from "./deleteUsers";
+import HelpSidebar from "./HelpSidebar";
 
 import { useUsuariosList } from "../../shared/components/hooks/users/useUserList";
 import { useAuth } from "../../context/useAtuh.jsx";
@@ -555,6 +556,7 @@ export default function IndexUsers() {
         onConfirm={handleDelete}
         user={userToDelete}
       />
+      <HelpSidebar />
     </div>
   );
 }

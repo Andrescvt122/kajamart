@@ -8,6 +8,7 @@ import DetailsRoles from "./detailsRoles";
 import EditRoles from "./editRoles";
 import DeleteRoleModal from "./deleteRoles.jsx";
 import RegisterRoles from "./registerRoles";
+import HelpSidebarRoles from "./HelpSidebarRoles";
 import { usePermisosList } from "../../shared/components/hooks/roles/usePermisosList.js";
 import { useRolesList } from "../../shared/components/hooks/roles/useRolesList.js";
 import { useAuth } from "../../context/useAtuh.jsx";
@@ -323,6 +324,7 @@ export default function IndexRoles() {
       <EditRoles isOpen={isEditOpen} onClose={() => { setIsEditOpen(false); setSelectedRole(null); }} role={selectedRole} onRoleUpdated={handleRoleUpdated} />
 
       <DeleteRoleModal isOpen={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setRoleToDelete(null); }} role={roleToDelete} onRoleDeleted={handleRoleDeleted} />
+      <HelpSidebarRoles />
     </div>
   );
 }
