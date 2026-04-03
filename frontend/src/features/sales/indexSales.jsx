@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import Swal from "sweetalert2";
-
+import HelpSidebarVentas from "../sales/HelpSidebarVentas.jsx";
 import ondas from "../../assets/ondasHorizontal.png";
 import { exportSaleReceiptPDF } from "./helper/exportSaleReceiptPDF";
 import Paginator from "../../shared/components/paginator";
@@ -327,6 +327,8 @@ export default function IndexSales() {
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
+      {/* SIDEBAR DE AYUDA */}
+      <HelpSidebarVentas />
       <div
         className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
         style={{

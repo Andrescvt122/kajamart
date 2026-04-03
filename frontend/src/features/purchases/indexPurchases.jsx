@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAtuh";
 import { exportPurchaseReceiptPDF } from "../purchases/helper/eportPurchaseReceiptPDF";
 import { useFetchPurchases as useSearchPurchases } from "../../shared/components/hooks/search/useFetchPruchases";
+import HelpSidebarCompras from "../purchases/HelpSidebarCompras";
 
 
 import ondas from "../../assets/ondasHorizontal.png";
@@ -639,6 +640,8 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
   // =========================
   return (
     <div className="flex min-h-screen">
+      {/* Sidebar de ayuda */}
+      <HelpSidebarCompras />
       {/* Fondo decorativo */}
       <div
         className="absolute bottom-0 left-0 w-full pointer-events-none"

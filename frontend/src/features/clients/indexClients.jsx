@@ -24,7 +24,7 @@ import { exportToPdf } from "./helpers/exportToPdf.js";
 import { useGetClients } from "../../shared/components/hooks/clients/useGetClients";
 import { useSearchClient } from "../../shared/components/hooks/clients/useClientSearch";
 import { useClientDelete } from "../../shared/components/hooks/clients/useDeleteClient";
-
+import HelpSidebarClientes from "../clients/HelpSidebarClientes.jsx";
 // ✅ ID fijo del Cliente de Caja (coincide con backend)
 const CAJA_ID = 0;
 const PER_PAGE = 5;
@@ -345,6 +345,8 @@ export default function IndexClients() {
   // ---------------- Render ----------------
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
+      {/* Sidebar de ayuda */}
+      <HelpSidebarClientes />
       {/* Fondo ondas */}
       <div
         className="absolute bottom-0 inset-x-0 w-full pointer-events-none overflow-x-clip"
