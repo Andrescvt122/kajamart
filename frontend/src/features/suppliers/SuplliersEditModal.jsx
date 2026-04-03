@@ -61,6 +61,25 @@ export default function SuppliersEditModal({
     [mergedCategoriasOptions]
   );
 
+  const normalizeNit = (v = "") => String(v).trim().replace(/[.\-\s]/g, "");
+
+  const isValidNitOrCedula = (v = "") => {
+    const value = String(v).trim();
+
+    if (!/^[0-9.\-\s]+$/.test(value)) return false;
+
+    const plain = normalizeNit(value);
+    if (!plain) return false;
+
+    if (/^\d{5,15}$/.test(plain) && !value.includes("-") && !value.includes(".")) {
+      return true;
+    }
+
+    if (/^\d{1,3}(\.\d{3}){1,3}-\d$/.test(value)) return true;
+
+    return /^\d{5,15}-\d$/.test(value);
+  };
+
   // ---- FORM STATE ----
   const [form, setForm] = useState({
     nombre: "",
@@ -149,9 +168,18 @@ export default function SuppliersEditModal({
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
-    if (name === "nit" || name === "telefono") {
-      newValue = value.replace(/[eE]/g, "");
+
+    if (name === "telefono") {
+      newValue = value.replace(/[eE]/g, "").replace(/[^\d]/g, "");
     }
+
+    if (name === "nit") {
+      newValue = value
+        .replace(/[eE]/g, "")
+        .replace(/[^0-9.\-\s]/g, "")
+        .replace(/\s+/g, " ");
+    }
+
     setForm((prev) => ({ ...prev, [name]: newValue }));
   };
 
@@ -164,15 +192,42 @@ export default function SuppliersEditModal({
     } else if (name === "correo") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (value && !emailRegex.test(value)) error = "Correo inválido";
-    } else if (name === "telefono" || name === "nit") {
+    } else if (name === "telefono") {
       if (value && !/^\d+$/.test(value)) error = "Solo se permiten números";
+    } else if (name === "nit") {
+      if (value && !isValidNitOrCedula(value)) {
+        error = "NIT/CC inválido. Ej: 900.123.456-7 o 123456789";
+      }
     }
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  const handleNumericKeyDown = (e) => {
-    if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Tab")
-      e.preventDefault();
+  const handleTelefonoKeyDown = (e) => {
+    const allowed = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+    if (allowed.includes(e.key)) return;
+    if (!/[0-9]/.test(e.key)) e.preventDefault();
+  };
+
+  const handleNitKeyDown = (e) => {
+    const allowed = [
+      "Backspace",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Delete",
+      "Home",
+      "End",
+    ];
+    if (allowed.includes(e.key)) return;
+    if (!/[0-9.\-]/.test(e.key)) e.preventDefault();
   };
 
   const toggleCategoria = (categoriaId) => {
@@ -209,8 +264,12 @@ export default function SuppliersEditModal({
       } else if (key === "correo") {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (value && !emailRegex.test(value)) newErrors[key] = "Correo inválido";
-      } else if (key === "telefono" || key === "nit") {
+      } else if (key === "telefono") {
         if (value && !/^\d+$/.test(value)) newErrors[key] = "Solo se permiten números";
+      } else if (key === "nit") {
+        if (value && !isValidNitOrCedula(value)) {
+          newErrors[key] = "NIT/CC inválido. Ej: 900.123.456-7 o 123456789";
+        }
       }
     });
     if (!Array.isArray(form.categorias) || form.categorias.length === 0) {
@@ -235,7 +294,7 @@ export default function SuppliersEditModal({
 
     const payload = {
       nombre: form.nombre.trim(),
-      nit: Number(form.nit),
+      nit: normalizeNit(form.nit),
       tipo_persona: form.personaType || null,
       contacto: form.contacto.trim() || null,
       telefono: form.telefono.trim() || null,
@@ -342,8 +401,8 @@ export default function SuppliersEditModal({
                   value={form.nit}
                   onChange={handleFormChange}
                   onBlur={handleBlur}
-                  onKeyDown={handleNumericKeyDown}
-                  inputMode="numeric"
+                  onKeyDown={handleNitKeyDown}
+                  inputMode="tel"
                   placeholder="NIT / Identificación"
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"
                   required
@@ -445,7 +504,7 @@ export default function SuppliersEditModal({
                   value={form.telefono}
                   onChange={handleFormChange}
                   onBlur={handleBlur}
-                  onKeyDown={handleNumericKeyDown}
+                  onKeyDown={handleTelefonoKeyDown}
                   inputMode="numeric"
                   placeholder="Teléfono"
                   className="w-full px-4 py-3 border rounded-lg bg-white text-black focus:ring-2 focus:ring-green-200 focus:outline-none"

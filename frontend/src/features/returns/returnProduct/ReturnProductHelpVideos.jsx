@@ -1,41 +1,41 @@
 import React from "react";
 import { CircleHelp, ExternalLink, PlayCircle, X } from "lucide-react";
 
-const RETURN_CLIENT_HELP_VIDEOS = [
+const RETURN_PRODUCT_HELP_VIDEOS = [
   {
-    title: "Anular devolución de cliente",
-    embedUrl: "https://www.youtube.com/embed/lJ9Gy4hXmf8?si=E2hUOJTza4Z9yIMf",
-    watchUrl: "https://www.youtube.com/watch?v=lJ9Gy4hXmf8",
+    title: "Ver detalles devolución producto",
+    embedUrl: "https://www.youtube.com/embed/01MpfGiXsjs?si=mIn8dprTh0s91DPe",
+    watchUrl: "https://www.youtube.com/watch?v=01MpfGiXsjs",
   },
   {
-    title: "Ver detalles devolución cliente",
-    embedUrl: "https://www.youtube.com/embed/SZ3y6rgGdpU?si=R8VWTIMaLDNbV_Eo",
-    watchUrl: "https://www.youtube.com/watch?v=SZ3y6rgGdpU",
+    title: "Registrar devolución producto",
+    embedUrl: "https://www.youtube.com/embed/dNZsofKlqJo?si=mHsYkoJ4b40nVBVs",
+    watchUrl: "https://www.youtube.com/watch?v=dNZsofKlqJo",
   },
   {
-    title: "Registrar devolución cliente",
-    embedUrl: "https://www.youtube.com/embed/8t7pXxlSsSU?si=rdBO6vLqIr98hOeS",
-    watchUrl: "https://www.youtube.com/watch?v=8t7pXxlSsSU",
+    title: "Ingresar apartado devolución producto",
+    embedUrl: "https://www.youtube.com/embed/rF8D3PgtW4g?si=beRpxsfPsYJEmHcE",
+    watchUrl: "https://www.youtube.com/watch?v=rF8D3PgtW4g",
   },
   {
-    title: "Ingresar devolución cliente",
-    embedUrl: "https://www.youtube.com/embed/fLT1T5EyisM?si=tKD7L-QOXCoLRW0B",
-    watchUrl: "https://www.youtube.com/watch?v=fLT1T5EyisM",
+    title: "Filtrar devoluciones producto",
+    embedUrl: "https://www.youtube.com/embed/ZGZVEYWoxag?si=bjJ9Y992asnVWsYH",
+    watchUrl: "https://www.youtube.com/watch?v=ZGZVEYWoxag",
   },
   {
-    title: "Filtrar devoluciones cliente",
-    embedUrl: "https://www.youtube.com/embed/S7OS2pdvOl4?si=lCzcMjsTMqQlfVp9",
-    watchUrl: "https://www.youtube.com/watch?v=S7OS2pdvOl4",
+    title: "Descargar reporte devolución producto",
+    embedUrl: "https://www.youtube.com/embed/I6WNyCXlSaE?si=BrrNRew_qTyY-qTT",
+    watchUrl: "https://www.youtube.com/watch?v=I6WNyCXlSaE",
   },
   {
-    title: "Exportar reporte devolución cliente",
-    embedUrl: "https://www.youtube.com/embed/PIDvFAE1wmo?si=IUUrVF8vK4tkf2aZ",
-    watchUrl: "https://www.youtube.com/watch?v=PIDvFAE1wmo",
+    title: "Buscar devolución producto",
+    embedUrl: "https://www.youtube.com/embed/HvragjoKwbs?si=c-GUsOzT29QBXCPX",
+    watchUrl: "https://www.youtube.com/watch?v=HvragjoKwbs",
   },
   {
-    title: "Buscar devolución cliente",
-    embedUrl: "https://www.youtube.com/embed/O28ETUmAfLw?si=IwLHJrW--0aAmWz0",
-    watchUrl: "https://www.youtube.com/watch?v=O28ETUmAfLw",
+    title: "Anular devolución producto",
+    embedUrl: "https://www.youtube.com/embed/1wAThKcowCw?si=dBsq7Py0Nyki1aqW",
+    watchUrl: "https://www.youtube.com/watch?v=1wAThKcowCw",
   },
 ];
 
@@ -80,7 +80,7 @@ function HelpVideoCard({ video }) {
   );
 }
 
-export default function ReturnClientHelpVideos() {
+export default function ReturnProductHelpVideos() {
   const [isOpen, setIsOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -99,7 +99,7 @@ export default function ReturnClientHelpVideos() {
   return (
     <div className="pointer-events-none fixed inset-0 z-40">
       <aside
-        id="return-client-help-videos"
+        id="return-product-help-videos"
         aria-hidden={!isOpen}
         className={`absolute bottom-24 left-4 right-4 top-4 flex flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.45)] backdrop-blur transition-all duration-300 sm:bottom-28 sm:left-auto sm:w-[420px] lg:w-[480px] ${
           isOpen
@@ -111,7 +111,7 @@ export default function ReturnClientHelpVideos() {
           <div className="flex items-start justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-green-100 bg-green-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-green-700">
               <CircleHelp size={14} />
-              Devolución clientes
+              Devolución producto
             </div>
 
             <button
@@ -134,7 +134,7 @@ export default function ReturnClientHelpVideos() {
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          {RETURN_CLIENT_HELP_VIDEOS.map((video) => (
+          {RETURN_PRODUCT_HELP_VIDEOS.map((video) => (
             <HelpVideoCard key={video.watchUrl} video={video} />
           ))}
         </div>
@@ -144,7 +144,7 @@ export default function ReturnClientHelpVideos() {
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          aria-controls="return-client-help-videos"
+          aria-controls="return-product-help-videos"
           aria-expanded={isOpen}
           aria-label={isOpen ? "Cerrar videos de ayuda" : "Videos de ayuda"}
           className={`group inline-flex items-center rounded-full border px-3 py-3 shadow-[0_20px_45px_-28px_rgba(22,163,74,0.85)] ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 ${

@@ -146,7 +146,8 @@ export default function LowHelpVideos() {
           onClick={() => setIsOpen((prev) => !prev)}
           aria-controls="low-help-videos"
           aria-expanded={isOpen}
-          className={`group inline-flex items-center gap-3 rounded-full border px-3 py-3 shadow-[0_20px_45px_-28px_rgba(22,163,74,0.85)] ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 ${
+          aria-label={isOpen ? "Cerrar videos de ayuda" : "Videos de ayuda"}
+          className={`group inline-flex items-center rounded-full border px-3 py-3 shadow-[0_20px_45px_-28px_rgba(22,163,74,0.85)] ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 ${
             isOpen
               ? "border-green-600 bg-green-600 text-white"
               : "border-green-100 bg-white/95 text-slate-700 backdrop-blur hover:border-green-200 hover:text-green-700"
@@ -162,7 +163,14 @@ export default function LowHelpVideos() {
             <CircleHelp size={18} />
           </span>
 
-          <span className="pr-1 text-left">
+          <span
+            aria-hidden="true"
+            className={`overflow-hidden whitespace-nowrap text-left transition-all duration-200 ${
+              isOpen
+                ? "max-w-[9rem] pl-3 pr-1 opacity-100"
+                : "max-w-0 opacity-0 group-hover:max-w-[9rem] group-hover:pl-3 group-hover:pr-1 group-hover:opacity-100 group-focus-visible:max-w-[9rem] group-focus-visible:pl-3 group-focus-visible:pr-1 group-focus-visible:opacity-100"
+            }`}
+          >
             <span className="block text-[11px] uppercase tracking-[0.18em] opacity-70">
               Ayuda
             </span>
