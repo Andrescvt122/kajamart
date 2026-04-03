@@ -32,6 +32,17 @@ import { useAnnulmentWindow } from "../../shared/components/hooks/useAnnulmentWi
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
 const money = (v) => `$${Number(v || 0).toLocaleString("es-CO")}`;
 
+// ✅ Anulación (30 minutos) — solo UI por ahora
+const MAX_MINUTES_ANNUL = 30;
+const diffMinutesFromNow = (isoDate) => {
+  const t = new Date(isoDate).getTime();
+  if (Number.isNaN(t)) return Infinity;
+  return (Date.now() - t) / 60000;
+};
+const canAnnulPurchase = (purchase) => {
+  const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
+  return mins >= 0 && mins < MAX_MINUTES_ANNUL;
+};
 const isAnulada = (estado) => {
   const s = String(estado || "").toLowerCase();
   return s === "anulada" || s === "anulado" || s === "cancelada" || s === "cancelado";
@@ -176,14 +187,16 @@ const normalizeApiPurchasesForUI = (list) => {
       size: c?.comprobante_size ?? null,
     };
 
+    const createdAt = c?.created_at ?? c?.createdAt ?? c?.fecha_creacion ?? fecha;
+
     return {
       id: String(id),
       factura: String(factura),
       proveedor: proveedorNombre,
       nit: String(proveedorNit),
       total,
-      fecha: normalizeDateTimeValue(fecha),
-      createdAt: normalizeDateTimeValue(createdAt, normalizeDateTimeValue(fecha)),
+      fecha: typeof fecha === "string" ? fecha : new Date(fecha).toISOString(),
+      createdAt: typeof createdAt === "string" ? createdAt : new Date(createdAt).toISOString(),
       estado,
       productos,
       comprobante,
@@ -361,7 +374,6 @@ useEffect(() => {
   // Modal detalle
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [expanded, setExpanded] = useState(new Set());
 
   // =========================
   // Filtro + Paginación
@@ -447,14 +459,6 @@ useEffect(() => {
     setSelectedPurchase(null);
   }, []);
 
-  const toggleExpand = useCallback((id) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
-
   // ✅ Anular compra (solo UI por ahora)
  const handleAnnulPurchase = useCallback(
   async (purchase) => {
@@ -483,7 +487,7 @@ useEffect(() => {
     }
 
     // 3) ventana 30 min
-    const annulmentMeta = getPurchaseAnnulmentMeta(purchase);
+    const mins = diffMinutesFromNow(purchase?.createdAt ?? purchase?.fecha);
 
     if (annulmentMeta.hasExpired) {
       await Swal.fire({

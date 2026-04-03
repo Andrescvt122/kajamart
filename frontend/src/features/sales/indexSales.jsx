@@ -17,10 +17,11 @@ import {
 import SaleDetailModal from "./SaleDetailModal";
 import { useSales } from "../../shared/components/hooks/sales/useSales";
 import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpdateSaleStatus";
-import { useExportSales } from "../../shared/components/hooks/sales/useExportSales";
 import { useFetchSales } from "../../shared/components/hooks/search/useFetchSales";
 import { useAuth } from "../../context/useAtuh";
 import Loading from "../../features/onboarding/loading.jsx";
+import { exportSalesToExcel } from "./helper/exportSalesExcel";
+import { exportSalesToPDF } from "./helper/exportSalesPDF";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
@@ -130,7 +131,6 @@ export default function IndexSales() {
     setPage,
   } = useSales();
   const { updateStatus } = useUpdateSaleStatus();
-  const { exportSalesToExcel, exportSalesToPDF } = useExportSales();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [selectedSale, setSelectedSale] = useState(null);
