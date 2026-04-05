@@ -21,13 +21,10 @@ import {
 
 import PurchaseDetailModal from "./PurchaseDetailModal";
 
-// ✅ Helpers exportación
-import { exportPurchasesToExcel } from "./helper/exportPurchasesExcel";
-import { exportPurchasesToPdf } from "./helper/exportPurchasesPdf";
-
 // ✅ API
 import api from "../../api/axiosConfig";
 import { useAnnulmentWindow } from "../../shared/components/hooks/useAnnulmentWindow";
+import { useExportPurchases } from "../../shared/components/hooks/purchases/useExportPurchases";
 
 // Helpers UI
 const onlyDate = (v) => (v ? String(v).slice(0, 10) : "—");
@@ -197,6 +194,11 @@ export default function IndexPurchases() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { getAnnulmentMeta } = useAnnulmentWindow();
+  const {
+    exportPurchasesExcel,
+    exportPurchasesPdf,
+    loading: exportLoading,
+  } = useExportPurchases();
 
   const canCreate = hasPermission("Crear compra");
   const canAnnular = hasPermission("Anular compra");
@@ -279,6 +281,13 @@ useEffect(() => {
   const normalizedSearchedApiPurchases = useMemo(
     () => normalizeApiPurchasesForUI(searchedPurchasesApi),
     [searchedPurchasesApi]
+  );
+  const searchedPurchaseIds = useMemo(
+    () =>
+      new Set(
+        normalizedSearchedApiPurchases.map((purchase) => String(purchase.id))
+      ),
+    [normalizedSearchedApiPurchases]
   );
 
   // =========================
@@ -635,6 +644,58 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
     };
   }, []);
 
+  const buildPurchaseExportTransform = useCallback(
+    (rows) => {
+      if (!isSearchMode) return rows;
+      return rows.filter((purchase) =>
+        searchedPurchaseIds.has(String(purchase.id))
+      );
+    },
+    [isSearchMode, searchedPurchaseIds]
+  );
+
+  const handleExportExcel = useCallback(async () => {
+    if (isSearchMode && searchLoading) {
+      await Swal.fire({
+        icon: "info",
+        title: "Buscando compras",
+        text: "Espera a que termine la búsqueda para exportar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    await exportPurchasesExcel({
+      transform: buildPurchaseExportTransform,
+    });
+  }, [
+    buildPurchaseExportTransform,
+    exportPurchasesExcel,
+    isSearchMode,
+    searchLoading,
+  ]);
+
+  const handleExportPDF = useCallback(async () => {
+    if (isSearchMode && searchLoading) {
+      await Swal.fire({
+        icon: "info",
+        title: "Buscando compras",
+        text: "Espera a que termine la búsqueda para exportar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    await exportPurchasesPdf({
+      transform: buildPurchaseExportTransform,
+    });
+  }, [
+    buildPurchaseExportTransform,
+    exportPurchasesPdf,
+    isSearchMode,
+    searchLoading,
+  ]);
+
   // =========================
   // Render
   // =========================
@@ -690,25 +751,12 @@ const handleDownloadReceiptPdf = useCallback((purchase) => {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              <ExportExcelButton
-                event={() =>
-                  exportPurchasesToExcel(
-                    isSearchMode ? searchedPurchases : filtered
-                  )
-                }
-              >
-                Excel
+              <ExportExcelButton event={handleExportExcel}>
+                {exportLoading ? "Exportando..." : "Excel"}
               </ExportExcelButton>
 
-              <ExportPDFButton
-                event={() =>
-                  exportPurchasesToPdf({
-                    rows: isSearchMode ? searchedPurchases : filtered,
-                    filename: "compras.pdf",
-                  })
-                }
-              >
-                PDF
+              <ExportPDFButton event={handleExportPDF}>
+                {exportLoading ? "Exportando..." : "PDF"}
               </ExportPDFButton>
 
               <button

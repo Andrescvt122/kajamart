@@ -20,8 +20,7 @@ import { useUpdateSaleStatus } from "../../shared/components/hooks/sales/useUpda
 import { useFetchSales } from "../../shared/components/hooks/search/useFetchSales";
 import { useAuth } from "../../context/useAtuh";
 import Loading from "../../features/onboarding/loading.jsx";
-import { exportSalesToExcel } from "./helper/exportSalesExcel";
-import { exportSalesToPDF } from "./helper/exportSalesPDF";
+import { useExportSales } from "../../shared/components/hooks/sales/useExportSales";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("es-CO", {
@@ -137,6 +136,11 @@ export default function IndexSales() {
   const [updatingId, setUpdatingId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const { hasPermission } = useAuth();
+  const {
+    exportSalesExcel,
+    exportSalesPdf,
+    loading: exportLoading,
+  } = useExportSales();
   const canCreate = hasPermission("Crear venta");
   const canAnnular = hasPermission("Anular venta");
   const trimmedSearchTerm = searchTerm.trim();
@@ -148,6 +152,10 @@ export default function IndexSales() {
   const normalizedSearchedSales = useMemo(
     () => mapSalesForUI(searchedSales),
     [searchedSales]
+  );
+  const searchedSaleIds = useMemo(
+    () => new Set(normalizedSearchedSales.map((sale) => String(sale.id_ui))),
+    [normalizedSearchedSales]
   );
 
   const pageSize = perPage || 6;
@@ -206,28 +214,43 @@ export default function IndexSales() {
     />
   );
 
-  const exportRows = useMemo(() => {
-    return displayedSales.map((v) => ({
-      id: v.id_ui,
-      fecha: v.fecha_ui,
-      cliente: v.cliente_ui,
-      total: v.total_ui,
-      medioPago: v.medioPago_ui,
-      estado: v.estado_ui,
-    }));
-  }, [displayedSales]);
+  const buildSalesExportTransform = useMemo(
+    () => (rows) => {
+      if (!isSearchMode) return rows;
+      return rows.filter((sale) => searchedSaleIds.has(String(sale.id)));
+    },
+    [isSearchMode, searchedSaleIds]
+  );
 
-  const handleExportExcel = () => {
-    exportSalesToExcel({
-      rows: exportRows,
-      filename: `ventas_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  const handleExportExcel = async () => {
+    if (isSearchMode && searchLoading) {
+      await Swal.fire({
+        icon: "info",
+        title: "Buscando ventas",
+        text: "Espera a que termine la búsqueda para exportar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    await exportSalesExcel({
+      transform: buildSalesExportTransform,
     });
   };
 
-  const handleExportPDF = () => {
-    exportSalesToPDF({
-      rows: exportRows,
-      filename: `ventas_${new Date().toISOString().slice(0, 10)}.pdf`,
+  const handleExportPDF = async () => {
+    if (isSearchMode && searchLoading) {
+      await Swal.fire({
+        icon: "info",
+        title: "Buscando ventas",
+        text: "Espera a que termine la búsqueda para exportar.",
+        confirmButtonColor: "#16a34a",
+      });
+      return;
+    }
+
+    await exportSalesPdf({
+      transform: buildSalesExportTransform,
     });
   };
 
@@ -372,11 +395,15 @@ export default function IndexSales() {
               </div>
 
               <div className="flex justify-end">
-                <ExportExcelButton event={handleExportExcel}>Excel</ExportExcelButton>
+                <ExportExcelButton event={handleExportExcel}>
+                  {exportLoading ? "Exportando..." : "Excel"}
+                </ExportExcelButton>
               </div>
 
               <div className="flex justify-end">
-                <ExportPDFButton event={handleExportPDF}>PDF</ExportPDFButton>
+                <ExportPDFButton event={handleExportPDF}>
+                  {exportLoading ? "Exportando..." : "PDF"}
+                </ExportPDFButton>
               </div>
 
               <div className="flex justify-end">
