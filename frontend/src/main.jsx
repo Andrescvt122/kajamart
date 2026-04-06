@@ -9,17 +9,16 @@ import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AtuhProvider';
-// 🟢 Instancia global de React Query
+
 const queryClient = new QueryClient();
 
-// 🟢 Montar la aplicación una sola vez
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <PrimeReactProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-          <App />
+            <App />
           </AuthProvider>
         </QueryClientProvider>
       </PrimeReactProvider>
