@@ -7,6 +7,7 @@ const TOKEN_COOKIE_NAME = "kajamart_token";
 export const useLogin = ()=>{
     const [loading, setLoading]=useState(false);
     const [error, setError]=useState(null);
+    const INVALID_CREDENTIALS_MESSAGE = "Correo y/o contraseña incorrectas";
     const URL_LOGIN = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/auth/login"
     const login=useCallback(
         async ({email, password}) =>{
@@ -28,14 +29,17 @@ export const useLogin = ()=>{
                 return {ok:true, token, data};
             }catch(err){
                 let message = "Error al iniciar sesión.";
+                const status = err.response?.status;
                 if (!err.response) {
                     message = "no se puede establecer conexión";
+                } else if (status === 401) {
+                    message = INVALID_CREDENTIALS_MESSAGE;
                 } else {
                     const data = err.response.data;
                     message = (typeof data === 'string' ? data : data?.message || data?.error || data?.msg) || err.message || message;
                 }
                 setError(message);
-                return{ok:false, message};
+                return{ok:false, message, status};
             }finally{
                 setLoading(false);
             }

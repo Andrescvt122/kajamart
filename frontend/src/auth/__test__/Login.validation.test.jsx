@@ -111,6 +111,7 @@ describe("Login.validation", () => {
   test("debe mostrar error cuando el login falla", async () => {
     mockSignIn.mockResolvedValue({
       ok: false,
+      status: 401,
       message: "Credenciales inválidas",
     });
 
@@ -133,7 +134,7 @@ describe("Login.validation", () => {
       });
     });
 
-    expect(screen.getByText("Credenciales inválidas")).toBeInTheDocument();
+    expect(screen.getByText("Correo y/o contraseña incorrectas")).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

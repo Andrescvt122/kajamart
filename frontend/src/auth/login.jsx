@@ -11,6 +11,7 @@ import { useAuth } from "../context/useAtuh";
 // import Loading from "../features/onboarding/loading";
 
 export default function Login() {
+  const INVALID_CREDENTIALS_MESSAGE = "Correo y/o contraseña incorrectas";
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -29,7 +30,11 @@ export default function Login() {
       // Redirigir a la ruta anterior o a /app
       navigate(from, { replace: true });
     } else {
-      setLoginError(result.message || "Correo o contraseña incorrectas");
+      setLoginError(
+        result.status === 401
+          ? INVALID_CREDENTIALS_MESSAGE
+          : result.message || INVALID_CREDENTIALS_MESSAGE
+      );
     }
   };
 
