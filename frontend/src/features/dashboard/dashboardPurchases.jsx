@@ -34,7 +34,7 @@ export default function DashboardComprasPro() {
   const [purchases, setPurchases] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/kajamart/api/purchase?limit=1000")
+    fetch("https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/purchase?limit=1000")
       .then(res => res.json())
       .then(data => setPurchases(data.data || data));
   }, []);

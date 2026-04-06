@@ -49,7 +49,7 @@ const resolveImageUrl = (img) => {
   const API_BASE =
     import.meta.env.VITE_API_BASE ||
     import.meta.env.VITE_API_BASE_URL ||
-    "http://localhost:3000/kajamart/api";
+    "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api";
 
   const originGuess = API_BASE.replace(/\/kajamart\/api\/?$/i, "");
   return `${originGuess}${normalizeLeadingSlash(img)}`;

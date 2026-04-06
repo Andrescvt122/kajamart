@@ -56,8 +56,8 @@ export default function DashboardClientes() {
   useEffect(() => {
     const fetchData = async () => {
       const [c, v] = await Promise.all([
-        fetch("http://localhost:3000/kajamart/api/clients"),
-        fetch("http://localhost:3000/kajamart/api/sales"),
+        fetch("https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/clients"),
+        fetch("https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/sales"),
       ]);
 
       const clientesData = await c.json();

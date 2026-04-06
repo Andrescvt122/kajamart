@@ -34,7 +34,7 @@ export default function DashboardVentas() {
   const [sales, setSales] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/kajamart/api/sales")
+    fetch("https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api/sales")
       .then(res => res.json())
       .then(data => setSales(data.data || data));
   }, []);

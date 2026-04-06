@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const BASE_URL = "http://localhost:3000/kajamart/api";
+const BASE_URL = "https://kajamart-api-hmate3egacewdkct.canadacentral-01.azurewebsites.net/kajamart/api";
 
 export function useFetchSales(searchTerm) {
   const [data, setData] = useState([]);
