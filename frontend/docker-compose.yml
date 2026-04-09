@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: node:20-alpine
+    image: node:20-alpine3.22
     working_dir: /app
     ports:
       - "5173:5173"
